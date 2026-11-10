@@ -20,8 +20,11 @@ a prebuilt CEF framework. Read these rules before changing code.
    Chromium opens by itself become Ikago tabs, DevTools docks beside the page (`DevToolsDock`), and
    `ChromiumWindowGuard` hides anything titled that slips through. Tests stay hidden too, and
    `CEFHiddenServiceChecks.noVisibleChromiumWindows` fails the suite otherwise.
-1b. **Never change a user's engine silently.** WebKit is the default; a change applies on relaunch. Sites can have their
-   own engine (§8, per-site engines), but only by the person's choice: lists are suggestions they assign, never defaults.
+1b. **Never change a user's engine silently.** A new profile starts on `BrowserState.newProfileEngine` (Chromium) and the
+   welcome page (`ikago://welcome`) asks before any site loads; after that the engine changes only by the person's choice,
+   on relaunch. Sites can have their own engine (§8, per-site engines), but only by the person's choice: lists are
+   suggestions they assign, never defaults. New profiles take their look from `applyNewProfileDefaults`; saved profiles
+   keep their own values, so optional preferences keep their old meaning when unset.
 2. **One owner per web view.** Only `Engine/WebKit/WebTab.swift` creates and configures `WKWebView`
    (it is the navigation and UI delegate). Everything else talks to the `WebTab` protocol.
 3. **Storage per Space.** `Engine/WebKit/WebProfiles.swift` maps a Space's profile ID to its

@@ -43,11 +43,18 @@ app.setActivationPolicy(.regular)
 app.delegate = delegate
 
 // The default engine and the engines site rules need are fixed for this launch; changes apply after a relaunch.
-if case .loaded(let session) = SessionStore.standard.load() {
+switch SessionStore.standard.load() {
+case .loaded(let session):
     let preferences = session.browser ?? BrowserPreferences()
     BrowserRuntime.engine = preferences.preferredEngine
     // WebKit is always available; only Chromium has to start at launch.
     BrowserRuntime.running = SiteEngines.engines(for: preferences).union([.webkit])
+case .fresh where BrowserState.isRealProfile(.standard):
+    // A new profile starts on its default engine; the welcome page can still choose the other one.
+    BrowserRuntime.engine = BrowserState.newProfileEngine
+    BrowserRuntime.running = [BrowserState.newProfileEngine, .webkit]
+default:
+    break
 }
 
 do {

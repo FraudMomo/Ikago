@@ -75,6 +75,8 @@ final class BrowserState {
     var lastActiveTab: [UUID: String] = [:]
     /// Set when both session files were unreadable (they stay on disk untouched).
     var restoreWarning: String?
+    /// A new profile shows the welcome page once its window opens.
+    @ObservationIgnored var pendingWelcome = false
     var settingsCategory: SettingsCategory = .general
     @ObservationIgnored let importer = BrowserImportModel()
 
@@ -232,10 +234,10 @@ final class BrowserState {
         scheduleSave()
     }
 
-    /// Settings, History, Downloads and Bookmarks come back with ⌘⇧T; an empty split slot doesn't.
+    /// Settings, History, Downloads and Bookmarks come back with ⌘⇧T; an empty split slot and the welcome page don't.
     static func isReopenableInternalPage(_ url: String) -> Bool {
         guard let page = InternalPage(url: url) else { return false }
-        return page != .splitEmpty
+        return page != .splitEmpty && page != .welcome
     }
 
     func togglePin(_ id: String) {

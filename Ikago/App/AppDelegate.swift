@@ -63,7 +63,9 @@ final class AppDelegate: NSObject, IKCEFApplicationDelegate {
     }
 
     private func openBrowserWindow() {
-        if state.tabs.isEmpty, pendingURLs.isEmpty { state.newTab(url: "https://duckduckgo.com") }
+        if state.tabs.isEmpty, pendingURLs.isEmpty {
+            state.newTab(url: state.pendingWelcome ? InternalPage.welcome.url : "https://duckduckgo.com")
+        }
         installInputMonitors()
         let controller = BrowserWindowController(state: state)
         windowController = controller

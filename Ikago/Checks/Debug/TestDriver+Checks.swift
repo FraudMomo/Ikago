@@ -16,21 +16,16 @@ extension TestDriver {
                 let width = parts.count > 3 ? CGFloat(Double(parts[3]) ?? 1120) : 1120
                 state.settingsCategory = category
                 state.colorMode = parts[1] == "dark" ? .dark : .light
-                let host = NSHostingView(rootView: InternalPageView(page: .settings, state: state).frame(width: width, height: 1400))
-                host.frame = NSRect(x: 0, y: 0, width: width, height: 1400)
-                let window = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
-                window.isReleasedWhenClosed = false
-                window.contentView = host
-                window.setFrameOrigin(NSPoint(x: -4000, y: -4000))
-                window.orderBack(nil)
-                try? await Task.sleep(for: .milliseconds(1500))
-                host.layoutSubtreeIfNeeded()
-                if let image = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
-                    host.cacheDisplay(in: host.bounds, to: image)
-                    try? image.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: parts[2]))
-                    print("IKTEST settingsshot \(parts[2])")
-                }
-                window.orderOut(nil)
+                await render(InternalPageView(page: .settings, state: state), size: NSSize(width: width, height: 1400), to: parts[2])
+            }
+        case "welcomeshot":
+            // welcomeshot:<step 0…3>|<dark or light>|<file.png>: renders one step of the welcome page.
+            let parts = arg.split(separator: "|").map(String.init)
+            if parts.count >= 3, let index = Int(parts[0]), WelcomeStep.allCases.indices.contains(index) {
+                state.colorMode = parts[1] == "dark" ? .dark : .light
+                let page = WelcomePage(state: state, tabID: nil, initialStep: WelcomeStep.allCases[index])
+                    .environment(\.colorScheme, state.palette.isDark ? .dark : .light)
+                await render(page, size: NSSize(width: 900, height: 640), to: parts[2])
             }
         case "mediademo": await MediaIslandDemo.run(c)
         case "sidebarprobe": await SidebarToggleProbe.run(c)

@@ -145,6 +145,7 @@ enum BrowserFeatureChecks {
             try? await Task.sleep(for: .seconds(2))
             check(controller.page != nil && !background.isHibernating, "selecting sleeping tab recreates page")
         } else { check(false, "two loaded fixture tabs available for hibernation") }
+        NewProfileChecks.run(check)
         print("IKTEST featurechecks \(failures.isEmpty ? "PASS" : "FAIL") failures=\(failures.count)")
     }
 }

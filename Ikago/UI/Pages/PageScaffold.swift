@@ -16,6 +16,7 @@ struct InternalPageView: View {
             case .settings: SettingsPage(state: state, commands: commands)
             case .history: HistoryPage(state: state, commands: commands)
             case .downloads: DownloadsPage(colors: colors)
+            case .welcome: WelcomePage(state: state, commands: commands, tabID: tabID)
             }
         }
         .environment(\.colorScheme, colors.isDark ? .dark : .light)

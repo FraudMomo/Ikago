@@ -67,6 +67,10 @@ extension BrowserState {
     func restore() {
         switch store.load() {
         case .fresh:
+            if Self.isRealProfile(store) {
+                applyNewProfileDefaults()
+                pendingWelcome = true
+            }
             return
         case .unreadable(let stamp):
             restoreWarning = "Your saved session could not be read. The original files were kept as session*.unreadable-\(stamp).json beside the session."

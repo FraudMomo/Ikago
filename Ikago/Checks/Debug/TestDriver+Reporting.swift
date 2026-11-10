@@ -1,9 +1,29 @@
 #if DEBUG
 import AppKit
+import SwiftUI
 import WebKit
 
 /// What the test driver prints and saves: window snapshots and the `dump` state line.
 extension TestDriver {
+    /// Renders a SwiftUI view in an off-screen window to a PNG (no Screen Recording permission needed).
+    static func render(_ view: some View, size: NSSize, to path: String) async {
+        let host = NSHostingView(rootView: view.frame(width: size.width, height: size.height))
+        host.frame = NSRect(origin: .zero, size: size)
+        let window = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = host
+        window.setFrameOrigin(NSPoint(x: -4000, y: -4000))
+        window.orderBack(nil)
+        try? await Task.sleep(for: .milliseconds(1500))
+        host.layoutSubtreeIfNeeded()
+        if let image = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
+            host.cacheDisplay(in: host.bounds, to: image)
+            try? image.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
+            print("IKTEST rendered \(path)")
+        }
+        window.orderOut(nil)
+    }
+
     /// Renders the window's own view tree (no Screen Recording permission needed).
     static func snapshot(_ window: NSWindow?, to path: String) {
         guard let view = window?.contentView?.superview ?? window?.contentView,
