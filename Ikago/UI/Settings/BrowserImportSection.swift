@@ -9,7 +9,7 @@ struct BrowserImportSection: View {
 
     var body: some View {
         PageSection(title: "Import",
-                    footer: "Import bookmarks, history, open tabs, tab groups and available website logins into “\(state.activeSpace.name)”. Chrome groups become folders. Your current tabs and bookmarks are kept. macOS may ask you to allow access.") {
+                    footer: "Imports into “\(state.activeSpace.name)”. Your current tabs and bookmarks are kept.") {
             if model.discovering && model.profiles.isEmpty {
                 HStack(spacing: 10) { ProgressView().controlSize(.small); Text("Finding your browsers…") }
                     .padding(20).frame(maxWidth: .infinity, alignment: .leading)

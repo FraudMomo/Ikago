@@ -1,53 +1,35 @@
 import SwiftUI
 
 enum SettingsCategory: String, CaseIterable, Identifiable {
-    case general, search, tabs, appearance, toolbar, extensions, security, passwords, privacy, imports, about
+    case general, appearance, toolbar, tabs, search, extensions, security, passwords, imports, about
     var id: String { rawValue }
-    var navigationTitle: String { self == .imports ? "Import Data" : title }
     var title: String {
         switch self {
         case .general: "General"
-        case .search: "Search"
-        case .toolbar: "Toolbar & Sidebar"
         case .appearance: "Appearance"
-        case .tabs: "Tabs & Memory"
+        case .toolbar: "Sidebar & Toolbar"
+        case .tabs: "Tabs"
+        case .search: "Search"
         case .extensions: "Extensions"
-        case .security: "Security"
+        case .security: "Privacy & Security"
         case .passwords: "Passwords"
-        case .privacy: "Privacy"
-        case .imports: "Import Browser Data"
-        case .about: "About & Updates"
-        }
-    }
-    var detail: String {
-        switch self {
-        case .general: "Browser engine, default browser and importing data."
-        case .search: "Search engine and address bar suggestions."
-        case .tabs: "New tabs, link placement, bookmarks and memory."
-        case .appearance: "Layout, colors, spacing and motion."
-        case .toolbar: "Toolbar controls, pinned tabs and the bookmarks bar."
-        case .extensions: "Installed extensions and their updates."
-        case .security: "HTTPS, website warnings and protected storage."
-        case .passwords: "Where sign-in details are filled from."
-        case .privacy: "Tracking protection and browsing data."
-        case .imports: "Bookmarks, history and open tabs from another browser."
-        case .about: "Version, updates and developer tools."
+        case .imports: "Import"
+        case .about: "About"
         }
     }
     static var navigationGroups: [[Self]] {
-        [[.general, .search, .tabs], [.appearance, .toolbar, .extensions], [.security, .passwords, .privacy], [.imports, .about]]
+        [[.general, .appearance, .toolbar, .tabs, .search], [.extensions, .security, .passwords], [.imports, .about]]
     }
     var symbol: String {
         switch self {
         case .general: "gearshape"
-        case .search: "magnifyingglass"
-        case .toolbar: "slider.horizontal.3"
         case .appearance: "paintpalette"
+        case .toolbar: "sidebar.left"
         case .tabs: "square.on.square"
+        case .search: "magnifyingglass"
         case .extensions: "puzzlepiece.extension"
-        case .security: "lock.shield"
+        case .security: "hand.raised"
         case .passwords: "key"
-        case .privacy: "hand.raised"
         case .imports: "square.and.arrow.down"
         case .about: "info.circle"
         }
@@ -55,9 +37,14 @@ enum SettingsCategory: String, CaseIterable, Identifiable {
 }
 
 /// Each category has its own page and scroll position; narrow windows use a category menu.
+/// The search field above the categories lists matching settings and opens each at its section.
 struct SettingsPage: View {
     @Bindable var state: BrowserState
     weak var commands: BrowserCommands?
+    @State private var query = ""
+    @State private var target: String?
+    @State private var highlight: String?
+    @FocusState private var searchFocused: Bool
 
     var body: some View {
         GeometryReader { geometry in
@@ -74,9 +61,11 @@ struct SettingsPage: View {
                             ForEach(SettingsCategory.allCases) { Label($0.title, systemImage: $0.symbol).tag($0) }
                         }.pickerStyle(.menu).padding(16).frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    PageScaffold(title: state.settingsCategory.title, colors: state.palette, subtitle: state.settingsCategory.detail) {
+                    PageScaffold(title: state.settingsCategory.title, colors: state.palette, scrollTarget: target) {
                         categoryContent
-                    }.id(state.settingsCategory).recordLayout("settings-content")
+                    }
+                    .environment(\.settingsHighlight, highlight)
+                    .id(state.settingsCategory).recordLayout("settings-content")
                 }
                 .frame(width: max(0, geometry.size.width - navigationWidth), height: geometry.size.height)
             }
@@ -87,25 +76,49 @@ struct SettingsPage: View {
     }
 
     private var navigation: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                Text("Settings").font(.system(size: 20, weight: .semibold))
-                    .padding(.leading, 10).padding(.top, 20).padding(.bottom, 4)
-                ForEach(Array(SettingsCategory.navigationGroups.enumerated()), id: \.offset) { _, categories in
-                    VStack(spacing: 2) {
-                        ForEach(categories) { category in
-                            SettingsNavigationRow(category: category, selected: state.settingsCategory == category, colors: state.palette) {
-                                state.settingsCategory = category
-                            }
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Settings").font(.system(size: 20, weight: .semibold))
+                .padding(.leading, 10).padding(.top, 20)
+            SettingsSearchField(text: $query, focused: $searchFocused)
+            ScrollView {
+                if query.trimmingCharacters(in: .whitespaces).isEmpty {
+                    categories
+                } else {
+                    SettingsSearchResults(results: SettingsSearch.results(for: query), colors: state.palette, open: open)
+                }
+            }
+            .scrollIndicators(.never)
+        }
+        .padding(.horizontal, 12).padding(.top, 16)
+        .foregroundStyle(state.palette.text)
+        .overlay(alignment: .trailing) { Color.primary.opacity(0.08).frame(width: 1) }
+    }
+
+    private var categories: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            ForEach(Array(SettingsCategory.navigationGroups.enumerated()), id: \.offset) { _, categories in
+                VStack(spacing: 2) {
+                    ForEach(categories) { category in
+                        SettingsNavigationRow(category: category, selected: state.settingsCategory == category, colors: state.palette) {
+                            target = nil
+                            state.settingsCategory = category
                         }
                     }
                 }
             }
-            .padding(.horizontal, 12).padding(.vertical, 16)
         }
-        .scrollIndicators(.never)
-        .foregroundStyle(state.palette.text)
-        .overlay(alignment: .trailing) { Color.primary.opacity(0.08).frame(width: 1) }
+        .padding(.bottom, 16)
+    }
+
+    /// Opens a result's page at its section and outlines the section for a moment.
+    private func open(_ entry: SettingsSearchEntry) {
+        state.settingsCategory = entry.category
+        target = entry.section
+        highlight = entry.section
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1.4))
+            if highlight == entry.section { highlight = nil }
+        }
     }
 
     @ViewBuilder private var categoryContent: some View {
@@ -114,11 +127,6 @@ struct SettingsPage: View {
             EngineSettingsSection(state: state)
             SiteEnginesSection(state: state)
             DefaultBrowserSection()
-            PageSection(title: "Import") {
-                PageRow(title: "Import from another browser", subtitle: "Bookmarks, history, open tabs and compatible cookies") {
-                    Button("Import…") { state.settingsCategory = .imports }
-                }
-            }
         case .search:
             SearchSettingsSection(state: state)
         case .appearance:
@@ -154,11 +162,10 @@ struct SettingsPage: View {
         case .security:
             PageSection(title: "Status") { SecurityDashboard(state: state) }
             SecuritySettingsSection(state: state)
-        case .passwords:
-            PasswordSettingsSection(state: state)
-        case .privacy:
             TrackingProtectionSection(state: state)
             PrivacySettingsSection(state: state)
+        case .passwords:
+            PasswordSettingsSection(state: state)
         case .imports:
             BrowserImportSection(state: state)
         case .about: AboutSettingsSection(state: state)
@@ -178,7 +185,7 @@ private struct SettingsNavigationRow: View {
             HStack(spacing: 10) {
                 Image(systemName: category.symbol).font(.system(size: 14, weight: selected ? .medium : .regular))
                     .frame(width: 20)
-                Text(category.navigationTitle).font(.system(size: 13, weight: selected ? .medium : .regular)).lineLimit(1)
+                Text(category.title).font(.system(size: 13, weight: selected ? .medium : .regular)).lineLimit(1)
                 Spacer(minLength: 0)
             }
             .foregroundStyle(selected ? colors.text : colors.secondary)

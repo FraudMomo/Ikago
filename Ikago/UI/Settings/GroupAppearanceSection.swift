@@ -5,14 +5,14 @@ struct GroupAppearanceSection: View {
     let state: BrowserState
 
     var body: some View {
-        PageSection(title: "Tab Groups", footer: "Applies to the sidebar and top bar. Change a group's color from its context menu.") {
+        PageSection(title: "Tab Groups", footer: "Change a group's color from its context menu.") {
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .top, spacing: 14) { cards(minimumWidth: 180) }
                 VStack(spacing: 14) { cards(minimumWidth: 0) }
             }
             .padding(16)
             PageDivider()
-            PageRow(title: "Show tab counts", subtitle: "Counts on collapsed groups and when hovering in the sidebar.") {
+            PageRow(title: "Show tab counts", subtitle: "On collapsed groups") {
                 Toggle("Show tab counts", isOn: Binding(
                     get: { state.showsGroupTabCounts },
                     set: { on in withAnimation(.ikago) { state.showsGroupTabCounts = on } }))

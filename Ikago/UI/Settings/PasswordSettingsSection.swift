@@ -36,7 +36,7 @@ struct PasswordSettingsSection: View {
             }
         }
         PageSection(title: "Import from Apple Passwords",
-                    footer: "In the Passwords app, choose File ▸ Export All Passwords… and save the file, then import it here. Ikago encrypts every password to this Mac’s Secure Enclave, then offers to erase the exported file, because it holds your passwords in plain text. Passkeys and verification codes can’t be exported, so they stay in Apple Passwords.") {
+                    footer: "In the Passwords app, choose File ▸ Export All Passwords…, then import the file here. Ikago offers to erase it afterwards.") {
             PageRow(title: "Passwords app", subtitle: "Export your passwords to a file first") {
                 Button("Open Passwords") { openPasswordsApp() }
             }
@@ -45,7 +45,7 @@ struct PasswordSettingsSection: View {
                 Button("Import…") { importFile() }.buttonStyle(.borderedProminent)
             }
         }
-        PageSection(title: "Saved in Ikago", footer: "Usernames and sites are encrypted on disk, and each password needs Touch ID or your Mac password every time it’s filled. Nothing is synced or sent anywhere. Ikago doesn’t offer to save new passwords yet.") {
+        PageSection(title: "Saved in Ikago", footer: "Encrypted on this Mac. Every fill needs Touch ID or your Mac password.") {
             if let issue = vault.loadIssue {
                 Text(issue).font(.system(size: 13)).foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading).padding(12)

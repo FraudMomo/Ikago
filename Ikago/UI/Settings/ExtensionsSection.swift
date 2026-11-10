@@ -12,7 +12,7 @@ struct ExtensionsSection: View {
 
     var body: some View {
         PageSection(title: "Extensions",
-                    footer: "Extensions run in every Space. Chrome extensions run directly through WebKit. Packages with missing capabilities can be tried with a Limited Support notice; Safari bundles can offer companion-app integration. Neither format guarantees every feature works.") {
+                    footer: "Extensions run in every Space. Some Chrome extensions only partly work.") {
             if let issue = manager.installIssue {
                 PageRow(title: "Extension could not be added", subtitle: issue) {
                     Button("Dismiss") { manager.installIssue = nil }

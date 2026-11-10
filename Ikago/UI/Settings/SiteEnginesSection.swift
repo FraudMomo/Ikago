@@ -11,16 +11,16 @@ struct SiteEnginesSection: View {
     private var defaultEngine: BrowserEngine { preferences.preferredEngine }
 
     var body: some View {
-        PageSection(title: "Engine by Site",
-                    footer: "Pages from these sites open in the engine you choose; everything else uses \(defaultEngine.title). A tab switches engines as you browse and shows which one took over. Sign-ins move with a site when you change its engine, but sign-ins through another site (such as Sign in with Google) may ask again. Private windows always use \(defaultEngine.title).") {
+        PageSection(title: "Engine by Site", footer: "Your own sites win over these lists. Private windows use \(defaultEngine.title).") {
             ForEach(Array(SiteEngineList.all.enumerated()), id: \.element.id) { index, list in
                 if index > 0 { PageDivider() }
-                PageRow(title: list.title, subtitle: "\(list.sites.prefix(4).joined(separator: ", "))… · \(list.suggested.title) suggested: \(list.reason)") {
+                PageRow(title: list.title, subtitle: list.sites.prefix(3).joined(separator: ", ") + "…") {
                     enginePicker(listSelection(list.id))
                 }
+                .help("\(list.suggested.title) suggested: \(list.reason)")
             }
         }
-        PageSection(title: "Your Sites", footer: "A site includes its subdomains. Your sites win over the lists above.") {
+        PageSection(title: "Your Sites", footer: "Includes subdomains.") {
             let rules = (preferences.siteEngines ?? [:]).sorted { $0.key < $1.key }
             ForEach(Array(rules.enumerated()), id: \.element.key) { index, rule in
                 if index > 0 { PageDivider() }
@@ -36,6 +36,7 @@ struct SiteEnginesSection: View {
             PageRow(title: "Add a site", subtitle: invalid ? "Enter a site such as example.com." : nil) {
                 HStack(spacing: 6) {
                     TextField("example.com", text: $newSite).textFieldStyle(.roundedBorder).frame(width: 150).onSubmit(add)
+                    EngineLogo(engine: newEngine, size: 16)
                     Picker("Engine", selection: $newEngine) {
                         ForEach(BrowserEngine.allCases) { Text($0.title).tag($0) }
                     }.labelsHidden().fixedSize()
@@ -54,12 +55,16 @@ struct SiteEnginesSection: View {
         }
     }
 
+    /// The menu, with the logo of the engine these sites actually open in beside it.
     private func enginePicker(_ selection: Binding<String>, allowsDefault: Bool = true) -> some View {
-        Picker("Engine", selection: selection) {
-            if allowsDefault { Text("Default (\(defaultEngine.title))").tag("") }
-            ForEach(BrowserEngine.allCases) { Text($0.title).tag($0.rawValue) }
+        HStack(spacing: 8) {
+            EngineLogo(engine: BrowserEngine(rawValue: selection.wrappedValue) ?? defaultEngine, size: 16)
+            Picker("Engine", selection: selection) {
+                if allowsDefault { Text("Default (\(defaultEngine.title))").tag("") }
+                ForEach(BrowserEngine.allCases) { Text($0.title).tag($0.rawValue) }
+            }
+            .labelsHidden().fixedSize()
         }
-        .labelsHidden().fixedSize()
     }
 
     private func listSelection(_ id: String) -> Binding<String> {

@@ -177,11 +177,14 @@ itself needs 15.4). Bundle ID `app.ikago.browser`; data lives in the protected a
 6. **Extensions live in the site-and-extensions popover** in the address field. On WebKit use native
    `performAction` and popup anchors; on Chromium popups open in `ChromiumExtensionPopup`.
 7. **Settings is quiet and typographic.** A 220 pt navigation column on the page's own background: a "Settings" heading,
+   a search field (`SettingsSearch`: add every new setting to its index, with the `PageSection` title it lives under),
    monochrome outline symbols, a neutral fill for the selected row (no colored tiles, no accent fill). Pages use
-   `PageScaffold` (26 pt title, plain one-line subtitle), `PageSection` (12 pt secondary heading over a soft borderless
-   panel, 12 pt corners) and `PageRow` (44 pt rows, 13 pt titles, 12 pt subtitles, no per-row icons). Controls are
+   `PageScaffold` (26 pt title; Settings pages have no subtitle), `PageSection` (12 pt secondary heading over a soft
+   borderless panel, 12 pt corners) and `PageRow` (44 pt rows, 13 pt titles, 12 pt subtitles, no decorative per-row icons; an engine
+   logo beside an engine choice shows its value). Controls are
    standard macOS ones (`.buttonStyle(.automatic)`, `.borderedProminent`, small switches), not the browser's glass buttons.
-   Titles and subtitles describe; they never sell ("Import", not "Bring Your Browser to Ikago"). No ambient glows, tinted
+   Titles and subtitles describe; they never sell ("Import", not "Bring Your Browser to Ikago"). Subtitles are a few words and
+   footers one short sentence, or none. No ambient glows, tinted
    cards or rounded display fonts. `.ikago` animations never overshoot.
 
 ---

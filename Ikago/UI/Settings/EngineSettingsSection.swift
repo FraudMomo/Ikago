@@ -9,7 +9,7 @@ struct EngineSettingsSection: View {
 
     var body: some View {
         PageSection(title: "Browser Engine",
-                    footer: "Your tabs, history, bookmarks and layout stay the same, and cookies carry over so you stay signed in to most sites. Other site storage stays with each engine, so some sites may ask you to sign in again.") {
+                    footer: "Tabs, history and bookmarks stay the same, and most sign-ins carry over.") {
             VStack(spacing: 10) {
                 ViewThatFits(in: .horizontal) {
                     HStack(alignment: .top, spacing: 10) { cards }
@@ -30,19 +30,16 @@ struct EngineSettingsSection: View {
             .animation(.ikagoQuick, value: chosen)
         }
         if chosen == .chromium || BrowserRuntime.runs(.chromium) {
-            PageSection(title: "Video on Chromium",
-                        footer: "Chromium can’t play H.264, which X uses. Ikago converts X videos to AV1 on this Mac so X’s own player works, controls and all; if a video can’t be converted, macOS’s own player plays it on top instead. Turned off, every X video uses macOS’s player, which uses less battery. Applies to X tabs opened or reloaded afterwards.") {
-                PageRow(title: "Translate X videos", subtitle: "H.264 → AV1, converted on this Mac") {
+            PageSection(title: "Chromium") {
+                PageRow(title: "Translate X videos", subtitle: "Converts X’s H.264 video to AV1 on this Mac so it plays") {
                     Toggle("", isOn: Binding(get: { state.browserPreferences.chromiumVideoTranslation ?? true }, set: { on in
                         state.browserPreferences.chromiumVideoTranslation = on
                         state.saveNow()
                         MediaTranslation.apply(on)
                     })).labelsHidden().toggleStyle(.switch).controlSize(.small)
                 }
-            }
-            PageSection(title: "Sound on Chromium",
-                        footer: "Chromium only shares a tab’s sound if Ikago plays it, so with this on, Chromium tabs’ sound reaches your speakers about 40 ms later than usual. That’s unnoticeable in music, and close to the edge of noticeable lip-sync in video. Off, Chromium plays its own sound and the player shows no wave. WebKit tabs never show one. Applies the next time a tab starts playing.") {
-                PageRow(title: "Live wave in the media player", subtitle: "Ikago plays Chromium tabs’ sound itself") {
+                PageDivider()
+                PageRow(title: "Live wave in the media player", subtitle: "Adds about 40 ms of audio delay") {
                     Toggle("", isOn: Binding(get: { state.browserPreferences.chromiumLiveWave == true }, set: { on in
                         state.browserPreferences.chromiumLiveWave = on ? true : nil
                         state.saveNow()
@@ -109,15 +106,13 @@ private struct EngineCard: View {
 }
 
 private extension BrowserEngine {
-    var tagline: String { self == .webkit ? "Apple’s engine, built into macOS" : "The open engine behind Chrome" }
+    var tagline: String { self == .webkit ? "Built into macOS" : "Open-source engine" }
     var traits: [(title: String, good: Bool)] {
         switch self {
         case .webkit:
-            [("Apple Passwords and passkeys", true), ("Netflix and other protected video", true),
-             ("Security updates arrive with macOS", true), ("Most Chrome extensions, not all", false)]
+            [("Apple Passwords and passkeys", true), ("Protected video such as Netflix", true), ("Updates with macOS", true)]
         case .chromium:
-            [("Renders sites the way Chrome does", true), ("Docked Chromium DevTools", true),
-             ("Chrome extensions, still improving", true), ("Security updates install automatically", true), ("No H.264 or protected video", false)]
+            [("Widest site compatibility", true), ("Docked DevTools", true), ("Automatic security updates", true)]
         }
     }
 }

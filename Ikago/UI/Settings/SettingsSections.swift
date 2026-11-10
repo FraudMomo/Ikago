@@ -11,13 +11,13 @@ struct SearchSettingsSection: View {
                 }.labelsHidden()
             }
             PageDivider()
-            PageRow(title: "Address bar activation", subtitle: "Sidebar only. Integrated edits in the sidebar; Floating opens a search island. Top Bar always edits inline.") {
+            PageRow(title: "Address bar activation", subtitle: "Sidebar layout only") {
                 Picker("Address bar", selection: $state.addressStyle) {
                     ForEach(AddressStyle.allCases) { Text($0.name).tag($0) }
                 }.labelsHidden().disabled(state.tabLayout.usesTopTabs)
             }
         }
-        PageSection(title: "Suggestions", footer: "Search-engine autocomplete sends search text as you type to your selected engine. Addresses are excluded. Suggestions may be unavailable when offline.") {
+        PageSection(title: "Suggestions", footer: "Autocomplete sends what you type, never addresses, to your search engine.") {
             PageRow(title: "Show history in suggestions") {
                 Toggle("History suggestions", isOn: $state.searchShowsHistory).labelsHidden().toggleStyle(.switch)
             }
@@ -59,7 +59,7 @@ struct PrivacySettingsSection: View {
     }
 
     var body: some View {
-        PageSection(title: "Browsing Data", footer: "Camera and microphone requests are denied unless you allow them. Popups need a click.") {
+        PageSection(title: "Browsing Data") {
             PageRow(title: "Website data", subtitle: "Cookies, logins and storage for “\(state.activeSpace.name)”") {
                 Button(clearing ? "Clearing…" : cleared ? "Cleared" : "Clear…") { confirmClear = true }
                     .disabled(clearing || state.isPrivate)
@@ -75,7 +75,7 @@ struct PrivacySettingsSection: View {
                 Button("Clear") { state.history.removeAll(); state.scheduleSave() }.disabled(state.history.isEmpty)
             }
             PageDivider()
-            PageRow(title: "Cached site icons", subtitle: "Saved icons for tabs, pins and bookmarks across Spaces") {
+            PageRow(title: "Cached site icons", subtitle: "Icons for tabs, pins and bookmarks") {
                 Button(cacheCleared ? "Cleared" : "Clear Cache") { FaviconCache.shared.clear(); cacheCleared = true }
             }
             PageDivider()

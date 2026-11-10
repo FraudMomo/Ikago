@@ -31,35 +31,46 @@ struct PageScaffold<Content: View>: View {
     let colors: Palette
     var subtitle: String? = nil
     var trailing: AnyView? = nil
+    /// A `PageSection` title to scroll to, such as a Settings search result.
+    var scrollTarget: String? = nil
     @ViewBuilder let content: Content
 
     var body: some View {
         GeometryReader { geometry in
             let inset: CGFloat = geometry.size.width < 480 ? 16 : 32
             let width = max(0, min(680, geometry.size.width - inset * 2))
-            ScrollView(.vertical) {
-                VStack(alignment: .leading, spacing: 28) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack(alignment: .firstTextBaseline) {
-                            Text(title).font(.system(size: 26, weight: .semibold))
-                                .foregroundStyle(colors.text).minimumScaleFactor(0.7).lineLimit(1)
-                            Spacer(minLength: 8)
-                            trailing
+            ScrollViewReader { proxy in
+                ScrollView(.vertical) {
+                    VStack(alignment: .leading, spacing: 28) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(alignment: .firstTextBaseline) {
+                                Text(title).font(.system(size: 26, weight: .semibold))
+                                    .foregroundStyle(colors.text).minimumScaleFactor(0.7).lineLimit(1)
+                                Spacer(minLength: 8)
+                                trailing
+                            }
+                            if let subtitle {
+                                Text(subtitle).font(.system(size: 13)).foregroundStyle(colors.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
                         }
-                        if let subtitle {
-                            Text(subtitle).font(.system(size: 13)).foregroundStyle(colors.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
+                        content
                     }
-                    content
+                    .frame(width: width, alignment: .leading)
+                    .padding(.top, 36).padding(.bottom, 48)
+                    .frame(width: geometry.size.width, alignment: .top)
                 }
-                .frame(width: width, alignment: .leading)
-                .padding(.top, 36).padding(.bottom, 48)
-                .frame(width: geometry.size.width, alignment: .top)
+                .onAppear { reveal(proxy) }
+                .onChange(of: scrollTarget) { reveal(proxy) }
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
             .background(colors.pageBackground)
         }
+    }
+
+    private func reveal(_ proxy: ScrollViewProxy) {
+        guard let scrollTarget else { return }
+        DispatchQueue.main.async { withAnimation(.ikago) { proxy.scrollTo(scrollTarget, anchor: .top) } }
     }
 }
 
@@ -68,6 +79,7 @@ struct PageSection<Content: View>: View {
     let title: String
     var footer: String? = nil
     @ViewBuilder let content: Content
+    @Environment(\.settingsHighlight) private var highlight
 
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 12, style: .continuous) }
 
@@ -77,11 +89,14 @@ struct PageSection<Content: View>: View {
             VStack(spacing: 0) { content }
                 .background(shape.fill(Color.primary.opacity(0.045)))
                 .clipShape(shape)
+                .overlay(shape.strokeBorder(Color.accentColor, lineWidth: 2).opacity(highlight == title ? 1 : 0))
+                .animation(.easeOut(duration: 0.6), value: highlight == title)
             if let footer {
                 Text(footer).font(.system(size: 12)).foregroundStyle(.secondary).lineSpacing(1)
                     .fixedSize(horizontal: false, vertical: true).padding(.horizontal, 4)
             }
         }
+        .id(title)
     }
 }
 

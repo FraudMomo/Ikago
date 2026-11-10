@@ -10,8 +10,7 @@ struct CEFExtensionsSection: View {
     @State private var link = ""
 
     var body: some View {
-        PageSection(title: "Add Extensions",
-                    footer: "Paste a link from the Chrome Web Store, or choose an unpacked extension folder. Extensions belong to “\(state.activeSpace.name)”.") {
+        PageSection(title: "Add Extensions") {
             PageRow(title: "Chrome Web Store", subtitle: "Open an extension and click “Add to Ikago”") {
                 Button("Open Chrome Web Store") { commands?.openInNewTab("https://chromewebstore.google.com/") }
             }
@@ -30,7 +29,7 @@ struct CEFExtensionsSection: View {
         }
         .disabled(state.isPrivate)
         PageSection(title: "Installed",
-                    footer: "Extensions run on your pages, and their popups open from the site menu in the address field. Popups see the current site; actions that reach into the page itself, such as picking an element to hide, aren’t available yet.") {
+                    footer: "Extension popups open from the site menu in the address field.") {
             if manager.busy && manager.items.isEmpty {
                 HStack(spacing: 10) { ProgressView().controlSize(.small); Text("Loading extensions…").foregroundStyle(.secondary) }.padding(18)
             } else if manager.items.isEmpty {

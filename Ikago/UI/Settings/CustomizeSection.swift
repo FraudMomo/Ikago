@@ -14,7 +14,7 @@ struct CustomizeSection: View {
     var body: some View {
         let colors = state.palette
         PageSection(title: "Customize",
-                    footer: "Drag to reorder or move between places, inside the island or on either side of it. Hover an item and click − to remove it; drag or click an item in Available to add it.") {
+                    footer: "Drag to reorder. Hover and click − to remove; click an item in Available to add it.") {
             VStack(alignment: .leading, spacing: 16) {
                 HStack {
                     Picker("", selection: $editingTopBar.animation(.ikago)) {

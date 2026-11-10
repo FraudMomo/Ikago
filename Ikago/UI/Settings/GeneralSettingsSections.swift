@@ -93,7 +93,7 @@ struct NewTabSection: View {
                 .pickerStyle(.menu).labelsHidden()
             }
             PageDivider()
-            PageRow(title: "Focus address bar on new tabs", subtitle: "Sidebar only. Top Bar always focuses its address field when opening a new tab.") {
+            PageRow(title: "Focus address bar on new tabs", subtitle: "Sidebar layout only") {
                 Toggle("Focus address bar on new tabs", isOn: Binding(get: { state.focusAddressBarOnNewTab },
                                                                      set: { state.focusAddressBarOnNewTab = $0 }))
                     .labelsHidden().toggleStyle(.switch).disabled(state.tabLayout.usesTopTabs)

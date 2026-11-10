@@ -36,14 +36,13 @@ extension SettingsCategory {
     var tint: Color {
         switch self {
         case .general: Color(hex: 0x64748B)
-        case .search: Color(hex: 0x3B82F6)
-        case .tabs: Color(hex: 0x6366F1)
         case .appearance: Color(hex: 0xEC4899)
         case .toolbar: Color(hex: 0x14B8A6)
+        case .tabs: Color(hex: 0x6366F1)
+        case .search: Color(hex: 0x3B82F6)
         case .extensions: Color(hex: 0x8B5CF6)
         case .security: Color(hex: 0x22A559)
         case .passwords: Color(hex: 0x8E8E93)
-        case .privacy: Color(hex: 0xF97316)
         case .imports: Color(hex: 0x06A5C9)
         case .about: Color(hex: 0x71717A)
         }

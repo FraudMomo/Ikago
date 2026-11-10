@@ -3,7 +3,7 @@ import SwiftUI
 struct SpaceThemePicker: View {
     let state: BrowserState
     var body: some View {
-        PageRow(title: "Space theme", subtitle: "Colors the sidebar, tab bar and window in “\(state.activeSpace.name)”") {
+        PageRow(title: "Space theme", subtitle: "For “\(state.activeSpace.name)”") {
             ScrollView(.horizontal) {
                 HStack(spacing: 8) {
                     ForEach(SpaceColors.presets) { preset in

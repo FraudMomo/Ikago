@@ -5,14 +5,14 @@ struct EssentialsSettingsSection: View {
 
     var body: some View {
         if state.tabLayout == .vertical {
-            PageSection(title: "Sidebar Essentials", footer: "Pinned tabs belong to this Space. Hidden pins remain in the tab list.") {
-                PageRow(title: "Show pinned-tab grid", subtitle: "Live tabs kept in this Space.") {
+            PageSection(title: "Sidebar Essentials") {
+                PageRow(title: "Show pinned-tab grid", subtitle: "Pinned tabs as a grid at the top of the sidebar") {
                     Toggle("Show pinned-tab grid", isOn: Binding(get: { state.showsPinnedGrid },
                         set: { state.browserPreferences.showPinnedGrid = $0 })).labelsHidden().toggleStyle(.switch)
                 }
             }
         } else {
-            PageSection(title: "Pinned Essentials", footer: "Hidden pins remain accessible in the tab sidebar. Sidebar grid settings are independent.") {
+            PageSection(title: "Pinned Essentials") {
                 PageRow(title: "Show pinned tabs", subtitle: "Keep essentials in the tab strip.") {
                     Toggle("Show pinned tabs", isOn: Binding(
                         get: { state.showsTopBarEssentials && state.showsTopBarPins },
@@ -21,8 +21,8 @@ struct EssentialsSettingsSection: View {
                 }
             }
         }
-        PageSection(title: "Bookmarks Bar", footer: "Folders and bookmarks are shared across Spaces. Organize them in Bookmarks. Toggle this surface with ⇧⌘B.") {
-            PageRow(title: "Show bookmarks bar", subtitle: "A separate row in Top Bar mode, or a collapsible drawer at the bottom of the sidebar.") {
+        PageSection(title: "Bookmarks Bar", footer: "Toggle with ⇧⌘B.") {
+            PageRow(title: "Show bookmarks bar", subtitle: "A row below the toolbar, or a drawer in the sidebar") {
                 Toggle("Show bookmarks bar", isOn: $state.showsBookmarksBar.animation(.ikago)).labelsHidden().toggleStyle(.switch)
             }
         }
@@ -33,7 +33,7 @@ struct BookmarkOpeningSection: View {
     let state: BrowserState
 
     var body: some View {
-        PageSection(title: "Opening Bookmarks", footer: "New addresses preserve pinned tabs. Closing a pin unloads it and keeps it in Essentials.") {
+        PageSection(title: "Opening Bookmarks") {
             PageRow(title: "Switch to an open tab", subtitle: "When off, bookmarks always open a new tab.") {
                 Toggle("Switch to an open tab", isOn: Binding(get: { state.browserPreferences.reuseBookmarkTabs ?? true },
                     set: { state.browserPreferences.reuseBookmarkTabs = $0 })).labelsHidden().toggleStyle(.switch)
