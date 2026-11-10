@@ -1,0 +1,39 @@
+# macOS
+.DS_Store
+
+# Build output and downloaded SDKs
+build/
+out/
+.cef/
+.svtav1/
+DerivedData/
+
+# Xcode
+Ikago.xcodeproj/
+xcuserdata/
+*.xcuserstate
+
+# Python
+__pycache__/
+*.pyc
+
+# Editors and local tooling
+.vscode/
+.idea/
+.claude/
+*.swp
+
+# Logs
+*.log
+
+# Secrets and signing material: never commit these
+.env
+.env.*
+google-api-key
+*.p12
+*.pem
+*.key
+*.cer
+*.certSigningRequest
+*.mobileprovision
+*.provisionprofile

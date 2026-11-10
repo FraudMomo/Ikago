@@ -1,0 +1,12 @@
+module IKCEFBridge {
+  header "IKCEFPage.h"
+  header "IKCEFContexts.h"
+  header "IKCEFSecurity.h"
+  header "IKCEFNativeTools.h"
+  header "IKCEFRuntime.h"
+  header "IKCEFDownloads.h"
+  header "IKAV1Encoder.h"
+  header "IKCEFMediaBridge.h"
+  header "IKCEFAudio.h"
+  export *
+}
