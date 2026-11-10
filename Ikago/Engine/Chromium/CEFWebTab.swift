@@ -97,6 +97,12 @@ final class CEFWebTab: WebTab {
                 Task { @MainActor in reply(await delegate.webTab(self, mayDownload: URL(string: download))) }
             }
         }
+        page.newTabHandler = { [weak self] url, background in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.delegate?.webTab(self, openInNewTab: url.absoluteString, background: background)
+            }
+        }
         page.popupHandler = { [weak self] native, url, background in
             MainActor.assumeIsolated {
                 guard let self, let delegate = self.delegate,
@@ -130,7 +136,7 @@ final class CEFWebTab: WebTab {
         storeBridge.tearDown()
         fullscreen.tearDown()
         delegate = nil
-        page.eventHandler = nil; page.externalLinkHandler = nil; page.popupHandler = nil; page.navigationHandler = nil; page.downloadGateHandler = nil
+        page.eventHandler = nil; page.externalLinkHandler = nil; page.popupHandler = nil; page.newTabHandler = nil; page.navigationHandler = nil; page.downloadGateHandler = nil
         page.mediaPermissionHandler = nil
         page.close(); page.removeFromSuperview()
     }

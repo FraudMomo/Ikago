@@ -104,6 +104,7 @@ enum CEFSmoke {
             guard let encoded = capture["data"] as? String, let data = Data(base64Encoded: encoded),
                   NSImage(data: data) != nil else { throw CEFError.script("Screenshot fixture failed.") }
             try await CEFNativeFeatureChecks.run(browser: browser, profile: "Smoke", url: url)
+            try await CEFLinkClickChecks.run(browser: browser)
             if !CommandLine.arguments.contains("--cef-smoke-read") {
                 try await CEFPasswordChecks.run(url: url, window: window)
                 try await CEFCookieIsolationChecks.run(url: url, window: window)

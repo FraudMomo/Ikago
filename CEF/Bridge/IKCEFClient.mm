@@ -136,6 +136,22 @@ class Client final : public CefClient, public CefLifeSpanHandler,
         ssl->GetContentStatus() == SSL_CONTENT_NORMAL_CONTENT;
     [page_ emit:@"security" payload:@{@"value": @(secure)}];
   }
+  // ⌘-click and middle-click arrive here, not in OnBeforePopup. Unhandled, CEF would open the link in this tab.
+  bool OnOpenURLFromTab(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>, const CefString& target,
+      WindowOpenDisposition disposition, bool gesture) override {
+    bool newTab = disposition == CEF_WOD_NEW_BACKGROUND_TAB || disposition == CEF_WOD_NEW_FOREGROUND_TAB ||
+        disposition == CEF_WOD_NEW_WINDOW;
+    IKCEFPage *page = page_;
+    NSURL *url = [NSURL URLWithString:IKCEFString(target)];
+    NSString *scheme = url.scheme.lowercaseString;
+    if (!newTab || !gesture || !page || page.isClosed || !page.newTabHandler ||
+        !([scheme isEqual:@"http"] || [scheme isEqual:@"https"])) return false;
+    BOOL background = disposition == CEF_WOD_NEW_BACKGROUND_TAB;
+    dispatch_async(dispatch_get_main_queue(), ^{
+      if (!page.isClosed && page.newTabHandler) page.newTabHandler(url, background);
+    });
+    return true;
+  }
   bool OnBeforeBrowse(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame> frame,
       CefRefPtr<CefRequest> request, bool, bool) override {
     if (frame->IsMain()) {
