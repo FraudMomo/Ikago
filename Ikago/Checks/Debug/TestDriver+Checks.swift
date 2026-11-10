@@ -33,6 +33,7 @@ extension TestDriver {
                 window.orderOut(nil)
             }
         case "mediademo": await MediaIslandDemo.run(c)
+        case "sidebarprobe": await SidebarToggleProbe.run(c)
         case "islandprobe": await GroupDisclosureProbe.shared.runIsland(c)
         case "mediafullscreenchecks": await MediaFullscreenChecks.run(c)
         case "downloadpopupchecks": await DownloadPopupChecks.run(c)

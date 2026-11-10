@@ -12,13 +12,15 @@ struct BrowserRootView: View {
     let content: NSView
     weak var commands: BrowserCommands?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// The docked sidebar stays mounted while it slides out, then leaves the tree.
+    @State private var sidebarMounted = true
 
     var body: some View {
         let colors = state.palette
         ZStack(alignment: .topLeading) {
             if state.tabLayout == .vertical {
                 HStack(spacing: 0) {
-                    if docksSidebar {
+                    if docksSidebar || sidebarMounted {
                         Group {
                             if state.showsSidebarRail {
                                 SidebarRail(state: state, commands: commands)
@@ -37,7 +39,13 @@ struct BrowserRootView: View {
                         .clipped()
                         .sidebarPanel(colors, radius: radius, translucent: state.browserPreferences.translucentSidebar == true)
                         .padding([.leading, .top, .bottom], inset)
-                        .transition(.move(edge: .leading).combined(with: .opacity))
+                        // Hiding narrows this frame with the panel pinned to its trailing edge, so the panel slides out
+                        // beside the page. A transition can't move the AppKit views inside it; they would only fade.
+                        .frame(width: docksSidebar ? sidebarShownWidth + inset : 0, alignment: .trailing)
+                        .clipped()
+                        .allowsHitTesting(docksSidebar)
+                    }
+                    if docksSidebar {
                         // The gap between sidebar and page is the resize handle (the rail has a fixed width).
                         if state.showsSidebarRail { Color.clear.frame(width: state.sidebarGap) } else {
                             SidebarResizeHandle(state: state, width: state.sidebarGap)
@@ -86,6 +94,13 @@ struct BrowserRootView: View {
             }
         }
         .onChange(of: state.activeTabID) { _, _ in chrome.showDownloads = false }
+        .onChange(of: docksSidebar) { _, docked in
+            guard !docked else { return sidebarMounted = true }
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(400))
+                if !docksSidebar { sidebarMounted = false }
+            }
+        }
         .onChange(of: state.tabLayout) { _, _ in chrome.showTabOverview = false; chrome.showDownloads = false }
         .animation(reduceMotion ? nil : .ikagoQuick, value: chrome.showDownloads)
         // The floating address bar and the sidebar's suggestions ease in and out; typing is never delayed by it.
