@@ -29,6 +29,12 @@ following third-party components, each under its own license.
 - **WebKit** is a trademark of Apple Inc. Its logo isn't free to reuse, so Ikago identifies WebKit with its own
   original mark instead.
 
+## Showcase image
+
+`docs/showcase.jpg` shows Wikipedia's [Octopus](https://en.wikipedia.org/wiki/Octopus) article. Its text is by
+Wikipedia contributors under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/), and its images are
+under the licenses listed on Wikipedia. The site icons in the sidebar belong to their owners.
+
 ## Data downloaded at runtime
 
 These lists are downloaded to the user's Mac and matched locally. They are not distributed

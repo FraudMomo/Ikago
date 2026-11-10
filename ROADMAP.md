@@ -18,7 +18,7 @@ A complete everyday browser on Apple's WebKit, written in Swift 6 with AppKit an
 - Split view with up to four panes as columns, rows or a grid, built by dragging tabs onto the page
 - Tab groups, pinned essentials, a bookmarks bar, and nested bookmark folders
 - Address field with ranked suggestions from history, bookmarks, open tabs and search
-- Built-in History, Downloads, Bookmarks and Settings pages
+- Built-in History, Downloads, Bookmarks and searchable Settings pages, plus a first-launch welcome
 - Atomic session save and restore with a backup, plus optional tab hibernation
 - Full screen with a hiding sidebar and top bar, and a media player in the sidebar
 - Liquid Glass design that respects Reduce Motion and Reduce Transparency
