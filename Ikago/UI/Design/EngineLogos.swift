@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Chrome's three-color wheel, drawn in code, to identify the Chromium engine.
+/// The Chromium project's logo, drawn in code: three blue segments around a white ring and a blue center.
+/// © The Chromium Authors, used under CC BY 2.5 (see THIRD_PARTY_NOTICES.md) to identify the engine.
 struct ChromiumLogo: View {
     var size: CGFloat = 56
 
@@ -8,65 +9,41 @@ struct ChromiumLogo: View {
         Canvas { context, canvas in
             let center = CGPoint(x: canvas.width / 2, y: canvas.height / 2)
             let radius = min(canvas.width, canvas.height) / 2
-            let segments: [(Color, Double)] = [(Color(hex: 0xEA4335), -150), (Color(hex: 0xFBBC04), -30), (Color(hex: 0x34A853), 90)]
+            // Angles clockwise from 12 o'clock: top, bottom right, bottom left.
+            let segments: [(Color, Double)] = [(Color(hex: 0x396BD7), -58), (Color(hex: 0x91B0E8), 62), (Color(hex: 0x6199F6), 183)]
             for (color, start) in segments {
                 var slice = Path()
                 slice.move(to: center)
-                slice.addArc(center: center, radius: radius, startAngle: .degrees(start), endAngle: .degrees(start + 120), clockwise: false)
+                slice.addArc(center: center, radius: radius, startAngle: .degrees(start - 90),
+                             endAngle: .degrees(start + 30), clockwise: false)
                 slice.closeSubpath()
                 context.fill(slice, with: .color(color))
             }
-            let hub = radius * 0.5
-            context.fill(Path(ellipseIn: CGRect(x: center.x - hub, y: center.y - hub, width: hub * 2, height: hub * 2)), with: .color(.white))
-            let core = radius * 0.39
-            context.fill(Path(ellipseIn: CGRect(x: center.x - core, y: center.y - core, width: core * 2, height: core * 2)),
-                         with: .linearGradient(Gradient(colors: [Color(hex: 0x86B7FE), Color(hex: 0x1A73E8)]),
-                                               startPoint: CGPoint(x: center.x, y: center.y - core), endPoint: CGPoint(x: center.x, y: center.y + core)))
+            func disc(_ fraction: CGFloat, _ color: Color) {
+                let r = radius * fraction
+                context.fill(Path(ellipseIn: CGRect(x: center.x - r, y: center.y - r, width: r * 2, height: r * 2)), with: .color(color))
+            }
+            disc(0.4696, .white)
+            disc(0.3875, Color(hex: 0x4688F4))
         }
         .frame(width: size, height: size)
-        .shadow(color: .black.opacity(0.22), radius: size * 0.1, y: size * 0.05)
         .accessibilityLabel("Chromium")
     }
 }
 
-/// WebKit's compass, drawn in code.
+/// Ikago's own mark for the WebKit engine. WebKit's logo belongs to Apple and isn't free to use, so this is
+/// an original design: a blue disc with a globe.
 struct WebKitLogo: View {
     var size: CGFloat = 56
 
     var body: some View {
-        Canvas { context, canvas in
-            let center = CGPoint(x: canvas.width / 2, y: canvas.height / 2)
-            let radius = min(canvas.width, canvas.height) / 2
-            let disc = CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
-            context.fill(Path(ellipseIn: disc), with: .linearGradient(Gradient(colors: [Color(hex: 0x62D0FF), Color(hex: 0x0A6CFF)]),
-                                                                      startPoint: CGPoint(x: center.x, y: disc.minY), endPoint: CGPoint(x: center.x, y: disc.maxY)))
-            context.stroke(Path(ellipseIn: disc.insetBy(dx: radius * 0.1, dy: radius * 0.1)), with: .color(.white.opacity(0.92)), lineWidth: radius * 0.045)
-            for tick in 0..<24 {
-                let angle = Angle.degrees(Double(tick) * 15).radians
-                let inner = radius * (tick % 6 == 0 ? 0.68 : 0.74), outer = radius * 0.84
-                var line = Path()
-                line.move(to: CGPoint(x: center.x + cos(angle) * inner, y: center.y + sin(angle) * inner))
-                line.addLine(to: CGPoint(x: center.x + cos(angle) * outer, y: center.y + sin(angle) * outer))
-                context.stroke(line, with: .color(.white.opacity(0.75)), lineWidth: radius * 0.025)
+        Circle()
+            .fill(LinearGradient(colors: [Color(hex: 0x5AC8FA), Color(hex: 0x0A6CFF)], startPoint: .top, endPoint: .bottom))
+            .overlay {
+                Image(systemName: "globe").font(.system(size: size * 0.56, weight: .medium)).foregroundStyle(.white)
             }
-            let tilt = Angle.degrees(45).radians
-            let tip = CGPoint(x: center.x + cos(-tilt) * radius * 0.66, y: center.y + sin(-tilt) * radius * 0.66)
-            let tail = CGPoint(x: center.x - cos(-tilt) * radius * 0.66, y: center.y - sin(-tilt) * radius * 0.66)
-            let side = CGPoint(x: cos(tilt) * radius * 0.13, y: sin(tilt) * radius * 0.13)
-            func needle(_ point: CGPoint, _ color: Color) {
-                var shape = Path()
-                shape.move(to: point)
-                shape.addLine(to: CGPoint(x: center.x + side.x, y: center.y + side.y))
-                shape.addLine(to: CGPoint(x: center.x - side.x, y: center.y - side.y))
-                shape.closeSubpath()
-                context.fill(shape, with: .color(color))
-            }
-            needle(tip, Color(hex: 0xFF3B30))
-            needle(tail, .white)
-        }
-        .frame(width: size, height: size)
-        .shadow(color: .black.opacity(0.22), radius: size * 0.1, y: size * 0.05)
-        .accessibilityLabel("WebKit")
+            .frame(width: size, height: size)
+            .accessibilityLabel("WebKit")
     }
 }
 

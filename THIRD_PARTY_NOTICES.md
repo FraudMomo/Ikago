@@ -21,6 +21,14 @@ following third-party components, each under its own license.
   is used to match passwords to sites. It is published by the Mozilla Foundation under the
   Mozilla Public License 2.0.
 
+## Logos
+
+- The **Chromium logo** is drawn in code from the Chromium project's artwork, © The Chromium Authors, under
+  [CC BY 2.5](https://creativecommons.org/licenses/by/2.5/). It only identifies the Chromium engine. Chromium is a
+  trademark of Google LLC.
+- **WebKit** is a trademark of Apple Inc. Its logo isn't free to reuse, so Ikago identifies WebKit with its own
+  original mark instead.
+
 ## Data downloaded at runtime
 
 These lists are downloaded to the user's Mac and matched locally. They are not distributed
