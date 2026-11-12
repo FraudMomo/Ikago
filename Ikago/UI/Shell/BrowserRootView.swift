@@ -111,7 +111,7 @@ struct BrowserRootView: View {
         .animation(reduceMotion ? .easeInOut(duration: 0.15) : .spring(response: 0.36, dampingFraction: 0.9), value: state.showsSidebarRail)
         .animation(.ikago, value: state.tabLayout)
         .animation(revealAnimation, value: chrome.peeking)
-        .animation(reduceMotion ? nil : .smooth(duration: 0.38), value: state.isImmersive)
+        .animation(nil, value: state.isImmersive)
         // Typing an address, or ⌘L / a new tab, brings the hidden bar in for as long as it lasts.
         .onChange(of: chrome.inlineAddress) { _, editing in
             guard state.isImmersive, state.tabLayout.usesTopTabs || !state.sidebarVisible else { return }

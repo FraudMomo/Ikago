@@ -11,6 +11,7 @@ final class ChromiumFullscreen {
     private var saved: (superview: NSView, frame: NSRect, mask: NSView.AutoresizingMask, inset: CGFloat, above: NSView?)?
     private var tookWindowFullScreen = false
     private var observer: NSObjectProtocol?
+    private var resizeObserver: NSObjectProtocol?
     private(set) var isActive = false
     /// The tab's latest top inset while the page has the screen; applied when it gives it back.
     var pendingInset: CGFloat?
@@ -43,6 +44,10 @@ final class ChromiumFullscreen {
             let band = (window as? BrowserWindow)?.fullScreenTopBand ?? 0
             page.frame = NSRect(x: 0, y: 0, width: content.bounds.width, height: content.bounds.height - band)
         }
+        resizeObserver = NotificationCenter.default.addObserver(forName: NSWindow.didResizeNotification, object: window, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.fitFullscreenPage() }
+        }
+        fitFullscreenPage()
         let exitName = window is BrowserWindow ? BrowserWindow.willExitIkagoFullScreen : NSWindow.willExitFullScreenNotification
         observer = NotificationCenter.default.addObserver(forName: exitName, object: window, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
@@ -53,11 +58,22 @@ final class ChromiumFullscreen {
         }
     }
 
+    private func fitFullscreenPage() {
+        guard isActive, let page, let window = page.window, let content = window.contentView else { return }
+        let band = (window as? BrowserWindow)?.fullScreenTopBand ?? 0
+        page.topInset = 0
+        page.frame = NSRect(x: 0, y: 0, width: content.bounds.width, height: max(0, content.bounds.height - band))
+        page.needsLayout = true
+        page.layoutSubtreeIfNeeded()
+    }
+
     private func leave() {
         guard isActive, let page else { return }
         isActive = false
         if let observer { NotificationCenter.default.removeObserver(observer) }
         observer = nil
+        if let resizeObserver { NotificationCenter.default.removeObserver(resizeObserver) }
+        resizeObserver = nil
         let window = page.window
         if let saved {
             page.removeFromSuperview()

@@ -27,9 +27,9 @@ extension BrowserWindowController {
         window.fullScreenTopBand = fullScreenBandHeight(on: screen)
         applyFullScreenPresentation()
         chrome.peeking = false
-        window.setFrame(screen.frame, display: true, animate: true)
-        layoutFullScreenBand()
         state.isImmersive = true
+        setFullScreenFrame(screen.frame)
+        layoutFullScreenBand()
         positionTrafficLights()
         refitChromiumPages()
     }
@@ -47,7 +47,7 @@ extension BrowserWindowController {
         window.styleMask.insert(.resizable)
         positionTrafficLights()
         if let restore = fullScreenRestore {
-            window.setFrame(restore.frame, display: true, animate: true)
+            setFullScreenFrame(restore.frame)
             if !restore.autosave.isEmpty { window.setFrameAutosaveName(restore.autosave) }
         }
         fullScreenRestore = nil
@@ -55,14 +55,29 @@ extension BrowserWindowController {
         refitChromiumPages()
     }
 
-    /// Chromium pages can keep the size they saw during the window's animation and the sidebar's (cutting off the
-    /// page's top); fit them again once both have settled.
-    private func refitChromiumPages() {
-        for delay in [0.05, 0.45] {
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+    /// Resize the native window once, with a short AppKit transition. The shell must not
+    /// independently interpolate its page bounds or leave a renderer at an intermediate size.
+    private func setFullScreenFrame(_ frame: NSRect) {
+        guard let window else { return }
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 0.16
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            window.animator().setFrame(frame, display: true)
+        } completionHandler: { [weak self] in
+            MainActor.assumeIsolated {
                 guard let self else { return }
-                for controller in self.content.controllers.values { (controller.page as? CEFWebTab)?.refitPage() }
+                self.layoutFullScreenBand()
+                self.window?.contentView?.layoutSubtreeIfNeeded()
+                self.refitChromiumPages()
             }
+        }
+    }
+
+    private func refitChromiumPages() {
+        window?.contentView?.layoutSubtreeIfNeeded()
+        for controller in content.controllers.values {
+            controller.hostView.layoutSubtreeIfNeeded()
+            (controller.page as? CEFWebTab)?.refitPage()
         }
     }
 
