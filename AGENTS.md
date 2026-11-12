@@ -61,9 +61,14 @@ scripts/         build.py, package_app.py, install.sh, fetch_cef.py, check_cef_u
 ```
 
 Build with `python3 scripts/build.py` (`--flavor release|checks|debug`). `Checks/` is left out of release
-builds. Generated: `.cef/` (the SDK), `build/`, `out/`. Minimum macOS 26 (Liquid Glass; `WKWebExtension`
+builds. Release packaging keeps the matching unstripped app binary in `out/symbols/` and removes local symbols from
+the distributed executable before signing. Generated: `.cef/` (the SDK), `build/`, `out/`. Minimum macOS 26 (Liquid Glass; `WKWebExtension`
 itself needs 15.4). Bundle ID `app.ikago.browser`; data lives in the protected app group container
 `<team>.app.ikago.browser` (`ProtectedStorage`), or `Application Support/Ikago` in ad hoc builds.
+
+Packaging retains only English CEF UI locale packs (including English variants), matching Ikago's UI; the SDK stays intact.
+Keep `en.lproj` as the fallback and keep ICU, shared `.pak` files, snapshots and graphics libraries. Multilingual webpage
+text and international formatting remain available; `CEFLocaleChecks` verifies missing-locale fallback and native controls.
 
 ---
 
@@ -139,9 +144,7 @@ itself needs 15.4). Bundle ID `app.ikago.browser`; data lives in the protected a
     scroll the active tab/group into view on appearance and resize. Overflow customized controls
     before squeezing tabs; fold outside controls into the island when their zones cannot fit.
     Regular tabs share a dynamic width (Compact up to 280 pt; Separate fills its tab row) down to
-    a readable 120 pt. Past that, the active tab keeps 120 pt while inactive tabs compact
-    toward favicons (34 pt Compact, 40 pt Separate; icon-only below `TabStripLayout.iconOnlyWidth`, with
-    × on hover), and the strip scrolls only once every tab is at its minimum.
+    a readable 120 pt, then scroll. Regular tabs must not collapse into favicon-only close targets.
     Use actual scroll geometry for edge fades: only fade a side with hidden content beyond it.
 14. **Toolbar controls come from `state.chromeLayout`** (`ChromeLayout`, zones of `ChromeItem`),
     drawn by `ChromeItemView`. New controls get a `ChromeItem` case so users can place them. "Chrome" in
@@ -182,8 +185,8 @@ itself needs 15.4). Bundle ID `app.ikago.browser`; data lives in the protected a
 7. **Settings is quiet and typographic.** A 220 pt navigation column on the page's own background: a "Settings" heading,
    a search field (`SettingsSearch`: add every new setting to its index, with the `PageSection` title it lives under),
    monochrome outline symbols, a neutral fill for the selected row (no colored tiles, no accent fill). Pages use
-   `PageScaffold` (26 pt title; Settings pages have no subtitle), `PageSection` (12 pt secondary heading over a soft
-   borderless panel, 12 pt corners) and `PageRow` (44 pt rows, 13 pt titles, 12 pt subtitles, no decorative per-row icons; an engine
+   `PageScaffold` (26 pt title; Settings pages use a compact category visual and one short descriptive line), `PageSection` (12 pt secondary heading over a soft
+   panel, 14 pt corners in Settings and 12 pt elsewhere) and `PageRow` (52 pt Settings rows, 44 pt elsewhere, 13 pt titles, 12 pt subtitles, no decorative per-row icons; an engine
    logo beside an engine choice shows its value). Controls are
    standard macOS ones (`.buttonStyle(.automatic)`, `.borderedProminent`, small switches), not the browser's glass buttons.
    Titles and subtitles describe; they never sell ("Import", not "Bring Your Browser to Ikago"). Subtitles are a few words and
@@ -211,8 +214,8 @@ itself needs 15.4). Bundle ID `app.ikago.browser`; data lives in the protected a
   application the user approved. Never log callback URLs or authentication codes. Scripted subframe
   launches stay blocked; app links must not create blank popup tabs or replace the browser page.
 - Sidebar essentials contain pinned tabs in both docked and peeked sidebars. Hidden pin
-  grids fall back to tab-list rows so pinned tabs stay reachable. The grid uses at most three
-  columns, adapting down with the sidebar's available width, with bounded scrolling and an
+  grids fall back to tab-list rows so pinned tabs stay reachable. The grid uses a saved two-to-eight column preference (three by default),
+  adapting down with the sidebar's available width, with bounded scrolling and an
   empty drop target during tab drags. Split drops accept live tabs only. Tab rows use SwiftUI's
   drag/drop lifecycle with before/after insertion markers, without native overlays intercepting
   row input or mutating order during hover. Read the payload asynchronously before committing
@@ -237,10 +240,19 @@ itself needs 15.4). Bundle ID `app.ikago.browser`; data lives in the protected a
   slowest frame of the last second from a main-thread display link, plus CPU and memory footprint summed over the app, its
   Chromium helpers and its WebKit processes (`PerformanceSampler`, once a second off the main thread). Plain AppKit on the
   window's content view, so it adds nothing to the SwiftUI graphs. Check it with the `perfstats` test action.
+- View ▸ Performance opens `ikago://performance`: per-engine and shared process footprint/CPU, main renderer tab rows,
+  GPU service CPU/RAM (never presented as GPU utilization), and a bounded RAM history. `PerformanceMonitor` shares one
+  off-main sampler among visible diagnostics and stops when no consumers remain. Hidden Performance tabs unmount their
+  dashboard. Renderer totals may be shared by tabs and exclude separate subframes; never add tab rows to browser totals.
+  CEF's renderer helper reports its PID over native process messages, not page scripts. `PageLifetimeCanary` watches
+  retired page owners/views weakly, checks every 30 seconds only while records remain (cap 200), and flags retention
+  without claiming a proven leak. No page contents, URLs, dumps or canary data are written to disk.
 - The sidebar's media island (`SidebarMediaPlayer`) is a compact black island: black glass (solid black with
-  glass off), Media Session title, artist and artwork (`MediaArtwork`: cookie-free, raster only, memory only), a wave in
-  the artwork's color (`MediaWaveform`): fine bars for five voice-and-music bands (120 Hz–4 kHz, scaled to the track's
-  recent loudness), only from real levels (Chromium with the live wave on); otherwise no wave rather than a fake one. Closing it hides it until
+  glass off), Media Session title, artist and artwork (`MediaArtwork`: cookie-free, raster only, memory only).
+  Artwork falls back to the playing media's poster and HTTPS page thumbnails when isolated-world metadata is absent;
+  decode only a bounded 160 px thumbnail. Mute and Next have equal hit targets around the centred Play/Pause button;
+  the source picker lives in the header so it cannot shift playback controls. Close stays inside the island.
+  Playback indicators stay static; no waveform timer or audio analysis. Closing it hides it until
   something new plays. Opening, closing and appearing run in the island's own `withAnimation` (`Animation.island`), so
   the sidebar list gives way smoothly (measured with `islandprobe`); never an implicit `.animation` here.
 - Completed download rows open files on a single click via a dedicated button; cancel and
@@ -349,8 +361,12 @@ itself needs 15.4). Bundle ID `app.ikago.browser`; data lives in the protected a
   WebKit popups, use `newTabFromLink`. `WKNavigationAction.buttonNumber` is a mask (middle = 4),
   unlike AppKit's index (middle = 2); middle-click opens in the background, Shift selects it.
 - Browser preferences and bookmarks persist with the session; keep new session fields optional
-  so existing profiles restore. Hibernation remains opt-in and protects every visible split pane,
-  loading/media tabs, protected pins and domain exceptions. Wake through `startIfNeeded()`.
+  so existing profiles restore. `TabMemoryManagement` responds to macOS memory pressure, never an idle clock or a RAM
+  quota. Conservative reclaims safe inactive pages on warnings; Responsive waits for critical pressure. Visible split
+  panes, loading/playing/capturing pages, popups, protected pins/sites, drafts and native navigation history are protected.
+  Failed inspection retains a page. Safe parked engine-history documents can release their views while retaining their
+  Back/Forward destination and engine. Wake through `startIfNeeded()`. New profiles use Conservative; saved profiles
+  map the former hibernation opt-in to Conservative and other profiles to Responsive unless a new choice was saved.
 - Extension resource origins are persisted per installation, alongside stable package IDs.
   Keep WebKit's native scheme and restore the saved origin before loading the context; localStorage
   and IndexedDB must survive reloads, enable/disable and relaunches. Ordinary Debug tests remain
@@ -422,7 +438,7 @@ itself needs 15.4). Bundle ID `app.ikago.browser`; data lives in the protected a
 - The Top Bar uses a native neutral surface with a restrained Space tint and correctly matched
   ink. Webpage tint is opt-in and subtle. Flat surfaces must use that same surface color without
   darkening it again. Separate tabs live below the toolbar; its centered address field stays
-  available for pinned, split and collapsed-group tabs. Compact tabs edit in place. Both styles
+  available for pinned, split and collapsed-group tabs. Compact uses the shared address field while editing, outside the scrolling tab document. Both styles
   keep optional rows connected and support the floating toolbar setting. Heights are adjustable
   (`topToolbarHeight` 40–64 pt for the toolbar or Compact row, `topTabBarHeight` 28–48 pt for
   Separate tabs, both optional preferences); tabs and capsules derive from the row height and the
@@ -430,8 +446,7 @@ itself needs 15.4). Bundle ID `app.ikago.browser`; data lives in the protected a
   side, continuous 14 pt corners, its own shadow and no docked hairline. The address field
   centres the domain at rest, fades the page menu/reload in on hover, and left-aligns on an opaque
   field with the system focus ring while editing; its results use accent-filled rows (white text).
-- Top layouts have static selection; insertion follows `TabMotion`. ActiveTabScrollAnchor is the
-  only reveal owner: observe native clip/document frame changes and reveal clipped edges,
+- Top layouts have static selection; insertion follows `TabMotion`. ActiveTabScrollAnchor reports document-space geometry to one always-mounted native viewport owner: observe clip/document frame changes and reveal clipped edges,
   never recenter an already-visible active tab through a delayed SwiftUI scroll proxy.
 - Integrated address editing uses opaque light/dark surfaces independent of glass. Every address presentation shares
   `OmniboxResults`/`OmniboxRow`: 13 pt rows, favicons, accent-filled selection with white text like a menu item, and in
@@ -469,6 +484,9 @@ instead of crashing. They live in `WebTab.swift` and are toggled by Settings ▸
 
 - `responsibility_get_pid_responsible_for_pid` (`PerformanceSampler`, looked up with `dlsym`): finds the WebKit processes that
   belong to Ikago, which launchd starts. Without it the performance overlay counts the app and its child processes only.
+
+- `_webProcessIdentifier` (`PagePerformance`, checked before calling): maps a WebKit tab to its renderer for the visible
+  Performance page and demand-driven tab preview. There is no public mapping; absence returns unavailable. It never changes page behavior.
 
 ## 8. Chromium engine
 
@@ -513,15 +531,13 @@ instead of crashing. They live in `WebTab.swift` and are toggled by Settings ▸
   a launch where Chromium runs); the whole-store copy on a default switch skips sites ruled to the destination, which
   holds their newest logins. Clearing data clears both engines. Check runs (`CEFSessions.overrideRoot`) get disposable
   WebKit stores; `CEFSiteEngineChecks` covers the rules and a real handoff.
-- Opt-in (Settings ▸ Engine ▸ Sound on Chromium, `chromiumLiveWave`, off by default and described with its delay):
-  Chromium pages' sound is played by Ikago (`IKCEFAudio`): CEF's `CefAudioHandler` hands over each page's PCM and mutes
-  the page's own output, and one `AVAudioEngine` plays it, so the media island's wave follows the real sound with no
-  capture permission or recording indicator (Core Audio taps need both). Measured with `--cef-smoke-audio`: packets
-  arrive ~21 ms after Chromium mixes them and wait 17–23 ms here (256-frame packets, one packet of slack, backlog
-  trimmed), no underruns, so about 40 ms more audio delay. Off, `GetAudioParameters` declines and Chromium plays its own
-  sound untouched (checked with `--cef-smoke-audio-off`); the setting applies when a page next starts playing. Ikago's mute applies to this playback (`IKCEFSetAudioMuted`, also before a stream starts).
-  WebKit's sound never passes through Ikago; never route a page's media through Web Audio to read it (cross-origin,
-  redirected and HLS media go silent).
+- Both engines play their own page audio. Chromium uses CEF's native output and `SetAudioMuted`; Ikago does not install
+  a `CefAudioHandler` or reroute sound for visualization. Never route WebKit media through Web Audio to read it
+  (cross-origin, redirected and HLS media go silent). `CEFAudioChecks` verifies native mute/unmute without stopping playback.
+- Chromium media/theme state uses per-document isolated contexts with `Runtime.addBinding` and CEF DevTools events,
+  never `Runtime.enable` or periodic state polling. Only registered context IDs may report, and native payloads are bounded.
+  `CEFPageStateChecks` verifies zero idle state reads and page-world isolation. The native-video geometry observer starts
+  only on X or after a page reports unsupported video, and stops while parked. Stopping inactive capture never reloads a page.
 - DevTools docks left, right, top or bottom (`DevToolsDock`, saved side and share) under a native bar with dock and
   close buttons; the divider has its own gap. `ChromiumWindowGuard` hides every Chromium window (including Chrome's
   `BrowserNativeWidgetWindow` frame) except the one marked `dockedDevTools`; service windows are transparent and off screen.
@@ -540,3 +556,21 @@ instead of crashing. They live in `WebTab.swift` and are toggled by Settings ▸
   API key. No Quad9 or OpenPhish.
 - Runtime checks use disposable profiles, a mock keychain and fake devices. Never enter credentials, weaken production
   encryption or raise a system permission prompt to make a check pass. They must not show a Chromium window.
+
+
+## 9. Optional browser tools and layout choices
+
+- Notes (`ikago://notes`) shares an observable buffer, saves only dirty edits through `SealedStorage`, flushes on quit,
+  and fails closed on read/decrypt errors. Private buffers are memory-only and discarded with their window. Checks use temporary storage.
+- Page assistance is off by default. Apple Foundation Models runs on-device only, checks model availability, and reads a bounded
+  isolated-world page excerpt only on an explicit request. It has no browser tools; page content is untrusted data. Cancel on tab change or close.
+- Native page menus keep WebKit editing and media actions. Search stays in Ikago; translation explicitly names Google.
+  Direct media can open in a floating AVKit player; protected and page-managed streams retain engine-owned PiP controls.
+- Shared Spaces use the Default cookie store. Switching sharing releases old pages and reopens with the selected store; it never copies cookies.
+- The sidebar can sit on either side; window controls optionally follow it. Top navigation can move to the bottom, with suggestions opening upward.
+  Optional scroll compaction uses a passive native event monitor and a 36 pt reading ribbon. Page bounds must never overlap the docked bars.
+- Delayed previews and Shift-click peeks never wake unloaded tabs. Snapshots stay in memory at bounded thumbnail size; process metrics sample only while a preview is shown.
+
+- Sidebar animated rows must render their live model immediately, including initially empty lists; retained closing rows contain only metadata. Never wait for an empty ForEach to appear before seeding rows.
+- Tab previews replace native title tooltips on rows, tiles and top tabs. Button accessibility labels remain available.
+- The media island exposes PiP for video. WebKit uses its public presentation-mode JavaScript in the reporting frame; Chromium keeps native windows forbidden and uses AVKit for direct streams or its native-video fallback source.
