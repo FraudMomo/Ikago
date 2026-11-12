@@ -61,23 +61,24 @@ struct SettingsPage: View {
                             ForEach(SettingsCategory.allCases) { Label($0.title, systemImage: $0.symbol).tag($0) }
                         }.pickerStyle(.menu).padding(16).frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    PageScaffold(title: state.settingsCategory.title, colors: state.palette, scrollTarget: target) {
+                    PageScaffold(title: state.settingsCategory.title, colors: state.palette, scrollTarget: target, settingsCategory: state.settingsCategory) {
                         categoryContent
                     }
+                    .environment(\.settingsSurface, true)
                     .environment(\.settingsHighlight, highlight)
                     .id(state.settingsCategory).recordLayout("settings-content")
                 }
                 .frame(width: max(0, geometry.size.width - navigationWidth), height: geometry.size.height)
             }
             .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
-            .background(state.palette.pageBackground)
+            .background(Color(nsColor: state.isDark ? NSColor(hex: 0x1C1C1E) : NSColor(hex: 0xF5F5F7)))
             .buttonStyle(.automatic)  // standard macOS controls, not the browser's glass
         }.recordLayout("settings")
     }
 
     private var navigation: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Settings").font(.system(size: 20, weight: .semibold))
+            Text("Settings").font(.system(size: 21, weight: .semibold)).tracking(-0.4)
                 .padding(.leading, 10).padding(.top, 20)
             SettingsSearchField(text: $query, focused: $searchFocused)
             ScrollView {
@@ -89,7 +90,7 @@ struct SettingsPage: View {
             }
             .scrollIndicators(.never)
         }
-        .padding(.horizontal, 12).padding(.top, 16)
+        .padding(.horizontal, 14).padding(.top, 16)
         .foregroundStyle(state.palette.text)
         .overlay(alignment: .trailing) { Color.primary.opacity(0.08).frame(width: 1) }
     }
@@ -187,10 +188,11 @@ private struct SettingsNavigationRow: View {
                     .frame(width: 20)
                 Text(category.title).font(.system(size: 13, weight: selected ? .medium : .regular)).lineLimit(1)
                 Spacer(minLength: 0)
+                if selected { Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).foregroundStyle(.tertiary) }
             }
             .foregroundStyle(selected ? colors.text : colors.secondary)
-            .padding(.horizontal, 10).frame(height: 32)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .padding(.horizontal, 10).frame(height: 38)
+            .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Color.primary.opacity(selected ? 0.09 : hovering ? 0.045 : 0)))
             .contentShape(Rectangle())
         }

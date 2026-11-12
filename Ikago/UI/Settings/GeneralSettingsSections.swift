@@ -102,7 +102,7 @@ private struct SpaceColorPopover: View {
             }.padding(.horizontal, 9).frame(height: 28)
                 .background(Capsule().fill(Color.primary.opacity(0.06)))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.plain).fixedSize()
         .popover(isPresented: $showing, arrowEdge: .bottom) {
             VStack(alignment: .leading, spacing: 12) {
                 Text(title).font(.system(size: 13, weight: .medium))

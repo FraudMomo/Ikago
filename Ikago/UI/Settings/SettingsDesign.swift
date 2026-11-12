@@ -15,6 +15,43 @@ struct IconTile: View {
     }
 }
 
+/// A quiet visual cue beside Settings category titles; Appearance previews the browser chrome itself.
+struct SettingsCategoryArtwork: View {
+    let category: SettingsCategory
+    let colors: Palette
+
+    var body: some View {
+        Group {
+            if category == .appearance {
+                HStack(spacing: 3) {
+                    VStack(spacing: 3) {
+                        ForEach(0..<3, id: \.self) { _ in
+                            Capsule().fill(colors.secondary.opacity(0.35)).frame(height: 3)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(5).frame(width: 19)
+                    RoundedRectangle(cornerRadius: 3).fill(colors.pageBackground)
+                        .overlay(alignment: .top) {
+                            Capsule().fill(colors.selected).frame(height: 4).padding(.horizontal, 5).padding(.top, 5)
+                        }
+                        .padding(3)
+                }
+                .frame(width: 58, height: 38)
+                .background(RoundedRectangle(cornerRadius: 8).fill(colors.tint))
+                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(colors.separator, lineWidth: 1))
+            } else {
+                Image(systemName: category.symbol)
+                    .font(.system(size: 24, weight: .regular))
+                    .foregroundStyle(colors.secondary)
+                    .frame(width: 54, height: 54)
+                    .background(RoundedRectangle(cornerRadius: 15).fill(Color.primary.opacity(0.045)))
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
 /// A small status capsule.
 struct StatusPill: View {
     let text: String
