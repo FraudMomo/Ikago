@@ -1,6 +1,5 @@
 import AppKit
 import WebKit
-
 /// Installed web extensions (Chrome Web Store or unpacked folders), loaded into one shared
 /// `WKWebExtensionController` that every Space's tabs use. Extensions live unpacked in
 /// Application Support/Ikago/Extensions/<id>; `extensions.json` lists them.
@@ -8,7 +7,6 @@ import WebKit
 @Observable
 final class ExtensionManager: NSObject {
     static let shared = ExtensionManager()
-
     struct Record: Codable, Identifiable, Equatable {
         var id: String          // Chrome Web Store ID, or a generated one for local installs
         var enabled = true
@@ -18,13 +16,13 @@ final class ExtensionManager: NSObject {
         /// A Safari web extension inside an installed Mac app, loaded in place (updates with the app).
         var appexPath: String?
     }
-
     var automaticUpdates = true { didSet { saveUpdatePreferences() } }
     var lastUpdateCheck: Date?
     var checkingUpdates = false
     var updateDetails: [String] = []
     var updateMessage = "Web Store extensions are checked daily. Safari extensions update with their apps."
     var installIssue: String?
+    @ObservationIgnored private var loadingIDs = Set<String>()
     @ObservationIgnored var updateTask: Task<Void, Never>?
     var installing: Set<String> = []
     var failures: [String: String] = [:]
@@ -43,9 +41,7 @@ final class ExtensionManager: NSObject {
     @ObservationIgnored var anchors: [String: NSView] = [:]
     /// The popover currently shown for an extension action (one at a time).
     @ObservationIgnored var presentedPopover: NSPopover?
-
     // MARK: Controllers
-
     /// One controller for all Spaces, so extensions run everywhere. Their own storage and
     /// background pages use the default data store; isolated Spaces keep separate cookies.
     func controller(for profileID: String) -> WKWebExtensionController {
@@ -60,35 +56,49 @@ final class ExtensionManager: NSObject {
         controllers["Default"] = controller
         return controller
     }
-
+    var hasOtherBlocker: Bool {
+        contexts.contains { id, context in
+            guard !ExtensionSync.defaults.contains(id) else { return false }
+            let name = context.webExtension.displayName?.lowercased() ?? ""
+            return name.contains("adblock") || name.contains("adguard") || name.contains("ublock")
+        }
+    }
     var allControllers: [WKWebExtensionController] { Array(controllers.values) }
-
     /// Extensions that run in the Space's tabs (all of them, until per-Space installs exist).
     var loaded: [WKWebExtensionContext] {
         records.filter(\.enabled).compactMap { contexts[$0.id] }
     }
-
     func context(for url: URL) -> WKWebExtensionContext? {
         guard BrowserRuntime.runs(.webkit) else { return nil }
         if let context = controller(for: "Default").extensionContext(for: url) { return context }
         if ExtensionURL.isExtension(url.absoluteString), let id = url.host { return contexts[id] }
         return nil
     }
-
     // MARK: Startup
-
     /// Loads every enabled extension. Call before the first tab is created so content
     /// scripts reach the first page load.
     func loadInstalled() async {
         readUpdatePreferences()
         records = Self.readRecords()
-        for record in records where record.enabled {
+        for record in records.sorted(by: { !ExtensionSync.defaults.contains($0.id) && ExtensionSync.defaults.contains($1.id) }) where record.enabled {
+            if ExtensionSync.defaults.contains(record.id),
+               contexts.values.contains(where: { context in
+                   let name = context.webExtension.displayName?.lowercased() ?? ""
+                   return name.contains("adblock") || name.contains("adguard") || name.contains("ublock")
+               }) {
+                if let index = records.firstIndex(where: { $0.id == record.id }) { records[index].enabled = false }
+                saveRecords(); continue
+            }
             do { try await load(record) } catch { failures[record.id] = error.localizedDescription }
         }
     }
-
     @discardableResult
     func load(_ savedRecord: Record) async throws -> Record {
+        // Startup, engine sync and an install can overlap across WebKit's async load.
+        // One native context per package prevents duplicate actions and blocker scripts.
+        if contexts[savedRecord.id] != nil { return savedRecord }
+        guard loadingIDs.insert(savedRecord.id).inserted else { return savedRecord }
+        defer { loadingIDs.remove(savedRecord.id) }
         var record = savedRecord
         let webExtension: WKWebExtension
         if let path = record.appexPath {
@@ -248,7 +258,16 @@ final class ExtensionManager: NSObject {
 
     private static func readRecords() -> [Record] {
         guard let data = try? Data(contentsOf: recordsFile) else { return [] }
-        return (try? JSONDecoder().decode([Record].self, from: data)) ?? []
+        let decoded = (try? JSONDecoder().decode([Record].self, from: data)) ?? []
+        var ids = Set<String>()
+        var bundles = Set<String>()
+        return decoded.filter { record in
+            guard ids.insert(record.id).inserted else { return false }
+            if let path = record.appexPath {
+                return bundles.insert(URL(fileURLWithPath: path).resolvingSymlinksInPath().path).inserted
+            }
+            return true
+        }
     }
 
     func saveRecords() {

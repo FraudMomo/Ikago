@@ -7,9 +7,9 @@ extension ExtensionManager {
         let mine = Dictionary(records.filter { $0.fromWebStore && $0.appexPath == nil }.map { ($0.id, $0.enabled) }) { a, _ in a }
         let plan = ExtensionSync.plan(for: .webkit, installed: mine, entries: ExtensionSync.entries())
         for id in plan.remove { remove(id) }
-        for id in plan.enable { await setEnabled(id, true) }
+        for id in plan.enable where !ExtensionSync.defaults.contains(id) || !hasOtherBlocker { await setEnabled(id, true) }
         for id in plan.disable { await setEnabled(id, false) }
-        for id in plan.install {
+        for id in plan.install where !ExtensionSync.defaults.contains(id) || !hasOtherBlocker {
             let folder: URL
             do { folder = try await WebStoreInstaller.download(id: id) } catch { continue }  // offline: next launch
             defer { try? FileManager.default.removeItem(at: folder.deletingLastPathComponent()) }
