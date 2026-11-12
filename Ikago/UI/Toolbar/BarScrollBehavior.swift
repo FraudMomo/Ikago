@@ -32,7 +32,7 @@ final class BarScrollObserver: NSView {
     private func observe(_ event: NSEvent) {
         guard event.window === window, let state, state.tabLayout.usesTopTabs,
               state.browserPreferences.collapseBarOnScroll == true, !state.isImmersive,
-              !state.barFloating, chrome?.holdsPeek != true, chrome?.showTabOverview != true,
+              chrome?.holdsPeek != true, chrome?.showTabOverview != true,
               abs(event.scrollingDeltaY) > abs(event.scrollingDeltaX) else { return }
         let point = convert(event.locationInWindow, from: nil)
         let fromTop = isFlipped ? point.y : bounds.height - point.y
@@ -40,7 +40,7 @@ final class BarScrollObserver: NSView {
         let delta = event.scrollingDeltaY
         if (delta > 0) != (distance > 0) { distance = 0 }
         distance += delta
-        if distance < -80 { state.barCondensed = true; distance = 0 }
-        if distance > 28 { state.barCondensed = false; distance = 0 }
+        if distance < -80 { withAnimation(.easeInOut(duration: 0.22)) { state.barCondensed = true }; distance = 0 }
+        if distance > 28 { withAnimation(.easeInOut(duration: 0.22)) { state.barCondensed = false }; distance = 0 }
     }
 }

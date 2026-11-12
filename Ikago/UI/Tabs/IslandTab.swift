@@ -43,8 +43,8 @@ struct IslandTab: View {
         .clipShape(Capsule())
         .overlay {
             // Keep focus feedback inside the capsule: scroll clipping must not square its corners.
-            if isActive && chrome.isEditingAddress(of: tab.id) {
-                Capsule().strokeBorder(colors.text.opacity(0.28), lineWidth: 1).allowsHitTesting(false)
+            if isActive {
+                Capsule().strokeBorder(colors.text.opacity(chrome.isEditingAddress(of: tab.id) ? 0.28 : 0.07), lineWidth: 0.7).allowsHitTesting(false)
             }
         }
         .overlay(alignment: .bottom) {
@@ -82,30 +82,27 @@ struct IslandTab: View {
             }
             .frame(maxWidth: .infinity)
         } else {
-            HStack(spacing: 5) {
-                closeButton.opacity(hovering ? 1 : 0).allowsHitTesting(hovering)
-                HStack(spacing: 5) {
-                    if isActive { SecurityBadge(tab: tab, colors: colors, size: 9) }
-                    else { FaviconView(tab: tab, size: 14).opacity(tab.isLoading ? 0.4 : 1) }
-                    Text(isActive ? tab.addressLabel : tab.displayTitle)
-                        .lineLimit(1).font(.system(size: 13, weight: .regular))
-                }
-                .foregroundStyle(isActive ? colors.text : colors.secondary)
-                .frame(maxWidth: .infinity, alignment: .center)
+            HStack(spacing: 8) {
+                if isActive { SecurityBadge(tab: tab, colors: colors, size: 10) }
+                else { FaviconView(tab: tab, size: 14).opacity(tab.isLoading ? 0.4 : 1) }
+                Text(tab.displayTitle)
+                    .lineLimit(1).font(.system(size: 13, weight: isActive ? .medium : .regular))
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 TabMediaIndicators(tab: tab, colors: colors, commands: commands)
-                ZStack {
-                    if isActive {
-                        if tab.isLoading {
-                            PageLoadButton(tab: tab, colors: colors, commands: commands)
-                        } else {
+                if isActive {
+                    ZStack {
+                        if tab.isLoading { PageLoadButton(tab: tab, colors: colors, commands: commands) }
+                        else {
                             SiteInfoButton(state: state, colors: colors, commands: commands, isPresented: $showInfo,
                                            symbol: "line.3.horizontal")
                                 .opacity(hovering || showInfo ? 1 : 0).allowsHitTesting(hovering || showInfo)
                         }
-                    }
-                }.frame(width: 22, height: 24)
+                    }.frame(width: 22, height: 24)
+                }
+                closeButton.opacity(hovering ? 1 : 0).allowsHitTesting(hovering)
             }
-            .padding(.horizontal, 9)
+            .foregroundStyle(isActive ? colors.text : colors.secondary)
+            .padding(.horizontal, 11)
             .background(isActive ? AnyView(ExtensionPopupAnchor()) : AnyView(EmptyView()))
         }
     }

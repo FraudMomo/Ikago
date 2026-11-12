@@ -20,8 +20,8 @@ struct TopTabStrip: View {
             let height = state.topTabBarHeight
             // Tabs share the row down to a readable width, then inactive tabs compact to favicons.
             let layout = TabStripLayout(items: items, available: geometry.size.width, groupStyle: state.groupLabelStyle,
-                showGroupCounts: state.showsGroupTabCounts, maximumTab: .greatestFiniteMagnitude, pinnedWidth: 36,
-                activeID: state.activeTabID, minimumInactive: 120)
+                showGroupCounts: state.showsGroupTabCounts, maximumTab: 180, pinnedWidth: 36,
+                activeID: state.activeTabID, minimumActive: 160, minimumInactive: 160)
             ScrollViewReader { _ in
                 ScrollView(.horizontal) {
                     HStack(spacing: TabStripLayout.spacing) {
@@ -132,15 +132,21 @@ private struct TopTabView: View {
                 label
             }
         }
-        .padding(.horizontal, 6).frame(width: width, height: height)
+        .padding(.horizontal, 10).frame(width: width, height: height)
         .foregroundStyle(active ? colors.text : colors.secondary)
         .background {
-            let fill = RoundedRectangle(cornerRadius: min(10, height / 2), style: .continuous)
+            let fill = RoundedRectangle(cornerRadius: min(12, height / 2), style: .continuous)
             if active && !colors.isDark { CardShadow(shape: fill, color: .black.opacity(0.08), radius: 1, y: 0.5) }
             fill
                 .fill(active ? Color(nsColor: state.topBarAddressColor) : colors.hover.opacity(1.4))
                 .opacity(active || hovering ? 1 : 0)
                 .animation(nil, value: active)  // selection stays immediate inside the strip's motion
+        }
+        .overlay {
+            if active {
+                RoundedRectangle(cornerRadius: min(12, height / 2), style: .continuous)
+                    .strokeBorder(colors.text.opacity(colors.isDark ? 0.1 : 0.04), lineWidth: 0.7).allowsHitTesting(false)
+            }
         }
         .overlay(alignment: .trailing) {
             Rectangle().fill(colors.separator.opacity(1.6)).frame(width: 1, height: height * 0.5)
@@ -158,21 +164,17 @@ private struct TopTabView: View {
     }
 
     private var label: some View {
-        HStack(spacing: 6) {
-            if !tab.pinned {
-                closeButton.opacity(hovering ? 1 : 0).allowsHitTesting(hovering)
-                Spacer(minLength: 0)
-            }
+        HStack(spacing: 8) {
             if tab.pinned && (tab.isMuted || tab.isPlayingAudio) {
                 TabAudioButton(tab: tab, colors: colors, commands: commands)
             } else {
                 FaviconView(tab: tab, size: 14).opacity(tab.isLoading ? 0.4 : 1)
             }
             if !tab.pinned {
-                Text(tab.displayTitle).font(.system(size: 12, weight: active ? .medium : .regular)).lineLimit(1)
-                Spacer(minLength: 0)
+                Text(tab.displayTitle).font(.system(size: 13, weight: active ? .medium : .regular)).lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 TabMediaIndicators(tab: tab, colors: colors, commands: commands)
-                Color.clear.frame(width: 18, height: 1)
+                closeButton.opacity(hovering ? 1 : 0).allowsHitTesting(hovering)
             }
         }
     }

@@ -25,7 +25,7 @@ extension BrowserWindowController {
         let rightInset = content.bounds.width - CGFloat(state.sidebarWidth) + 19
 
         let centerFromTop: CGFloat = state.barAtBottom ? 24 : state.barTopInset + state.barShownHeight / 2
-        let firstX: CGFloat = state.barFloating ? BrowserState.topBarFloatingMargin + 12 : 11
+        let firstX: CGFloat = state.barAtBottom ? 19 : state.barFloating ? BrowserState.topBarFloatingMargin + 12 : 11
         if drawn {
             fullScreenControls.show()
             let band = browserWindow?.fullScreenTopBand ?? 0
@@ -52,7 +52,7 @@ extension BrowserWindowController {
         let centerY = content.isFlipped ? content.bounds.minY + centerFromTop : content.bounds.maxY - centerFromTop
         for (index, kind) in ([.closeButton, .miniaturizeButton, .zoomButton] as [NSWindow.ButtonType]).enumerated() {
             guard let button = window.standardWindowButton(kind), let parent = button.superview else { continue }
-            if topTabs {
+            if topTabs || (state.sidebarOnRight && !state.sidebarLightsFollow) {
                 let point = parent.convert(NSPoint(x: firstX + CGFloat(index) * 23, y: centerY), from: content)
                 let origin = NSPoint(x: point.x, y: point.y - button.frame.height / 2)
                 if button.frame.origin != origin { button.setFrameOrigin(origin) }

@@ -36,14 +36,14 @@ struct IslandBarView: View {
     private func bar(available: CGFloat, sections: [IslandStripSection]) -> some View {
         let colors = state.barPalette
         let items = sections.flatMap(\.items)
-        let lights = state.barFloating || reserveTrafficLights
+        let lights = !state.barAtBottom && (state.barFloating || reserveTrafficLights)
         let toolbar = IslandToolbarLayout(leading: leadingItems, trailing: trailingItems, available: available, floating: lights, size: controlSize)
         let viewport = max(32, toolbar.viewport - 16)
         // Readable titles first, then inactive tabs compact to favicons beside the active tab.
         let layout = TabStripLayout(items: items, available: viewport,
                                     expandedGroups: sections.filter(\.hasMembers).count,
-                                    groupStyle: state.groupLabelStyle, showGroupCounts: state.showsGroupTabCounts, maximumTab: 280,
-                                    activeID: state.activeTabID, minimumInactive: 120)
+                                    groupStyle: state.groupLabelStyle, showGroupCounts: state.showsGroupTabCounts, maximumTab: 180,
+                                    activeID: state.activeTabID, minimumActive: 160, minimumInactive: 160)
         let width = min(layout.natural, viewport)
         let target = scrollTarget(in: items)
         return HStack(spacing: 2) {
@@ -139,7 +139,7 @@ struct IslandBarView: View {
     private var trailingItems: [ChromeItem] {
         let placed = (state.barFloating || foldOutsideControls ? state.chromeLayout.topBarOuterTrailing : []) + state.chromeLayout.topBarTrailing
         let automatic = (DownloadCenter.shared.showsToolbarButton || chrome.showDownloads) && !state.chromeLayout.contains(.downloads, inTopBar: true)
-        return placed + (automatic ? [.downloads] : [])
+        return placed + (automatic ? [.downloads] : []) + (state.chromeLayout.contains(.assistant, inTopBar: true) ? [] : [.assistant])
     }
 
     /// Room for the traffic lights at the island's leading end (Floating mode).

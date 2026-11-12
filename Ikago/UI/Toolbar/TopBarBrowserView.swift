@@ -65,7 +65,8 @@ struct TopBarBrowserView: View {
         .environment(\.tabHighlightStyle, .none)
         .recordLayout("top-header")
         .recordLayout("connected-topbar")
-        .transaction { $0.animation = nil }
+        .animation(.easeInOut(duration: 0.22), value: state.barCondensed)
+        .animation(.easeOut(duration: 0.14), value: chrome.inlineAddress)
     }
 
     static let floatingRadius: CGFloat = 14

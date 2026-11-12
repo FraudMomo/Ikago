@@ -60,7 +60,7 @@ final class SidebarSpaceSwipeView: NSView {
 
         if horizontal {
             if !changedSpace {
-                state?.selectAdjacentSpace(distance < 0 ? 1 : -1)
+                withAnimation(.easeInOut(duration: 0.22)) { state?.selectAdjacentSpace(distance < 0 ? 1 : -1) }
                 changedSpace = true
             }
             if event.momentumPhase.contains(.ended) || event.phase.contains(.cancelled) { reset() }

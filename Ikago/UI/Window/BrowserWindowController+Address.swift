@@ -71,7 +71,11 @@ extension BrowserWindowController {
             chrome.inlineAddress = false
         }
         chrome.editingTabID = nil
-        activeController?.focus()
+        let controller = activeController
+        DispatchQueue.main.async { [weak self, weak controller] in
+            guard let self, !self.isEditingAddress, self.activeController === controller else { return }
+            controller?.focus()
+        }
     }
 
     /// ⌘T and + keep the chosen page provider. Top layouts always focus their address field.

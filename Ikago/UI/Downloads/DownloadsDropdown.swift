@@ -26,8 +26,8 @@ struct DownloadsDropdown: View {
                         .frame(width: 26, height: 26).contentShape(Circle())
                 }.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().tint(colors.secondary).help("Download Actions")
                 ChromeButton(symbol: "xmark", help: "Close Downloads and hide the temporary button when finished", colors: colors, size: 26, glass: false) {
-                    center.dismissToolbarButton()
                     close()
+                    DispatchQueue.main.async { center.dismissToolbarButton() }
                 }.accessibilityLabel("Close Downloads and hide temporary button")
             }.padding(.horizontal, 16).padding(.vertical, 10)
             separator

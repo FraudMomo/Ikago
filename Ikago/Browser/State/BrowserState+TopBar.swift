@@ -38,7 +38,7 @@ extension BrowserState {
     var topBarAddressColor: NSColor { NSColor(hex: isDark ? 0x3A3A3C : 0xFFFFFF) }
     var topTabStripHeight: CGFloat { topBarShowsTabStrip ? topTabBarHeight : 0 }
     var topBarHeaderHeight: CGFloat {
-        if barCondensed && browserPreferences.collapseBarOnScroll == true { return 36 }
+        if barCondensed && browserPreferences.collapseBarOnScroll == true { return 36 + (barFloating ? Self.topBarFloatingMargin * 2 : 0) }
         return topToolbarHeight + topTabStripHeight + (showsBookmarksBar ? 32 : 0) + (barFloating ? Self.topBarFloatingMargin * 2 : 0)
     }
     /// The neutral native chrome carries a restrained Space tint, never illegible page ink.

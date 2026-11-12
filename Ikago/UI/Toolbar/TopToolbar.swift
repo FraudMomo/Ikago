@@ -15,11 +15,11 @@ struct TopToolbar: View {
             let automatic = (DownloadCenter.shared.showsToolbarButton || chrome.showDownloads)
                 && !state.chromeLayout.contains(.downloads, inTopBar: true)
             let layout = TopToolbarLayout(leading: state.chromeLayout.topBarOuterLeading + state.chromeLayout.topBarLeading,
-                trailing: state.chromeLayout.topBarTrailing + state.chromeLayout.topBarOuterTrailing + (automatic ? [.downloads] : []),
-                available: geometry.size.width)
+                trailing: state.chromeLayout.topBarTrailing + state.chromeLayout.topBarOuterTrailing + (automatic ? [.downloads] : []) + (state.chromeLayout.contains(.assistant, inTopBar: true) ? [] : [.assistant]),
+                available: geometry.size.width, trafficWidth: state.barAtBottom ? 0 : 80)
             ZStack {
                 HStack(spacing: 2) {
-                    Color.clear.frame(width: 80, height: capsule)
+                    Color.clear.frame(width: state.barAtBottom ? 0 : 80, height: capsule)
                     if !layout.leading.isEmpty {
                         GlassControlGroup(colors: colors, height: capsule) {
                             HStack(spacing: 2) { ForEach(layout.leading) { item in control(item, colors: colors) } }
@@ -58,13 +58,14 @@ struct TopToolbarLayout {
     var trailing: [ChromeItem]
     var overflow: [ChromeItem] = []
     let available: CGFloat
-    private var left: CGFloat { 96 + CGFloat(leading.count) * 30 }
+    let trafficWidth: CGFloat
+    private var left: CGFloat { 16 + trafficWidth + CGFloat(leading.count) * 30 }
     private var right: CGFloat { 16 + CGFloat(trailing.count + (overflow.isEmpty ? 0 : 1)) * 30 }
     var addressWidth: CGFloat { max(0, min(500, available - left - right - 8)) }
     var addressCenter: CGFloat { min(max(available / 2, left + 4 + addressWidth / 2), available - right - 4 - addressWidth / 2) }
 
-    init(leading: [ChromeItem], trailing: [ChromeItem], available: CGFloat) {
-        self.leading = leading; self.trailing = trailing; self.available = available
+    init(leading: [ChromeItem], trailing: [ChromeItem], available: CGFloat, trafficWidth: CGFloat = 80) {
+        self.leading = leading; self.trailing = trailing; self.available = available; self.trafficWidth = trafficWidth
         while addressWidth < min(180, max(120, available * 0.34)) && (!self.leading.isEmpty || !self.trailing.isEmpty) {
             if let item = self.trailing.popLast() { overflow.insert(item, at: 0) }
             else if let item = self.leading.popLast() { overflow.insert(item, at: 0) }

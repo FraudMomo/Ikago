@@ -7,10 +7,7 @@ struct AppearanceSection: View {
     var body: some View {
         PageSection(title: "Color & Theme") {
             PageRow(title: "Appearance") {
-                Picker("", selection: Binding(get: { state.colorMode }, set: { mode in withAnimation(.ikago) { state.colorMode = mode } })) {
-                    ForEach(ColorMode.allCases) { Text($0.name).tag($0) }
-                }
-                .pickerStyle(.segmented).labelsHidden().fixedSize()
+                AppearanceModePicker(state: state).padding(.vertical, 5)
             }
             PageDivider()
             SpaceThemePicker(state: state)

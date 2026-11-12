@@ -9,7 +9,7 @@ extension BrowserState {
     var pageCornerRadius: CGFloat { frameInset == 0 || isImmersive ? 0 : 12 }
     /// Floating island mode: the page fills the window and one pill floats over it, holding the
     /// traffic lights, buttons and tabs. Height is adjustable within a narrower range; the gap doesn't apply.
-    var barFloating: Bool { tabLayout == .horizontal && barRounded && !barAtBottom }
+    var barFloating: Bool { tabLayout == .horizontal && (barRounded || barAtBottom) }
     /// The island's height as drawn.
     var barShownHeight: CGFloat { tabLayout == .horizontal ? topToolbarHeight : CGFloat(barHeight) }
     /// The title row the island sits in (traffic lights are centred on it).
@@ -31,7 +31,7 @@ extension BrowserState {
     /// Floating island: how far the page content starts below the card's top edge. The page still
     /// scrolls under the island, and fixed navbars sit below it.
     var floatingContentInset: CGFloat {
-        tabLayout == .horizontal && barFloating && !isImmersive ? max(0, topBarChromeHeight - CGFloat(frameInset)) : 0
+        tabLayout == .horizontal && barFloating && !barAtBottom && !isImmersive ? max(0, topBarChromeHeight - CGFloat(frameInset)) : 0
     }
 
     /// Space identity colors the whole chrome. A page theme can contribute a subtle tint.
