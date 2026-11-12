@@ -54,6 +54,7 @@ struct SidebarFolderSection<Content: View>: View {
                 .opacity(isOpen ? 1 : 0)
         }
         .padding(.vertical, 3)
+        .recordLayout("sidebar-folder-\(folder.id)")
 #if DEBUG
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { GroupDisclosureProbe.shared.note(folder.name, $0) }
 #endif
@@ -95,7 +96,7 @@ struct SidebarFolderSection<Content: View>: View {
     private var header: some View {
         Button { state.toggleFolder(folder.id) } label: {
             HStack(spacing: 8) {
-                FolderLabel(folder: folder, colors: colors, tabs: state.tabs(in: folder),
+                FolderLabel(folder: folder, colors: colors,
                             isActive: containsActiveTab, style: state.groupLabelStyle)
                 Spacer(minLength: 4)
                 if state.showsGroupTabCounts {

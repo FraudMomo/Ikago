@@ -55,7 +55,7 @@ struct SidebarRail: View {
             Button {
                 if open { openGroups.remove(folder.id) } else { openGroups.insert(folder.id) }
             } label: {
-                FolderIcon(folder: folder, colors: colors, tabs: state.tabs(in: folder), size: 15)
+                FolderIcon(folder: folder, colors: colors, size: 15)
                 .frame(width: 36, height: 36)
                 .background {
                     // An active tab hidden in a closed group still shows where it is.

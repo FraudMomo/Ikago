@@ -562,6 +562,9 @@ instead of crashing. They live in `WebTab.swift` and are toggled by Settings ▸
 
 ## 9. Optional browser tools and layout choices
 
+- Group appearance uses a bounded integrated editor with a local icon/color draft. Done saves both choices;
+  Cancel, Esc and outside clicks discard the draft. Keep the preview and selected states visible in both color modes.
+
 - Notes (`ikago://notes`) shares an observable buffer, saves only dirty edits through `SealedStorage`, flushes on quit,
   and fails closed on read/decrypt errors. Private buffers are memory-only and discarded with their window. Checks use temporary storage.
 - Page assistance is off by default. Its control uses the customizable toolbar; disabled assistance has no live control or open pane.

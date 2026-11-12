@@ -26,13 +26,18 @@ struct IntegratedEditors: View {
         if let prompt = chrome.textPrompt {
             backdrop { prompt.confirm() }
             VStack(alignment: .leading, spacing: 16) {
-                Text(prompt.title).font(.headline)
+                ModalHeading(title: prompt.title, colors: state.palette) { prompt.finish(nil) }
                 TextField(prompt.placeholder.isEmpty ? "Name" : prompt.placeholder,
                           text: Binding(get: { prompt.text }, set: { prompt.text = $0 }))
-                    .textFieldStyle(.plain).font(.system(size: 20)).focused($focused)
+                    .modalInput(state.palette).focused($focused)
                     .onSubmit { prompt.confirm() }
-                Text("Return or click outside to save · Esc to cancel").font(.caption).foregroundStyle(.secondary)
-            }.padding(24).frame(width: 350).surface(RoundedRectangle(cornerRadius: 18), state.palette)
+                HStack {
+                    Text("Return or click outside to save").font(.system(size: 11)).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Done") { prompt.confirm() }.buttonStyle(ModalButtonStyle(colors: state.palette, primary: true))
+                        .keyboardShortcut(.defaultAction)
+                }
+            }.modalCard(state.palette, width: 380)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .onAppear { focused = true }.onExitCommand { prompt.finish(nil) }
         }
@@ -40,36 +45,17 @@ struct IntegratedEditors: View {
             backdrop { chrome.spaceSubmitRequest += 1 }
             NewSpaceView(onCreate: { name, symbol, isolated in
                 state.createSpace(name: name, symbol: symbol, isolated: isolated); chrome.showNewSpace = false
-            }, onCancel: { chrome.showNewSpace = false }, submitRequest: chrome.spaceSubmitRequest)
-                .surface(RoundedRectangle(cornerRadius: 18), state.palette)
+            }, onCancel: { chrome.showNewSpace = false }, submitRequest: chrome.spaceSubmitRequest, colors: state.palette)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         if let id = chrome.editFolderID, let folder = state.folders.first(where: { $0.id == id }) {
             backdrop { chrome.editFolderID = nil }
-            VStack(alignment: .leading, spacing: 18) {
-                Text(folder.name).font(.headline)
-                LazyVGrid(columns: Array(repeating: GridItem(.fixed(34)), count: 6), spacing: 8) {
-                    ForEach(TabFolder.iconChoices, id: \.symbol) { choice in
-                        Button { state.setFolderIcon(id, to: choice.symbol) } label: {
-                            Image(systemName: choice.symbol).frame(width: 34, height: 34)
-                                .background(RoundedRectangle(cornerRadius: 8).fill(folder.symbolIcon == choice.symbol ? state.palette.selected : state.palette.hover))
-                        }.buttonStyle(.plain).accessibilityLabel(choice.name)
-                    }
-                }
-                LazyVGrid(columns: Array(repeating: GridItem(.fixed(34)), count: 5), spacing: 8) {
-                    ForEach(FolderTag.allCases) { tag in
-                        Button { state.setFolderTag(id, to: tag) } label: {
-                            Circle().fill(tag.color).frame(width: 20, height: 20).padding(7)
-                                .overlay(Circle().strokeBorder(.primary.opacity(folder.tag == tag.rawValue ? 0.7 : 0), lineWidth: 2))
-                        }.buttonStyle(.plain).accessibilityLabel(tag.name)
-                    }
-                }
-                HStack { Button("Reset") { state.setFolderTag(id, to: nil); state.setFolderIcon(id, to: nil) }; Spacer(); Button("Emoji…") { chrome.editFolderID = nil; commands?.chooseFolderEmoji(id) } }
-            }.padding(24).surface(RoundedRectangle(cornerRadius: 18), state.palette)
+            GroupAppearanceEditor(folder: folder, state: state) { chrome.editFolderID = nil }
+                .id(id).transition(.opacity.combined(with: .scale(scale: 0.97)))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
     private func backdrop(_ action: @escaping () -> Void) -> some View {
-        Color.black.opacity(0.12).ignoresSafeArea().onTapGesture(perform: action).transition(.opacity)
+        Color.black.opacity(state.isDark ? 0.24 : 0.1).ignoresSafeArea().onTapGesture(perform: action).transition(.opacity)
     }
 }

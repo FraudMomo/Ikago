@@ -47,8 +47,8 @@ struct BrowserRootView: View {
             if chrome.showNotes {
                 Color.black.opacity(0.1).onTapGesture { chrome.showNotes = false }
                 NotesPage(state: state).frame(maxWidth: 640, maxHeight: 540)
-                    .surface(RoundedRectangle(cornerRadius: 18), state.palette)
-                    .overlay(alignment: .topTrailing) { Button { chrome.showNotes = false } label: { Image(systemName: "xmark") }.buttonStyle(.plain).padding(18) }
+                    .modalSurface(state.palette)
+                    .overlay(alignment: .topTrailing) { ModalCloseButton(colors: state.palette, action: { chrome.showNotes = false }).padding(18) }
                     .frame(maxWidth: .infinity, maxHeight: .infinity).transition(.opacity.combined(with: .scale(scale: 0.98)))
                     .onExitCommand { chrome.showNotes = false }
             }
