@@ -50,29 +50,29 @@ struct TabListView: View {
         let activeID = state.activeTabID
         let activeFolderID = state.activeTab?.folderID
         var seen = Set(state.presentsSidebarPinGrid ? state.sidebarGridPinnedTabs.map(\.id) : [])
-        let pinnedItems = state.listItems(groups.pinned.filter { !state.presentsSidebarPinGrid || $0.pinAsRow || state.splitGroup(of: $0.id) != nil }, seen: &seen)
-        let folderItems = folders.map { (folder: $0, count: groups.tabs(in: $0.id).count, items: state.listItems(groups.tabs(in: $0.id), seen: &seen)) }
+        let rowPins = groups.pinned.filter { !state.presentsSidebarPinGrid || $0.pinAsRow || state.splitGroup(of: $0.id) != nil }
+        let folderIDs = Set(folders.map(\.id))
+        let anchors = Dictionary(grouping: rowPins) { tab in tab.pinAfterFolderID.flatMap { folderIDs.contains($0) ? $0 : nil } ?? "" }
+        let pinnedItems = state.listItems(anchors[""] ?? [], seen: &seen)
+        let folderItems = folders.map { (folder: $0, count: groups.tabs(in: $0.id).count,
+            items: state.listItems(groups.tabs(in: $0.id), seen: &seen), pins: state.listItems(anchors[$0.id] ?? [], seen: &seen)) }
         let looseItems = state.listItems(groups.loose, seen: &seen)
-        let visibleItems = pinnedItems + folderItems.filter { $0.folder.isOpen }.flatMap(\.items) + looseItems
+        let visibleItems = pinnedItems + folderItems.flatMap { ($0.folder.isOpen ? $0.items : []) + $0.pins } + looseItems
         let activeIsListed = visibleItems.contains { $0.containsTab(activeID) }
-        let order = groups.pinned.map(\.id) + folders.flatMap { groups.tabs(in: $0.id).map(\.id) } + groups.loose.map(\.id)
+        let order = pinnedItems.map(\.id) + folderItems.flatMap { [$0.folder.id] + $0.items.map(\.id) + $0.pins.map(\.id) } + looseItems.map(\.id)
         return GeometryReader { geometry in
             SidebarScrollView(chrome: chrome) {
                 VStack(spacing: 2) {
                     AnimatedListItems(items: pinnedItems) { item in itemView(item) }
-                    if chrome.draggingTabID != nil {
-                        RoundedRectangle(cornerRadius: 8).fill(colors.hover).frame(height: 28)
-                            .overlay(Text("Pinned tabs").font(.system(size: 11)).foregroundStyle(colors.secondary))
-                            .openTabDrop(state: state, chrome: chrome) { id, _ in
-                                withAnimation(.ikagoQuick) { state.movePin(id, intoGrid: false) }
-                            }
-                    }
+                    SidebarPinBoundary(state: state, chrome: chrome, afterFolderID: nil)
                     ForEach(folderItems, id: \.folder.id) { entry in
                         SidebarFolderSection(folder: entry.folder, state: state, chrome: chrome,
                                              colors: colors, selection: selection, showSelection: !activeIsListed,
                                              count: entry.count, containsActiveTab: activeFolderID == entry.folder.id, commands: commands) {
                             AnimatedListItems(items: entry.items) { item in itemView(item) }
                         }
+                        AnimatedListItems(items: entry.pins) { item in itemView(item) }
+                        SidebarPinBoundary(state: state, chrome: chrome, afterFolderID: entry.folder.id)
                     }
                     if state.chromeLayout.sidebarShowsNewTab {
                         // Horizontal line
@@ -94,7 +94,7 @@ struct TabListView: View {
                 .animation(reduceMotion ? nil : .ikagoQuick, value: state.splits)
             }
             .frame(maxHeight: .infinity)
-        }
+        }.recordLayout("sidebar-tab-list")
     }
 
     @ViewBuilder private func itemView(_ item: TabListItem) -> some View {

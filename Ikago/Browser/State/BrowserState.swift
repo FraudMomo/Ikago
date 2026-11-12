@@ -134,8 +134,8 @@ final class BrowserState {
     var looseTabs: [TabItem] { regularTabs.filter { $0.folderID == nil } }
     var spaceFolders: [TabFolder] { folders.filter { $0.spaceID == activeSpaceID } }
     func tabs(in folder: TabFolder) -> [TabItem] { regularTabs.filter { $0.folderID == folder.id } }
-    /// Sidebar order: pinned, then each folder's tabs, then loose tabs.
-    var sidebarOrder: [TabItem] { pinnedTabs + spaceFolders.flatMap { tabs(in: $0) } + looseTabs }
+    /// Keyboard order follows standalone pins interleaved with group sections.
+    var sidebarOrder: [TabItem] { orderedSidebarTabs }
 
     /// Tabs currently on screen, in pane order.
     var visibleTabIDs: [String] {
@@ -215,6 +215,7 @@ final class BrowserState {
         guard let tab = tab(id) else { return }
         tab.pinned.toggle()
         tab.pinAsRow = tab.pinned
+        tab.pinAfterFolderID = nil
         tab.folderID = nil
         // Keep pinned tabs grouped first.
         tabs = tabs.filter(\.pinned) + tabs.filter { !$0.pinned }
@@ -226,6 +227,7 @@ final class BrowserState {
     func move(_ id: String, before targetID: String?, pinned: Bool, folderID: String? = nil) {
         guard let moving = tab(id), id != targetID else { return }
         moving.pinned = pinned
+        if !pinned { moving.pinAsRow = false; moving.pinAfterFolderID = nil }
         moving.folderID = pinned ? nil : folderID
         tabs.removeAll { $0.id == id }
         if let targetID, let index = tabs.firstIndex(where: { $0.id == targetID }) {

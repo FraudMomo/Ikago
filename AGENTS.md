@@ -224,7 +224,9 @@ text and international formatting remain available; `CEFLocaleChecks` verifies m
   Group headers accept membership drops explicitly; only web-page split targets intercept input
   through a native overlay.
   Pin Tab creates a standalone sidebar row. Dragging into the essentials grid makes it a tile;
-  dragging back into the list keeps it pinned as a row. Use one Pin/Unpin action; placement is drag-driven.
+  fixed section-boundary targets place standalone pins above or below groups (`pinAfterFolderID`, optional on saved tabs).
+  Dropping on a regular row or at the normal list end unpins. Keep drop geometry mounted so starting a drag never shifts rows.
+  Use one Pin/Unpin action; placement is drag-driven.
   Closing a pin unloads its page and retains its identity; only unpinning/removal deletes it.
   Persist favicon URLs on tabs/bookmarks and retain disk icons without age expiry.
   Favicon views synchronously seed from disk/memory; never clear a working same-site image
@@ -562,12 +564,16 @@ instead of crashing. They live in `WebTab.swift` and are toggled by Settings ▸
 
 ## 9. Optional browser tools and layout choices
 
-- Group appearance uses a bounded integrated editor with a local icon/color draft. Done saves both choices;
+- Modals share `ModalDesign`: window-integrated surfaces, native typography, clear fields and consistent actions.
+  Cast shadows from `CardShadow`, never the changing card contents. Settings appearance choices show light/dark/system previews.
+- Group appearance uses a bounded integrated editor with a local icon/color draft. The default icon stays a folder, even with several tabs.
+  Use Emoji opens the public macOS character picker through a native text input client. Done saves both choices;
   Cancel, Esc and outside clicks discard the draft. Keep the preview and selected states visible in both color modes.
 
 - Notes (`ikago://notes`) shares an observable buffer, saves only dirty edits through `SealedStorage`, flushes on quit,
   and fails closed on read/decrypt errors. Private buffers are memory-only and discarded with their window. Checks use temporary storage.
-- Page assistance is off by default. Its control uses the customizable toolbar; disabled assistance has no live control or open pane.
+- Page assistance is off by default. Enabling it seeds a customizable control in both layouts; moves and explicit removal persist.
+  Existing enabled profiles receive this placement once (`assistantToolbarInitialized`). Disabled assistance has no live control or open pane.
   Apple Foundation Models runs on-device only, checks model availability, and reads a bounded
   isolated-world page excerpt only on an explicit request. It has no browser tools; page content is untrusted data. Cancel on tab change or close.
 - Native page menus keep WebKit editing and media actions. Search stays in Ikago; translation explicitly names Google.

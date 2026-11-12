@@ -11,6 +11,8 @@ final class TabItem: Identifiable {
     var pinned: Bool
     /// Keep this pin in the sidebar list instead of its favorites grid.
     var pinAsRow = false
+    /// Standalone row follows this group; nil places it above the groups.
+    var pinAfterFolderID: String?
     var spaceID: UUID
     var folderID: String?
 
@@ -67,7 +69,7 @@ final class TabItem: Identifiable {
     }
 
     var saved: SavedTab {
-        SavedTab(id: id, url: url, title: title, pinned: pinned, space: spaceID.uuidString, folder: folderID, favicon: faviconURL?.absoluteString, unloaded: isHibernating, pinAsRow: pinAsRow)
+        SavedTab(id: id, url: url, title: title, pinned: pinned, space: spaceID.uuidString, folder: folderID, favicon: faviconURL?.absoluteString, unloaded: isHibernating, pinAsRow: pinAsRow, pinAfterFolderID: pinAfterFolderID)
     }
 }
 
@@ -83,6 +85,7 @@ struct SavedTab: Codable, Equatable {
     var favicon: String? = nil
     var unloaded: Bool? = nil
     var pinAsRow: Bool? = nil
+    var pinAfterFolderID: String? = nil
 }
 
 struct Visit: Codable, Equatable {

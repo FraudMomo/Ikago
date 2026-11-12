@@ -6,47 +6,59 @@ struct SidebarEssentials: View {
     weak var commands: BrowserCommands?
     var onSelection: (() -> Void)? = nil
     @State private var availableColumns = 1
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var columnCount: Int { min(state.browserPreferences.pinnedGridColumns ?? 3, availableColumns) }
+    private var height: CGFloat {
+        guard state.showsPinnedGrid else { return 0 }
+        let count = state.sidebarGridPinnedTabs.count
+        return count == 0 ? 10 : min(220, CGFloat((count + columnCount - 1) / columnCount) * 50 - 4)
+    }
 
     var body: some View {
-        if state.showsPinnedGrid && !state.sidebarGridPinnedTabs.isEmpty {
-            SidebarScrollView(chrome: chrome) {
-                PinnedTabsGrid(state: state, chrome: chrome, commands: commands,
-                               onSelection: onSelection, columnCount: columnCount)
-                    .frame(maxWidth: .infinity, minHeight: 42)
-                    .openTabDrop(state: state, chrome: chrome) { id, _ in state.movePin(id, intoGrid: true) }
-                    .padding(.vertical, 2)
-                    .contextMenu {
-                        Picker("Grid size", selection: Binding(
-                            get: { state.browserPreferences.pinnedGridColumns ?? 3 },
-                            set: { state.browserPreferences.pinnedGridColumns = $0 }
-                        )) {
-                            ForEach(2...8, id: \.self) { count in Text("\(count) columns").tag(count) }
+        VStack(spacing: 0) {
+            if state.showsPinnedGrid && !state.sidebarGridPinnedTabs.isEmpty {
+                SidebarScrollView(chrome: chrome) {
+                    PinnedTabsGrid(state: state, chrome: chrome, commands: commands,
+                                   onSelection: onSelection, columnCount: columnCount)
+                        .frame(maxWidth: .infinity, minHeight: 42)
+                        .openTabDrop(state: state, chrome: chrome) { id, _ in
+                            withAnimation(reduceMotion ? nil : .ikagoQuick) { state.movePin(id, intoGrid: true) }
                         }
-                    }
+                        .padding(.vertical, 2)
+                        .contextMenu {
+                            Picker("Grid size", selection: Binding(
+                                get: { state.browserPreferences.pinnedGridColumns ?? 3 },
+                                set: { state.browserPreferences.pinnedGridColumns = $0 }
+                            )) {
+                                ForEach(2...8, id: \.self) { count in Text("\(count) columns").tag(count) }
+                            }
+                        }
+                }.transition(.opacity)
+            } else if state.showsPinnedGrid {
+                EmptyEssentialsDropZone(state: state, chrome: chrome)
             }
-            .frame(height: min(220, CGFloat(max(1, (state.sidebarGridPinnedTabs.count + columnCount - 1) / columnCount)) * 50 - 4))
-            .onGeometryChange(for: Int.self) { geometry in
-                max(1, Int(geometry.size.width / 44))
-            } action: { availableColumns = $0 }
         }
+        .frame(height: height)
+        .onGeometryChange(for: Int.self) { max(1, Int($0.size.width / 44)) } action: { availableColumns = $0 }
+        .animation(reduceMotion ? nil : .ikagoQuick, value: state.sidebarGridPinnedTabs.map(\.id))
+        .recordLayout("sidebar-pin-grid")
     }
 }
 
-/// Where a dragged tab can be pinned while there are no essentials yet. It floats over the top of the tab list
-/// instead of being inserted above it, so the list doesn't jump under the pointer when a drag starts and ends.
+/// A small permanent lip offers an empty grid target without covering rows or changing list geometry.
 struct EmptyEssentialsDropZone: View {
     let state: BrowserState
     let chrome: ChromeModel
-
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
-        if state.showsPinnedGrid && state.sidebarGridPinnedTabs.isEmpty && chrome.draggingTabID != nil {
-            let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
-            shape.fill(state.palette.selected)
-                .overlay(shape.strokeBorder(state.palette.separator, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
-                .frame(height: 42)
-                .openTabDrop(state: state, chrome: chrome) { id, _ in state.movePin(id, intoGrid: true) }
-                .transition(.opacity)
-        }
+        let shape = Capsule()
+        shape.fill(state.palette.selected)
+            .overlay(shape.strokeBorder(state.palette.separator, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+            .frame(height: 10).contentShape(Rectangle())
+            .opacity(chrome.draggingTabID == nil ? 0 : 1)
+            .openTabDrop(state: state, chrome: chrome) { id, _ in
+                withAnimation(reduceMotion ? nil : .ikagoQuick) { state.movePin(id, intoGrid: true) }
+            }
+            .accessibilityLabel("Add tab to grid")
     }
 }

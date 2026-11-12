@@ -23,9 +23,11 @@ extension BrowserState {
             boundary = peers.first { targetGroup.contains($0.id) }?.id
         }
         for member in moving {
-            let staysPinned = tab(member)?.pinned == true && tabLayout == .vertical
-            move(member, before: boundary, pinned: target.pinned || staysPinned, folderID: target.folderID)
-            if let tab = tab(member), tab.pinned, tabLayout == .vertical { tab.pinAsRow = !target.pinned || target.pinAsRow }
+            move(member, before: boundary, pinned: target.pinned, folderID: target.folderID)
+            if let tab = tab(member), tab.pinned, tabLayout == .vertical {
+                tab.pinAsRow = target.pinAsRow
+                tab.pinAfterFolderID = target.pinAfterFolderID
+            }
         }
         scheduleSave()
         return true
@@ -35,9 +37,7 @@ extension BrowserState {
     func moveTabToListEnd(_ id: String) -> Bool {
         guard let moving = tab(id), moving.spaceID == activeSpaceID else { return false }
         for member in splitGroup(of: id) ?? [id] {
-            let pinned = tabLayout == .vertical && tab(member)?.pinned == true
-            move(member, before: nil, pinned: pinned)
-            if pinned { tab(member)?.pinAsRow = true }
+            move(member, before: nil, pinned: false)
         }
         scheduleSave()
         return true
@@ -45,12 +45,23 @@ extension BrowserState {
 }
 
 extension BrowserState {
-    func movePin(_ id: String, intoGrid: Bool) {
+    func movePin(_ id: String, intoGrid: Bool, afterFolderID: String? = nil) {
         guard tab(id)?.spaceID == activeSpaceID else { return }
         let members = splitGroup(of: id) ?? [id]
         for member in members {
             self.tab(member)?.pinAsRow = !intoGrid || members.count > 1
+            self.tab(member)?.pinAfterFolderID = intoGrid ? nil : afterFolderID
             move(member, before: nil, pinned: true)
         }
+    }
+}
+
+extension BrowserState {
+    var orderedSidebarTabs: [TabItem] {
+        let rows = pinnedTabs.filter { !presentsSidebarPinGrid || $0.pinAsRow || splitGroup(of: $0.id) != nil }
+        let folderIDs = Set(spaceFolders.map(\.id))
+        let anchors = Dictionary(grouping: rows) { tab in tab.pinAfterFolderID.flatMap { folderIDs.contains($0) ? $0 : nil } ?? "" }
+        let grid = presentsSidebarPinGrid ? sidebarGridPinnedTabs : []
+        return grid + (anchors[""] ?? []) + spaceFolders.flatMap { tabs(in: $0) + (anchors[$0.id] ?? []) } + looseTabs
     }
 }

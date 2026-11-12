@@ -27,7 +27,7 @@ struct SidebarView: View {
             SidebarEssentials(state: state, chrome: chrome, commands: commands)
             TabListView(state: state, chrome: chrome, colors: colors, commands: commands)
                 .id(state.activeSpaceID).transition(.opacity.combined(with: .offset(x: 18)))
-                .overlay(alignment: .top) { EmptyEssentialsDropZone(state: state, chrome: chrome) }
+
             if state.showsBookmarksBar { SidebarBookmarksDrawer(state: state, chrome: chrome, commands: commands) }
             SidebarMediaPlayer(state: state, commands: commands)
             if !state.visibleChromeItems(state.chromeLayout.sidebarBottom).isEmpty {
