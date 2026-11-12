@@ -19,6 +19,7 @@ set(BRIDGE "${CMAKE_CURRENT_SOURCE_DIR}/Bridge")
 add_library(IKCEFBridge STATIC
   "${BRIDGE}/IKCEFClient.mm"
   "${BRIDGE}/IKCEFContextMenu.mm"
+  "${BRIDGE}/IKCEFDialogs.mm"
   "${BRIDGE}/IKCEFContexts.mm"
   "${BRIDGE}/IKCEFDownloads.mm"
   "${BRIDGE}/IKCEFInspectorClient.mm"

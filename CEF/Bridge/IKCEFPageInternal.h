@@ -5,6 +5,7 @@
 #include "include/cef_request_context.h"
 #include "include/cef_download_handler.h"
 #include "include/cef_context_menu_handler.h"
+#include "include/cef_jsdialog_handler.h"
 
 CefRefPtr<CefRequestContext> IKCEFContext(NSString *profile);
 NSString *IKCEFString(const CefString& value);
@@ -54,3 +55,5 @@ bool IKCEFBeforeDownload(CefRefPtr<CefBrowser>, CefRefPtr<CefDownloadItem>, cons
 void IKCEFDownloadUpdated(CefRefPtr<CefBrowser>, CefRefPtr<CefDownloadItem>, CefRefPtr<CefDownloadItemCallback>);
 
 CefRefPtr<CefContextMenuHandler> IKCEFMakeContextMenu(IKCEFPage *page);
+
+CefRefPtr<CefJSDialogHandler> IKCEFMakeDialogs(IKCEFPage *page);

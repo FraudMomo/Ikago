@@ -4,7 +4,14 @@ import WebKit
 /// WebKit owns drag hit testing inside its page; handle browser file navigation there
 /// as well as on the native destination used by internal and empty pages.
 final class FileDropWebView: WKWebView {
+    var pageAction: (PageContextAction) -> Void = { _ in }
+    var menuActions: [PageMenuAction] = []
     var onFiles: ([URL]) -> Void = { _ in }
+
+    override func willOpenMenu(_ menu: NSMenu, with event: NSEvent) {
+        super.willOpenMenu(menu, with: event)
+        configurePageMenu(menu, event: event)
+    }
 
     private func files(_ sender: any NSDraggingInfo) -> [URL] {
         guard sender.draggingSourceOperationMask.contains(.copy) else { return [] }

@@ -182,6 +182,12 @@ final class CEFWebTab: WebTab {
             cameraActive = payload["camera"] as? Bool ?? false
             microphoneActive = payload["microphone"] as? Bool ?? false
             reportMedia()
+        case "contextAction":
+            let action = payload["action"] as? String ?? ""
+            if action == "private" { delegate?.webTab(self, perform: .privateLink(text)) }
+            else if action == "search" { delegate?.webTab(self, perform: .search(text)) }
+            else if action == "video" { delegate?.webTab(self, perform: .pictureInPicture(text)) }
+            else if action == "translate" { delegate?.webTab(self, perform: .translate) }
         case "title": delegate?.webTab(self, didChangeTitle: text)
         case "status": delegate?.webTab(self, didHoverLink: text.isEmpty ? nil : text)
         case "fullscreen": fullscreen.pageChanged(fullscreen: payload["value"] as? Bool ?? false)

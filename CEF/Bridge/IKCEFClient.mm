@@ -19,8 +19,9 @@ class Client final : public CefClient, public CefLifeSpanHandler,
     public CefPermissionHandler, public CefFindHandler, public CefDownloadHandler,
     public CefDevToolsMessageObserver {
  public:
-  explicit Client(IKCEFPage *page) : page_(page) {}
-  Client(IKCEFPage *page, IKCEFPage *opener, int popup) : page_(page), opener_(opener), popup_(popup) {}
+  explicit Client(IKCEFPage *page) : page_(page), dialogs_(IKCEFMakeDialogs(page)) {}
+  Client(IKCEFPage *page, IKCEFPage *opener, int popup) : page_(page), opener_(opener), popup_(popup), dialogs_(IKCEFMakeDialogs(page)) {}
+  CefRefPtr<CefJSDialogHandler> GetJSDialogHandler() override { return dialogs_; }
   CefRefPtr<CefContextMenuHandler> GetContextMenuHandler() override { return IKCEFMakeContextMenu(page_); }
   CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override { return this; }
   CefRefPtr<CefDisplayHandler> GetDisplayHandler() override { return this; }
@@ -237,6 +238,7 @@ class Client final : public CefClient, public CefLifeSpanHandler,
     [page_ invalidateRequests:@"The renderer connection closed."];
   }
  private:
+  CefRefPtr<CefJSDialogHandler> dialogs_;
   __weak IKCEFPage *page_;
   __weak IKCEFPage *opener_;
   int popup_ = 0;

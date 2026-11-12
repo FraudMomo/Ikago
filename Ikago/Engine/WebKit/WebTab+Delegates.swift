@@ -205,7 +205,8 @@ extension WebKitTab: WKUIDelegate {
         alert.showsSuppressionButton = dialogsShown > 1
         alert.suppressionButton?.title = "Don’t allow more dialogs from this page"
         alert.messageText = frame.securityOrigin.host.isEmpty ? "This page says" : "\(frame.securityOrigin.host) says"
-        alert.informativeText = message
+        alert.icon = NSImage(systemSymbolName: "text.bubble", accessibilityDescription: nil)
+        alert.informativeText = String(message.prefix(4096))
         buttons.forEach { alert.addButton(withTitle: $0) }
         alert.accessoryView = accessory
         let result = await alert.beginSheetModal(for: window)

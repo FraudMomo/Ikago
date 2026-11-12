@@ -122,10 +122,10 @@ final class AppDelegate: NSObject, IKCEFApplicationDelegate {
     }
 
     /// A private window: no history, no saved session, in-memory website data, no extensions.
-    func openPrivateWindow() {
+    func openPrivateWindow(url: String = "https://duckduckgo.com") {
         guard let state else { return }
         let privateState = BrowserState(privateFrom: state)
-        privateState.newTab(url: "https://duckduckgo.com")
+        privateState.newTab(url: url)
         let controller = BrowserWindowController(state: privateState)
         privateWindows.append(controller)
         if let frame = windowController?.window?.frame { controller.window?.setFrame(frame.offsetBy(dx: 28, dy: -28), display: false) }

@@ -37,6 +37,10 @@ final class WebKitTab: NSObject, WebTab {
             guard let self else { return }
             self.delegate?.webTab(self, didDropFiles: urls)
         }
+        view.pageAction = { [weak self] action in
+            guard let self else { return }
+            self.delegate?.webTab(self, perform: action)
+        }
         webView.navigationDelegate = self
         webView.uiDelegate = self
         webView.allowsBackForwardNavigationGestures = true

@@ -44,6 +44,11 @@ protocol WebTabDelegate: AnyObject {
     func webTabDidClose(_ page: WebTab)
     func webTab(_ page: WebTab, didDropFiles urls: [URL])
     /// The pointer moved onto a link (its address), or off links (nil). For the status bar.
+    func webTab(_ page: WebTab, perform action: PageContextAction)
     func webTab(_ page: WebTab, didHoverLink url: String?)
 }
 
+
+extension WebTabDelegate {
+    func webTab(_ page: WebTab, perform action: PageContextAction) {}
+}
