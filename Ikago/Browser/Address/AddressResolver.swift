@@ -1,7 +1,7 @@
 import Foundation
 
 enum SearchEngine: String, Codable, CaseIterable, Identifiable {
-    case duckduckgo, google, bing
+    case duckduckgo, google, bing, brave, ecosia, yahoo
 
     var id: String { rawValue }
     var name: String {
@@ -9,6 +9,9 @@ enum SearchEngine: String, Codable, CaseIterable, Identifiable {
         case .duckduckgo: "DuckDuckGo"
         case .google: "Google"
         case .bing: "Bing"
+        case .brave: "Brave Search"
+        case .ecosia: "Ecosia"
+        case .yahoo: "Yahoo"
         }
     }
 
@@ -18,6 +21,9 @@ enum SearchEngine: String, Codable, CaseIterable, Identifiable {
         case .duckduckgo: return "https://duckduckgo.com/?q=\(q)"
         case .google: return "https://www.google.com/search?q=\(q)"
         case .bing: return "https://www.bing.com/search?q=\(q)"
+        case .brave: return "https://search.brave.com/search?q=\(q)"
+        case .ecosia: return "https://www.ecosia.org/search?q=\(q)"
+        case .yahoo: return "https://search.yahoo.com/search?p=\(q)"
         }
     }
 }

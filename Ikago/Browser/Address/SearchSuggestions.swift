@@ -15,6 +15,15 @@ enum SearchSuggestions {
         case .bing:
             base = "https://api.bing.com/osjson.aspx"
             parameters = [.init(name: "query", value: query)]
+        case .brave:
+            base = "https://search.brave.com/api/suggest"
+            parameters = [.init(name: "q", value: query)]
+        case .ecosia:
+            base = "https://www.google.com/complete/search"
+            parameters = [.init(name: "client", value: "firefox"), .init(name: "q", value: query)]
+        case .yahoo:
+            base = "https://search.yahoo.com/sugg/gossip/gossip-us-ura/?output=sd1&command="
+            parameters = [.init(name: "command", value: query)]
         }
         var url = URLComponents(string: base)!
         url.queryItems = parameters

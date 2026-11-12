@@ -136,6 +136,9 @@ struct WelcomeSearchStep: View {
         case .google: "The most widely used"
         case .duckduckgo: "Doesn’t profile your searches"
         case .bing: "From Microsoft"
+        case .brave: "Privacy-focused search"
+        case .ecosia: "Search that supports climate action"
+        case .yahoo: "Web search from Yahoo"
         }
     }
 }
