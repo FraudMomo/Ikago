@@ -24,8 +24,16 @@ protocol BrowserCommands: AnyObject {
     func setCaptureMuted(_ id: String, microphone: Bool, muted: Bool)
     func stopCapture(_ id: String, microphone: Bool)
     func splitWith(_ id: String)
+    func togglePageAssistant()
     func showSettings()
     func openPage(_ page: InternalPage)
+    func showTabHover(_ id: String, anchor: CGRect)
+    func hideTabHover(_ id: String)
+    var peekContent: NSView? { get }
+    func peekLink(_ url: String)
+    func focusPeek()
+    func closePeek()
+    func openPeek()
     func peekTab(_ id: String)
     func previewImage(_ id: String) async -> NSImage?
     func performanceTabs() -> [TabPerformanceEntry]
@@ -43,6 +51,7 @@ protocol BrowserCommands: AnyObject {
     func deleteSpace(_ id: UUID)
     func setSpaceShared(_ id: UUID, shared: Bool)
     func newFolder(with tabID: String?)
+    func customizeFolder(_ id: String)
     func renameFolder(_ id: String)
     /// Asks for an emoji to use as the group's icon.
     func chooseFolderEmoji(_ id: String)

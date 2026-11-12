@@ -7,17 +7,10 @@ extension BrowserWindowController {
     // MARK: Spaces
 
     func newSpace() {
-        guard let window, window.attachedSheet == nil else { return }
-        var sheet: NSWindow?
-        let view = NewSpaceView(onCreate: { [weak self] name, symbol, isolated in
-            self?.state.createSpace(name: name, symbol: symbol, isolated: isolated)
-            if let sheet { window.endSheet(sheet) }
-        }, onCancel: {
-            if let sheet { window.endSheet(sheet) }
-        })
-        sheet = NSWindow(contentViewController: NSHostingController(rootView: view))
-        window.beginSheet(sheet!)
+        chrome.showNewSpace = true
     }
+
+    func customizeFolder(_ id: String) { chrome.editFolderID = id }
 
     func renameSpace(_ id: UUID) {
         guard let space = state.spaces.first(where: { $0.id == id }) else { return }
@@ -92,17 +85,13 @@ extension BrowserWindowController {
 @MainActor
 enum TextPrompt {
     static func ask(_ title: String, value: String, in window: NSWindow?) async -> String? {
-        let alert = NSAlert()
-        alert.messageText = title
-        let field = NSTextField(string: value)
-        field.frame = NSRect(x: 0, y: 0, width: 260, height: 24)
-        alert.accessoryView = field
-        alert.addButton(withTitle: "OK")
-        alert.addButton(withTitle: "Cancel")
-        alert.window.initialFirstResponder = field
-        let response: NSApplication.ModalResponse
-        if let window, window.attachedSheet == nil { response = await alert.beginSheetModal(for: window) } else { response = alert.runModal() }
-        let text = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        return response == .alertFirstButtonReturn && !text.isEmpty ? String(text.prefix(60)) : nil
+        guard let browser = window?.windowController as? BrowserWindowController else { return nil }
+        return await withCheckedContinuation { continuation in
+            browser.chrome.textPrompt?.finish(nil)
+            browser.chrome.textPrompt = IntegratedTextPrompt(title: title, placeholder: value) { result in
+                browser.chrome.textPrompt = nil
+                continuation.resume(returning: result)
+            }
+        }
     }
 }

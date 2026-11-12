@@ -4,6 +4,8 @@ import SwiftUI
 struct NewSpaceView: View {
     let onCreate: (_ name: String, _ symbol: String, _ isolated: Bool) -> Void
     let onCancel: () -> Void
+    var submitRequest = 0
+    @FocusState private var focused: Bool
     @State private var name = ""
     @State private var symbol = SpaceProfile.symbols[1]
     @State private var isolated = false
@@ -12,7 +14,7 @@ struct NewSpaceView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("New Space").font(.headline)
             TextField("Name", text: $name, prompt: Text("Work, Study, Side Project…"))
-                .textFieldStyle(.roundedBorder)
+                .textFieldStyle(.roundedBorder).focused($focused)
                 .onSubmit(create)
             LazyVGrid(columns: Array(repeating: GridItem(.fixed(34)), count: 6), spacing: 8) {
                 ForEach(SpaceProfile.symbols, id: \.self) { candidate in
@@ -41,11 +43,13 @@ struct NewSpaceView: View {
         }
         .padding(20)
         .frame(width: 340)
+        .onAppear { focused = true }
+        .onChange(of: submitRequest) { _, _ in create() }
     }
 
     private func create() {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { return }
+        guard !trimmed.isEmpty else { onCancel(); return }
         onCreate(String(trimmed.prefix(40)), symbol, isolated)
     }
 }

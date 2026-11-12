@@ -44,7 +44,6 @@ struct PinnedTabsGrid: View {
                         else if hoveredID == tab.id { hoveredID = nil }
                     }
                     .onChange(of: scrolling) { _, now in if now, hoveredID == tab.id { hoveredID = nil } }
-                    .help("Pinned tab: \(tab.displayTitle)\nReturns to this live tab. New addresses open separately.")
                     .opacity(tab.isHibernating ? 0.48 : 1)
                     .tabPeek(tab, commands: commands)
                     .contextMenu { TabContextMenu(tab: tab, state: state, commands: commands) }

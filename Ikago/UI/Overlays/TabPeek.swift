@@ -5,6 +5,10 @@ struct TabPeek: View {
     weak var commands: BrowserCommands?
     var activate: (() -> Void)? = nil
     @State private var image: NSImage?
+    init(tab: TabItem, commands: BrowserCommands?, image: NSImage? = nil, activate: (() -> Void)? = nil) {
+        self.tab = tab; self.commands = commands; self.activate = activate
+        _image = State(initialValue: image)
+    }
     @State private var subscription: UUID?
     @State private var pid: Int32?
 
@@ -33,7 +37,6 @@ struct TabPeek: View {
         .task {
             pid = commands?.performanceTabs().first { $0.id == tab.id }?.pid
             if !tab.isHibernating { subscription = PerformanceMonitor.shared.subscribe() }
-            image = await commands?.previewImage(tab.id)
         }
         .onDisappear {
             if let subscription { PerformanceMonitor.shared.unsubscribe(subscription) }
@@ -43,26 +46,50 @@ struct TabPeek: View {
     }
 }
 
-/// A delayed, demand-driven preview. No page is loaded just to show this card.
-private struct HoverTabPeek: ViewModifier {
-    let tab: TabItem
-    weak var commands: BrowserCommands?
-    @State private var hovering = false
-    @State private var showing = false
-    @Environment(\.sidebarScrolling) private var scrolling
-    func body(content: Content) -> some View {
-        content
-            .onHover { hovering = $0 }
-            .task(id: hovering && !scrolling) {
-                guard hovering && !scrolling else { showing = false; return }
-                try? await Task.sleep(for: .milliseconds(750))
-                guard !Task.isCancelled else { return }
-                showing = true
-            }
-            .popover(isPresented: $showing, arrowEdge: .trailing) { TabPeek(tab: tab, commands: commands) }
+extension View {
+    func tabPeek(_ tab: TabItem, commands: BrowserCommands?) -> some View {
+        background(TabPeekRegion(tabID: tab.id, commands: commands))
     }
 }
 
-extension View {
-    func tabPeek(_ tab: TabItem, commands: BrowserCommands?) -> some View { modifier(HoverTabPeek(tab: tab, commands: commands)) }
+private struct TabPeekRegion: FillingViewRepresentable {
+    let tabID: String
+    weak var commands: BrowserCommands?
+    func makeNSView(context: Context) -> TabPeekAnchor {
+        let view = TabPeekAnchor()
+        view.tabID = tabID; view.commands = commands
+        return view
+    }
+    func updateNSView(_ view: TabPeekAnchor, context: Context) { view.tabID = tabID; view.commands = commands }
+}
+
+private final class TabPeekAnchor: NSView {
+    var tabID = ""
+    weak var commands: BrowserCommands?
+    private var pending: DispatchWorkItem?
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect], owner: self, userInfo: nil))
+    }
+    override func mouseEntered(with event: NSEvent) {
+        pending?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, let window = self.window, let content = window.contentView,
+                  (window.firstResponder as? NSTextView)?.isFieldEditor != true else { return }
+            self.commands?.showTabHover(self.tabID, anchor: self.convert(self.bounds, to: content))
+        }
+        pending = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: work)
+    }
+    override func mouseExited(with event: NSEvent) {
+        pending?.cancel()
+        commands?.hideTabHover(tabID)
+    }
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window == nil { pending?.cancel(); commands?.hideTabHover(tabID) }
+    }
+    isolated deinit { pending?.cancel() }
 }

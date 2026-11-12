@@ -13,6 +13,10 @@ extension WebKitTab: WKNavigationDelegate {
         // WKNavigationAction uses a button mask: middle is 4 (NSEvent uses index 2).
         // Auxiliary navigation can also be .other instead of .linkActivated.
         let flags = action.modifierFlags
+        if action.navigationType == .linkActivated, flags.contains(.shift), !flags.contains(.command), action.buttonNumber != 4 {
+            delegate?.webTab(self, perform: .peek(url.absoluteString))
+            return (.cancel, preferences)
+        }
         let newTabGesture = action.buttonNumber == 4 || (action.navigationType == .linkActivated && flags.contains(.command))
         if newTabGesture, AddressResolver.isPageURL(url.absoluteString) || ["chrome-extension", "webkit-extension"].contains(scheme) {
             delegate?.webTab(self, openInNewTab: url.absoluteString, background: !flags.contains(.shift))

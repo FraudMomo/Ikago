@@ -155,7 +155,6 @@ private struct TopTabView: View {
         .recordLayout("topbar-pin-\(tab.id)", enabled: tab.pinned)
         .recordLayout("active-tab", enabled: active)
         .tabPeek(tab, commands: commands)
-        .help(tab.displayTitle)
     }
 
     private var label: some View {

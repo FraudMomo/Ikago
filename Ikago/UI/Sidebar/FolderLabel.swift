@@ -105,28 +105,7 @@ struct FolderContextMenu: View {
 
     var body: some View {
         Button("Rename Group…") { commands?.renameFolder(folder.id) }
-        Menu("Icon") {
-            ForEach(TabFolder.iconChoices, id: \.symbol) { choice in
-                Button {
-                    withAnimation(.ikago) { state.setFolderIcon(folder.id, to: choice.symbol == "folder.fill" ? nil : choice.symbol) }
-                } label: {
-                    Label(choice.name, systemImage: choice.symbol)
-                    if folder.symbolIcon == choice.symbol && folder.emojiIcon == nil { Image(systemName: "checkmark") }
-                }
-            }
-            Divider()
-            Button(folder.emojiIcon.map { "Emoji: \($0)…" } ?? "Emoji…") { commands?.chooseFolderEmoji(folder.id) }
-        }
-        Menu("Color") {
-            ForEach(FolderTag.allCases) { tag in
-                Button { withAnimation(.ikago) { state.setFolderTag(folder.id, to: tag) } } label: {
-                    Label { Text(tag.name) } icon: { Image(nsImage: tag.dot) }
-                    if folder.tag == tag.rawValue { Image(systemName: "checkmark") }
-                }
-            }
-            Divider()
-            Button("None") { withAnimation(.ikago) { state.setFolderTag(folder.id, to: nil) } }
-        }
+        Button("Icon and Color…") { commands?.customizeFolder(folder.id) }
         if folder.isClosed == true {
             Button("Reopen Group") { state.reopenFolder(folder.id) }
         } else if state.tabLayout.usesTopTabs {

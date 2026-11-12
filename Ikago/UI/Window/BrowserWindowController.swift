@@ -1,12 +1,13 @@
 import AppKit
 import SwiftUI
 import WebKit
-
 /// The main browser window: a tinted translucent backdrop with the SwiftUI shell on top
 /// (sidebar or island bar, the content card, overlays). Owns commands, permission sheets
 /// and the traffic lights.
 @MainActor
 final class BrowserWindowController: NSWindowController, NSWindowDelegate {
+    var peekController: TabController?
+    var peekIsTemporary = false
     let state: BrowserState
     let chrome = ChromeModel()
     let palette: CommandPaletteModel
@@ -24,9 +25,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
     let fullScreenBand = NSView()
     /// The menu bar's height on the full-screen display.
     var fullScreenMenuBar: CGFloat = 0
-
     var activeController: TabController? { content.activeController }
-
     init(state: BrowserState) {
         self.state = state
         palette = CommandPaletteModel(state: state)
@@ -54,9 +53,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
         window.toolbarStyle = .unified
         super.init(window: window)
         window.protectsAddressFocus = { [weak self] in self?.isEditingAddress == true && self?.state.isFrozen == false }
-
         window.dismissAddress = { [weak self] in self?.dismissCommandPalette() }
-
         content.host = self
         content.shouldFocusPage = { [weak self] in self?.isEditingAddress != true }
         background.frame = NSRect(origin: .zero, size: window.contentLayoutRect.size)
@@ -73,7 +70,6 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
         window.fullScreenHandler = { [weak self] in self?.toggleIkagoFullScreen() }
         if window.frame.origin == .zero { window.center() }
         restorePerformanceStats()
-
         configureOverlays()
         content.start()
         pageWindowGrab = PageWindowGrab(content: content.view, state: state)
@@ -109,9 +105,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
             }
         }
     }
-
     @available(*, unavailable) required init?(coder: NSCoder) { fatalError() }
-
     /// Backdrop color, window appearance and traffic-light visibility.
     private func applyChrome() {
         guard let window else { return }
@@ -136,9 +130,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
             }
         }
     }
-
     // MARK: Overlays
-
     private func configureOverlays() {
         palette.onOpen = { [weak self] url, mode in
             self?.dismissCommandPalette()
@@ -156,13 +148,11 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
         }
         find.onClose = { [weak self] in self?.closeFindBar() }
     }
-
     func showFindBar() {
         guard state.activeTab != nil else { return }
         withAnimation(.ikago) { chrome.showFind = true }
         find.search()
     }
-
     func closeFindBar() {
         activeController?.page?.clearFindSelection()
         find.matchCount = 0
@@ -183,6 +173,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
 
     /// Settings, History, Downloads: one tab per Space, reused when already open.
     func openPage(_ page: InternalPage) {
+        if page == .notes { chrome.showNotes.toggle(); return }
         chrome.showDownloads = false
         chrome.showTabOverview = false
         withAnimation(.ikago) {
@@ -244,6 +235,8 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func windowWillClose(_ notification: Notification) {
+        chrome.textPrompt?.finish(nil)
+        closePeek()
         if browserWindow?.isIkagoFullScreen == true {
             browserWindow?.isIkagoFullScreen = false
             applyFullScreenPresentation()

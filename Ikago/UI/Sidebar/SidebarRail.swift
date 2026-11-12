@@ -73,7 +73,6 @@ struct SidebarRail: View {
                 .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
             .buttonStyle(RailButtonStyle(colors: colors))
-            .help(folder.name)
             if open {
                 VStack(spacing: 4) {
                     ForEach(tabs) { tab in tabTile(tab, colors: colors) }
@@ -113,7 +112,6 @@ struct SidebarRail: View {
                 .offset(x: 5, y: 3)
         }
         .tabPeek(tab, commands: commands)
-        .help(tab.title.isEmpty ? tab.url : tab.title)
         .contextMenu { TabContextMenu(tab: tab, state: state, commands: commands) }
     }
 

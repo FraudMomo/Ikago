@@ -66,7 +66,6 @@ struct IslandTab: View {
         // motion (widths, slots) animates.
         .animation(nil, value: isActive)
         .animation(nil, value: chrome.isEditingAddress(of: tab.id))
-        .help(isActive ? "Click to edit the address" : tab.displayTitle)
     }
 
     @ViewBuilder private var label: some View {

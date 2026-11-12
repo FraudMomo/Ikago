@@ -122,7 +122,6 @@ struct TabRowView: View {
         .sidebarHover($hovering)
         .animation(.ikagoQuick, value: hovering)
         .opacity(tab.isHibernating ? 0.48 : 1)
-        .help("\(tab.displayTitle) · \(tab.engine?.title ?? "Engine selected when loaded")\(tab.isHibernating ? "\nUnloaded; reloads when selected" : "")")
     }
 }
 

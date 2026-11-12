@@ -135,6 +135,5 @@ struct SidebarFolderSection<Content: View>: View {
         .contextMenu { FolderContextMenu(folder: folder, state: state, commands: commands) }
         .accessibilityLabel(folder.name)
         .accessibilityValue(folder.disclosureValue(count: count, showsCount: state.showsGroupTabCounts))
-        .help(folder.disclosureHelp(count: count, showsCount: state.showsGroupTabCounts))
     }
 }

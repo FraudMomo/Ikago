@@ -2,13 +2,14 @@ import AppKit
 
 /// Browser-owned actions invoked by a real native context-menu click.
 enum PageContextAction {
-    case privateLink(String), search(String), translate, pictureInPicture(String)
+    case peek(String), privateLink(String), search(String), translate, pictureInPicture(String)
 }
 
 extension TabController {
     func webTab(_ page: WebTab, perform action: PageContextAction) {
         guard page === self.page else { return }
         switch action {
+        case .peek(let url): (host as? BrowserCommands)?.peekLink(url)
         case .privateLink(let address):
             guard let url = URL(string: address), ["http", "https"].contains(url.scheme?.lowercased() ?? "") else { return }
             (host as? BrowserCommands)?.openInPrivateWindow(url.absoluteString)

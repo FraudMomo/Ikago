@@ -6,7 +6,16 @@ import Observation
 @MainActor
 @Observable
 final class ChromeModel {
+    var textPrompt: IntegratedTextPrompt?
+    var editFolderID: String?
+    var showNewSpace = false
+    var spaceSubmitRequest = 0
+    var showNotes = false
     var bookmarkToEdit: Bookmark?
+    var hoverCandidateID: String?
+    var hoverImage: NSImage?
+    var hoverTabID: String?
+    var hoverTabAnchor = CGRect.zero
     var previewTabID: String?
     var showPageAssistant = false
     var showPalette = false

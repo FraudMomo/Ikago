@@ -76,6 +76,12 @@ class Client final : public CefClient, public CefLifeSpanHandler,
       const CefString& url, const CefString&, WindowOpenDisposition disposition, bool gesture,
       const CefPopupFeatures&, CefWindowInfo& window, CefRefPtr<CefClient>& client,
       CefBrowserSettings&, CefRefPtr<CefDictionaryValue>&, bool*) override {
+    if (gesture && disposition == CEF_WOD_NEW_WINDOW && (NSEvent.modifierFlags & NSEventModifierFlagShift) && !(NSEvent.modifierFlags & NSEventModifierFlagCommand)) {
+      IKCEFPage *page = page_;
+      if (page && !page.isClosed) [page emit:@"contextAction" payload:@{@"action": @"peek", @"text": IKCEFString(url)}];
+      return true;
+    }
+
     IKCEFPage *opener = page_;
     if (!gesture || !opener.popupHandler || opener.isClosed) return true;
     IKCEFPage *child = [[IKCEFPage alloc] initContainer];
@@ -150,6 +156,10 @@ class Client final : public CefClient, public CefLifeSpanHandler,
     NSString *scheme = url.scheme.lowercaseString;
     if (!newTab || !gesture || !page || page.isClosed || !page.newTabHandler ||
         !([scheme isEqual:@"http"] || [scheme isEqual:@"https"])) return false;
+    if (disposition == CEF_WOD_NEW_WINDOW && (NSEvent.modifierFlags & NSEventModifierFlagShift)) {
+      [page emit:@"contextAction" payload:@{@"action": @"peek", @"text": IKCEFString(target)}];
+      return true;
+    }
     BOOL background = disposition == CEF_WOD_NEW_BACKGROUND_TAB;
     dispatch_async(dispatch_get_main_queue(), ^{
       if (!page.isClosed && page.newTabHandler) page.newTabHandler(url, background);

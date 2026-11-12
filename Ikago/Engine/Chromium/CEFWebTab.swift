@@ -184,7 +184,8 @@ final class CEFWebTab: WebTab {
             reportMedia()
         case "contextAction":
             let action = payload["action"] as? String ?? ""
-            if action == "private" { delegate?.webTab(self, perform: .privateLink(text)) }
+            if action == "peek" { delegate?.webTab(self, perform: .peek(text)) }
+            else if action == "private" { delegate?.webTab(self, perform: .privateLink(text)) }
             else if action == "search" { delegate?.webTab(self, perform: .search(text)) }
             else if action == "video" { delegate?.webTab(self, perform: .pictureInPicture(text)) }
             else if action == "translate" { delegate?.webTab(self, perform: .translate) }

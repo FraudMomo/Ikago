@@ -26,7 +26,7 @@ struct BrowserRootView: View {
                     if !state.barAtBottom && !state.barFloating && !state.isImmersive { topBar }
                     contentCard(for: .horizontal).padding(.leading, inset)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    if state.barAtBottom && !state.isImmersive { topBar }
+                    if state.barAtBottom && !state.barFloating && !state.isImmersive { topBar }
                 }
                 .overlay(alignment: state.barAtBottom ? .bottom : .top) {
                     if state.isImmersive {
@@ -40,19 +40,35 @@ struct BrowserRootView: View {
                 SidebarPeek(state: state, chrome: chrome, palette: palette, commands: commands)
             }
             if ((state.tabLayout == .vertical && state.sidebarOnRight && !state.sidebarLightsFollow) || (state.tabLayout.usesTopTabs && state.barAtBottom)) && !state.isImmersive {
-                Capsule().fill(state.palette.panel).frame(width: 86, height: 32).padding(.leading, 8).padding(.top, 7).allowsHitTesting(false)
+                Capsule().fill(.regularMaterial).frame(width: 86, height: 32).padding(.leading, 8).padding(.top, 7).allowsHitTesting(false)
             }
             overlays
-            if let id = chrome.previewTabID, let tab = state.tab(id) {
-                Color.black.opacity(0.16).onTapGesture { chrome.previewTabID = nil }
-                TabPeek(tab: tab, commands: commands) { state.select(id); chrome.previewTabID = nil }
-                    .surface(RoundedRectangle(cornerRadius: 14), state.palette)
-                    .overlay(alignment: .topTrailing) {
-                        Button { chrome.previewTabID = nil } label: { Image(systemName: "xmark.circle.fill") }
-                            .buttonStyle(.plain).padding(8)
-                    }
+            IntegratedEditors(state: state, chrome: chrome, commands: commands)
+            if chrome.showNotes {
+                Color.black.opacity(0.1).onTapGesture { chrome.showNotes = false }
+                NotesPage(state: state).frame(maxWidth: 640, maxHeight: 540)
+                    .surface(RoundedRectangle(cornerRadius: 18), state.palette)
+                    .overlay(alignment: .topTrailing) { Button { chrome.showNotes = false } label: { Image(systemName: "xmark") }.buttonStyle(.plain).padding(18) }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity).transition(.opacity.combined(with: .scale(scale: 0.98)))
+                    .onExitCommand { chrome.showNotes = false }
+            }
+            if let id = chrome.hoverTabID, let tab = state.tab(id) {
+                GeometryReader { geometry in
+                    let anchor = chrome.hoverTabAnchor
+                    let x = anchor.maxX + 332 < geometry.size.width ? anchor.maxX + 12 : max(8, anchor.minX - 332)
+                    let y = max(8, min(geometry.size.height - 390, geometry.size.height - anchor.maxY))
+                    TabPeek(tab: tab, commands: commands, image: chrome.hoverImage)
+                        .surface(RoundedRectangle(cornerRadius: 12), state.palette)
+                        .offset(x: x, y: y)
+                        .id(id).transition(.opacity.combined(with: .scale(scale: 0.98)))
+                }.allowsHitTesting(false)
+            }
+            if chrome.previewTabID != nil, let page = commands?.peekContent {
+                Color.black.opacity(0.2).onTapGesture { commands?.closePeek() }
+                LivePeekPanel(page: page, commands: commands, colors: state.palette)
+                    .padding(.horizontal, 70).padding(.vertical, 55)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .onExitCommand { chrome.previewTabID = nil }
+                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
             }
             if chrome.showPageAssistant {
                 PageAssistantView(state: state, chrome: chrome, commands: commands)
@@ -63,8 +79,14 @@ struct BrowserRootView: View {
             }
         }
         .background(BarScrollBehavior(state: state, chrome: chrome))
-        .onChange(of: state.activeTabID) { _, _ in state.barCondensed = false; chrome.previewTabID = nil }
-        .onChange(of: chrome.inlineAddress) { _, editing in if editing { state.barCondensed = false } }
+        .onChange(of: state.activeTabID) { _, _ in state.barCondensed = false; commands?.closePeek(); chrome.hoverTabID = nil }
+        .onChange(of: chrome.inlineAddress) { _, editing in if editing { state.barCondensed = false; chrome.hoverTabID = nil } }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: state.barCondensed)
+        .animation(reduceMotion ? nil : .ikago, value: chrome.showNotes)
+        .animation(reduceMotion ? nil : .ikago, value: chrome.textPrompt?.id)
+        .animation(reduceMotion ? nil : .ikago, value: chrome.editFolderID)
+        .animation(reduceMotion ? nil : .ikago, value: chrome.showNewSpace)
+        .animation(reduceMotion ? nil : .ikago, value: chrome.showPageAssistant)
         .environment(\.tabHighlightStyle, state.tabHighlightStyle)
         .recordLayout("shell")
         .overlayPreferenceValue(DownloadsAnchorKey.self) { anchors in
@@ -151,6 +173,9 @@ struct BrowserRootView: View {
             .anchorPreference(key: DownloadsAnchorKey.self, value: .bounds) { DownloadAnchors(page: $0) }
             .recordLayout("content")
             .overlay { SplitDropOverlay(state: state, chrome: chrome) }
+            .padding(.trailing, chrome.showPageAssistant ? 380 : 0)
+            .padding(.bottom, state.barAtBottom && state.barFloating && !state.isImmersive ? state.topBarHeaderHeight : 0)
+            .padding(.top, ((state.barAtBottom && state.tabLayout.usesTopTabs) || (state.sidebarOnRight && !state.sidebarLightsFollow)) && !state.isImmersive ? 40 : 0)
             .padding(.top, state.tabLayout == .vertical || state.isImmersive ? inset : state.barPageGap)
             .padding([.trailing, .bottom], inset)
             // The window's margins around the page move the window in every layout (the page itself is on top).

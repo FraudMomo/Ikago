@@ -6,7 +6,7 @@ extension CEFWebTab {
 
 extension WebKitTab {
     var performanceProcessID: Int32? {
-        // SPI: WebKit has no public tab-to-renderer mapping. Used only by the visible Performance page.
+        // SPI: WebKit has no public tab-to-renderer mapping. Used only by visible diagnostics and demand-driven tab previews.
         let selector = NSSelectorFromString("_webProcessIdentifier")
         guard webView.responds(to: selector), let implementation = webView.method(for: selector) else { return nil }
         typealias Getter = @convention(c) (AnyObject, Selector) -> Int32
