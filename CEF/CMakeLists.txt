@@ -17,7 +17,6 @@ target_compile_definitions(libcef_dll_wrapper PRIVATE CEF_API_VERSION=15600)
 
 set(BRIDGE "${CMAKE_CURRENT_SOURCE_DIR}/Bridge")
 add_library(IKCEFBridge STATIC
-  "${BRIDGE}/IKCEFAudio.mm"
   "${BRIDGE}/IKCEFClient.mm"
   "${BRIDGE}/IKCEFContextMenu.mm"
   "${BRIDGE}/IKCEFContexts.mm"

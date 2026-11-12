@@ -30,8 +30,6 @@ NS_SWIFT_UI_ACTOR
 @property(nonatomic, readonly) BOOL canGoForward;
 @property(nonatomic, readonly) BOOL loading;
 @property(nonatomic) BOOL audioMuted;
-/// CEF's identifier for this page's browser (IKCEFAudio levels); 0 before it attaches.
-@property(nonatomic, readonly) int browserIdentifier;
 @property(nonatomic) double zoomLevel;
 @property(nonatomic) CGFloat topInset;
 /// Runs in the main world of every new document before the page's own scripts. Set before the page attaches.

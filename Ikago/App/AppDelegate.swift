@@ -50,7 +50,6 @@ final class AppDelegate: NSObject, IKCEFApplicationDelegate {
                 // Pages Chromium opens by itself, such as an extension's tabs.create, become Ikago tabs.
                 IKCEFNativeTools.setForeignPageHandler { url in self.openExternalURLs([url.absoluteString]) }  // the delegate lives as long as the app
                 MediaTranslation.apply(state.browserPreferences.chromiumVideoTranslation ?? true)
-                IKCEFAudio.enabled = state.browserPreferences.chromiumLiveWave == true
             }
             // The whole-store copy follows the default engine; sites with rules move on their own.
             if BrowserRuntime.engine == .chromium { await EngineCookieSync.prepareChromium(profiles: profiles, preferences: state.browserPreferences) }

@@ -1,6 +1,5 @@
 #import "IKCEFPageInternal.h"
 #import "IKCEFRuntimeInternal.h"
-#import "IKCEFAudioInternal.h"
 #include "include/cef_parser.h"
 #include "include/cef_navigation_entry.h"
 #include "include/cef_ssl_status.h"
@@ -30,11 +29,6 @@ class Client final : public CefClient, public CefLifeSpanHandler,
   CefRefPtr<CefPermissionHandler> GetPermissionHandler() override { return this; }
   CefRefPtr<CefFindHandler> GetFindHandler() override { return this; }
   CefRefPtr<CefDownloadHandler> GetDownloadHandler() override { return this; }
-  // Ikago plays the page's sound itself, so the media island can show its real wave (IKCEFAudio).
-  CefRefPtr<CefAudioHandler> GetAudioHandler() override {
-    static CefRefPtr<CefAudioHandler> audio = IKCEFMakeAudioHandler();
-    return audio;
-  }
   bool OnBeforeDownload(CefRefPtr<CefBrowser> browser, CefRefPtr<CefDownloadItem> item,
       const CefString& name, CefRefPtr<CefBeforeDownloadCallback> callback) override {
     IKCEFPage *page = page_;

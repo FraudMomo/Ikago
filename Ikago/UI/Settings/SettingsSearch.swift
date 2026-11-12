@@ -27,7 +27,6 @@ enum SettingsSearch {
     static let index: [SettingsSearchEntry] = [
         .init(title: "Browser engine", category: .general, section: "Browser Engine", keywords: "webkit chromium relaunch"),
         .init(title: "Translate X videos", category: .general, section: "Chromium", keywords: "twitter video h.264 av1"),
-        .init(title: "Live wave in the media player", category: .general, section: "Chromium", keywords: "audio sound"),
         .init(title: "Engine by site", category: .general, section: "Engine by Site", keywords: "webkit chromium rules"),
         .init(title: "Add a site", category: .general, section: "Your Sites", keywords: "engine rule"),
         .init(title: "Default browser", category: .general, section: "Default Browser"),

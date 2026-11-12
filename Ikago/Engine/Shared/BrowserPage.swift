@@ -29,9 +29,6 @@ protocol WebTab: AnyObject {
     func setCaptureMuted(_ muted: Bool, microphone: Bool)
     func setMuted(_ muted: Bool)
     func controlMedia(_ action: MediaPlaybackAction) async
-    /// Band levels (0…1) of the sound the page plays now, when Ikago can hear it: Chromium pages, whose sound Ikago
-    /// plays itself (`IKCEFAudio`). WebKit's sound never passes through Ikago, so it has none.
-    var audioLevels: [CGFloat]? { get }
     func evaluate(_ script: String) async throws -> Any?
     func callAsync(_ body: String) async throws -> Any?
     func printPage()
@@ -42,7 +39,6 @@ protocol WebTab: AnyObject {
     func visibilityChanged()
 }
 extension WebTab {
-    var audioLevels: [CGFloat]? { nil }
     func controlMedia(_ action: MediaPlaybackAction) async {
         if let report = try? await callAsync(MediaPlaybackScript.control(action)) as? [String: Any] {
             delegate?.webTab(self, didChangePlayback: MediaPlaybackState(report))

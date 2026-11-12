@@ -30,8 +30,7 @@ enum CEFSmoke {
             try IKCEFRuntime.start(withArgc: CommandLine.argc, argv: CommandLine.unsafeArgv, root: CEFSessions.root,
                                    helper: BrowserRuntime.helperExecutable, ready: {
                 Task { @MainActor in
-                    status = CommandLine.arguments.contains("--cef-smoke-audio") ? await CEFAudioProbe.run()
-                        : CommandLine.arguments.contains("--cef-smoke-dump") ? await CEFPageDump.run(url: url) : await run(url: url)
+                    status = CommandLine.arguments.contains("--cef-smoke-dump") ? await CEFPageDump.run(url: url) : await run(url: url)
                     app.terminate(nil)
                 }
             })
@@ -86,6 +85,7 @@ enum CEFSmoke {
             guard let value = (result["result"] as? [String: Any])?["value"] as? [String: Any],
                   value["title"] as? String == "Ikago Chromium Fixture", value["isolated"] as? Bool == true,
                   value["text"] as? Bool == true else { throw CEFError.script("DOM or isolated-world fixture failed.") }
+            try await CEFAudioChecks.run(browser)
             print("CEF_SMOKE_STAGE persistence")
             let reading = CommandLine.arguments.contains("--cef-smoke-read")
             if !reading {

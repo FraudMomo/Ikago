@@ -17,8 +17,8 @@ enum NewProfileChecks {
               && prefs.translucentSidebar == true && prefs.sidebarCompact == nil, "new profiles start with the docked sidebar look")
         check(state.groupLabelStyle == .colorPill && !state.showsGroupTabCounts && state.tabHighlightStyle == .none
               && prefs.instantTabSwitching == true, "new profiles use color pills, no counts and instant switching")
-        check(prefs.preferredEngine == BrowserState.newProfileEngine && prefs.chromiumVideoTranslation == false
-              && prefs.chromiumLiveWave == nil, "new profiles start on Chromium with media extras off")
+        check(prefs.preferredEngine == BrowserState.newProfileEngine && prefs.chromiumVideoTranslation == false,
+              "new profiles start on Chromium with video translation off")
         check(state.searchEngine == .google && state.addressStyle == .floating && !state.showsBookmarksBar && state.showsPinnedGrid,
               "new profiles search with Google from the floating bar")
         check(state.chromeLayout.sidebarTop == [.sidebarToggle, .back, .forward]

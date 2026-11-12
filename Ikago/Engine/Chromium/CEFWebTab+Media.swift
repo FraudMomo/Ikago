@@ -1,5 +1,4 @@
 import Foundation
-import IKCEFBridge
 
 extension CEFWebTab {
     /// Read and control embedded players too, without crossing their origin in script.
@@ -46,7 +45,4 @@ extension CEFWebTab {
         updatePlayback(reports)
     }
 
-    var audioLevels: [CGFloat]? {
-        IKCEFAudio.levels(forBrowser: page.browserIdentifier)?.map { CGFloat($0.doubleValue) }
-    }
 }

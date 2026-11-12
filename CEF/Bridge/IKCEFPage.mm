@@ -1,5 +1,4 @@
 #import "IKCEFPageInternal.h"
-#import "IKCEFAudioInternal.h"
 #import "IKCEFRuntimeInternal.h"
 #include "include/cef_parser.h"
 #include <os/log.h>
@@ -99,9 +98,7 @@
 - (void)setAudioMuted:(BOOL)value {
   if (!self.ready) return;
   _browser->GetHost()->SetAudioMuted(value);
-  IKCEFSetAudioMuted(_browser->GetIdentifier(), value);
 }
-- (int)browserIdentifier { return self.ready ? _browser->GetIdentifier() : 0; }
 - (double)zoomLevel { return self.ready ? _browser->GetHost()->GetZoomLevel() : 0; }
 - (void)setZoomLevel:(double)value { if (self.ready) _browser->GetHost()->SetZoomLevel(value); }
 - (void)loadURL:(NSString *)url {

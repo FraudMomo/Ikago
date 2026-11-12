@@ -29,7 +29,6 @@ extension BrowserState {
         browserPreferences.showPinnedGrid = true
         browserPreferences.preferredEngine = Self.newProfileEngine
         browserPreferences.chromiumVideoTranslation = false
-        browserPreferences.chromiumLiveWave = nil
         chromeLayout.sidebarTop = [.sidebarToggle, .back, .forward]
         chromeLayout.sidebarBottom = [.spaces, .newSpace, .settings]
     }

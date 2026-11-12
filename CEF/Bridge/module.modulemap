@@ -7,6 +7,5 @@ module IKCEFBridge {
   header "IKCEFDownloads.h"
   header "IKAV1Encoder.h"
   header "IKCEFMediaBridge.h"
-  header "IKCEFAudio.h"
   export *
 }

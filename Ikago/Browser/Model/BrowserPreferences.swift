@@ -4,9 +4,6 @@ struct BrowserPreferences: Codable, Equatable {
     var browserEngine: String? = nil
     /// X's H.264 video on Chromium is translated to AV1 so X's own player plays it (`MediaTranslation`). Unset: on.
     var chromiumVideoTranslation: Bool? = nil
-    /// Chromium tabs' sound played by Ikago, so the media island can draw its real wave (`IKCEFAudio`). Off unless chosen:
-    /// it adds about 40 ms of audio delay.
-    var chromiumLiveWave: Bool? = nil
     /// The person's own sites → engine raw value (`SiteEngines`). Hosts cover their subdomains.
     var siteEngines: [String: String]? = nil
     /// Ready-made lists (`SiteEngineList.id`) → engine raw value. A list without an entry follows the default engine.

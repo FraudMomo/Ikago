@@ -7,7 +7,7 @@ struct MediaPlaybackState: Equatable {
     var title = ""
     /// From the page's Media Session, when it sets one (music sites do).
     var artist = ""
-    /// The Media Session's largest artwork, HTTPS only; loaded without cookies (`MediaArtwork`).
+    /// Media Session artwork, a media poster or the page's thumbnail, HTTPS only; loaded without cookies (`MediaArtwork`).
     var artwork: URL?
 
     init() {}
@@ -33,6 +33,13 @@ enum MediaPlaybackScript {
       let tabMuted = false;
       const elements = () => [...document.querySelectorAll('audio,video')];
       const playing = m => !m.paused && !m.ended;
+      const imageURL = source => {
+        if (typeof source !== 'string' || !source.trim()) return '';
+        try {
+          const url = new URL(source, document.baseURI);
+          return url.protocol === 'https:' && !url.username && !url.password ? url.href : '';
+        } catch { return ''; }
+      };
       const next = () => [...document.querySelectorAll(
         '.ytp-next-button, [data-testid="control-button-skip-forward"], button[aria-label="Next track"], button[aria-label="Next video"]'
       )].find(b => !b.disabled && b.getAttribute('aria-disabled') !== 'true' && b.getClientRects().length);
@@ -42,11 +49,19 @@ enum MediaPlaybackScript {
         const media = all.filter(m => heard.has(m) && (m.currentSrc || m.srcObject));
         const meta = navigator.mediaSession?.metadata;
         const size = a => Math.max(0, ...String(a.sizes || '').split(/\\s+/).map(s => parseInt(s, 10) || 0));
-        const art = [...(meta?.artwork || [])].filter(a => /^https:/.test(a.src || '')).sort((a, b) => size(b) - size(a))[0];
+        // Chromium's isolated world can lack the page's Media Session metadata. Posters and document metadata are
+        // shared DOM, so artwork still works without running browser scripts in the page's world.
+        const art = [...(meta?.artwork || [])].sort((a, b) => size(b) - size(a))
+          .map(a => imageURL(a.src)).find(Boolean)
+          || imageURL((media.find(playing) || media[0])?.poster)
+          || [...document.querySelectorAll('meta[property="og:image:secure_url"], meta[property="og:image"], meta[name="twitter:image"], meta[name="twitter:image:src"], link[rel="image_src"], link[itemprop="thumbnailUrl"]')]
+            .map(element => imageURL(element.content || element.getAttribute('href'))).find(Boolean)
+          || '';
         return {audible: all.some(m => playing(m) && !m.muted && m.volume > 0),
           available: media.length > 0, playing: media.some(playing),
           canGoNext: !!next(), title: meta?.title || document.title,
-          artist: meta?.artist || '', artwork: art?.src || ''};
+          artist: meta?.artist || '', artwork: art,
+          unsupportedVideo: all.some(m => m.tagName === 'VIDEO' && !!m.error)};
       };
       const mute = value => {
         tabMuted = value;
@@ -60,7 +75,7 @@ enum MediaPlaybackScript {
         }
       };
       const control = async action => {
-        const media = elements().filter(m => heard.has(m));
+        const media = action === 'pause' ? elements() : elements().filter(m => heard.has(m));
         if (action === 'pause') { for (const m of media) m.pause(); }
         if (action === 'play') {
           const m = media.find(playing) || media[0];
@@ -77,10 +92,12 @@ enum MediaPlaybackScript {
           window.__ikagoMediaChanged?.();
         }
       }).observe(document, {childList: true, subtree: true});
-      for (const type of ['play','playing','pause','ended','emptied','volumechange','loadedmetadata']) {
+      for (const type of ['play','playing','pause','ended','emptied','volumechange','loadedmetadata','durationchange','error']) {
         document.addEventListener(type, event => {
+          const media = event.target;
+          if (!(media instanceof HTMLMediaElement)) return;
           // Remember a newly audible element before tab muting changes its volume.
-          state();
+          if (playing(media) && !media.muted && media.volume > 0) heard.add(media);
           if (tabMuted && type === 'play') mute(true);
           window.__ikagoMediaChanged?.();
         }, true);

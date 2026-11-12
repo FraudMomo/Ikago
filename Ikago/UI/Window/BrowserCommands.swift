@@ -18,8 +18,6 @@ protocol BrowserCommands: AnyObject {
     func closeGroup(_ id: String)
     func toggleMute(_ id: String)
     func controlMedia(_ id: String, action: MediaPlaybackAction)
-    /// The real sound's band levels for the media island's wave, when the tab's engine lets Ikago hear it.
-    func audioLevels(_ id: String) -> [CGFloat]?
     /// Mutes/resumes or ends a tab's camera or microphone capture.
     func setCaptureMuted(_ id: String, microphone: Bool, muted: Bool)
     func stopCapture(_ id: String, microphone: Bool)

@@ -1,5 +1,4 @@
 import SwiftUI
-import IKCEFBridge
 
 /// Choose your engine: WebKit or Chromium, as two cards.
 struct EngineSettingsSection: View {
@@ -36,14 +35,6 @@ struct EngineSettingsSection: View {
                         state.browserPreferences.chromiumVideoTranslation = on
                         state.saveNow()
                         MediaTranslation.apply(on)
-                    })).labelsHidden().toggleStyle(.switch).controlSize(.small)
-                }
-                PageDivider()
-                PageRow(title: "Live wave in the media player", subtitle: "Adds about 40 ms of audio delay") {
-                    Toggle("", isOn: Binding(get: { state.browserPreferences.chromiumLiveWave == true }, set: { on in
-                        state.browserPreferences.chromiumLiveWave = on ? true : nil
-                        state.saveNow()
-                        IKCEFAudio.enabled = on
                     })).labelsHidden().toggleStyle(.switch).controlSize(.small)
                 }
             }

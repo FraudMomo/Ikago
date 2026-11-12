@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 /// The media island at the bottom of the sidebar, after the iPhone's Dynamic Island: a black capsule with the artwork and
-/// a wave in the artwork's color, opening into a card with the controls. Black glass when Liquid Glass is on, solid
+/// track title, opening into a card with the controls. Black glass when Liquid Glass is on, solid
 /// black when it is off. Closing it hides it until something new starts playing.
 struct SidebarMediaPlayer: View {
     let state: BrowserState
@@ -32,6 +32,7 @@ struct SidebarMediaPlayer: View {
     }
     private var shown: TabItem? { dismissed == nil ? current : nil }
     private var expanded: Bool { hovering || pinnedOpen || focusOpen }
+    private var inactivityID: String { "\(shown?.id ?? "")|\(expanded)" }
     private var motion: Animation? { reduceMotion ? nil : .island }
 
     var body: some View {
@@ -62,16 +63,22 @@ struct SidebarMediaPlayer: View {
         .onChange(of: mediaTabs.map(\.id)) { _, ids in
             if let selectedID, !ids.contains(selectedID) { self.selectedID = nil }
         }
+        .task(id: inactivityID) {
+            guard shown != nil, !expanded else { return }
+            do { try await Task.sleep(for: .seconds(30)) }
+            catch { return }
+            guard !Task.isCancelled, shown != nil, !expanded else { return }
+            withAnimation(motion) { dismissed = playingKeys }
+        }
     }
 
     private func island(_ tab: TabItem) -> some View {
         let art = MediaArtwork.shared.art(for: tab.playback.artwork)
-        let glow = art?.glow ?? tab.themeColor.map(MediaArtwork.vivid) ?? .white.opacity(0.9)
-        let shape = RoundedRectangle(cornerRadius: expanded ? 26 : 22, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: expanded ? 22 : 20, style: .continuous)
         return VStack(spacing: 0) {
             HStack(spacing: 10) {
                 Button { state.select(tab.id) } label: {
-                    artwork(tab, art, size: expanded ? 44 : 28)
+                    artwork(tab, art, size: expanded ? 40 : 28)
                 }
                 .buttonStyle(.plain).help("Show Playing Tab")
                 Button { withAnimation(motion) { pinnedOpen.toggle() } } label: {
@@ -80,41 +87,39 @@ struct SidebarMediaPlayer: View {
                             .font(.system(size: 12.5, weight: .semibold))
                             .foregroundStyle(.white)
                             .lineLimit(1)
+                            .truncationMode(.tail)
                         if expanded {
                             Text(tab.playback.artist.isEmpty ? tab.addressLabel : tab.playback.artist)
                                 .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.white.opacity(0.55))
+                                .foregroundStyle(.white.opacity(0.6))
                                 .lineLimit(1)
+                                .truncationMode(.tail)
                                 .transition(.opacity)
                         }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(maxWidth: .infinity, minHeight: expanded ? 40 : 28, alignment: .leading)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .help(expanded ? "Collapse Player" : "Expand Player")
-                MediaWaveform(levels: { [weak commands] in commands?.audioLevels(tab.id) },
-                              active: tab.playback.playing && !tab.isMuted, color: glow)
-                    .padding(.trailing, expanded ? 2 : 4)
+                if expanded { sources }
+                closeButton
+                    .opacity(hovering || focusOpen ? 1 : 0)
+                    .allowsHitTesting(hovering || focusOpen)
             }
             if expanded {
                 controls(tab)
-                    .padding(.top, 12)
+                    .padding(.top, 10)
                     .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .top)))
             }
         }
-        .padding(.horizontal, expanded ? 14 : 6)
-        .padding(.vertical, expanded ? 14 : 6)
-        .background(alignment: .topLeading) {
-            // The artwork's color, faintly, behind the open card.
-            if expanded, art?.vivid == true { glow.opacity(0.16).blur(radius: 30).allowsHitTesting(false) }
-        }
+        .padding(.horizontal, expanded ? 12 : 6)
+        .padding(.vertical, expanded ? 12 : 6)
         .clipShape(shape)
         .surface(shape, islandColors, tintOpacity: 0.78)
         // Glass gets a fine edge of light; the flat panel already draws its own outline.
         .overlay { if islandColors.glass { shape.strokeBorder(.white.opacity(0.1), lineWidth: 0.5) } }
-        .overlay(alignment: .topTrailing) { if hovering { closeButton } }
-        .shadow(color: .black.opacity(expanded ? 0.3 : 0.18), radius: expanded ? 16 : 8, y: expanded ? 6 : 3)
+        .shadow(color: .black.opacity(0.2), radius: expanded ? 12 : 6, y: expanded ? 4 : 2)
         .environment(\.colorScheme, .dark)
         // Started here, so the whole sidebar takes part: the list above gives way as the island grows upward.
         .onHover { inside in withAnimation(motion) { hovering = inside } }
@@ -142,37 +147,27 @@ struct SidebarMediaPlayer: View {
     }
 
     private func controls(_ tab: TabItem) -> some View {
-        HStack(spacing: 0) {
+        // Equal outside buttons keep Play at the island's centre. The source picker lives in the header, so its
+        // title/count can never shift the transport controls.
+        HStack(spacing: 18) {
             control(tab.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
                     label: tab.isMuted ? "Unmute" : "Mute", font: 13) { commands?.toggleMute(tab.id) }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            HStack(spacing: 18) {
-                control(tab.playback.playing ? "pause.fill" : "play.fill",
-                        label: tab.playback.playing ? "Pause" : "Play", font: 22) {
-                    commands?.controlMedia(tab.id, action: tab.playback.playing ? .pause : .play)
-                }
-                control("forward.fill", label: "Next Track", enabled: tab.playback.canGoNext, font: 17) {
-                    commands?.controlMedia(tab.id, action: .next)
-                }
+            control(tab.playback.playing ? "pause.fill" : "play.fill",
+                    label: tab.playback.playing ? "Pause" : "Play", font: 20, prominent: true) {
+                commands?.controlMedia(tab.id, action: tab.playback.playing ? .pause : .play)
             }
-            // Always takes its share, so the transport stays centred with one tab or several.
-            ZStack(alignment: .trailing) { Color.clear.frame(height: 1); sources }.frame(maxWidth: .infinity, alignment: .trailing)
+            control("forward.fill", label: "Next Track", enabled: tab.playback.canGoNext, font: 15) {
+                commands?.controlMedia(tab.id, action: .next)
+            }
         }
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private func control(_ symbol: String, label: String, enabled: Bool = true, font: CGFloat,
-                         action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: font, weight: .semibold))
-                .contentTransition(.symbolEffect(.replace))
-                .foregroundStyle(.white)
-                .frame(width: font + 16, height: font + 16)
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain).disabled(!enabled).opacity(enabled ? 1 : 0.3)
-        .focused($controlsFocused)
-        .help(label).accessibilityLabel(label)
+                         prominent: Bool = false, action: @escaping () -> Void) -> some View {
+        MediaPlayerControl(symbol: symbol, label: label, font: font, prominent: prominent, action: action)
+            .disabled(!enabled)
+            .focused($controlsFocused)
     }
 
     private var closeButton: some View {
@@ -184,14 +179,12 @@ struct SidebarMediaPlayer: View {
         } label: {
             Image(systemName: "xmark")
                 .font(.system(size: 8, weight: .bold))
-                .foregroundStyle(.white.opacity(0.8))
-                .frame(width: 18, height: 18)
-                .background(Circle().fill(Color(white: 0.22)))
-                .overlay(Circle().strokeBorder(.white.opacity(0.12), lineWidth: 0.5))
+                .foregroundStyle(.white.opacity(0.6))
+                .frame(width: 20, height: 20)
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .offset(x: 5, y: -5)
-        .transition(.opacity.combined(with: .scale(scale: 0.6)))
+        .focused($controlsFocused)
         .help("Close Player").accessibilityLabel("Close Player")
     }
 
@@ -203,9 +196,14 @@ struct SidebarMediaPlayer: View {
                     Button(source.displayTitle) { selectedID = source.id }
                 }
             } label: {
-                Text("\(mediaTabs.count) tabs").font(.system(size: 10.5, weight: .medium))
+                Image(systemName: "list.bullet")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.6))
+                    .frame(width: 24, height: 24)
             }
-            .menuStyle(.borderlessButton).fixedSize().help("Choose Playing Tab")
+            .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+            .focused($controlsFocused)
+            .help("Choose Playing Tab").accessibilityLabel("Choose Playing Tab (\(mediaTabs.count) tabs)")
         }
     }
 }
