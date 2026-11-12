@@ -48,6 +48,7 @@ enum SettingsSearch {
         .init(title: "Tab bar style", category: .appearance, section: "Top Bar Tabs", keywords: "separate compact"),
 
         .init(title: "Pinned-tab grid", category: .toolbar, section: "Sidebar Essentials", keywords: "essentials pins"),
+        .init(title: "Grid columns", category: .toolbar, section: "Sidebar Essentials", keywords: "pinned tabs size count"),
         .init(title: "Show pinned tabs", category: .toolbar, section: "Pinned Essentials", keywords: "essentials pins top bar"),
         .init(title: "Show bookmarks bar", category: .toolbar, section: "Bookmarks Bar"),
         .init(title: "Switch to an open tab", category: .toolbar, section: "Opening Bookmarks", keywords: "bookmarks"),

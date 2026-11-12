@@ -12,6 +12,9 @@ extension BrowserState {
     var topBarShelfPins: [TabItem] { pinnedTabs.filter { splitGroup(of: $0.id) == nil } }
     var showsPinnedGrid: Bool { browserPreferences.showPinnedGrid ?? true }
     var presentsSidebarPinGrid: Bool { tabLayout == .vertical && showsPinnedGrid }
+    var sidebarGridPinnedTabs: [TabItem] {
+        pinnedTabs.filter { !$0.pinAsRow && splitGroup(of: $0.id) == nil }
+    }
 
     /// Rows share the top bar's surface and touch, without inter-row padding.
     var topBarAccessoryHeight: CGFloat {

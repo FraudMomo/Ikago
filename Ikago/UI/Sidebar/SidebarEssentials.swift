@@ -5,22 +5,30 @@ struct SidebarEssentials: View {
     let chrome: ChromeModel
     weak var commands: BrowserCommands?
     var onSelection: (() -> Void)? = nil
-    @State private var columnCount = 3
+    @State private var availableColumns = 1
+    private var columnCount: Int { min(state.browserPreferences.pinnedGridColumns ?? 3, availableColumns) }
 
     var body: some View {
-        if state.showsPinnedGrid && !state.pinnedTabs.isEmpty {
+        if state.showsPinnedGrid && !state.sidebarGridPinnedTabs.isEmpty {
             SidebarScrollView(chrome: chrome) {
                 PinnedTabsGrid(state: state, chrome: chrome, commands: commands,
                                onSelection: onSelection, columnCount: columnCount)
                     .frame(maxWidth: .infinity, minHeight: 42)
                     .openTabDrop(state: state, chrome: chrome) { id, _ in state.move(id, before: nil, pinned: true) }
                     .padding(.vertical, 2)
+                    .contextMenu {
+                        Picker("Grid size", selection: Binding(
+                            get: { state.browserPreferences.pinnedGridColumns ?? 3 },
+                            set: { state.browserPreferences.pinnedGridColumns = $0 }
+                        )) {
+                            ForEach(2...8, id: \.self) { count in Text("\(count) columns").tag(count) }
+                        }
+                    }
             }
-            .frame(height: min(220, CGFloat(max(1, (state.pinnedTabs.count + columnCount - 1) / columnCount)) * 50 - 4))
+            .frame(height: min(220, CGFloat(max(1, (state.sidebarGridPinnedTabs.count + columnCount - 1) / columnCount)) * 50 - 4))
             .onGeometryChange(for: Int.self) { geometry in
-                // At least 64 pt per tile, with 8 pt gaps; never exceed three columns.
-                min(3, max(1, Int((geometry.size.width + 8) / 72)))
-            } action: { columnCount = $0 }
+                max(1, Int(geometry.size.width / 44))
+            } action: { availableColumns = $0 }
         }
     }
 }
@@ -32,7 +40,7 @@ struct EmptyEssentialsDropZone: View {
     let chrome: ChromeModel
 
     var body: some View {
-        if state.showsPinnedGrid && state.pinnedTabs.isEmpty && chrome.draggingTabID != nil {
+        if state.showsPinnedGrid && state.sidebarGridPinnedTabs.isEmpty && chrome.draggingTabID != nil {
             let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
             shape.fill(state.palette.selected)
                 .overlay(shape.strokeBorder(state.palette.separator, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))

@@ -10,6 +10,17 @@ struct EssentialsSettingsSection: View {
                     Toggle("Show pinned-tab grid", isOn: Binding(get: { state.showsPinnedGrid },
                         set: { state.browserPreferences.showPinnedGrid = $0 })).labelsHidden().toggleStyle(.switch)
                 }
+                if state.showsPinnedGrid {
+                    PageDivider()
+                    PageRow(title: "Grid columns", subtitle: "Maximum columns for pinned tabs") {
+                        Picker("Grid columns", selection: Binding(
+                            get: { state.browserPreferences.pinnedGridColumns ?? 3 },
+                            set: { state.browserPreferences.pinnedGridColumns = $0 }
+                        )) {
+                            ForEach(2...8, id: \.self) { count in Text("\(count)").tag(count) }
+                        }.labelsHidden()
+                    }
+                }
             }
         } else {
             PageSection(title: "Pinned Essentials") {

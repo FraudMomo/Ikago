@@ -92,6 +92,7 @@ extension BrowserState {
                            folderID: saved.folder.flatMap { folderIDs.contains($0) ? $0 : nil })
             tab.faviconURL = saved.favicon.flatMap(URL.init(string:))
             tab.isHibernating = saved.unloaded ?? false
+            tab.pinAsRow = saved.pinAsRow ?? false
             return tab
         }
         tabs = tabs.filter(\.pinned) + tabs.filter { !$0.pinned }

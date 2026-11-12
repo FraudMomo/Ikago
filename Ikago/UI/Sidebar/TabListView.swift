@@ -49,8 +49,8 @@ struct TabListView: View {
         let folders = state.spaceFolders
         let activeID = state.activeTabID
         let activeFolderID = state.activeTab?.folderID
-        var seen = Set(state.presentsSidebarPinGrid ? groups.pinned.filter { state.splitGroup(of: $0.id) == nil }.map(\.id) : [])
-        let pinnedItems = state.presentsSidebarPinGrid ? [] : state.listItems(groups.pinned, seen: &seen)
+        var seen = Set(state.presentsSidebarPinGrid ? state.sidebarGridPinnedTabs.map(\.id) : [])
+        let pinnedItems = state.listItems(groups.pinned.filter { !state.presentsSidebarPinGrid || $0.pinAsRow || state.splitGroup(of: $0.id) != nil }, seen: &seen)
         let folderItems = folders.map { (folder: $0, count: groups.tabs(in: $0.id).count, items: state.listItems(groups.tabs(in: $0.id), seen: &seen)) }
         let looseItems = state.listItems(groups.loose, seen: &seen)
         let visibleItems = pinnedItems + folderItems.filter { $0.folder.isOpen }.flatMap(\.items) + looseItems

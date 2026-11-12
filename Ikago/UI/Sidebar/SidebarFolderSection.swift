@@ -95,7 +95,8 @@ struct SidebarFolderSection<Content: View>: View {
     private var header: some View {
         Button { state.toggleFolder(folder.id) } label: {
             HStack(spacing: 8) {
-                FolderLabel(folder: folder, colors: colors, isActive: containsActiveTab, style: state.groupLabelStyle)
+                FolderLabel(folder: folder, colors: colors, tabs: state.tabs(in: folder),
+                            isActive: containsActiveTab, style: state.groupLabelStyle)
                 Spacer(minLength: 4)
                 if state.showsGroupTabCounts {
                     Text(count, format: .number)

@@ -17,7 +17,7 @@ struct PinnedTabsGrid: View {
     var body: some View {
         let colors = state.palette
         LazyVGrid(columns: columns, spacing: 8) {
-                ForEach(state.pinnedTabs) { tab in
+                ForEach(state.sidebarGridPinnedTabs) { tab in
                     let active = tab.id == state.activeTabID
                     Button { withAnimation(.ikago) { state.select(tab.id) }; onSelection?() } label: {
                         FaviconView(tab: tab, size: 18)
@@ -54,7 +54,7 @@ struct PinnedTabsGrid: View {
                     .tabDropTarget(tab, axis: .horizontal, state: state, chrome: chrome)
                 }
             }
-        .animation(reduceMotion ? nil : .ikagoQuick, value: state.pinnedTabs.map(\.id))
+        .animation(reduceMotion ? nil : .ikagoQuick, value: state.sidebarGridPinnedTabs.map(\.id))
         .onDisappear { hoveredID = nil }
     }
 }
@@ -67,6 +67,12 @@ struct TabContextMenu: View {
 
     var body: some View {
         Button(tab.pinned ? "Unpin — Keep as Regular Tab" : "Pin Tab — Keep This Tab") { state.togglePin(tab.id) }
+        if tab.pinned {
+            Button(tab.pinAsRow ? "Show as Pinned Tile" : "Show as Sidebar Row") {
+                tab.pinAsRow.toggle()
+                state.scheduleSave()
+            }
+        }
         Button(tab.isMuted ? "Unmute Tab" : "Mute Tab") { commands?.toggleMute(tab.id) }
         if let group = state.splitGroup(of: tab.id) {
             Button("Remove from Split") { withAnimation(.ikago) { state.separate(tab.id) } }

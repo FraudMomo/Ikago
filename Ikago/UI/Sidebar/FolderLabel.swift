@@ -4,6 +4,7 @@ import SwiftUI
 struct FolderLabel: View {
     let folder: TabFolder
     let colors: Palette
+    var tabs: [TabItem] = []
     var size: CGFloat = 12
     var isActive = false
     var style: GroupLabelStyle = .minimal
@@ -12,7 +13,7 @@ struct FolderLabel: View {
         Group {
             if style == .colorPill {
                 HStack(spacing: 5) {
-                    FolderIcon(folder: folder, colors: colors, size: size - 2)
+                    FolderIcon(folder: folder, colors: colors, tabs: tabs, size: size - 2)
                     title
                 }
                     .padding(.horizontal, 8).padding(.vertical, 2)
@@ -20,7 +21,7 @@ struct FolderLabel: View {
                         .opacity(colors.isDark ? 0.28 : 0.22)))
             } else {
                 HStack(spacing: 7) {
-                    FolderIcon(folder: folder, colors: colors, size: size)
+                    FolderIcon(folder: folder, colors: colors, tabs: tabs, size: size)
                     title
                 }
             }
@@ -39,12 +40,17 @@ struct FolderLabel: View {
 struct FolderIcon: View {
     let folder: TabFolder
     let colors: Palette
+    var tabs: [TabItem] = []
     var size: CGFloat = 12
 
     var body: some View {
         Group {
             if let emoji = folder.emojiIcon {
                 Text(emoji).font(.system(size: size + 1))
+            } else if (folder.icon == nil || folder.symbolIcon == "folder.fill"), tabs.count > 1 {
+                LazyVGrid(columns: [GridItem(.fixed(size * 0.55), spacing: 1), GridItem(.fixed(size * 0.55), spacing: 1)], spacing: 1) {
+                    ForEach(tabs.prefix(4)) { tab in FaviconView(tab: tab, size: size * 0.55) }
+                }
             } else {
                 Image(systemName: folder.symbolIcon)
                     .font(.system(size: size, weight: .medium))

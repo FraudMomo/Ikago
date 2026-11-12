@@ -10,6 +10,8 @@ struct BrowserPreferences: Codable, Equatable {
     var siteEngineLists: [String: String]? = nil
 
     var showPinnedGrid: Bool? = nil
+    /// Maximum sidebar pinned-tab columns. Unset: three.
+    var pinnedGridColumns: Int? = nil
     var reuseBookmarkTabs: Bool? = nil
     var bookmarkMatchDomain: Bool? = nil
     var loadBackgroundTabs: Bool? = nil
@@ -74,6 +76,7 @@ struct BrowserPreferences: Codable, Equatable {
         if httpsDefaultApplied != true { copy.forceHTTPS = true; copy.httpsDefaultApplied = true }
         copy.downloadSites = downloadSites.map { Array($0.prefix(2000)) }
         copy.siteSafetyExceptions = siteSafetyExceptions.map { Array($0.prefix(2000)) }
+        copy.pinnedGridColumns = pinnedGridColumns.map { min(8, max(2, $0)) }
         return copy
     }
 
