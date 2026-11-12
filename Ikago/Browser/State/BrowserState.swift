@@ -73,6 +73,8 @@ final class BrowserState {
     var folders: [TabFolder] = []
     /// Each Space's last active tab, restored when switching back to it.
     var lastActiveTab: [UUID: String] = [:]
+    /// Recent selection order per Space, used when a tab closes so its opener is restored first.
+    @ObservationIgnored private var recentTabSelections: [UUID: [String]] = [:]
     /// Set when both session files were unreadable (they stay on disk untouched).
     var restoreWarning: String?
     /// A new profile shows the welcome page once its window opens.
@@ -166,15 +168,6 @@ final class BrowserState {
         return tab
     }
 
-    /// Selects a tab, switching to its Space first if needed.
-    func select(_ id: String) {
-        guard let tab = tab(id) else { return }
-        if tab.spaceID != activeSpaceID { enterSpace(tab.spaceID) }
-        reopenFolderIfClosed(containing: id)
-        activeTabID = id
-        scheduleSave()
-    }
-
     func selectTab(at index: Int) {
         let ordered = navigationOrder
         guard !ordered.isEmpty else { return }
@@ -185,35 +178,6 @@ final class BrowserState {
         let ordered = navigationOrder
         guard let current = ordered.firstIndex(where: { $0.id == activeTabID }), !ordered.isEmpty else { return }
         select(ordered[(current + offset + ordered.count) % ordered.count].id)
-    }
-
-    func closeTab(_ id: String, removingPin: Bool = false) {
-        guard !isFrozen, let index = tabs.firstIndex(where: { $0.id == id }) else { return }
-        if tabs[index].pinned && !removingPin {
-            let pin = tabs[index]
-            let partner = splitGroup(of: id)?.first { $0 != id }
-            removeFromSplits([id])
-            if activeTabID == id {
-                activeTabID = partner ?? sidebarOrder.first { $0.id != id && !$0.isHibernating }?.id
-            }
-            pin.isHibernating = true
-            scheduleSave()
-            return
-        }
-        // Next active tab: the neighbour in the same Space's sidebar order.
-        let order = tabs[index].spaceID == activeSpaceID ? navigationOrder : []
-        let position = order.firstIndex { $0.id == id } ?? 0
-        let neighbours = order.filter { $0.id != id }
-        let tab = tabs.remove(at: index)
-        if AddressResolver.isPageURL(tab.url) || ExtensionURL.isExtension(tab.url) || Self.isReopenableInternalPage(tab.url) {
-            closed = Array(([tab.saved] + closed).prefix(Session.maxClosed))
-        }
-        let partner = splitGroup(of: id)?.first { $0 != id }
-        removeFromSplits([id])
-        if activeTabID == id {
-            activeTabID = partner ?? (neighbours.isEmpty ? nil : neighbours[min(position, neighbours.count - 1)].id)
-        }
-        scheduleSave()
     }
 
     func reopenClosedTab() {
