@@ -16,7 +16,7 @@ enum CEFProtection {
         IKCEFSecurity.configure(["trackers": preferences.blockTrackers ?? true,
             "cookies": preferences.blockThirdPartyCookies ?? true,
             "safeBrowsing": preferences.fraudulentWebsiteWarning ?? true,
-            "domains": BrowserSecurity.trackerDomains, "forceHTTPS": preferences.forceHTTPS ?? false,
+            "domains": BrowserSecurity.trackerDomains, "trackerExceptions": preferences.trackerExceptions ?? [], "forceHTTPS": preferences.forceHTTPS ?? false,
             "allowLocal": preferences.httpsAllowLocal ?? true, "exceptions": exceptions])
     }
 }

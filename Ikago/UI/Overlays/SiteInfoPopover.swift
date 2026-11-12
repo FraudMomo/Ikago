@@ -40,6 +40,7 @@ private struct SiteInfoPopover: View {
         VStack(alignment: .leading, spacing: 14) {
             if let tab { siteHeader(tab) }
             if let tab { SiteEngineRow(state: state, tab: tab, commands: commands) }
+            if let tab, AddressResolver.isWebURL(tab.url) { SiteProtectionControl(state: state, tab: tab, commands: commands) }
             if let tab, tab.cameraActive || tab.microphoneActive {
                 Label(tab.cameraActive && tab.microphoneActive ? "Using camera and microphone"
                       : tab.cameraActive ? "Using your camera" : "Using your microphone",

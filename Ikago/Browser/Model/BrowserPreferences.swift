@@ -35,6 +35,7 @@ struct BrowserPreferences: Codable, Equatable {
     /// Hosts the person chose to open despite a phishing warning.
     var siteSafetyExceptions: [String]? = nil
     var warnInsecureHTTP: Bool? = nil
+    var trackerExceptions: [String]? = nil
     var blockTrackers: Bool? = nil
     var blockThirdPartyCookies: Bool? = nil
     var fraudulentWebsiteWarning: Bool? = nil
@@ -79,6 +80,7 @@ struct BrowserPreferences: Codable, Equatable {
         copy.hibernationExceptions = String(hibernationExceptions.prefix(4096))
         copy.httpsExceptions = httpsExceptions.map { String($0.prefix(4096)) }
         if httpsDefaultApplied != true { copy.forceHTTPS = true; copy.httpsDefaultApplied = true }
+        copy.trackerExceptions = trackerExceptions.map { Array($0.prefix(200)).filter { !$0.isEmpty && $0.range(of: #"^[a-zA-Z0-9.-]+$"#, options: .regularExpression) != nil } }
         copy.downloadSites = downloadSites.map { Array($0.prefix(2000)) }
         copy.siteSafetyExceptions = siteSafetyExceptions.map { Array($0.prefix(2000)) }
         copy.pinnedGridColumns = pinnedGridColumns.map { min(8, max(2, $0)) }

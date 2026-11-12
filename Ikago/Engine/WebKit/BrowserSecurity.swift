@@ -8,6 +8,7 @@ final class BrowserSecurity {
     static let shared = BrowserSecurity()
     var preferences = BrowserPreferences()
     private(set) var blockingIssue: String?
+    private var preparationGeneration = 0
     private var trackerRules: WKContentRuleList?
     private var cookieRules: WKContentRuleList?
     private let pages = NSHashTable<WebKitTab>.weakObjects()
@@ -20,15 +21,21 @@ final class BrowserSecurity {
         "mouseflow.com", "fullstory.com", "mixpanel.com", "segment.io", "segment.com",
         "amplitude.com", "pubmatic.com", "rubiconproject.com", "casalemedia.com", "mathtag.com"]
 
-    static func trackerJSON(domains: [String] = trackerDomains) throws -> String {
+    static func trackerJSON(domains: [String] = trackerDomains, exceptions: [String] = []) throws -> String {
         let rules: [[String: Any]] = domains.map { domain in
-            ["trigger": ["url-filter": "^https?://([a-z0-9-]+\\.)*" + NSRegularExpression.escapedPattern(for: domain) + "[:/]", "load-type": ["third-party"]], "action": ["type": "block"]]
+            var trigger: [String: Any] = ["url-filter": "^https?://([a-z0-9-]+\\.)*" + NSRegularExpression.escapedPattern(for: domain) + "[:/]", "load-type": ["third-party"]]
+            if !exceptions.isEmpty {
+                trigger["unless-top-url"] = exceptions.map { "^https?://([a-z0-9-]+\\.)*" + NSRegularExpression.escapedPattern(for: $0) + "[:/]" }
+            }
+            return ["trigger": trigger, "action": ["type": "block"]]
         }
         return String(decoding: try JSONSerialization.data(withJSONObject: rules), as: UTF8.self)
     }
     static let cookieJSON = #"[{"trigger":{"url-filter":".*","load-type":["third-party"]},"action":{"type":"block-cookies"}}]"#
 
     func prepare() async {
+        preparationGeneration += 1
+        let generation = preparationGeneration
         do {
             let store: WKContentRuleListStore
             if WebProfiles.isTestMode {
@@ -36,17 +43,26 @@ final class BrowserSecurity {
                 try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
                 store = WKContentRuleListStore(url: directory)
             } else { store = .default() }
-            trackerRules = try await store.compileContentRuleList(forIdentifier: "IkagoCommonTrackers-v1", encodedContentRuleList: Self.trackerJSON())
-            cookieRules = try await store.compileContentRuleList(forIdentifier: "IkagoThirdPartyCookies-v1", encodedContentRuleList: Self.cookieJSON)
+            let trackers = try await store.compileContentRuleList(forIdentifier: "IkagoCommonTrackers-v2", encodedContentRuleList: Self.trackerJSON(exceptions: preferences.trackerExceptions ?? []))
+            let cookies = try await store.compileContentRuleList(forIdentifier: "IkagoThirdPartyCookies-v1", encodedContentRuleList: Self.cookieJSON)
+            guard generation == preparationGeneration else { return }
+            for page in pages.allObjects {
+                if let trackerRules { page.webView.configuration.userContentController.remove(trackerRules) }
+                if let cookieRules { page.webView.configuration.userContentController.remove(cookieRules) }
+            }
+            trackerRules = trackers; cookieRules = cookies
+            for page in pages.allObjects { configure(page) }
             blockingIssue = nil
         } catch { blockingIssue = "Content protection could not start: \(error.localizedDescription)" }
     }
     func register(_ page: WebKitTab) { pages.add(page); configure(page) }
-    func apply(_ preferences: BrowserPreferences) {
+    func apply(_ preferences: BrowserPreferences, rebuildRules: Bool = true) {
         if BrowserRuntime.runs(.chromium) { CEFProtection.apply(preferences) }
         guard self.preferences != preferences else { return }
+        let rebuild = self.preferences.trackerExceptions != preferences.trackerExceptions
         let reconfigure = SecuritySettings(self.preferences) != SecuritySettings(preferences)
         self.preferences = preferences
+        if rebuild && rebuildRules { Task { await self.prepare() } }
         // Only protection changes touch the pages' rule lists; other preferences are just remembered.
         if reconfigure { for page in pages.allObjects { configure(page) } }
     }
@@ -95,8 +111,10 @@ final class BrowserSecurity {
 struct SecuritySettings: Equatable {
     var blockTrackers, blockThirdPartyCookies, fraudulentWebsiteWarning, forceHTTPS, httpsAllowLocal: Bool?
     var httpsExceptions: String?
+    var trackerExceptions: [String]?
 
     init(_ preferences: BrowserPreferences) {
+        trackerExceptions = preferences.trackerExceptions
         blockTrackers = preferences.blockTrackers
         blockThirdPartyCookies = preferences.blockThirdPartyCookies
         fraudulentWebsiteWarning = preferences.fraudulentWebsiteWarning

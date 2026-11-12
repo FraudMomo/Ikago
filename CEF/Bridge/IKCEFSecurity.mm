@@ -13,7 +13,7 @@
 namespace {
 struct Policy {
   bool trackers = true, cookies = true, safeBrowsing = true, forceHTTPS = false, allowLocal = true;
-  std::vector<std::string> domains, exceptions;
+  std::vector<std::string> domains, exceptions, trackerExceptions;
 };
 std::shared_ptr<const Policy> policy = std::make_shared<Policy>();
 void (^changeHandler)(NSString *);
@@ -102,6 +102,7 @@ bool Tracker(const Policy& current, CefRefPtr<CefRequest> request, const CefStri
   const auto host = Host(request->GetURL());
   auto first = Host(request->GetFirstPartyForCookies());
   if (first.empty()) first = Host(initiator);
+  for (const auto& exception : current.trackerExceptions) if (Domain(first, exception)) return false;
   for (const auto& domain : current.domains)
     if (Domain(host, domain) && !Domain(first, domain)) return true;
   return false;
@@ -200,6 +201,7 @@ void IKCEFSecurityReset() { initialized.clear(); issues = nil; changeHandler = n
   next->forceHTTPS = [options[@"forceHTTPS"] boolValue];
   next->allowLocal = options[@"allowLocal"] ? [options[@"allowLocal"] boolValue] : true;
   for (NSString *domain in options[@"exceptions"]) if (domain.length) next->exceptions.emplace_back(domain.lowercaseString.UTF8String);
+  for (NSString *domain in options[@"trackerExceptions"]) if (domain.length) next->trackerExceptions.emplace_back(domain.lowercaseString.UTF8String);
   for (NSString *domain in options[@"domains"]) next->domains.emplace_back(domain.lowercaseString.UTF8String);
   std::atomic_store(&policy, std::shared_ptr<const Policy>(next));
   for (auto context : IKCEFContextsSnapshot()) if (IsInitialized(context)) Apply(context);
