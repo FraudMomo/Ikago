@@ -8,6 +8,7 @@ extension TestDriver {
     static func performCheck(_ action: String, _ arg: String, _ c: BrowserWindowController) async -> Bool {
         let state = c.state
         switch action {
+        case "featurebatchchecks": await FeatureBatchChecks.run(c)
         case "reopenchecks": ReopenChecks.run(c)
         case "settingsshot":
             // settingsshot:<category>|<dark or light>|<file.png>[|<width>]: renders Settings to an image.

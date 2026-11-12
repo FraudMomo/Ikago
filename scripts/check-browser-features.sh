@@ -54,6 +54,10 @@ IKAGO_TEST_ACTIONS="glass:off;page:settings;wait:1;engine:chromium;wait:1;engine
 IKAGO_TEST_MODE=1 IKAGO_TEST_PROFILE="$work/background-profile" \
 IKAGO_TEST_ACTIONS="backgroundtabchecks:http://127.0.0.1:$port;quit" \
     "build/debug/Ikago.app/Contents/MacOS/Ikago" >> "$work/checks.log" 2>&1
+# Feature batch: encrypted notes, manual unloading, layout placement and fullscreen restores.
+IKAGO_TEST_MODE=1 IKAGO_TEST_PROFILE="$work/feature-batch-profile" \
+IKAGO_TEST_ACTIONS="featurebatchchecks;quit" \
+    "build/debug/Ikago.app/Contents/MacOS/Ikago" >> "$work/checks.log" 2>&1
 # Website data across a relaunch: two processes sharing one disposable store identifier.
 storage_uuid="$(uuidgen)"
 for phase in write read; do
@@ -62,7 +66,8 @@ for phase in write read; do
         "build/debug/Ikago.app/Contents/MacOS/Ikago" >> "$work/checks.log" 2>&1
 done
 cat "$work/checks.log"
-if ! grep -q 'featurechecks PASS failures=0' "$work/checks.log" \
+if ! grep -q 'featurebatchchecks PASS failures=0' "$work/checks.log" \
+    || ! grep -q 'featurechecks PASS failures=0' "$work/checks.log" \
     || ! grep -q 'chromechecks PASS failures=0' "$work/checks.log" \
     || ! grep -q 'importchecks PASS failures=0' "$work/checks.log" \
     || ! grep -q 'splitinteractionchecks PASS failures=0' "$work/checks.log" \
