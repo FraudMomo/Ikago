@@ -56,25 +56,76 @@ struct LayoutCard: View {
 /// Light- and dark-mode color pickers for the active Space.
 struct SpaceColorEditor: View {
     let state: BrowserState
+    @State private var selectedSpaceID: UUID?
+
+    private var selectedSpace: SpaceProfile { state.spaces.first { $0.id == selectedSpaceID } ?? state.activeSpace }
 
     var body: some View {
-        PageRow(title: "“\(state.activeSpace.name)” colors") {
-            HStack(spacing: 12) {
-                ColorPicker("Light", selection: binding(\.light), supportsOpacity: false)
-                ColorPicker("Dark", selection: binding(\.dark), supportsOpacity: false)
-                Button("Reset") { withAnimation(.ikago) { state.setColors(.standard, for: state.activeSpaceID) } }
-                    .controlSize(.small).disabled(state.activeSpace.resolvedColors == .standard)
+        PageRow(title: "Custom colors", subtitle: "Set light and dark colors for a Space") {
+            VStack(alignment: .trailing, spacing: 8) {
+                Picker("Space", selection: Binding(get: { selectedSpace.id }, set: { selectedSpaceID = $0 })) {
+                    ForEach(state.spaces) { space in Text(space.name).tag(space.id) }
+                }
+                .labelsHidden().pickerStyle(.menu).fixedSize()
+                HStack(spacing: 8) {
+                    SpaceColorPopover(title: "Light", color: binding(\.light))
+                    SpaceColorPopover(title: "Dark", color: binding(\.dark))
+                    Button("Reset") { withAnimation(.ikago) { state.setColors(.standard, for: selectedSpace.id) } }
+                        .controlSize(.small).disabled(selectedSpace.resolvedColors == .standard)
+                }
             }.fixedSize()
         }
+        .onAppear { if selectedSpaceID == nil { selectedSpaceID = state.activeSpaceID } }
     }
 
     private func binding(_ key: WritableKeyPath<SpaceColors, UInt32>) -> Binding<Color> {
-        Binding(get: { Color(hex: state.activeSpace.resolvedColors[keyPath: key]) },
+        Binding(get: { Color(hex: selectedSpace.resolvedColors[keyPath: key]) },
                 set: { color in
-                    var colors = state.activeSpace.resolvedColors
+                    var colors = selectedSpace.resolvedColors
                     colors[keyPath: key] = color.hexValue
-                    state.setColors(colors, for: state.activeSpaceID)
+                    state.setColors(colors, for: selectedSpace.id)
                 })
+    }
+}
+
+private struct SpaceColorPopover: View {
+    let title: String
+    @Binding var color: Color
+    @State private var showing = false
+    @State private var hex = ""
+
+    var body: some View {
+        Button { hex = String(format: "%06X", color.hexValue); showing = true } label: {
+            HStack(spacing: 6) {
+                Circle().fill(color).frame(width: 16, height: 16)
+                Text(title).font(.system(size: 12))
+            }.padding(.horizontal, 9).frame(height: 28)
+                .background(Capsule().fill(Color.primary.opacity(0.06)))
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $showing, arrowEdge: .bottom) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(title).font(.system(size: 13, weight: .medium))
+                LazyVGrid(columns: Array(repeating: GridItem(.fixed(24), spacing: 7), count: 7), spacing: 7) {
+                    ForEach(SpaceColors.presets) { preset in
+                        let value = title == "Light" ? preset.colors.light : preset.colors.dark
+                        Button { color = Color(hex: value); hex = String(format: "%06X", value) } label: {
+                            Circle().fill(Color(hex: value)).frame(width: 22, height: 22)
+                                .overlay(Circle().strokeBorder(Color.primary.opacity(0.25), lineWidth: 1))
+                        }.buttonStyle(.plain).help(preset.name)
+                    }
+                }
+                HStack(spacing: 6) {
+                    Text("#").foregroundStyle(.secondary)
+                    TextField("RRGGBB", text: $hex).textFieldStyle(.roundedBorder).frame(width: 90)
+                        .onChange(of: hex) { _, value in
+                            let cleaned = value.trimmingCharacters(in: CharacterSet(charactersIn: "# "))
+                            if cleaned.count == 6, let number = UInt32(cleaned, radix: 16) { color = Color(hex: number) }
+                        }
+                    Button("Done") { showing = false }.keyboardShortcut(.defaultAction)
+                }
+            }.padding(14).frame(width: 230)
+        }
     }
 }
 

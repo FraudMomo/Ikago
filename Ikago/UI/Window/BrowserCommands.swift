@@ -38,6 +38,7 @@ protocol BrowserCommands: AnyObject {
     func newSpace()
     func renameSpace(_ id: UUID)
     func deleteSpace(_ id: UUID)
+    func setSpaceShared(_ id: UUID, shared: Bool)
     func newFolder(with tabID: String?)
     func renameFolder(_ id: String)
     /// Asks for an emoji to use as the group's icon.

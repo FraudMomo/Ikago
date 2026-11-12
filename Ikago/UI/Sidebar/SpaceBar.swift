@@ -31,6 +31,10 @@ struct SpaceBar: View {
                 .help(space.isolated ? "\(space.name) · separate logins" : space.name)
                 .contextMenu {
                     Button("Rename…") { commands?.renameSpace(space.id) }
+                    Button(space.isolated ? "Use Shared Logins" : "Use Separate Logins") {
+                        commands?.setSpaceShared(space.id, shared: !space.isolated)
+                    }
+                    Text("Future loads use that cookie store. Cookies are not copied.")
                     Button("Delete Space…") { commands?.deleteSpace(space.id) }.disabled(state.spaces.count < 2)
                 }
             }

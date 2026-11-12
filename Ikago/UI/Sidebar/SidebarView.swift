@@ -48,7 +48,10 @@ struct SidebarView: View {
         .padding(.top, max(0, 8 - state.frameInset))  // top row stays level with the traffic lights
         .padding(.bottom, 10)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(WindowDragArea())  // empty sidebar space moves the window
+        .background {
+            WindowDragArea()  // empty sidebar space moves the window
+            SidebarSpaceSwipe(state: state)
+        }
         .ignoresSafeArea(.container, edges: .top)  // the top row shares the traffic-light row
         .animation(.ikago, value: state.chromeLayout)
         .animation(.ikago, value: state.showsBookmarksBar)
