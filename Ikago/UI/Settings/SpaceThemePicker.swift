@@ -2,14 +2,13 @@ import SwiftUI
 
 struct SpaceThemePicker: View {
     let state: BrowserState
-    @State private var selectedSpaceID: UUID?
 
-    private var selectedSpace: SpaceProfile { state.spaces.first { $0.id == selectedSpaceID } ?? state.activeSpace }
+    private var selectedSpace: SpaceProfile { state.spaces.first { $0.id == state.themeEditingSpaceID } ?? state.activeSpace }
 
     var body: some View {
         PageRow(title: "Space theme", subtitle: "Choose colors for each Space") {
             VStack(alignment: .trailing, spacing: 8) {
-                Picker("Space", selection: Binding(get: { selectedSpace.id }, set: { selectedSpaceID = $0 })) {
+                Picker("Space", selection: Binding(get: { selectedSpace.id }, set: { state.themeEditingSpaceID = $0 })) {
                     ForEach(state.spaces) { space in Text(space.name).tag(space.id) }
                 }
                 .labelsHidden().pickerStyle(.menu).fixedSize()
@@ -27,6 +26,6 @@ struct SpaceThemePicker: View {
                 }.scrollIndicators(.never).frame(maxWidth: 260)
             }
         }
-        .onAppear { if selectedSpaceID == nil { selectedSpaceID = state.activeSpaceID } }
+        .onAppear { if state.themeEditingSpaceID == nil { state.themeEditingSpaceID = state.activeSpaceID } }
     }
 }

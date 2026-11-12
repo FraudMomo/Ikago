@@ -56,14 +56,13 @@ struct LayoutCard: View {
 /// Light- and dark-mode color pickers for the active Space.
 struct SpaceColorEditor: View {
     let state: BrowserState
-    @State private var selectedSpaceID: UUID?
 
-    private var selectedSpace: SpaceProfile { state.spaces.first { $0.id == selectedSpaceID } ?? state.activeSpace }
+    private var selectedSpace: SpaceProfile { state.spaces.first { $0.id == state.themeEditingSpaceID } ?? state.activeSpace }
 
     var body: some View {
         PageRow(title: "Custom colors", subtitle: "Set light and dark colors for a Space") {
             VStack(alignment: .trailing, spacing: 8) {
-                Picker("Space", selection: Binding(get: { selectedSpace.id }, set: { selectedSpaceID = $0 })) {
+                Picker("Space", selection: Binding(get: { selectedSpace.id }, set: { state.themeEditingSpaceID = $0 })) {
                     ForEach(state.spaces) { space in Text(space.name).tag(space.id) }
                 }
                 .labelsHidden().pickerStyle(.menu).fixedSize()
@@ -75,7 +74,7 @@ struct SpaceColorEditor: View {
                 }
             }.fixedSize()
         }
-        .onAppear { if selectedSpaceID == nil { selectedSpaceID = state.activeSpaceID } }
+        .onAppear { if state.themeEditingSpaceID == nil { state.themeEditingSpaceID = state.activeSpaceID } }
     }
 
     private func binding(_ key: WritableKeyPath<SpaceColors, UInt32>) -> Binding<Color> {
