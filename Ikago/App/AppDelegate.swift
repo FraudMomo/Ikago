@@ -161,6 +161,7 @@ final class AppDelegate: NSObject, IKCEFApplicationDelegate {
 
     func cefApplicationRequestsQuit() {
         guard !quitRequested else { return }
+        NotesPage.flush()
         quitRequested = true
         beginQuit(NSApp)
     }

@@ -254,6 +254,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
         content.shutdown()
         pageWindowGrab?.stop()
         if state.isPrivate {
+            NotesPage.closePrivateNotes(state.privateProfileID)
             WebProfiles.forget(state.privateProfileID)
             (NSApp.delegate as? AppDelegate)?.privateWindowClosed(self)
         }

@@ -30,6 +30,7 @@ struct ChromeItemView: View {
         case .history: button(help: "History (⌘Y)") { commands?.openPage(.history) }
         case .downloads: DownloadToolbarButton(colors: colors, commands: commands, size: size)
         case .settings: button(help: "Settings (⌘,)") { commands?.openPage(.settings) }
+        case .notes: button(help: "Notes") { commands?.openPage(.notes) }
         case .tabOverview: button(help: "Tab Overview (⇧⌘S)") { commands?.toggleSidebar() }
         case .share:
             if let tab, AddressResolver.isWebURL(tab.url), let url = URL(string: tab.url) {

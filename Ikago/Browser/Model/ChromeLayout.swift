@@ -2,7 +2,7 @@ import Foundation
 
 /// A control that can be placed in the top bar or sidebar (Settings ▸ Customize).
 enum ChromeItem: String, Codable, CaseIterable, Identifiable {
-    case sidebarToggle, back, forward, reload, newTab, spaces, newSpace, history, downloads, settings, bookmarks
+    case sidebarToggle, back, forward, reload, newTab, spaces, newSpace, history, downloads, settings, bookmarks, notes
     case share, tabOverview
 
     var id: String { rawValue }
@@ -20,6 +20,7 @@ enum ChromeItem: String, Codable, CaseIterable, Identifiable {
         case .history: "History"
         case .downloads: "Downloads"
         case .settings: "Settings"
+        case .notes: "Notes"
         case .share: "Share"
         case .tabOverview: "Tab Overview"
         }
@@ -38,6 +39,7 @@ enum ChromeItem: String, Codable, CaseIterable, Identifiable {
         case .history: "clock"
         case .downloads: "arrow.down.circle"
         case .settings: "gearshape"
+        case .notes: "note.text"
         case .share: "square.and.arrow.up"
         case .tabOverview: "square.on.square"
         }

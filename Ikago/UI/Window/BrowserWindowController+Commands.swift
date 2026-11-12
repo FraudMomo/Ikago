@@ -213,6 +213,7 @@ extension BrowserWindowController: BrowserCommands, NSMenuItemValidation {
     @objc func bookmarkPage(_ sender: Any?) { if let tab = state.activeTab { state.addBookmark(tab) } }
     @objc func showBookmarks(_ sender: Any?) { openPage(.bookmarks) }
     @objc func showHistory(_ sender: Any?) { openPage(.history) }
+    @objc func showNotes(_ sender: Any?) { openPage(.notes) }
     @objc func showIkagoSettings(_ sender: Any?) { showSettings() }
     @objc func selectLayout(_ sender: NSMenuItem) {
         if let layout = TabLayout.allCases[safe: sender.tag] { withAnimation(.ikago) { state.tabLayout = layout } }

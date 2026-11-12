@@ -17,6 +17,7 @@ struct InternalPageView: View {
             case .settings: SettingsPage(state: state, commands: commands)
             case .history: HistoryPage(state: state, commands: commands)
             case .downloads: DownloadsPage(colors: colors)
+            case .notes: NotesPage(state: state)
             case .welcome: WelcomePage(state: state, commands: commands, tabID: tabID)
             }
         }

@@ -79,6 +79,7 @@ enum MainMenu {
             $0.separator()
             $0.item("Show All History", #selector(BrowserWindowController.showHistory(_:)), "y")
             $0.item("Downloads", #selector(BrowserWindowController.showDownloads(_:)), "j", [.command, .shift])
+            $0.item("Notes", #selector(BrowserWindowController.showNotes(_:)), "j", [.command, .option])
         }
         main.addSubmenu("Bookmarks") {
             $0.item("Show Bookmarks Bar", #selector(BrowserWindowController.toggleBookmarksBar(_:)), "b", [.command, .shift])
