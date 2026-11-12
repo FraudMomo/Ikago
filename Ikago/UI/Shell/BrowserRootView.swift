@@ -108,6 +108,7 @@ struct BrowserRootView: View {
             if editing { chrome.peek() } else { chrome.endPeek(after: .milliseconds(600)) }
         }
         .onChange(of: chrome.showDownloads) { _, shown in
+            if !shown { DownloadCenter.shared.dismissToolbarButton() }
             if state.isImmersive, !shown { chrome.endPeek() }
         }
         // The bar tint animates inside the island (`IslandBarView`), so this body doesn't depend on the active tab's
