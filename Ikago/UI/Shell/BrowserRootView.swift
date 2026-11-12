@@ -71,6 +71,10 @@ struct BrowserRootView: View {
                 SidebarPeek(state: state, chrome: chrome, palette: palette, commands: commands)
             }
             overlays
+            if chrome.showPageAssistant {
+                PageAssistantView(state: state, chrome: chrome, commands: commands)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+            }
             if state.tabLayout.usesTopTabs, chrome.showTabOverview {
                 TemporaryTabSidebar(state: state, chrome: chrome, palette: palette, commands: commands)
             }

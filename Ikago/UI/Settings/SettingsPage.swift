@@ -128,6 +128,7 @@ struct SettingsPage: View {
             EngineSettingsSection(state: state)
             SiteEnginesSection(state: state)
             DefaultBrowserSection()
+            PageIntelligenceSection(state: state)
         case .search:
             SearchSettingsSection(state: state)
         case .appearance:

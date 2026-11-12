@@ -1,6 +1,7 @@
 import Foundation
 
 struct BrowserPreferences: Codable, Equatable {
+    var pageIntelligence: Bool? = nil
     var browserEngine: String? = nil
     /// X's H.264 video on Chromium is translated to AV1 so X's own player plays it (`MediaTranslation`). Unset: on.
     var chromiumVideoTranslation: Bool? = nil

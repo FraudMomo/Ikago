@@ -42,6 +42,7 @@ enum MainMenu {
             $0.item("Find Previous", #selector(BrowserWindowController.findPreviousMatch(_:)), "g", [.command, .shift])
         }
         main.addSubmenu("View") {
+            $0.item("Ask This Page", #selector(BrowserWindowController.askThisPage(_:)))
             $0.item("Hide Sidebar", #selector(BrowserWindowController.toggleIkagoSidebar(_:)), "s", [.command, .shift])
             $0.item("Compact Sidebar", #selector(BrowserWindowController.toggleCompactSidebar(_:)), "s", [.command, .control])
             $0.separator()
