@@ -4,6 +4,7 @@ struct MediaPlaybackState: Equatable {
     var available = false
     var playing = false
     var canGoNext = false
+    var hasVideo = false
     var title = ""
     /// From the page's Media Session, when it sets one (music sites do).
     var artist = ""
@@ -14,6 +15,7 @@ struct MediaPlaybackState: Equatable {
     init(_ report: [String: Any]) {
         available = report["available"] as? Bool ?? false
         playing = report["playing"] as? Bool ?? false
+        hasVideo = report["hasVideo"] as? Bool ?? false
         canGoNext = report["canGoNext"] as? Bool ?? false
         title = String((report["title"] as? String ?? "").prefix(300))
         artist = String((report["artist"] as? String ?? "").prefix(200))
@@ -59,6 +61,7 @@ enum MediaPlaybackScript {
           || '';
         return {audible: all.some(m => playing(m) && !m.muted && m.volume > 0),
           available: media.length > 0, playing: media.some(playing),
+          hasVideo: media.some(m => m.tagName === 'VIDEO'),
           canGoNext: !!next(), title: meta?.title || document.title,
           artist: meta?.artist || '', artwork: art,
           unsupportedVideo: all.some(m => m.tagName === 'VIDEO' && !!m.error)};

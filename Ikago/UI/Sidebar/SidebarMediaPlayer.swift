@@ -103,7 +103,12 @@ struct SidebarMediaPlayer: View {
                 .buttonStyle(.plain)
                 .help(expanded ? "Collapse Player" : "Expand Player")
                 if expanded { sources }
+                if tab.playback.hasVideo {
+                    control("pip.enter", label: "Picture in Picture", font: 13) { commands?.pictureInPicture(tab.id) }
+                        .recordLayout("media-pip-button")
+                }
                 closeButton
+                    .frame(width: hovering || focusOpen ? 20 : 0).clipped()
                     .opacity(hovering || focusOpen ? 1 : 0)
                     .allowsHitTesting(hovering || focusOpen)
             }

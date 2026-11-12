@@ -100,8 +100,9 @@ final class WebKitTab: NSObject, WebTab {
 
     private func reportMedia() {
         isAudible = audibleFrames.values.contains { $0.audible }
-        let playback = audibleFrames.values.first { $0.playback.available && $0.playback.playing }?.playback
+        var playback = audibleFrames.values.first { $0.playback.available && $0.playback.playing }?.playback
             ?? audibleFrames.values.first { $0.playback.available }?.playback ?? MediaPlaybackState()
+        playback.hasVideo = audibleFrames.values.contains { $0.playback.available && $0.playback.hasVideo }
         delegate?.webTab(self, didChangePlayback: playback)
         delegate?.webTab(self, didChangeMedia: isAudible, camera: webView.cameraCaptureState,
                          microphone: webView.microphoneCaptureState)

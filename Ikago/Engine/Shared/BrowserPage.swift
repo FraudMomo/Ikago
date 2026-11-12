@@ -29,6 +29,7 @@ protocol WebTab: AnyObject {
     func stopCapture(camera: Bool, microphone: Bool)
     func setCaptureMuted(_ muted: Bool, microphone: Bool)
     func setMuted(_ muted: Bool)
+    func pictureInPicture() async throws
     func controlMedia(_ action: MediaPlaybackAction) async
     func evaluate(_ script: String) async throws -> Any?
     func callAsync(_ body: String) async throws -> Any?

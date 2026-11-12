@@ -20,11 +20,13 @@ final class NativeVideoPlayer {
     private var personPaused = false
     private var heardAudio = false
     private var muteBeforeTab: Bool?
+    var sourceURL: URL? { (player.currentItem?.asset as? AVURLAsset)?.url }
     var isAudible: Bool { isShown && player.rate > 0 && !player.isMuted && player.volume > 0 }
     var playback: MediaPlaybackState {
         if isAudible { heardAudio = true }
         var state = MediaPlaybackState()
         state.available = heardAudio && isShown
+        state.hasVideo = !isGIF && state.available
         state.playing = state.available && player.timeControlStatus != .paused
         return state
     }

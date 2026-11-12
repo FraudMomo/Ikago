@@ -19,6 +19,7 @@ protocol BrowserCommands: AnyObject {
     func closeGroup(_ id: String)
     func unloadGroup(_ id: String)
     func toggleMute(_ id: String)
+    func pictureInPicture(_ id: String)
     func controlMedia(_ id: String, action: MediaPlaybackAction)
     /// Mutes/resumes or ends a tab's camera or microphone capture.
     func setCaptureMuted(_ id: String, microphone: Bool, muted: Bool)

@@ -27,6 +27,13 @@ final class NativeVideoOverlay {
         return states.first { $0.available && $0.playing } ?? states.first { $0.available } ?? MediaPlaybackState()
     }
 
+    func pictureInPicture(page: WebTab) -> Bool {
+        guard let player = players.values.first(where: { $0.playback.playing }) ?? players.values.first(where: { $0.playback.available }),
+              let source = player.sourceURL else { return false }
+        NativePictureInPicture.shared.open(source.absoluteString, owner: page, window: page.contentView.window)
+        return true
+    }
+
     func setTabMuted(_ muted: Bool) {
         tabMuted = muted
         players.values.forEach { $0.setTabMuted(muted) }
