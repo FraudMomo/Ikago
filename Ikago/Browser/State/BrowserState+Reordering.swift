@@ -22,14 +22,35 @@ extension BrowserState {
         } else {
             boundary = peers.first { targetGroup.contains($0.id) }?.id
         }
-        for member in moving { move(member, before: boundary, pinned: target.pinned, folderID: target.folderID) }
+        for member in moving {
+            let staysPinned = tab(member)?.pinned == true && tabLayout == .vertical
+            move(member, before: boundary, pinned: target.pinned || staysPinned, folderID: target.folderID)
+            if let tab = tab(member), tab.pinned, tabLayout == .vertical { tab.pinAsRow = !target.pinned || target.pinAsRow }
+        }
+        scheduleSave()
         return true
     }
 
     @discardableResult
     func moveTabToListEnd(_ id: String) -> Bool {
         guard let moving = tab(id), moving.spaceID == activeSpaceID else { return false }
-        for member in splitGroup(of: id) ?? [id] { move(member, before: nil, pinned: false) }
+        for member in splitGroup(of: id) ?? [id] {
+            let pinned = tabLayout == .vertical && tab(member)?.pinned == true
+            move(member, before: nil, pinned: pinned)
+            if pinned { tab(member)?.pinAsRow = true }
+        }
+        scheduleSave()
         return true
+    }
+}
+
+extension BrowserState {
+    func movePin(_ id: String, intoGrid: Bool) {
+        guard tab(id)?.spaceID == activeSpaceID else { return }
+        let members = splitGroup(of: id) ?? [id]
+        for member in members {
+            self.tab(member)?.pinAsRow = !intoGrid || members.count > 1
+            move(member, before: nil, pinned: true)
+        }
     }
 }

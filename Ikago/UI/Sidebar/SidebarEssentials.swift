@@ -14,7 +14,7 @@ struct SidebarEssentials: View {
                 PinnedTabsGrid(state: state, chrome: chrome, commands: commands,
                                onSelection: onSelection, columnCount: columnCount)
                     .frame(maxWidth: .infinity, minHeight: 42)
-                    .openTabDrop(state: state, chrome: chrome) { id, _ in state.move(id, before: nil, pinned: true) }
+                    .openTabDrop(state: state, chrome: chrome) { id, _ in state.movePin(id, intoGrid: true) }
                     .padding(.vertical, 2)
                     .contextMenu {
                         Picker("Grid size", selection: Binding(
@@ -45,7 +45,7 @@ struct EmptyEssentialsDropZone: View {
             shape.fill(state.palette.selected)
                 .overlay(shape.strokeBorder(state.palette.separator, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
                 .frame(height: 42)
-                .openTabDrop(state: state, chrome: chrome) { id, _ in state.move(id, before: nil, pinned: true) }
+                .openTabDrop(state: state, chrome: chrome) { id, _ in state.movePin(id, intoGrid: true) }
                 .transition(.opacity)
         }
     }

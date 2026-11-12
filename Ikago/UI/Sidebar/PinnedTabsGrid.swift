@@ -44,7 +44,7 @@ struct PinnedTabsGrid: View {
                         else if hoveredID == tab.id { hoveredID = nil }
                     }
                     .onChange(of: scrolling) { _, now in if now, hoveredID == tab.id { hoveredID = nil } }
-                    .opacity(tab.isHibernating ? 0.48 : 1)
+                    .opacity(tab.isUnloaded ? 0.48 : 1)
                     .tabPeek(tab, commands: commands)
                     .contextMenu { TabContextMenu(tab: tab, state: state, commands: commands) }
                     .onMiddleClick { withAnimation(.ikago) { commands?.closeTab(tab.id) } }
@@ -67,13 +67,7 @@ struct TabContextMenu: View {
     weak var commands: BrowserCommands?
 
     var body: some View {
-        Button(tab.pinned ? "Unpin — Keep as Regular Tab" : "Pin Tab — Keep This Tab") { state.togglePin(tab.id) }
-        if tab.pinned {
-            Button(tab.pinAsRow ? "Show as Pinned Tile" : "Show as Sidebar Row") {
-                tab.pinAsRow.toggle()
-                state.scheduleSave()
-            }
-        }
+        Button(tab.pinned ? "Unpin Tab" : "Pin Tab") { withAnimation(.ikagoQuick) { state.togglePin(tab.id) } }
         Button(tab.isMuted ? "Unmute Tab" : "Mute Tab") { commands?.toggleMute(tab.id) }
         if let group = state.splitGroup(of: tab.id) {
             Button("Remove from Split") { withAnimation(.ikago) { state.separate(tab.id) } }
@@ -108,7 +102,7 @@ struct TabContextMenu: View {
             }
         }
         Divider()
-        if !tab.isHibernating {
+        if !tab.isUnloaded {
             Button("Unload Tab") { commands?.unloadTab(tab.id) }
         }
         Button(tab.pinned ? "Unload Pinned Tab — Keep Pin" : "Close Tab") { commands?.closeTab(tab.id) }

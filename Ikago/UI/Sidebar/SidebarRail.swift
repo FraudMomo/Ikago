@@ -90,7 +90,7 @@ struct SidebarRail: View {
         let active = tab.id == state.activeTabID
         return Button { if NSEvent.modifierFlags.contains(.shift) { commands?.peekTab(tab.id) } else { state.select(tab.id) } } label: {
             FaviconView(tab: tab, size: essential ? 18 : 16)
-                .opacity(tab.isHibernating && !active ? 0.55 : 1)
+                .opacity(tab.isUnloaded && !active ? 0.55 : 1)
                 .frame(width: 36, height: 36)
                 .background {
                     if essential {

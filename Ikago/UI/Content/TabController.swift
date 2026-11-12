@@ -1,7 +1,6 @@
 import AppKit
 import SwiftUI
 import WebKit
-
 /// Services a tab needs from its window (popups, prompts, find results).
 @MainActor
 protocol TabHost: AnyObject {
@@ -16,14 +15,12 @@ protocol TabHost: AnyObject {
     func tabControllerEndedDrag(_ tab: TabController)
     func tabControllerBeganDrag(_ tab: TabController)
 }
-
 /// Owns one tab's page (WebTab) and its host view, and forwards page events into the
 /// `TabItem` / `BrowserState` model.
 @MainActor
 final class TabController: NSObject, WebTabDelegate {
     let tab: TabItem
     let hostView = TabHostView()
-    /// Behind the web view: the floating island's reflection of the page's top.
     private let reflection = ReflectionView()
     /// Split view: strip over the pane on hover (move, remove from split).
     private(set) var header: PaneHeaderView?
@@ -47,7 +44,6 @@ final class TabController: NSObject, WebTabDelegate {
     var failedURL: String?
     /// The HTTP address HTTPS-only mode just upgraded, so a failure can offer to open it anyway.
     var upgradedURL: URL?
-    /// Space at the top the floating island covers (see `BrowserState.floatingContentInset`).
     var topInset: CGFloat = 0 {
         didSet { if topInset != oldValue { applyInset() } }
     }
@@ -63,7 +59,7 @@ final class TabController: NSObject, WebTabDelegate {
         if let page { attach(page) }
     }
     var isStarted: Bool { page != nil || internalView != nil }
-    var isActive: Bool { state?.visibleTabIDs.contains(tab.id) == true }
+    var isActive: Bool { state?.visibleTabIDs.contains(tab.id) == true || (host as? BrowserWindowController)?.peekController === self }
     var profileID: String {
         if let state, state.isPrivate { return state.privateProfileID }
         return state?.spaces.first { $0.id == tab.spaceID }?.profileID ?? "Default"
@@ -101,6 +97,7 @@ final class TabController: NSObject, WebTabDelegate {
         tab.playback = MediaPlaybackState()
         tab.isHibernating = false
         tab.engine = page.engine
+        tab.hasLivePage = true
         self.page = page
         page.setTopInset(topInset)
         page.setMuted(tab.isMuted)
@@ -114,6 +111,7 @@ final class TabController: NSObject, WebTabDelegate {
         if let builtIn = InternalPage(url: url) {
             page?.tearDown()
             page = nil
+        tab.hasLivePage = false
             tearDownParked()
             return showInternal(builtIn)
         }
@@ -134,6 +132,7 @@ final class TabController: NSObject, WebTabDelegate {
             if current !== destination, current != nil || destination != nil {
                 page.tearDown()
                 self.page = nil
+                tab.hasLivePage = false
             }
         }
         if let page { page.load(URL(string: url).map { ExtensionManager.shared.resourceURL($0).absoluteString } ?? url) } else { startIfNeeded() }
@@ -216,6 +215,7 @@ final class TabController: NSObject, WebTabDelegate {
         page?.delegate = nil
         page?.tearDown()
         page = nil
+        tab.hasLivePage = false
         tearDownParked()
         hideError()
         internalView?.removeFromSuperview()
@@ -235,6 +235,7 @@ final class TabController: NSObject, WebTabDelegate {
         isClosing = true
         page?.tearDown()
         page = nil
+        tab.hasLivePage = false
         tearDownParked()
         hostView.removeFromSuperview()
         host?.tabControllerDidClose(self)
@@ -296,4 +297,3 @@ final class TabController: NSObject, WebTabDelegate {
         state?.closeTab(tab.id)
     }
 }
-

@@ -60,6 +60,13 @@ struct TabListView: View {
             SidebarScrollView(chrome: chrome) {
                 VStack(spacing: 2) {
                     AnimatedListItems(items: pinnedItems) { item in itemView(item) }
+                    if chrome.draggingTabID != nil {
+                        RoundedRectangle(cornerRadius: 8).fill(colors.hover).frame(height: 28)
+                            .overlay(Text("Pinned tabs").font(.system(size: 11)).foregroundStyle(colors.secondary))
+                            .openTabDrop(state: state, chrome: chrome) { id, _ in
+                                withAnimation(.ikagoQuick) { state.movePin(id, intoGrid: false) }
+                            }
+                    }
                     ForEach(folderItems, id: \.folder.id) { entry in
                         SidebarFolderSection(folder: entry.folder, state: state, chrome: chrome,
                                              colors: colors, selection: selection, showSelection: !activeIsListed,
@@ -147,7 +154,7 @@ private struct AnimatedListItems<Content: View>: View {
 
     private var entries: [Entry] {
         // Live rows come directly from the model. Only departing metadata is cached.
-        var result = items.map { Entry(id: $0.id, item: $0, retiring: false) }
+        var result = rendered.map { Entry(id: $0.id, item: $0, retiring: false) }
         for item in retired.filter({ old in !items.contains { $0.id == old.id } }).sorted(by: { $0.index < $1.index }) {
             result.insert(Entry(id: item.id, item: item.item, retiring: true), at: min(item.index, result.count))
         }

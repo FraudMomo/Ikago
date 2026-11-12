@@ -255,7 +255,7 @@ extension BrowserWindowController: BrowserCommands, NSMenuItemValidation {
             item.title = state.tabLayout.usesTopTabs ? (chrome.showTabOverview ? "Hide Tab Sidebar" : "Show Tab Sidebar") : (state.sidebarVisible ? "Hide Sidebar" : "Show Sidebar")
             return true
         case #selector(togglePinTab(_:)):
-            item.title = tab?.pinned == true ? "Unpin — Keep as Regular Tab" : "Pin Tab — Keep This Tab"
+            item.title = tab?.pinned == true ? "Unpin Tab" : "Pin Tab"
             return tab != nil
         case #selector(toggleMuteTab(_:)):
             item.title = tab?.isMuted == true ? "Unmute Tab" : "Mute Tab"

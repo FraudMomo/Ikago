@@ -87,7 +87,7 @@ struct TabRowView: View {
                 .foregroundStyle(isActive ? colors.text : colors.text.opacity(0.85))
 
             Spacer(minLength: 4)
-            if tab.isHibernating {
+            if tab.isUnloaded {
                 Image(systemName: "moon.zzz").font(.system(size: 10)).foregroundStyle(colors.secondary)
             }
             TabMediaIndicators(tab: tab, colors: colors, commands: commands)
@@ -121,7 +121,7 @@ struct TabRowView: View {
         .tabPeek(tab, commands: commands)
         .sidebarHover($hovering)
         .animation(.ikagoQuick, value: hovering)
-        .opacity(tab.isHibernating ? 0.48 : 1)
+        .opacity(tab.isUnloaded ? 0.48 : 1)
     }
 }
 

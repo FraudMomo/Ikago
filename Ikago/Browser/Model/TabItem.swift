@@ -19,6 +19,8 @@ final class TabItem: Identifiable {
     var faviconURL: URL?
     /// The page's <meta name="theme-color"> (WebKit's `themeColor`), used to tint the top bar.
     var themeColor: NSColor?
+    var hasLivePage = false
+    var isUnloaded: Bool { isHibernating || (!hasLivePage && InternalPage(url: url) == nil) }
     var isHibernating = false
     /// The engine showing this tab's page now (per-site engines can differ from the default).
     var engine: BrowserEngine?

@@ -209,6 +209,7 @@ final class BrowserState {
     func togglePin(_ id: String) {
         guard let tab = tab(id) else { return }
         tab.pinned.toggle()
+        tab.pinAsRow = tab.pinned
         tab.folderID = nil
         // Keep pinned tabs grouped first.
         tabs = tabs.filter(\.pinned) + tabs.filter { !$0.pinned }

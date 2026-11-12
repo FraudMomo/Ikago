@@ -100,7 +100,7 @@ enum MainMenu {
             let groups = $0.addSubmenu("Reopen Closed Group") { _ in }
             groups.delegate = ClosedGroupsMenu.shared
             $0.separator()
-            $0.item("Pin Tab — Keep This Tab", #selector(BrowserWindowController.togglePinTab(_:)))
+            $0.item("Pin Tab", #selector(BrowserWindowController.togglePinTab(_:)))
             $0.item("Mute Tab", #selector(BrowserWindowController.toggleMuteTab(_:)), "m", [.command, .control])
             $0.separator()
             for n in 1...9 {

@@ -223,6 +223,8 @@ text and international formatting remain available; `CEFLocaleChecks` verifies m
   Move split groups together, keep sidebar reflow to 0.12 s, and respect Reduce Motion.
   Group headers accept membership drops explicitly; only web-page split targets intercept input
   through a native overlay.
+  Pin Tab creates a standalone sidebar row. Dragging into the essentials grid makes it a tile;
+  dragging back into the list keeps it pinned as a row. Use one Pin/Unpin action; placement is drag-driven.
   Closing a pin unloads its page and retains its identity; only unpinning/removal deletes it.
   Persist favicon URLs on tabs/bookmarks and retain disk icons without age expiry.
   Favicon views synchronously seed from disk/memory; never clear a working same-site image
