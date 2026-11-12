@@ -133,6 +133,7 @@ final class CEFWebTab: WebTab {
     func focus() { page.focus() }
     func tearDown() {
         guard !isTornDown else { return }
+        PageLifetimeCanary.shared.retire(self)
         isTornDown = true; documentGeneration += 1
         stateTask?.cancel(); stateTask = nil
         removePasswordMonitor()

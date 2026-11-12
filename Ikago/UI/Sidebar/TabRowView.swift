@@ -89,7 +89,7 @@ struct TabRowView: View {
             Spacer(minLength: 4)
             if tab.isHibernating {
                 Image(systemName: "moon.zzz").font(.system(size: 10)).foregroundStyle(colors.secondary)
-                    .help("Sleeping to save memory; select to reload")
+                    .help("Unloaded; its page is released and reloads when selected")
             }
             TabMediaIndicators(tab: tab, colors: colors, commands: commands)
             if hovering {

@@ -10,6 +10,15 @@ enum CEFPageStateChecks {
             try await Task.sleep(for: .milliseconds(50))
         }
         guard !tab.pageStateContexts.isEmpty else { throw CEFError.script("Page state binding did not install.") }
+        guard let pid = tab.performanceProcessID, pid > 0, pid != getpid() else {
+            throw CEFError.script("Renderer did not report its process identity for diagnostics.")
+        }
+        let monitor = PerformanceMonitor.shared
+        let subscription = monitor.subscribe()
+        try await Task.sleep(for: .milliseconds(1500))
+        let attributed = monitor.sample.rows.contains { $0.id == pid && $0.owner == .chromium }
+        monitor.unsubscribe(subscription)
+        guard attributed else { throw CEFError.script("Renderer footprint was not attributed to Chromium.") }
         _ = try await tab.evaluate("""
             (() => {
               const original = window.__ikagoMedia.state;

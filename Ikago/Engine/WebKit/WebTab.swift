@@ -139,6 +139,7 @@ final class WebKitTab: NSObject, WebTab {
 
     /// Removes the view and stops all work. The page is gone after this.
     func tearDown() {
+        PageLifetimeCanary.shared.retire(self)
         observations.removeAll()
         // Detaching a web view doesn't end its page: anything still holding it (an extension's tab
         // reference, a pending callback) would keep the camera and microphone open. Release them now.

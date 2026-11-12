@@ -13,6 +13,7 @@ protocol WebTab: AnyObject {
     var isMuted: Bool { get }
     var zoomLevel: Double { get set }
     var isInspectorVisible: Bool { get }
+    var performanceProcessID: Int32? { get }
     func load(_ url: String)
     func goBack()
     func goForward()
@@ -41,6 +42,7 @@ protocol WebTab: AnyObject {
     func hasNavigationHistory() async -> Bool
 }
 extension WebTab {
+    var performanceProcessID: Int32? { nil }
     func controlMedia(_ action: MediaPlaybackAction) async {
         if let report = try? await callAsync(MediaPlaybackScript.control(action)) as? [String: Any] {
             delegate?.webTab(self, didChangePlayback: MediaPlaybackState(report))

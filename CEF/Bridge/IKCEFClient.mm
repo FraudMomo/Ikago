@@ -28,6 +28,13 @@ class Client final : public CefClient, public CefLifeSpanHandler,
   CefRefPtr<CefRequestHandler> GetRequestHandler() override { return this; }
   CefRefPtr<CefPermissionHandler> GetPermissionHandler() override { return this; }
   CefRefPtr<CefFindHandler> GetFindHandler() override { return this; }
+  bool OnProcessMessageReceived(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame> frame,
+      CefProcessId source, CefRefPtr<CefProcessMessage> message) override {
+    if (source != PID_RENDERER || !frame->IsMain() || message->GetName() != "ikago.rendererPID") return false;
+    int pid = message->GetArgumentList()->GetInt(0);
+    if (pid > 0) page_.rendererProcessID = pid;
+    return true;
+  }
   CefRefPtr<CefDownloadHandler> GetDownloadHandler() override { return this; }
   bool OnBeforeDownload(CefRefPtr<CefBrowser> browser, CefRefPtr<CefDownloadItem> item,
       const CefString& name, CefRefPtr<CefBeforeDownloadCallback> callback) override {
@@ -56,6 +63,7 @@ class Client final : public CefClient, public CefLifeSpanHandler,
     IKCEFTrackBrowser(-1);
     IKCEFPage *page = page_;
     if (!page) return;
+    page.rendererProcessID = 0;
     [page invalidateRequests:@"The page has closed."];
     page->_registration = nullptr;
     page->_browser = nullptr;
@@ -177,6 +185,7 @@ class Client final : public CefClient, public CefLifeSpanHandler,
   }
   void OnRenderProcessTerminated(CefRefPtr<CefBrowser>, TerminationStatus, int,
       const CefString&) override {
+    page_.rendererProcessID = 0;
     [page_ invalidateRequests:@"The renderer stopped."];
     [page_ emit:@"crash" payload:@{}];
   }

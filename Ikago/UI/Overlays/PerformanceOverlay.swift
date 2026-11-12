@@ -7,7 +7,7 @@ import AppKit
 /// serve the display, which is what choppy scrolling and animation are.
 final class PerformanceOverlay: NSVisualEffectView {
     private let label = NSTextField(labelWithString: "")
-    private let sampler = PerformanceSampler()
+    private var subscription: UUID?
     private var link: CADisplayLink?
     private var frames = 0
     private var windowStart: CFTimeInterval = 0
@@ -17,7 +17,7 @@ final class PerformanceOverlay: NSVisualEffectView {
     private var sample = PerformanceSample()
     private static let margin: CGFloat = 10
     private static let padding: CGFloat = 9
-    private static let height: CGFloat = 24
+    private static let height: CGFloat = 42
 
     init() {
         super.init(frame: .zero)
@@ -30,7 +30,8 @@ final class PerformanceOverlay: NSVisualEffectView {
         layer?.masksToBounds = true
         label.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium)
         label.textColor = .labelColor
-        label.lineBreakMode = .byClipping
+        label.lineBreakMode = .byTruncatingTail
+        label.maximumNumberOfLines = 2
         addSubview(label)
         setAccessibilityElement(false)
     }
@@ -44,14 +45,14 @@ final class PerformanceOverlay: NSVisualEffectView {
         super.viewDidMoveToWindow()
         link?.invalidate()
         link = nil
-        sampler.stop()
+        if let subscription { PerformanceMonitor.shared.unsubscribe(subscription) }; subscription = nil
         NotificationCenter.default.removeObserver(self)
         guard window != nil, let superview else { return }
         NotificationCenter.default.addObserver(self, selector: #selector(place), name: NSView.frameDidChangeNotification, object: superview)
         let link = displayLink(target: self, selector: #selector(frame(_:)))
         link.add(to: .main, forMode: .common)
         self.link = link
-        sampler.start { [weak self] in
+        subscription = PerformanceMonitor.shared.subscribe { [weak self] in
             self?.sample = $0
             self?.render()
         }
@@ -74,7 +75,11 @@ final class PerformanceOverlay: NSVisualEffectView {
 
     private func render() {
         let memory = ByteCountFormatter.string(fromByteCount: Int64(sample.memory), countStyle: .memory)
-        let text = "\(frameText)      CPU \(Int(sample.cpu.rounded()))%      \(memory)  ·  \(sample.processes) processes"
+        let engines = [PerformanceOwner.webkit, .chromium].map { owner in
+            let value = sample.rows.contains { $0.owner == owner } ? PerformanceSample.bytes(sample.memory(for: owner)) : "—"
+            return "\(owner.rawValue) \(value)"
+        }.joined(separator: " · ")
+        let text = "\(frameText)      CPU \(Int(sample.cpu.rounded()))%      Total \(memory)  ·  \(sample.processes) processes\nApp/shared \(PerformanceSample.bytes(sample.memory(for: .app))) · \(engines)"
         guard label.stringValue != text else { return }
         label.stringValue = text
         place()
@@ -82,7 +87,11 @@ final class PerformanceOverlay: NSVisualEffectView {
 
     @objc private func place() {
         guard let superview else { return }
-        let width = ceil(label.intrinsicContentSize.width) + Self.padding * 2
+        let measured = label.stringValue.components(separatedBy: "\n").map {
+            ($0 as NSString).size(withAttributes: [.font: label.font ?? NSFont.systemFont(ofSize: 11)]).width
+        }.max() ?? 0
+        // Leave room for both metric lines as digit widths and process counts change between samples.
+        let width = min(superview.bounds.width - Self.margin * 2, max(600, ceil(measured) + Self.padding * 2))
         let y = superview.isFlipped ? superview.bounds.height - Self.height - Self.margin : Self.margin
         frame = NSRect(x: superview.bounds.width - width - Self.margin, y: y, width: width, height: Self.height)
         let textHeight = ceil(label.intrinsicContentSize.height)
@@ -101,7 +110,7 @@ extension BrowserWindowController {
 
     @objc func togglePerformanceStats(_ sender: Any?) {
         let show = !showsPerformanceStats
-        UserDefaults.standard.set(show, forKey: Self.performanceStatsKey)
+        if !WebProfiles.isTestMode { UserDefaults.standard.set(show, forKey: Self.performanceStatsKey) }
         setPerformanceStats(show)
     }
 

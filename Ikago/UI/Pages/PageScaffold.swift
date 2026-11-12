@@ -11,6 +11,7 @@ struct InternalPageView: View {
         let colors = state.palette
         Group {
             switch page {
+            case .performance: PerformancePage(state: state, commands: commands, tabID: tabID)
             case .splitEmpty: EmptySplitPage(state: state, tabID: tabID)
             case .bookmarks: BookmarksPage(state: state, commands: commands)
             case .settings: SettingsPage(state: state, commands: commands)

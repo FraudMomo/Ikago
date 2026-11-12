@@ -1,8 +1,7 @@
 import AppKit
 import Foundation
 
-/// One browsing tab. The core persisted fields are id, url, title and pinned;
-/// the rest is live state reported by WebKit and never written to disk.
+/// Tab identity and metadata persist; live page contents do not. Restored pages start lazily.
 @MainActor
 @Observable
 final class TabItem: Identifiable {
@@ -13,7 +12,7 @@ final class TabItem: Identifiable {
     var spaceID: UUID
     var folderID: String?
 
-    // Live state (not persisted).
+    // Live state, except the unloaded marker and favicon URL saved below.
     var shouldStartInBackground = false
     var faviconURL: URL?
     /// The page's <meta name="theme-color"> (WebKit's `themeColor`), used to tint the top bar.

@@ -25,6 +25,7 @@ NS_SWIFT_UI_ACTOR
 /// Receives the hidden DevTools window once it exists, and nil when it closes.
 @property(nonatomic, copy, nullable) void (^devToolsWindowHandler)(NSWindow *_Nullable);
 @property(nonatomic, readonly) BOOL ready;
+@property(nonatomic) int rendererProcessID;
 @property(nonatomic, readonly, getter=isClosed) BOOL closed;
 @property(nonatomic, readonly) BOOL canGoBack;
 @property(nonatomic, readonly) BOOL canGoForward;

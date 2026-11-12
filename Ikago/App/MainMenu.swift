@@ -70,6 +70,7 @@ enum MainMenu {
             $0.separator()
             $0.item("Developer Tools", #selector(BrowserWindowController.toggleDevTools(_:)), "i", [.command, .option])
             $0.item("Performance Stats", #selector(BrowserWindowController.togglePerformanceStats(_:)))
+            $0.item("Performance", #selector(BrowserWindowController.showPerformance(_:)))
             $0.item("Enter Full Screen", #selector(NSWindow.toggleFullScreen(_:)), "f", [.command, .control])
         }
         main.addSubmenu("History") {

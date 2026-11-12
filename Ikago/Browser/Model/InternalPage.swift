@@ -2,7 +2,7 @@ import Foundation
 
 /// Ikago's own pages, shown in a tab like any site: ikago://settings, …
 enum InternalPage: String, CaseIterable {
-    case settings, history, downloads, bookmarks, welcome
+    case settings, history, downloads, bookmarks, welcome, performance
     case splitEmpty = "split-empty"
 
     init?(url: String) {
@@ -16,6 +16,7 @@ enum InternalPage: String, CaseIterable {
 
     var symbol: String {
         switch self {
+        case .performance: "gauge.with.dots.needle.50percent"
         case .splitEmpty: "rectangle.split.2x1"
         case .bookmarks: "bookmark"
         case .settings: "gearshape"

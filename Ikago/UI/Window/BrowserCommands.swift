@@ -26,6 +26,7 @@ protocol BrowserCommands: AnyObject {
     func splitWith(_ id: String)
     func showSettings()
     func openPage(_ page: InternalPage)
+    func performanceTabs() -> [TabPerformanceEntry]
     func openInNewTab(_ url: String)
     func openDroppedFiles(_ urls: [URL])
     func openBookmark(_ bookmark: Bookmark, forceNewTab: Bool)
