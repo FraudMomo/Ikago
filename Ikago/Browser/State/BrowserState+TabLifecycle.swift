@@ -47,9 +47,9 @@ extension BrowserState {
     func unloadTab(_ id: String) -> String? {
         guard !isFrozen, let tab = tab(id) else { return nil }
         if activeTabID == id {
-            guard let next = recentFallback(for: tab, excluding: [id])
-                ?? navigationOrder.first(where: { $0.id != id && !$0.isHibernating })?.id else { return nil }
-            select(next)
+            if let next = recentFallback(for: tab, excluding: [id])
+                ?? navigationOrder.first(where: { $0.id != id && !$0.isHibernating })?.id { select(next) }
+            else { activeTabID = nil }
         }
         removeFromSplits([id])
         tab.isHibernating = true
@@ -64,8 +64,8 @@ extension BrowserState {
         let members = tabs(in: folder)
         let ids = Set(members.map(\.id))
         if let active = activeTab, ids.contains(active.id) {
-            guard let next = navigationOrder.first(where: { !ids.contains($0.id) && !$0.isHibernating })?.id else { return [] }
-            select(next)
+            if let next = navigationOrder.first(where: { !ids.contains($0.id) && !$0.isHibernating })?.id { select(next) }
+            else { activeTabID = nil }
         }
         removeFromSplits(ids)
         for member in members { member.isHibernating = true }

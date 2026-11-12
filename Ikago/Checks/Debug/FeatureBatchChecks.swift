@@ -44,6 +44,10 @@ enum FeatureBatchChecks {
         await settle()
         check(live.isHibernating && browser.content.controller(for: live.id)?.page == nil && state.tab(live.id) != nil, "explicit unload releases native page and retains tab")
         check(state.activeTabID == a.id, "unload returns to another tab")
+        let isolated = BrowserState(privateFrom: state)
+        let last = isolated.newTab(url: "https://last-tab.invalid/")!
+        check(isolated.unloadTab(last.id) == last.id && isolated.activeTabID == nil && last.isHibernating,
+              "the final tab can unload into an empty page without deleting its identity")
         let json = try? BrowserSecurity.trackerJSON(exceptions: ["youtube.com"])
         check(json?.contains("unless-top-url") == true && json?.contains("youtube") == true, "site recovery excludes top origin from built-in tracker rules")
         check(state.browserPreferences.pageIntelligence != true, "page AI remains opt-in")
