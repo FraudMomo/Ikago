@@ -85,6 +85,7 @@ enum CEFSmoke {
             guard let value = (result["result"] as? [String: Any])?["value"] as? [String: Any],
                   value["title"] as? String == "Ikago Chromium Fixture", value["isolated"] as? Bool == true,
                   value["text"] as? Bool == true else { throw CEFError.script("DOM or isolated-world fixture failed.") }
+            try await CEFLocaleChecks.run(browser, context: context)
             try await CEFAudioChecks.run(browser)
             print("CEF_SMOKE_STAGE persistence")
             let reading = CommandLine.arguments.contains("--cef-smoke-read")

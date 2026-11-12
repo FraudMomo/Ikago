@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Assemble and sign Ikago.app: Info.plist, assets, the CEF framework and its helper apps."""
+import hashlib
 import os
 from pathlib import Path
 import plistlib
@@ -79,6 +80,27 @@ def sign_bundle(app, framework, identity, entitlements):
     sign(app, identity, entitlements)
 
 
+def package_cef_locales(framework, source_framework):
+    """Match Ikago's English UI; preserve ICU and the engine's required fallback strings."""
+    resources, source = framework/'Resources', source_framework/'Resources'
+    english = [folder for folder in source.glob('*.lproj')
+               if folder.stem == 'en' or folder.stem.startswith('en_')]
+    if not (source/'en.lproj/locale.pak').is_file():
+        raise SystemExit('CEF is missing its required English fallback locale.')
+    # Restore retained resources when reusing a bundle that was packaged differently.
+    for folder in english:
+        target = resources/folder.name
+        if not target.exists():
+            shutil.copytree(folder, target)
+    keep = {folder.name for folder in english}
+    removed = 0
+    for folder in resources.glob('*.lproj'):
+        if folder.name not in keep:
+            removed += sum(path.stat().st_size for path in folder.rglob('*') if path.is_file())
+            shutil.rmtree(folder)
+    print(f'CEF locale resources: English fallbacks retained; removed {removed / 1024**2:.2f} MiB', flush=True)
+
+
 def main():
     app, flavor = Path(sys.argv[1]), sys.argv[2]
     contents = app/'Contents'
@@ -91,12 +113,29 @@ def main():
                 NSPrincipalClass='IKCEFApplication', LSMinimumSystemVersion='26.0')
     (contents/'Info.plist').write_bytes(plistlib.dumps(info))
 
+    if flavor == 'release':
+        binary = contents/'MacOS/Ikago'
+        # Keep a matching unstripped image for atos/sample symbolication outside the distributed app.
+        digest = hashlib.sha256(binary.read_bytes()).hexdigest()[:16]
+        symbols = ROOT/'out/symbols'/digest
+        symbols.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(binary, symbols/'Ikago')
+        subprocess.run(['xcrun', 'strip', '-x', str(binary)], check=True, capture_output=True)
+
     # Password matching groups sites by registrable domain (PublicSuffix.swift).
     shutil.copyfile(ROOT/'Ikago/Resources/public_suffix_list.dat', contents/'Resources/public_suffix_list.dat')
 
     framework = contents/'Frameworks/Chromium Embedded Framework.framework'
+    source_framework = ROOT/'.cef/distribution/Release/Chromium Embedded Framework.framework'
+    if framework.exists():
+        # Reused app bundles must pick up SDK updates too, rather than keep an older signed framework.
+        bundled = plistlib.loads((framework/'Resources/Info.plist').read_bytes())
+        pinned = plistlib.loads((source_framework/'Resources/Info.plist').read_bytes())
+        if bundled.get('CFBundleVersion') != pinned.get('CFBundleVersion'):
+            shutil.rmtree(framework)
     if not framework.exists():
-        shutil.copytree(ROOT/'.cef/distribution/Release/Chromium Embedded Framework.framework', framework, symlinks=True)
+        shutil.copytree(source_framework, framework, symlinks=True)
+    package_cef_locales(framework, source_framework)
     for suffix in HELPERS:
         name = 'Ikago Helper' + suffix
         helper = contents/'Frameworks'/(name + '.app')/'Contents'
