@@ -11,10 +11,10 @@ extension TabController {
         switch action {
         case .privateLink(let address):
             guard let url = URL(string: address), ["http", "https"].contains(url.scheme?.lowercased() ?? "") else { return }
-            (NSApp.delegate as? AppDelegate)?.openPrivateWindow(url: url.absoluteString)
+            (host as? BrowserCommands)?.openInPrivateWindow(url.absoluteString)
         case .search(let text):
             guard let state = browserState, !text.isEmpty else { return }
-            (host as? BrowserCommands)?.openInNewTab(state.searchEngine.searchURL( String(text.prefix(4096))))
+            (host as? BrowserCommands)?.openInNewTab(state.searchEngine.searchURL(String(text.prefix(4096))))
         case .translate:
             guard let url = URL(string: page.currentURL), ["http", "https"].contains(url.scheme ?? "") else { return }
             var components = URLComponents(string: "https://translate.google.com/translate")!

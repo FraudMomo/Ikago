@@ -29,6 +29,7 @@ protocol BrowserCommands: AnyObject {
     func peekTab(_ id: String)
     func previewImage(_ id: String) async -> NSImage?
     func performanceTabs() -> [TabPerformanceEntry]
+    func openInPrivateWindow(_ url: String)
     func openInNewTab(_ url: String)
     func openDroppedFiles(_ urls: [URL])
     func openBookmark(_ bookmark: Bookmark, forceNewTab: Bool)

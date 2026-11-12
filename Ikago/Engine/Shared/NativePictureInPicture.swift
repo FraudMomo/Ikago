@@ -47,7 +47,7 @@ final class NativePictureInPicture: NSObject, NSWindowDelegate {
                     self.close()
                     let alert = NSAlert()
                     alert.messageText = "This video can’t open in the native player"
-                    alert.informativeText = "Use the video’s Picture in Picture control for protected or page-managed streams."
+                    alert.informativeText = "This stream is managed by the page or requires the site’s sign-in. Keep playing it in the tab."
                     if let window { alert.beginSheetModal(for: window) { _ in } }
                 }
             }

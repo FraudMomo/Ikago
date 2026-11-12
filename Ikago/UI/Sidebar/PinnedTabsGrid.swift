@@ -87,6 +87,9 @@ struct TabContextMenu: View {
             NSPasteboard.general.setString(tab.url, forType: .string)
         }
         Button("Duplicate Tab") { state.newTab(url: tab.url, after: tab.id) }
+        if AddressResolver.isWebURL(tab.url) {
+            Button("Open in Private Window") { commands?.openInPrivateWindow(tab.url) }
+        }
         if !tab.pinned {
             Menu("Move to Group") {
                 ForEach(state.spaceFolders.filter { $0.id != tab.folderID }) { folder in

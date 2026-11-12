@@ -7,6 +7,7 @@ struct BookmarkContextMenu: View {
 
     var body: some View {
         Button("Open in New Tab") { commands?.openBookmark(bookmark, forceNewTab: true) }
+        Button("Open in Private Window") { commands?.openInPrivateWindow(bookmark.url) }
         Menu("Move to Folder") {
             Button("Bookmarks Bar") { state.moveBookmark(bookmark.id, to: nil) }
             ForEach(state.bookmarkFolderChoices, id: \.id) { choice in

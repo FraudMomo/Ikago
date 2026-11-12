@@ -9,7 +9,7 @@ extension FileDropWebView {
         for item in menu.items {
             let identifier = item.identifier?.rawValue.lowercased() ?? ""
             if identifier.contains("searchweb") || identifier.contains("searchtheweb")
-                || item.action.map({ NSStringFromSelector($0).lowercased().contains("searchweb") }) == true {
+                || item.action.map({ let action = NSStringFromSelector($0).lowercased(); return action.contains("searchweb") || action.contains("searchtheweb") }) == true {
                 let target = PageMenuAction { [weak self] in self?.searchSelection() }
                 menuActions.append(target)
                 item.target = target
@@ -17,20 +17,22 @@ extension FileDropWebView {
                 item.title = "Search in Ikago"
             }
         }
-        addPageItem("Translate Page…", to: menu) { [weak self] in self?.pageAction(.translate) }
-        addPageItem("Search Selection in Ikago", to: menu) { [weak self] in self?.searchSelection() }
+        addPageItem("Translate Page with Google…", to: menu) { [weak self] in self?.pageAction(.translate) }
         let point = convert(event.locationInWindow, from: nil)
         let y = isFlipped ? point.y : bounds.height - point.y
         let script = """
         (() => {
           let e = document.elementFromPoint(\(point.x), \(y));
           const a = e?.closest('a[href]');
-          const v = e?.closest('video') || (e?.closest('iframe') ? null : document.querySelector('video'));
-          return {link: a?.href || '', video: v?.currentSrc || v?.src || ''};
+          const v = e?.closest('video');
+          return {link: a?.href || '', video: v?.currentSrc || v?.src || '', selection: window.getSelection()?.toString() || ''};
         })()
         """
         evaluateJavaScript(script, in: nil, in: .defaultClient) { [weak self, weak menu] result in
             guard let self, let menu, case .success(let value) = result, let hit = value as? [String: String] else { return }
+            if hit["selection"]?.isEmpty == false, !menu.items.contains(where: { $0.title == "Search in Ikago" }) {
+                self.addPageItem("Search Selection in Ikago", to: menu) { [weak self] in self?.searchSelection() }
+            }
             if let link = hit["link"], AddressResolver.isWebURL(link) {
                 self.addPageItem("Open Link in Private Window", to: menu) { [weak self] in self?.pageAction(.privateLink(link)) }
             }

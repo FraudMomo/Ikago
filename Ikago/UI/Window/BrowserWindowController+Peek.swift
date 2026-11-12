@@ -1,6 +1,12 @@
 import AppKit
 
 extension BrowserWindowController {
+    func openInPrivateWindow(_ url: String) {
+        guard let address = URL(string: url), ["http", "https"].contains(address.scheme?.lowercased() ?? ""),
+              address.user == nil, address.password == nil else { return }
+        (NSApp.delegate as? AppDelegate)?.openPrivateWindow(url: address.absoluteString)
+    }
+
     func peekTab(_ id: String) {
         guard state.tab(id) != nil else { return }
         chrome.previewTabID = id
