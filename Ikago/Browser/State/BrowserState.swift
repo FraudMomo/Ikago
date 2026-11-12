@@ -74,7 +74,7 @@ final class BrowserState {
     /// Each Space's last active tab, restored when switching back to it.
     var lastActiveTab: [UUID: String] = [:]
     /// Recent selection order per Space, used when a tab closes so its opener is restored first.
-    @ObservationIgnored private var recentTabSelections: [UUID: [String]] = [:]
+    @ObservationIgnored var recentTabSelections: [UUID: [String]] = [:]
     /// Set when both session files were unreadable (they stay on disk untouched).
     var restoreWarning: String?
     /// A new profile shows the welcome page once its window opens.

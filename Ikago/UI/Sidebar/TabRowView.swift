@@ -89,7 +89,6 @@ struct TabRowView: View {
             Spacer(minLength: 4)
             if tab.isHibernating {
                 Image(systemName: "moon.zzz").font(.system(size: 10)).foregroundStyle(colors.secondary)
-                    .help("Unloaded; its page is released and reloads when selected")
             }
             TabMediaIndicators(tab: tab, colors: colors, commands: commands)
             if hovering {
@@ -121,6 +120,8 @@ struct TabRowView: View {
         .contentShape(Rectangle())
         .sidebarHover($hovering)
         .animation(.ikagoQuick, value: hovering)
+        .opacity(tab.isHibernating ? 0.48 : 1)
+        .help("\(tab.displayTitle) · \(tab.engine?.title ?? "Engine selected when loaded")\(tab.isHibernating ? "\nUnloaded; reloads when selected" : "")")
     }
 }
 
