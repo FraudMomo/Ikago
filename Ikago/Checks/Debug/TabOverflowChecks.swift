@@ -51,14 +51,14 @@ enum TabOverflowChecks {
         let regularWidths = state.regularTabs.compactMap { LayoutChecks.frames["regular-tab-\($0.id)"]?.width }
         let activeWidth = active?.width ?? 0
         check(regularWidths.count > 10 && activeWidth >= TabStripLayout.minTab - 1
-              && regularWidths.filter { $0 < TabStripLayout.iconOnlyWidth }.count >= regularWidths.count - 1,
-              "crowded inactive tabs compact to favicons beside a readable active tab")
+              && regularWidths.allSatisfy { $0 >= TabStripLayout.minTab - 1 },
+              "crowded tabs retain readable titles and scroll instead of becoming favicon close targets")
         let widthBeforeSelection = strip?.documentView?.bounds.width
         if let settings = state.tabs.first(where: { $0.url == InternalPage.settings.url }) { state.select(settings.id) }
         try? await Task.sleep(for: .milliseconds(400))
         check(widthBeforeSelection == nativeStrip(controller)?.documentView?.bounds.width
               && abs((LayoutChecks.frames["active-tab"]?.width ?? 0) - activeWidth) < 1,
-              "switching tabs hands the readable width to the new tab and leaves the strip width unchanged")
+              "switching tabs preserves readable width and leaves the strip width unchanged")
         if let folder = state.spaceFolders.last, let member = state.tabs(in: folder).last {
             func isRevealed(_ key: String) -> Bool {
                 guard let strip = nativeStrip(controller), let window = controller.window,

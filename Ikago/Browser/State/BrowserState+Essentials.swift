@@ -2,11 +2,11 @@ import Foundation
 
 extension BrowserState {
     var showsTopBarEssentials: Bool {
-        get { browserPreferences.showTopBarEssentials ?? true }
+        get { browserPreferences.showTopBarEssentials ?? false }
         set { browserPreferences.showTopBarEssentials = newValue }
     }
     var showsTopBarPins: Bool {
-        get { browserPreferences.showTopBarPins ?? true }
+        get { browserPreferences.showTopBarPins ?? false }
         set { browserPreferences.showTopBarPins = newValue }
     }
     var topBarShelfPins: [TabItem] { pinnedTabs.filter { splitGroup(of: $0.id) == nil } }

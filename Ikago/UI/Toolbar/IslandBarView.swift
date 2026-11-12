@@ -43,7 +43,7 @@ struct IslandBarView: View {
         let layout = TabStripLayout(items: items, available: viewport,
                                     expandedGroups: sections.filter(\.hasMembers).count,
                                     groupStyle: state.groupLabelStyle, showGroupCounts: state.showsGroupTabCounts, maximumTab: 280,
-                                    activeID: state.activeTabID, minimumInactive: 34)
+                                    activeID: state.activeTabID, minimumInactive: 120)
         let width = min(layout.natural, viewport)
         let target = scrollTarget(in: items)
         return HStack(spacing: 2) {
@@ -66,6 +66,7 @@ struct IslandBarView: View {
                             sectionView(section, layout: layout, colors: colors, activeTarget: target)
                         }
                     }
+                    .coordinateSpace(name: "ikago-tab-document")
                     .fixedSize(horizontal: true, vertical: false)
                     .padding(.horizontal, 3)
                 }
@@ -77,6 +78,7 @@ struct IslandBarView: View {
                     LayoutChecks.tabEdges = edges
                     #endif
                 }
+                .revealActiveTab()
                 .scrollIndicators(.never)
                 .frame(width: width)
                 .clipped()

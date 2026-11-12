@@ -21,7 +21,7 @@ struct TopTabStrip: View {
             // Tabs share the row down to a readable width, then inactive tabs compact to favicons.
             let layout = TabStripLayout(items: items, available: geometry.size.width, groupStyle: state.groupLabelStyle,
                 showGroupCounts: state.showsGroupTabCounts, maximumTab: .greatestFiniteMagnitude, pinnedWidth: 36,
-                activeID: state.activeTabID, minimumInactive: 40)
+                activeID: state.activeTabID, minimumInactive: 120)
             ScrollViewReader { _ in
                 ScrollView(.horizontal) {
                     HStack(spacing: TabStripLayout.spacing) {
@@ -31,8 +31,10 @@ struct TopTabStrip: View {
                                 .tabSlot()
                         }
                     }
+                    .coordinateSpace(name: "ikago-tab-document")
                     .fixedSize(horizontal: true, vertical: false).padding(.horizontal, 3)
                 }
+                .revealActiveTab()
                 .scrollIndicators(.never)
                 .onScrollGeometryChange(for: TabScrollEdges.self) { TabScrollEdges($0) } action: { _, value in
                     edges = value
@@ -146,12 +148,13 @@ private struct TopTabView: View {
         }
         .background(ActiveTabScrollAnchor(active: active))
         .contentShape(Rectangle())
-        .onTapGesture { state.select(tab.id) }
+        .onTapGesture { if NSEvent.modifierFlags.contains(.shift) { commands?.peekTab(tab.id) } else { state.select(tab.id) } }
         .onHover { inside in hovering = inside; onHover(inside) }
         .animation(.easeOut(duration: hovering ? 0.1 : 0.2), value: hovering)
         .recordLayout("regular-tab-\(tab.id)", enabled: !tab.pinned)
         .recordLayout("topbar-pin-\(tab.id)", enabled: tab.pinned)
         .recordLayout("active-tab", enabled: active)
+        .tabPeek(tab, commands: commands)
         .help(tab.displayTitle)
     }
 

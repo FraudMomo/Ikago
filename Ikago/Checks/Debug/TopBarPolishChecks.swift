@@ -41,6 +41,16 @@ enum TopBarPolishChecks {
                     return view.subviews.lazy.compactMap { focusedField($0) }.first
                 }
                 let field = browser.window?.contentView.flatMap { focusedField($0) }
+                if field == nil, let root = browser.window?.contentView {
+                    func report(_ view: NSView) {
+                        if let candidate = view as? FocusingTextField {
+                            print("IKTEST focus diagnostic style=\(style) hidden=\(candidate.isHiddenOrHasHiddenAncestor) frame=\(candidate.frame) window=\(candidate.window != nil) editor=\(String(describing: candidate.currentEditor()))")
+                        }
+                        view.subviews.forEach(report)
+                    }
+                    print("IKTEST focus diagnostic responder=\(String(describing: browser.window?.firstResponder)) active=\(String(describing: state.activeTabID)) edited=\(String(describing: browser.chrome.editingTabID))")
+                    report(root)
+                }
                 check(field?.currentEditor() === browser.window?.firstResponder,
                       "new top tab owns the keyboard with the Sidebar focus toggle off")
                 if let editor = field?.currentEditor() as? NSTextView {

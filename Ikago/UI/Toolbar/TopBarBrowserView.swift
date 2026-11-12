@@ -16,9 +16,9 @@ struct TopBarBrowserView: View {
                     TopTabStrip(state: state, chrome: chrome, commands: commands)
                         .transition(.asymmetric(insertion: .opacity.combined(with: .move(edge: .top)), removal: .identity))
                 }
-            } else if chrome.isEditingAddress(of: state.activeTabID),
-                      state.activeTab.map({ $0.pinned || state.splitGroup(of: $0.id) != nil
-                          || state.folders.contains(where: { $0.id == state.activeTab?.folderID && !$0.isOpen }) }) == true {
+            } else if chrome.isEditingAddress(of: state.activeTabID) {
+                // A stable address field stays outside the scrolling tab document. Offscreen
+                // tab slots may have their AppKit children culled while the strip is moving.
                 TopToolbar(state: state, chrome: chrome, palette: palette, commands: commands)
             } else {
                 IslandBarView(state: state, chrome: chrome, palette: palette, commands: commands,

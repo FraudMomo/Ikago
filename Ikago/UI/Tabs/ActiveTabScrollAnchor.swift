@@ -1,39 +1,56 @@
 import AppKit
 import SwiftUI
 
-/// One native owner reveals clipped active tabs. It never recenters a visible tab.
-struct ActiveTabScrollAnchor: FillingViewRepresentable {
+/// Geometry preferences exist even when SwiftUI has culled an offscreen AppKit field.
+/// One native owner on the viewport reveals the active slot before the editor mounts.
+struct ActiveTabScrollAnchor: View {
     let active: Bool
+    var body: some View {
+        GeometryReader { geometry in
+            if active {
+                Color.clear.preference(key: ActiveTabBoundsKey.self,
+                    value: geometry.frame(in: .named("ikago-tab-document")))
+            }
+        }.allowsHitTesting(false)
+    }
+}
+
+private struct ActiveTabBoundsKey: PreferenceKey {
+    static let defaultValue: CGRect? = nil
+    static func reduce(value: inout CGRect?, nextValue: () -> CGRect?) { value = nextValue() ?? value }
+}
+
+extension View {
+    func revealActiveTab() -> some View {
+        overlayPreferenceValue(ActiveTabBoundsKey.self) { rect in
+            TabViewportReveal(target: rect).allowsHitTesting(false)
+        }
+    }
+}
+
+private struct TabViewportReveal: FillingViewRepresentable {
+    let target: CGRect?
     func makeNSView(context: Context) -> TabVisibilityAnchor { TabVisibilityAnchor() }
     func updateNSView(_ view: TabVisibilityAnchor, context: Context) {
-        let activated = active && !view.active
-        view.active = active
-        view.scheduleReveal(force: activated)
+        guard view.target != target else { return }
+        view.target = target
+        view.scheduleReveal()
     }
 }
 
 final class TabVisibilityAnchor: NSView {
-    var active = false
-    private var viewportSize = NSSize.zero
-    private var documentSize = NSSize.zero
-    private var tabRect = NSRect.zero
-    private weak var observedScroll: NSScrollView?
+    var target: CGRect?
+    private weak var scroll: NSScrollView?
     private let observations = ViewFrameObservations()
     private var scheduled = false
-    private var needsForcedReveal = false
 
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
-    override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); scheduleReveal(force: true) }
-    override func viewDidMoveToSuperview() { super.viewDidMoveToSuperview(); scheduleReveal(force: true) }
+    override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); scheduleReveal() }
+    override func viewDidMoveToSuperview() { super.viewDidMoveToSuperview(); scheduleReveal() }
     override func layout() { super.layout(); scheduleReveal() }
-    override func setFrameSize(_ newSize: NSSize) { super.setFrameSize(newSize); scheduleReveal() }
-    override func setFrameOrigin(_ newOrigin: NSPoint) { super.setFrameOrigin(newOrigin); scheduleReveal() }
 
-    func scheduleReveal(force: Bool = false) {
-        // Only the active tab reveals itself; the others would queue a main-thread block on every frame of motion.
-        guard active else { return }
-        needsForcedReveal = needsForcedReveal || force
-        guard !scheduled else { return }
+    func scheduleReveal() {
+        guard !scheduled, target != nil else { return }
         scheduled = true
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
@@ -42,32 +59,51 @@ final class TabVisibilityAnchor: NSView {
         }
     }
 
+    private func findScrollView() -> NSScrollView? {
+        guard let window else { return nil }
+        let own = convert(bounds, to: window.contentView)
+        func find(_ view: NSView) -> NSScrollView? {
+            if let candidate = view as? NSScrollView {
+                let frame = candidate.convert(candidate.bounds, to: window.contentView)
+                if abs(frame.width - own.width) < 4, abs(frame.midX - own.midX) < 4,
+                   frame.intersects(own) { return candidate }
+            }
+            return view.subviews.lazy.compactMap(find).first
+        }
+        var ancestor = superview
+        for _ in 0..<10 {
+            guard let view = ancestor else { return nil }
+            if let match = find(view) { return match }
+            ancestor = view.superview
+        }
+        return nil
+    }
+
     private func revealIfNeeded() {
-        guard active, window != nil, let scroll = enclosingScrollView, let document = scroll.documentView else { return }
-        if observedScroll !== scroll {
+        guard window != nil, let target, target.width > 0 else { return }
+        if scroll?.window !== window { scroll = nil }
+        if scroll == nil, let found = findScrollView(), let document = found.documentView {
+            scroll = found
             observations.clear()
-            observedScroll = scroll
-            scroll.contentView.postsFrameChangedNotifications = true
-            document.postsFrameChangedNotifications = true
-            for view in [scroll.contentView, document] {
+            for view in [found.contentView, document] {
+                view.postsFrameChangedNotifications = true
                 observations.tokens.append(NotificationCenter.default.addObserver(forName: NSView.frameDidChangeNotification,
-                    object: view, queue: .main) { [weak self] _ in
-                        MainActor.assumeIsolated { self?.scheduleReveal() }
-                    })
+                    object: view, queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.scheduleReveal() } })
             }
         }
-        let viewport = scroll.contentView.bounds.size, size = document.bounds.size
-        let rect = document.convert(bounds, from: self)
-        guard needsForcedReveal || viewport != viewportSize || size != documentSize || rect != tabRect else { return }
-        needsForcedReveal = false
-        viewportSize = viewport; documentSize = size; tabRect = rect
-        // No proxy centering or animator: only the clipped edge needs to move.
-        scrollToVisible(bounds.insetBy(dx: -2, dy: 0))
+        guard let scroll, let document = scroll.documentView else { return }
+        let visible = scroll.contentView.bounds
+        var x = visible.minX
+        if target.minX < visible.minX { x = target.minX - 2 }
+        else if target.maxX > visible.maxX { x = target.maxX - visible.width + 2 }
+        x = min(max(0, document.bounds.width - visible.width), max(0, x))
+        guard abs(x - visible.minX) > 0.5 else { return }
+        // Reveal a clipped edge immediately; never recenter an already visible tab.
+        scroll.contentView.scroll(to: NSPoint(x: x, y: visible.minY))
         scroll.reflectScrolledClipView(scroll.contentView)
     }
 }
 
-/// Notification removal is thread safe, including when a SwiftUI view releases its last owner.
 private final class ViewFrameObservations: @unchecked Sendable {
     var tokens: [NSObjectProtocol] = []
     func clear() { tokens.forEach { NotificationCenter.default.removeObserver($0) }; tokens = [] }
