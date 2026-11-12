@@ -1,6 +1,10 @@
 import WebKit
 
 extension WebKitTab {
+    func pauseForHistory() { webView.pauseAllMediaPlayback {} }
+    func hasNavigationHistory() async -> Bool {
+        !webView.backForwardList.backList.isEmpty || !webView.backForwardList.forwardList.isEmpty
+    }
     func controlMedia(_ action: MediaPlaybackAction) async {
         // Embedded players can live in cross-origin frames. Use the exact frames which
         // reported playback, rather than evaluating only in the main document.

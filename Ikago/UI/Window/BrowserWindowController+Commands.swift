@@ -35,9 +35,18 @@ extension BrowserWindowController: BrowserCommands, NSMenuItemValidation {
         if state.tab(id)?.pinned == true { content.controller(for: id)?.hibernate() }
     }
 
+    func unloadTab(_ id: String) {
+        guard let released = state.unloadTab(id) else { return }
+        content.controller(for: released)?.hibernate()
+    }
+
     /// Top layouts: the group leaves the strip and its pages unload; it stays reopenable.
     func closeGroup(_ id: String) {
         for member in state.closeFolder(id) { content.controller(for: member)?.hibernate() }
+    }
+
+    func unloadGroup(_ id: String) {
+        for member in state.unloadFolder(id) { content.controller(for: member)?.hibernate() }
     }
 
     /// Tab ▸ Reopen Closed Group, and the new-tab button's menu.

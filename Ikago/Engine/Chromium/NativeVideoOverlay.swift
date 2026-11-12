@@ -58,6 +58,11 @@ final class NativeVideoOverlay {
 
     /// The tab was shown or parked: resume polling an injected document once it can be seen.
     func visibilityChanged() {
+        if tab?.isPageShown != true {
+            players.values.forEach { $0.hide() }
+            timer?.invalidate(); timer = nil
+            return
+        }
         guard timer == nil, let tab, !tab.isTornDown, context != nil, injectedGeneration == tab.documentGeneration,
               tab.isPageShown else { return }
         schedule(fast: false)
@@ -73,6 +78,9 @@ final class NativeVideoOverlay {
     func inject() {
         guard let tab, !tab.isTornDown, !injecting, injectedGeneration != tab.documentGeneration,
               URL(string: tab.currentURL)?.scheme == "https" else { return }
+        let host = URL(string: tab.currentURL)?.host?.lowercased() ?? ""
+        guard tab.nativeVideoRequested || host == "x.com" || host.hasSuffix(".x.com")
+            || host == "twitter.com" || host.hasSuffix(".twitter.com") else { return }
         injecting = true
         Task { @MainActor in
             defer { injecting = false }

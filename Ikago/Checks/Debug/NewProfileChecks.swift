@@ -19,6 +19,7 @@ enum NewProfileChecks {
               && prefs.instantTabSwitching == true, "new profiles use color pills, no counts and instant switching")
         check(prefs.preferredEngine == BrowserState.newProfileEngine && prefs.chromiumVideoTranslation == false,
               "new profiles start on Chromium with video translation off")
+        check(prefs.resourcePolicy == .conservative, "new profiles reclaim memory under pressure without an idle timer")
         check(state.searchEngine == .google && state.addressStyle == .floating && !state.showsBookmarksBar && state.showsPinnedGrid,
               "new profiles search with Google from the floating bar")
         check(state.chromeLayout.sidebarTop == [.sidebarToggle, .back, .forward]

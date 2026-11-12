@@ -8,6 +8,9 @@ struct EngineHandoff {
     /// The page before the last switch, and the one Back left (for Forward).
     var previous: WebTab?
     var next: WebTab?
+    /// Memory pressure can discard a safe parked page without losing the cross-engine Back/Forward destination.
+    var previousDestination: (url: String, engine: BrowserEngine)?
+    var nextDestination: (url: String, engine: BrowserEngine)?
     /// Recent switches: a redirect loop between sites on different engines must not bounce forever.
     var recent: [Date] = []
     /// What the current page itself reports.
@@ -64,6 +67,7 @@ extension TabController {
         handoff.previous?.tearDown()
         handoff.next?.tearDown()
         handoff.next = nil
+        handoff.previousDestination = nil; handoff.nextDestination = nil
         park(current)
         handoff.previous = current
         handoff.pageCanGoBack = false
@@ -75,25 +79,30 @@ extension TabController {
 
     /// Back: within the page, else to the page before the last engine switch.
     func goBack() {
-        if handoff.pageCanGoBack || handoff.previous == nil { page?.goBack(); return }
+        if handoff.pageCanGoBack || (handoff.previous == nil && handoff.previousDestination == nil) { page?.goBack(); return }
         swapParked(back: true)
     }
 
     func goForward() {
-        if handoff.pageCanGoForward || handoff.next == nil { page?.goForward(); return }
+        if handoff.pageCanGoForward || (handoff.next == nil && handoff.nextDestination == nil) { page?.goForward(); return }
         swapParked(back: false)
     }
 
     private func swapParked(back: Bool) {
-        guard let current = page, let target = back ? handoff.previous : handoff.next else { return }
+        guard let current = page else { return }
+        let destination = back ? handoff.previousDestination : handoff.nextDestination
+        let retained = back ? handoff.previous : handoff.next
+        guard let target = retained ?? destination.flatMap({ try? makePage($0.engine, extensionContext: nil) }) else { return }
         park(current)
         if back { handoff.previous = nil; handoff.next = current } else { handoff.next = nil; handoff.previous = current }
+        handoff.previousDestination = nil; handoff.nextDestination = nil
         attach(target)
+        if retained == nil, let destination { target.load(destination.url) }
         target.setMuted(tab.isMuted)
         // The parked page's own history is unknown until it reports again.
         handoff.pageCanGoBack = false
         handoff.pageCanGoForward = false
-        tab.url = target.currentURL
+        tab.url = retained == nil ? (destination?.url ?? target.currentURL) : target.currentURL
         tab.isLoading = target.isLoading
         refreshHistoryButtons()
         if current.engine != target.engine { showEngineBadge(target.engine) }
@@ -102,13 +111,15 @@ extension TabController {
     private func park(_ page: WebTab) {
         page.delegate = nil
         page.setMuted(true)
+        page.pauseForHistory()
         page.stopCapture()
         page.contentView.removeFromSuperview()
+        page.visibilityChanged()
     }
 
     func refreshHistoryButtons() {
-        tab.canGoBack = handoff.pageCanGoBack || handoff.previous != nil
-        tab.canGoForward = handoff.pageCanGoForward || handoff.next != nil
+        tab.canGoBack = handoff.pageCanGoBack || handoff.previous != nil || handoff.previousDestination != nil
+        tab.canGoForward = handoff.pageCanGoForward || handoff.next != nil || handoff.nextDestination != nil
     }
 
     /// Hibernating or closing: parked pages go too.

@@ -14,8 +14,10 @@ protocol BrowserCommands: AnyObject {
     func toggleDownloads()
     var downloadsPresented: Bool { get }
     func closeTab(_ id: String)
+    func unloadTab(_ id: String)
     /// Closes a tab group in a top layout: no strip space, pages unloaded, reopenable.
     func closeGroup(_ id: String)
+    func unloadGroup(_ id: String)
     func toggleMute(_ id: String)
     func controlMedia(_ id: String, action: MediaPlaybackAction)
     /// Mutes/resumes or ends a tab's camera or microphone capture.

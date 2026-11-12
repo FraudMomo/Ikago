@@ -49,6 +49,19 @@ enum CEFSiteEngineChecks {
         shell.activeController?.load(chromiumURL)
         try await wait { (shell.activeController?.page as? CEFWebTab)?.currentURL == chromiumURL }
         guard tab.engine == .chromium else { throw CEFError.script("The unruled site didn't return to Chromium.") }
+        await controller.releaseParkedMemory()
+        guard controller.handoff.previous == nil, controller.handoff.previousDestination != nil, tab.canGoBack else {
+            throw CEFError.script("Reclaiming a parked engine page lost its Back destination.")
+        }
+        guard !(await controller.canReleaseMemory()) else {
+            throw CEFError.script("Tab reclamation would discard cross-engine navigation history.")
+        }
+        shell.goBack()
+        try await wait { shell.activeController?.page?.currentURL == webkitURL && shell.activeController?.page?.isLoading == false }
+        guard tab.engine == .webkit, tab.canGoForward else { throw CEFError.script("A reclaimed history page did not reopen in its engine.") }
+        shell.goForward()
+        try await wait { shell.activeController?.page?.currentURL == chromiumURL }
+        print("CEF_PARKED_MEMORY_OK retained-page-released back-forward-destinations-preserved")
         print("CEF_SITE_ENGINES_OK handoff back forward typed-address badge")
     }
 

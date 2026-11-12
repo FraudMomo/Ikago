@@ -180,11 +180,11 @@ final class TabController: NSObject, WebTabDelegate {
     /// Re-copies the top of the page into the reflection (after a load, or when the inset changes).
     /// Debounced and cancellable: dragging a size slider changes the inset many times a second.
     private func refreshReflection(after delay: Duration = .milliseconds(200)) {
-        guard topInset > 0, page != nil else { return reflection.clear() }
+        guard isActive, topInset > 0, page != nil else { return reflection.clear() }
         reflectionTask?.cancel()
         reflectionTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: delay)
-            guard !Task.isCancelled, let self, self.topInset > 0, let page = self.page else { return }
+            guard !Task.isCancelled, let self, self.isActive, self.topInset > 0, let page = self.page else { return }
             page.snapshotBelowInset(self.topInset) { [weak self] image in self?.reflection.show(image) }
         }
     }

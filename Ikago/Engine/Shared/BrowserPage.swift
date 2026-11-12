@@ -37,6 +37,8 @@ protocol WebTab: AnyObject {
     func snapshot() async throws -> NSImage
     /// The page was just shown or parked; background polling runs only while it can be seen.
     func visibilityChanged()
+    func pauseForHistory()
+    func hasNavigationHistory() async -> Bool
 }
 extension WebTab {
     func controlMedia(_ action: MediaPlaybackAction) async {
@@ -46,6 +48,8 @@ extension WebTab {
     }
     func stopCapture() { stopCapture(camera: true, microphone: true) }
     func visibilityChanged() {}
+    func pauseForHistory() { Task { @MainActor in await controlMedia(.pause) } }
+    func hasNavigationHistory() async -> Bool { true }
 }
 
 enum CEFError: LocalizedError {

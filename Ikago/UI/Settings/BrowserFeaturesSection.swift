@@ -10,30 +10,21 @@ struct BrowserFeaturesSection: View {
                     set: { state.browserPreferences.loadBackgroundTabs = $0 })).labelsHidden().toggleStyle(.switch)
             }
         }
-        PageSection(title: "Memory", footer: "Sleeping tabs reload when selected. Visible, playing and loading tabs stay awake.") {
-            PageRow(title: "Hibernate inactive tabs", subtitle: "Free memory from background tabs") {
-                Toggle("Hibernate inactive tabs", isOn: $state.browserPreferences.hibernationEnabled)
+        PageSection(title: "Memory", footer: "Released pages reload when selected. Visible pages, playing media and unsaved forms stay open.") {
+            PageRow(title: "Memory approach", subtitle: state.browserPreferences.resourcePolicy.summary) {
+                Picker("Memory approach", selection: $state.browserPreferences.resourcePolicy) {
+                    ForEach(ResourcePolicy.allCases) { Text($0.title).tag($0) }
+                }.labelsHidden()
+            }
+            PageDivider()
+            PageRow(title: "Keep pinned tabs awake") {
+                Toggle("Keep pinned tabs awake", isOn: $state.browserPreferences.protectPinnedTabs)
                     .labelsHidden().toggleStyle(.switch)
             }
-            if state.browserPreferences.hibernationEnabled {
-                PageDivider()
-                PageRow(title: "Hibernate after") {
-                    Picker("Idle time", selection: $state.browserPreferences.hibernationMinutes) {
-                        ForEach(Array(Set([5, 15, 30, 60, 120, state.browserPreferences.hibernationMinutes])).sorted(), id: \.self) {
-                            Text($0 == 1 ? "1 minute" : "\($0) minutes").tag($0)
-                        }
-                    }.labelsHidden()
-                }
-                PageDivider()
-                PageRow(title: "Keep pinned tabs awake") {
-                    Toggle("Keep pinned tabs awake", isOn: $state.browserPreferences.protectPinnedTabs)
-                        .labelsHidden().toggleStyle(.switch)
-                }
-                PageDivider()
-                PageRow(title: "Always keep these sites awake", subtitle: "Comma-separated, includes subdomains") {
-                    TextField("mail.example.com, example.org", text: $state.browserPreferences.hibernationExceptions)
-                        .textFieldStyle(.roundedBorder).frame(maxWidth: 280)
-                }
+            PageDivider()
+            PageRow(title: "Always keep these sites awake", subtitle: "Comma-separated, includes subdomains") {
+                TextField("mail.example.com, example.org", text: $state.browserPreferences.hibernationExceptions)
+                    .textFieldStyle(.roundedBorder).frame(maxWidth: 280)
             }
         }
     }

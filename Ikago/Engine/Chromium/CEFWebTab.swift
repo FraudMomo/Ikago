@@ -21,7 +21,12 @@ final class CEFWebTab: WebTab {
     var isTornDown = false
     let profileID: String
     var stateTask: Task<Void, Never>?
-    /// The theme color the state poll last reported, so an unchanged one isn't sent again.
+    var pageStateContexts: Set<Int> = []
+    var pageStateRoot: Int?
+    var pageFrameReports: [Int: [String: Any]] = [:]
+    var stateScriptInstalls = 0
+    var nativeVideoRequested = false
+    /// Last theme color reported by the document observer.
     var lastPolledThemeColor: NSColor?
     /// The "ikago-browser" isolated world of the current document, reused by `evaluate`.
     var browserWorld: (generation: Int, context: Int)?
@@ -118,7 +123,6 @@ final class CEFWebTab: WebTab {
     func load(_ url: String) { documentGeneration += 1; page.loadURL(url) }
     func visibilityChanged() {
         guard !isTornDown else { return }
-        if isPageShown { observePageState() }
         nativeVideo.visibilityChanged()
     }
     func goBack() { page.goBack() }
@@ -153,7 +157,7 @@ final class CEFWebTab: WebTab {
     func find(_ text: String, forward: Bool, matchCase: Bool) { page.findText(text, forward: forward, matchCase: matchCase) }
     func clearFindSelection() { page.clearFind() }
     func stopCapture(camera: Bool, microphone: Bool) {
-        if camera || microphone { page.stopCaptureAndReload() }
+        if (camera && cameraActive) || (microphone && microphoneActive) { page.stopCaptureAndReload() }
     }
     // CEF exposes playback mute, but no public per-device capture mute API.
     // The CEF capture menu offers the explicit stop-and-reload action instead.
@@ -161,8 +165,7 @@ final class CEFWebTab: WebTab {
     func setMuted(_ muted: Bool) {
         page.audioMuted = muted
         nativeVideo.setTabMuted(muted)
-        if muted { isAudible = false; reportMedia() }
-        observePageState()
+        updatePlayback(lastMediaReports)
     }
     func printPage() { page.printPage() }
     func setDeveloperTools(_ enabled: Bool) { page.setDeveloperToolsEnabled(enabled) }
@@ -171,6 +174,8 @@ final class CEFWebTab: WebTab {
         guard !isTornDown else { return }
         let text = payload["value"] as? String ?? ""
         switch name {
+        case "document": observePageState()
+        case "pageState": receivePageState(payload)
         case "navigation": documentGeneration += 1
         case "capture":
             cameraActive = payload["camera"] as? Bool ?? false
@@ -182,6 +187,9 @@ final class CEFWebTab: WebTab {
         case "url": currentURL = text; delegate?.webTab(self, didChangeURL: text); storeBridge.pageChanged()
         case "commit":
             documentGeneration += 1; currentURL = text
+            stateTask?.cancel()
+            pageStateContexts.removeAll(); pageFrameReports.removeAll(); pageStateRoot = nil
+            nativeVideoRequested = false
             updatePlayback([])
             observePageState()
             injectPasswordKey()

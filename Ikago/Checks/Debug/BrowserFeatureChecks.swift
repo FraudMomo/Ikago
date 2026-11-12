@@ -105,46 +105,7 @@ enum BrowserFeatureChecks {
             manager.remove(id)
         } catch { check(false, "extension fixtures: \(error.localizedDescription)") }
 
-        let live = browser.state
-        if let background = live.tabs.first(where: { !live.visibleTabIDs.contains($0.id) && browser.content.controller(for: $0.id)?.page != nil }),
-           let controller = browser.content.controller(for: background.id), controller.page != nil {
-            live.browserPreferences.hibernationEnabled = true
-            live.browserPreferences.hibernationMinutes = 1
-            live.browserPreferences.protectPinnedTabs = true
-            live.browserPreferences.hibernationExceptions = ""
-            let clock = Date()
-            browser.content.hibernation.check(now: clock)
-            background.isPlayingAudio = true
-            browser.content.hibernation.check(now: clock.addingTimeInterval(120))
-            check(!background.isHibernating, "audible background tab stays awake")
-            background.isPlayingAudio = false
-            background.pinned = true
-            browser.content.hibernation.check(now: clock.addingTimeInterval(240))
-            check(!background.isHibernating, "protected pinned tab stays awake")
-            background.pinned = false
-            background.cameraActive = true
-            browser.content.hibernation.check(now: clock.addingTimeInterval(360))
-            check(!background.isHibernating, "camera tab stays awake")
-            background.cameraActive = false
-            background.microphoneActive = true
-            browser.content.hibernation.check(now: clock.addingTimeInterval(480))
-            check(!background.isHibernating, "microphone tab stays awake")
-            background.microphoneActive = false
-            live.browserPreferences.hibernationExceptions = "127.0.0.1"
-            browser.content.hibernation.check(now: clock.addingTimeInterval(600))
-            check(!background.isHibernating, "site exception stays awake")
-            live.browserPreferences.hibernationExceptions = ""
-            live.browserPreferences.hibernationEnabled = false
-            browser.content.hibernation.check(now: clock.addingTimeInterval(720))
-            check(!background.isHibernating, "disabling hibernation keeps background tab awake")
-            live.browserPreferences.hibernationEnabled = true
-            browser.content.hibernation.check(now: clock.addingTimeInterval(840))
-            check(background.isHibernating && controller.page == nil, "idle background web view released")
-            check(browser.activeController?.page != nil, "visible tab stays awake")
-            live.select(background.id)
-            try? await Task.sleep(for: .seconds(2))
-            check(controller.page != nil && !background.isHibernating, "selecting sleeping tab recreates page")
-        } else { check(false, "two loaded fixture tabs available for hibernation") }
+        // Memory-pressure reclamation has its own deterministic resourcechecks fixture.
         NewProfileChecks.run(check)
         print("IKTEST featurechecks \(failures.isEmpty ? "PASS" : "FAIL") failures=\(failures.count)")
     }

@@ -62,6 +62,7 @@ def main():
         if 'CEF_PASSWORDS_OK' not in log.read_text(): raise SystemExit('Password key fixture did not pass')
         if 'CEF_COOKIE_ISOLATION_OK' not in log.read_text(): raise SystemExit('Cookie isolation fixture did not pass')
         if log.read_text().count('CEF_AUDIO_OK') < 2: raise SystemExit('Native audio fixture did not pass both launches')
+        if log.read_text().count('CEF_PAGE_STATE_OK') != 2: raise SystemExit('Event-driven page state fixture did not pass both launches')
     finally:
         server.shutdown(); server.server_close(); thread.join()
 

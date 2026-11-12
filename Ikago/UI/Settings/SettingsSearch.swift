@@ -58,8 +58,9 @@ enum SettingsSearch {
         .init(title: "New tab position", category: .tabs, section: "Tab Placement", keywords: "top bottom"),
         .init(title: "Links opened in new tabs", category: .tabs, section: "Tab Placement"),
         .init(title: "Load new tabs in the background", category: .tabs, section: "Background Tabs"),
-        .init(title: "Hibernate inactive tabs", category: .tabs, section: "Memory", keywords: "sleep memory"),
-        .init(title: "Keep pinned tabs awake", category: .tabs, section: "Memory", keywords: "hibernate"),
+        .init(title: "Memory approach", category: .tabs, section: "Memory", keywords: "conservative responsive resources pressure ram inactive tabs hibernate sleep"),
+        .init(title: "Keep pinned tabs awake", category: .tabs, section: "Memory", keywords: "pins essentials"),
+        .init(title: "Always keep these sites awake", category: .tabs, section: "Memory", keywords: "exceptions sleep memory"),
 
         .init(title: "Search engine", category: .search, section: "Search & Address Bar", keywords: "google duckduckgo bing"),
         .init(title: "Address bar activation", category: .search, section: "Search & Address Bar", keywords: "floating integrated"),

@@ -16,6 +16,7 @@ enum CEFShellChecks {
         }
         guard let original = shell.activeController?.page else { throw CEFError.noResult }
         _ = try await original.evaluate("window.fixtureLayoutIdentity = 'retained'")
+        if let chromium = original as? CEFWebTab { try await CEFPageStateChecks.run(chromium) }
         for layout in TabLayout.allCases {
             state.tabLayout = layout
             try await settle(shell)

@@ -1,6 +1,12 @@
 import Foundation
 
 extension CEFWebTab {
+    func hasNavigationHistory() async -> Bool {
+        guard let result = try? await devTools("Page.getNavigationHistory", [:], generation: documentGeneration),
+              let entries = result["entries"] as? [[String: Any]] else { return true }
+        return entries.count > 1
+    }
+
     /// Read and control embedded players too, without crossing their origin in script.
     /// Each frame gets its own isolated world through Chromium's public DevTools API.
     func mediaFrames(action: MediaPlaybackAction? = nil) async -> [[String: Any]] {
@@ -31,8 +37,8 @@ extension CEFWebTab {
     func updatePlayback(_ reports: [[String: Any]]) {
         lastMediaReports = reports
         let states = reports.map(MediaPlaybackState.init) + [nativeVideo.playback]
-        playback = states.first { $0.available && $0.playing } ?? states.first { $0.available } ?? MediaPlaybackState()
-        delegate?.webTab(self, didChangePlayback: playback)
+        let next = states.first { $0.available && $0.playing } ?? states.first { $0.available } ?? MediaPlaybackState()
+        if playback != next { playback = next; delegate?.webTab(self, didChangePlayback: playback) }
         let audible = (reports.contains { $0["audible"] as? Bool == true } || nativeVideo.isAudible) && !isMuted
         if isAudible != audible { isAudible = audible; reportMedia() }
     }
@@ -44,5 +50,4 @@ extension CEFWebTab {
         guard generation == documentGeneration, !isTornDown else { return }
         updatePlayback(reports)
     }
-
 }

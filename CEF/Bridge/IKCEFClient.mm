@@ -123,6 +123,7 @@ class Client final : public CefClient, public CefLifeSpanHandler,
       [page_ emit:@"failure" payload:@{@"code": @(code), @"url": IKCEFString(url)}];
   }
   void OnLoadEnd(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, int) override {
+    [page_ emit:@"document" payload:@{}];
     if (!frame->IsMain()) return;
     auto entry = browser->GetHost()->GetVisibleNavigationEntry();
     auto ssl = entry ? entry->GetSSLStatus() : nullptr;
@@ -214,6 +215,14 @@ class Client final : public CefClient, public CefLifeSpanHandler,
   void OnDevToolsMethodResult(CefRefPtr<CefBrowser>, int identifier, bool success,
       const void *result, size_t size) override {
     [page_ methodResult:identifier success:success data:[NSData dataWithBytes:result length:size]];
+  }
+  void OnDevToolsEvent(CefRefPtr<CefBrowser>, const CefString& method, const void *params, size_t size) override {
+    if (method == "Page.frameDetached") { [page_ emit:@"document" payload:@{}]; return; }
+    // Only the browser's isolated-world binding is accepted; never enable Runtime or subscribe to page console logs.
+    if (method != "Runtime.bindingCalled" || !params || size > 65536) return;
+    id payload = [NSJSONSerialization JSONObjectWithData:[NSData dataWithBytes:params length:size] options:0 error:nil];
+    if ([payload isKindOfClass:NSDictionary.class] && [payload[@"name"] isEqual:@"__ikagoStateChanged"])
+      [page_ emit:@"pageState" payload:payload];
   }
   void OnDevToolsAgentDetached(CefRefPtr<CefBrowser>) override {
     [page_ invalidateRequests:@"The renderer connection closed."];

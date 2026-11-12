@@ -98,6 +98,9 @@ struct TabContextMenu: View {
             }
         }
         Divider()
+        if !tab.isHibernating {
+            Button("Unload Tab") { commands?.unloadTab(tab.id) }
+        }
         Button(tab.pinned ? "Unload Pinned Tab — Keep Pin" : "Close Tab") { commands?.closeTab(tab.id) }
     }
 }

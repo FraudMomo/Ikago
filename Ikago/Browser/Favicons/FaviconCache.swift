@@ -163,6 +163,13 @@ final class FaviconCache {
         }
     }
 
+    /// Drop recreatable RAM caches under system pressure; disk icons and live views' images stay intact.
+    func trimMemory() {
+        images.removeAllObjects()
+        originals.removeAllObjects()
+        misses.removeAll()
+    }
+
     func clear() {
         generation += 1
         pending.values.forEach { $0.cancel() }

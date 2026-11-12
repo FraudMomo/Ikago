@@ -41,6 +41,8 @@ struct BrowserPreferences: Codable, Equatable {
     /// Extra hosts that may use HTTP, comma- or space-separated (subdomains included).
     var httpsExceptions: String? = nil
     var clearDataOnQuit: Bool? = nil
+    var resourcePolicyName: String? = nil
+    /// Legacy session fields. Idle time no longer triggers page unloading.
     var hibernationEnabled = false
     var hibernationMinutes = 30
     var protectPinnedTabs = true

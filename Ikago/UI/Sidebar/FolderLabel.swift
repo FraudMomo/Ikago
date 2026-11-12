@@ -127,6 +127,9 @@ struct FolderContextMenu: View {
             // Close Group: out of the strip, pages unloaded, reopenable from Tab ▸ Reopen Closed Group.
             Button("Close Group") { commands?.closeGroup(folder.id) }
         }
+        if state.tabs(in: folder).contains(where: { !$0.isHibernating }) {
+            Button("Unload Group") { commands?.unloadGroup(folder.id) }
+        }
         Button("Delete Group") { withAnimation(.ikago) { state.deleteFolder(folder.id) } }
         Divider()
         Button("Close Tabs in Group") {

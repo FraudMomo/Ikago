@@ -14,7 +14,7 @@ final class WebContentViewController: NSViewController {
     private var stopped = false
     private var lastActiveID: String?
     private var mouseMonitor: Any?
-    private(set) lazy var hibernation = TabHibernation(content: self)
+    private(set) lazy var memoryManagement = TabMemoryManagement(content: self)
     /// False while the user types in the address/command bar: don't hand the keyboard to the page.
     var shouldFocusPage: () -> Bool = { true }
 
@@ -66,7 +66,7 @@ final class WebContentViewController: NSViewController {
         }
         observeState { [weak self] in self?.trackedState() } onChange: { [weak self] in self?.reconcile() }
         reconcile()
-        hibernation.markVisible()
+        memoryManagement.markVisible()
         // In split view, clicking into a pane focuses its tab (the address bar follows it).
         mouseMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
             self?.focusPane(at: event)
@@ -111,6 +111,7 @@ final class WebContentViewController: NSViewController {
     func shutdown() {
         guard !stopped else { return }
         stopped = true
+        memoryManagement.stop()
         if let mouseMonitor { NSEvent.removeMonitor(mouseMonitor) }
         mouseMonitor = nil
         for controller in controllers.values { controller.close() }
@@ -135,10 +136,10 @@ final class WebContentViewController: NSViewController {
         emptyView.isHidden = !visible.isEmpty
         surface.show(visible, layout: state.splitLayout, animate: state.browserPreferences.instantTabSwitching != true && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
         surface.highlight(state.activeTabID, views: visible, color: state.palette.nsAccent)
-        // Pages poll only while shown; parking or showing one tells it.
+        // Native video overlays stop monitoring while parked and resume when shown.
         for controller in controllers.values { controller.page?.visibilityChanged() }
         for controller in controllers.values { controller.topInset = state.floatingContentInset }
-        hibernation.markVisible()
+        memoryManagement.markVisible()
         for id in state.visibleTabIDs { controllers[id]?.startIfNeeded() }
         for id in state.visibleTabIDs { controllers[id]?.refreshSplitHeader() }
         surface.setPaneBackground(state.isDark ? NSColor(hex: 0x1C1C1E) : .white)

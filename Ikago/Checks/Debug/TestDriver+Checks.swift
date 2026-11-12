@@ -31,6 +31,7 @@ extension TestDriver {
         case "sidebarprobe": await SidebarToggleProbe.run(c)
         case "islandprobe": await GroupDisclosureProbe.shared.runIsland(c)
         case "mediafullscreenchecks": await MediaFullscreenChecks.run(c)
+        case "resourcechecks": await TabMemoryChecks.run(c, base: arg)
         case "downloadpopupchecks": await DownloadPopupChecks.run(c)
         case "downloadchecks": await DownloadChecks.run(c, base: arg)
         case "backgroundtabchecks": await BackgroundTabChecks.run(c, base: arg)
