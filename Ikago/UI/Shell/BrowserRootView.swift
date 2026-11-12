@@ -43,6 +43,17 @@ struct BrowserRootView: View {
                 Capsule().fill(state.palette.panel).frame(width: 86, height: 32).padding(.leading, 8).padding(.top, 7).allowsHitTesting(false)
             }
             overlays
+            if let id = chrome.previewTabID, let tab = state.tab(id) {
+                Color.black.opacity(0.16).onTapGesture { chrome.previewTabID = nil }
+                TabPeek(tab: tab, commands: commands) { state.select(id); chrome.previewTabID = nil }
+                    .surface(RoundedRectangle(cornerRadius: 14), state.palette)
+                    .overlay(alignment: .topTrailing) {
+                        Button { chrome.previewTabID = nil } label: { Image(systemName: "xmark.circle.fill") }
+                            .buttonStyle(.plain).padding(8)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .onExitCommand { chrome.previewTabID = nil }
+            }
             if chrome.showPageAssistant {
                 PageAssistantView(state: state, chrome: chrome, commands: commands)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
@@ -52,7 +63,7 @@ struct BrowserRootView: View {
             }
         }
         .background(BarScrollBehavior(state: state, chrome: chrome))
-        .onChange(of: state.activeTabID) { _, _ in state.barCondensed = false }
+        .onChange(of: state.activeTabID) { _, _ in state.barCondensed = false; chrome.previewTabID = nil }
         .onChange(of: chrome.inlineAddress) { _, editing in if editing { state.barCondensed = false } }
         .environment(\.tabHighlightStyle, state.tabHighlightStyle)
         .recordLayout("shell")

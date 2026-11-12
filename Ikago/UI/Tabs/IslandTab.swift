@@ -54,7 +54,9 @@ struct IslandTab: View {
         .background(ActiveTabScrollAnchor(active: isActive))
         .anchorPreference(key: AddressAnchorKey.self, value: .bounds) { isActive ? $0 : nil }
         .onHover { hovering = $0 }
+        .tabPeek(tab, commands: commands)
         .onTapGesture {
+            if NSEvent.modifierFlags.contains(.shift) { commands?.peekTab(tab.id); return }
             // While editing, clicks belong to the field (cursor, selection), not the tab.
             if isActive { if !chrome.inlineAddress { commands?.showCommandPalette(newTab: false) } }
             else { withAnimation(.ikago) { state.select(tab.id) } }

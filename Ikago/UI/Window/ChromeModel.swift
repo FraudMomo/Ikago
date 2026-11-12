@@ -7,6 +7,7 @@ import Observation
 @Observable
 final class ChromeModel {
     var bookmarkToEdit: Bookmark?
+    var previewTabID: String?
     var showPageAssistant = false
     var showPalette = false
     var showFind = false

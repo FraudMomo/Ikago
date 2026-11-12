@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 
 /// Commands the SwiftUI chrome can issue; implemented by BrowserWindowController.
 @MainActor
@@ -26,6 +26,8 @@ protocol BrowserCommands: AnyObject {
     func splitWith(_ id: String)
     func showSettings()
     func openPage(_ page: InternalPage)
+    func peekTab(_ id: String)
+    func previewImage(_ id: String) async -> NSImage?
     func performanceTabs() -> [TabPerformanceEntry]
     func openInNewTab(_ url: String)
     func openDroppedFiles(_ urls: [URL])

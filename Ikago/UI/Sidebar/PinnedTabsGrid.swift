@@ -19,7 +19,7 @@ struct PinnedTabsGrid: View {
         LazyVGrid(columns: columns, spacing: 8) {
                 ForEach(state.sidebarGridPinnedTabs) { tab in
                     let active = tab.id == state.activeTabID
-                    Button { withAnimation(.ikago) { state.select(tab.id) }; onSelection?() } label: {
+                    Button { if NSEvent.modifierFlags.contains(.shift) { commands?.peekTab(tab.id); return }; withAnimation(.ikago) { state.select(tab.id) }; onSelection?() } label: {
                         FaviconView(tab: tab, size: 18)
                             .frame(maxWidth: .infinity)
                             .frame(height: 42)
@@ -45,6 +45,8 @@ struct PinnedTabsGrid: View {
                     }
                     .onChange(of: scrolling) { _, now in if now, hoveredID == tab.id { hoveredID = nil } }
                     .help("Pinned tab: \(tab.displayTitle)\nReturns to this live tab. New addresses open separately.")
+                    .opacity(tab.isHibernating ? 0.48 : 1)
+                    .tabPeek(tab, commands: commands)
                     .contextMenu { TabContextMenu(tab: tab, state: state, commands: commands) }
                     .onMiddleClick { withAnimation(.ikago) { commands?.closeTab(tab.id) } }
                     .onDrag {

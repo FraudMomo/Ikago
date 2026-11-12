@@ -118,6 +118,7 @@ struct TabRowView: View {
             }
         }
         .contentShape(Rectangle())
+        .tabPeek(tab, commands: commands)
         .sidebarHover($hovering)
         .animation(.ikagoQuick, value: hovering)
         .opacity(tab.isHibernating ? 0.48 : 1)

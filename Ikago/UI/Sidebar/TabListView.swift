@@ -103,7 +103,7 @@ struct TabListView: View {
     private func row(_ tab: TabItem) -> some View {
         TabRowView(tab: tab, isActive: tab.id == state.activeTabID, isInSplit: false,
                    colors: colors, selection: selection, commands: commands)
-            .onTapGesture { withAnimation(reduceMotion ? nil : .ikago) { state.select(tab.id) }; onSelection?() }
+            .onTapGesture { if NSEvent.modifierFlags.contains(.shift) { commands?.peekTab(tab.id); return }; withAnimation(reduceMotion ? nil : .ikago) { state.select(tab.id) }; onSelection?() }
             .contextMenu { TabContextMenu(tab: tab, state: state, commands: commands) }
             .onMiddleClick { withAnimation(reduceMotion ? nil : .ikago) { commands?.closeTab(tab.id) } }
             .onDrag {
