@@ -122,6 +122,9 @@ extension BrowserState {
         searchShowsHistory = s.ui?.history ?? true
         developerTools = s.ui?.devTools ?? true
         chromeLayout = s.chrome ?? ChromeLayout()
+        if browserPreferences.pageIntelligence == true && s.browser?.assistantToolbarInitialized != true {
+            preparePageAssistantToolbar()
+        }
         newTabMode = s.newTab.flatMap { NewTabMode(rawValue: $0.mode) } ?? .commandBar
         homepage = s.newTab?.homepage ?? ""
         newTabExtensionID = s.newTab?.extensionID

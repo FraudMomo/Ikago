@@ -46,6 +46,7 @@ struct ChromeOverflowMenu: View {
         case .bookmarks: commands?.openPage(.bookmarks)
         case .history: commands?.openPage(.history)
         case .downloads: commands?.toggleDownloads()
+        case .assistant: commands?.togglePageAssistant()
         case .notes: commands?.openPage(.notes)
         case .settings: commands?.showSettings()
         case .spaces: break

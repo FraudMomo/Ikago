@@ -564,7 +564,8 @@ instead of crashing. They live in `WebTab.swift` and are toggled by Settings ▸
 
 - Notes (`ikago://notes`) shares an observable buffer, saves only dirty edits through `SealedStorage`, flushes on quit,
   and fails closed on read/decrypt errors. Private buffers are memory-only and discarded with their window. Checks use temporary storage.
-- Page assistance is off by default. Apple Foundation Models runs on-device only, checks model availability, and reads a bounded
+- Page assistance is off by default. Its control uses the customizable toolbar; disabled assistance has no live control or open pane.
+  Apple Foundation Models runs on-device only, checks model availability, and reads a bounded
   isolated-world page excerpt only on an explicit request. It has no browser tools; page content is untrusted data. Cancel on tab change or close.
 - Native page menus keep WebKit editing and media actions. Search stays in Ikago; translation explicitly names Google.
   Direct media can open in a floating AVKit player; protected and page-managed streams retain engine-owned PiP controls.

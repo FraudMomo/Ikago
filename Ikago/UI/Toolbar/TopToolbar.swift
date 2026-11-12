@@ -14,8 +14,8 @@ struct TopToolbar: View {
         GeometryReader { geometry in
             let automatic = (DownloadCenter.shared.showsToolbarButton || chrome.showDownloads)
                 && !state.chromeLayout.contains(.downloads, inTopBar: true)
-            let layout = TopToolbarLayout(leading: state.chromeLayout.topBarOuterLeading + state.chromeLayout.topBarLeading,
-                trailing: state.chromeLayout.topBarTrailing + state.chromeLayout.topBarOuterTrailing + (automatic ? [.downloads] : []) + (state.chromeLayout.contains(.assistant, inTopBar: true) ? [] : [.assistant]),
+            let layout = TopToolbarLayout(leading: state.visibleChromeItems(state.chromeLayout.topBarOuterLeading + state.chromeLayout.topBarLeading),
+                trailing: state.visibleChromeItems(state.chromeLayout.topBarTrailing + state.chromeLayout.topBarOuterTrailing + (automatic ? [.downloads] : [])),
                 available: geometry.size.width, trafficWidth: state.barAtBottom ? 0 : 80)
             ZStack {
                 HStack(spacing: 2) {

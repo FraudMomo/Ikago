@@ -221,6 +221,7 @@ private struct AvailableTray: View {
                         .font(.system(size: 12))
                         .padding(.horizontal, 10).padding(.vertical, 5)
                         .background(Capsule().fill(Color.primary.opacity(0.06)))
+                        .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
                 .draggable(item.rawValue) { ChipPreview(item: item) }

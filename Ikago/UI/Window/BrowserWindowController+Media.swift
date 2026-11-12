@@ -1,7 +1,12 @@
 import AppKit
+import SwiftUI
 
 extension BrowserWindowController {
-    @objc func askThisPage(_ sender: Any?) { chrome.showPageAssistant.toggle() }
+    func togglePageAssistant() {
+        guard state.browserPreferences.pageIntelligence == true else { chrome.showPageAssistant = false; return }
+        withAnimation(.ikago) { chrome.showPageAssistant.toggle() }
+    }
+    @objc func askThisPage(_ sender: Any?) { togglePageAssistant() }
 
     func pictureInPicture(_ id: String) {
         guard let page = content.controller(for: id)?.page else { return }

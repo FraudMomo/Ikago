@@ -134,12 +134,12 @@ struct IslandBarView: View {
 
     /// Buttons placed outside the island live inside it in Floating mode (there is no bar around it).
     private var leadingItems: [ChromeItem] {
-        state.chromeLayout.topBarLeading + (state.barFloating || foldOutsideControls ? state.chromeLayout.topBarOuterLeading : [])
+        state.visibleChromeItems(state.chromeLayout.topBarLeading + (state.barFloating || foldOutsideControls ? state.chromeLayout.topBarOuterLeading : []))
     }
     private var trailingItems: [ChromeItem] {
         let placed = (state.barFloating || foldOutsideControls ? state.chromeLayout.topBarOuterTrailing : []) + state.chromeLayout.topBarTrailing
         let automatic = (DownloadCenter.shared.showsToolbarButton || chrome.showDownloads) && !state.chromeLayout.contains(.downloads, inTopBar: true)
-        return placed + (automatic ? [.downloads] : []) + (state.chromeLayout.contains(.assistant, inTopBar: true) ? [] : [.assistant])
+        return state.visibleChromeItems(placed + (automatic ? [.downloads] : []))
     }
 
     /// Room for the traffic lights at the island's leading end (Floating mode).

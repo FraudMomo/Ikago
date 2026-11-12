@@ -5,6 +5,7 @@ import FoundationModels
 final class PageAssistantModel {
     var question = ""
     var answer = ""
+    var submittedQuestion: String?
     var issue: String?
     var working = false
     var task: Task<Void, Never>?
@@ -24,6 +25,8 @@ final class PageAssistantModel {
         guard let page, let native = page.page else { issue = "Open a web page first."; return }
         if let unavailable = Self.availability { issue = unavailable; return }
         working = true
+        submittedQuestion = prompt
+        answer = ""
         issue = nil
         let url = native.currentURL
         task = Task { @MainActor [weak self, weak page] in
@@ -51,48 +54,108 @@ struct PageAssistantView: View {
     weak var commands: BrowserCommands?
     @State private var model = PageAssistantModel()
 
+    private var unavailable: String? { PageAssistantModel.availability }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Label("Ask This Page", systemImage: "sparkles").font(.headline)
-                Spacer()
-                Button { chrome.showPageAssistant = false } label: { Image(systemName: "xmark") }.buttonStyle(.plain)
-            }
-            Text(state.activeTab?.displayTitle ?? "No page selected").font(.caption).foregroundStyle(.secondary).lineLimit(2)
-            if state.browserPreferences.pageIntelligence != true {
-                Text("Enable on-device page assistance in Settings → General.").font(.callout)
-            } else if let unavailable = PageAssistantModel.availability {
-                Text(unavailable).font(.callout)
-            } else {
-                HStack {
-                    Button("Summarize") { model.ask("Summarize the page’s main points.", page: commands?.activeExtensionTab) }
-                    if model.working { ProgressView().controlSize(.small); Button("Stop") { model.cancel() } }
-                }.disabled(model.working && model.task == nil)
-                ScrollView {
-                    Text(model.answer.isEmpty ? "Ask about the visible page. Only an excerpt is read when you ask." : model.answer)
-                        .font(.system(size: 13)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
-                }.frame(minHeight: 120, maxHeight: 340)
-                if let issue = model.issue { Text(issue).font(.caption).foregroundStyle(.secondary) }
-                HStack {
-                    TextField("Ask a question", text: $model.question)
-                        .textFieldStyle(.roundedBorder)
-                        .onSubmit(ask)
-                    Button("Ask", action: ask).disabled(model.working || model.question.trimmingCharacters(in: .whitespaces).isEmpty)
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Page Assistant").font(.system(size: 18, weight: .semibold)).tracking(-0.3)
+                    Text("Apple Intelligence").font(.system(size: 11)).foregroundStyle(state.palette.secondary)
                 }
+                Spacer()
+                ModalCloseButton(colors: state.palette, action: { withAnimation(.ikago) { chrome.showPageAssistant = false } }, label: "Close page assistance")
+                    .recordLayout("assistant-close")
             }
-            Text("Apple Intelligence · on this Mac · answers may be inaccurate")
-                .font(.system(size: 10)).foregroundStyle(.secondary)
+            if let tab = state.activeTab {
+                HStack(spacing: 10) {
+                    FaviconView(tab: tab, size: 22)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(tab.displayTitle).font(.system(size: 12, weight: .medium)).lineLimit(1)
+                        Text(tab.addressLabel).font(.system(size: 11)).foregroundStyle(state.palette.secondary).lineLimit(1)
+                    }
+                    Spacer(minLength: 0)
+                }.padding(11).background(RoundedRectangle(cornerRadius: 12).fill(state.palette.hover))
+            }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    if let question = model.submittedQuestion {
+                        HStack {
+                            Spacer(minLength: 24)
+                            Text(question).font(.system(size: 13)).padding(12)
+                                .background(RoundedRectangle(cornerRadius: 14).fill(state.palette.hover))
+                        }
+                    }
+                    if model.working && model.answer.isEmpty {
+                        HStack(spacing: 8) { ProgressView().controlSize(.small); Text("Reading this page…").font(.system(size: 12)).foregroundStyle(.secondary) }
+                    } else if !model.answer.isEmpty {
+                        Text(model.answer).font(.system(size: 13)).lineSpacing(5).textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    } else if model.submittedQuestion == nil {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Image(systemName: "sparkles").font(.system(size: 24, weight: .light)).foregroundStyle(state.palette.secondary)
+                            Text("A little help with this page").font(.system(size: 18, weight: .medium)).tracking(-0.3)
+                            Text(unavailable ?? "Get a summary, find the key points, or ask a question.")
+                                .font(.system(size: 12)).lineSpacing(3).foregroundStyle(state.palette.secondary)
+                            if unavailable == nil {
+                                suggestion("Summarize this page", symbol: "text.alignleft", prompt: "Summarize the page’s main points.")
+                                suggestion("Find the key points", symbol: "list.bullet", prompt: "What are the most important takeaways from this page?")
+                            }
+                        }.padding(.top, 28)
+                    } else if model.issue == nil {
+                        Text("Request stopped.").font(.system(size: 12)).foregroundStyle(state.palette.secondary)
+                    }
+                    if let issue = model.issue { Text(issue).font(.system(size: 12)).foregroundStyle(state.palette.secondary) }
+                }.frame(maxWidth: .infinity, alignment: .leading)
+            }.frame(maxHeight: .infinity)
+            VStack(alignment: .leading, spacing: 14) {
+                TextField("Ask about this page…", text: $model.question, axis: .vertical)
+                    .textFieldStyle(.plain).font(.system(size: 13)).lineLimit(2...4).onSubmit(ask)
+                    .disabled(unavailable != nil)
+                HStack {
+                    Text("On this Mac").font(.system(size: 10)).foregroundStyle(state.palette.secondary)
+                    Spacer()
+                    if model.working {
+                        Button("Stop") { model.cancel() }.buttonStyle(ModalButtonStyle(colors: state.palette))
+                    } else {
+                        Button(action: ask) {
+                            Image(systemName: "arrow.up").font(.system(size: 13, weight: .semibold))
+                                .frame(width: 30, height: 30).foregroundStyle(state.palette.panel)
+                                .background(Circle().fill(state.palette.text)).contentShape(Rectangle())
+                        }.buttonStyle(.plain).accessibilityLabel("Send question")
+                            .disabled(unavailable != nil || model.question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+                }
+            }.padding(14).background(RoundedRectangle(cornerRadius: 16).fill(state.palette.hover))
+                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(state.palette.separator, lineWidth: 0.7))
+            Text("Answers may be inaccurate").font(.system(size: 10)).foregroundStyle(state.palette.tertiary)
+                .frame(maxWidth: .infinity)
         }
-        .padding(20).frame(width: 360)
-        .surface(RoundedRectangle(cornerRadius: 16), state.palette)
-        .padding(16)
-        .onChange(of: state.activeTabID) { _, _ in model.cancel(); model.answer = ""; model.issue = nil }
-        .onChange(of: state.activeTab?.url) { _, _ in model.cancel(); model.answer = ""; model.issue = nil }
-        .onChange(of: state.browserPreferences.pageIntelligence) { _, enabled in if enabled != true { model.cancel(); model.answer = "" } }
+        .frame(maxHeight: .infinity)
+        .modalCard(state.palette, width: 360).padding(10)
+        .onChange(of: state.activeTabID) { _, _ in reset() }
+        .onChange(of: state.activeTab?.url) { _, _ in reset() }
+        .onChange(of: state.browserPreferences.pageIntelligence) { _, enabled in if enabled != true { reset() } }
         .onDisappear { model.cancel() }
     }
 
-    private func ask() { model.ask(model.question, page: commands?.activeExtensionTab) }
+    private func suggestion(_ title: String, symbol: String, prompt: String) -> some View {
+        Button { model.ask(prompt, page: commands?.activeExtensionTab) } label: {
+            HStack(spacing: 10) {
+                Image(systemName: symbol).frame(width: 16).foregroundStyle(state.palette.secondary)
+                Text(title).font(.system(size: 12, weight: .medium))
+                Spacer()
+                Image(systemName: "arrow.up.right").font(.system(size: 10)).foregroundStyle(state.palette.tertiary)
+            }.padding(12).contentShape(Rectangle())
+                .background(RoundedRectangle(cornerRadius: 11).fill(state.palette.hover))
+        }.buttonStyle(.plain).disabled(model.working)
+    }
+    private func reset() { model.cancel(); model.answer = ""; model.issue = nil; model.submittedQuestion = nil }
+    private func ask() {
+        guard !model.question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        model.ask(model.question, page: commands?.activeExtensionTab)
+        if model.working { model.question = "" }
+    }
 }
 
 struct PageIntelligenceSection: View {

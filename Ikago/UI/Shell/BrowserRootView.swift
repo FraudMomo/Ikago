@@ -70,7 +70,7 @@ struct BrowserRootView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .transition(.opacity.combined(with: .scale(scale: 0.96)))
             }
-            if chrome.showPageAssistant {
+            if chrome.showPageAssistant && state.browserPreferences.pageIntelligence == true {
                 PageAssistantView(state: state, chrome: chrome, commands: commands)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             }
@@ -78,6 +78,7 @@ struct BrowserRootView: View {
                 TemporaryTabSidebar(state: state, chrome: chrome, palette: palette, commands: commands)
             }
         }
+        .onChange(of: state.browserPreferences.pageIntelligence) { _, enabled in if enabled != true { chrome.showPageAssistant = false } }
         .background(BarScrollBehavior(state: state, chrome: chrome))
         .onChange(of: state.activeTabID) { _, _ in state.barCondensed = false; commands?.closePeek(); chrome.hoverTabID = nil }
         .onChange(of: chrome.inlineAddress) { _, editing in if editing { state.barCondensed = false; chrome.hoverTabID = nil } }
@@ -173,7 +174,7 @@ struct BrowserRootView: View {
             .anchorPreference(key: DownloadsAnchorKey.self, value: .bounds) { DownloadAnchors(page: $0) }
             .recordLayout("content")
             .overlay { SplitDropOverlay(state: state, chrome: chrome) }
-            .padding(.trailing, chrome.showPageAssistant ? 380 : 0)
+            .padding(.trailing, (chrome.showPageAssistant && state.browserPreferences.pageIntelligence == true) ? 380 : 0)
             .padding(.bottom, state.barAtBottom && state.barFloating && !state.isImmersive ? state.topBarHeaderHeight : 0)
             .padding(.top, ((state.barAtBottom && state.tabLayout.usesTopTabs) || (state.sidebarOnRight && !state.sidebarLightsFollow)) && !state.isImmersive ? 40 : 0)
             .padding(.top, state.tabLayout == .vertical || state.isImmersive ? inset : state.barPageGap)

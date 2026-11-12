@@ -20,7 +20,12 @@ final class BrowserState {
     /// Bumped whenever history or bookmarks change, so caches derived from them (SiteSafety) know to rebuild.
     @ObservationIgnored private(set) var knownSitesGeneration = 0
     var bookmarkFolders: [BookmarkFolder] = []
-    var browserPreferences = BrowserPreferences() { didSet { scheduleSave() } }
+    var browserPreferences = BrowserPreferences() {
+        didSet {
+            if browserPreferences.pageIntelligence == true && oldValue.pageIntelligence != true { preparePageAssistantToolbar() }
+            scheduleSave()
+        }
+    }
     var tabLayout: TabLayout = .vertical { didSet { scheduleSave() } }
     var colorMode: ColorMode = .system { didSet { scheduleSave() } }
     /// macOS's own appearance, kept current by the window controller.

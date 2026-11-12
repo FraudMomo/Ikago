@@ -26,15 +26,16 @@ struct SidebarView: View {
             }
             SidebarEssentials(state: state, chrome: chrome, commands: commands)
             TabListView(state: state, chrome: chrome, colors: colors, commands: commands)
+                .id(state.activeSpaceID).transition(.opacity.combined(with: .offset(x: 18)))
                 .overlay(alignment: .top) { EmptyEssentialsDropZone(state: state, chrome: chrome) }
             if state.showsBookmarksBar { SidebarBookmarksDrawer(state: state, chrome: chrome, commands: commands) }
             SidebarMediaPlayer(state: state, commands: commands)
-            if !state.chromeLayout.sidebarBottom.isEmpty {
+            if !state.visibleChromeItems(state.chromeLayout.sidebarBottom).isEmpty {
                 HStack(spacing: 0) {
                     Spacer(minLength: 0)
                     GlassControlGroup(colors: colors, height: 36) {
                         HStack(spacing: 4) {
-                            ForEach(state.chromeLayout.sidebarBottom) { item in
+                            ForEach(state.visibleChromeItems(state.chromeLayout.sidebarBottom)) { item in
                                 ChromeItemView(item: item, state: state, colors: colors, commands: commands, spacesAsDots: true)
                             }
                         }
@@ -66,7 +67,7 @@ struct SidebarView: View {
             }
             GlassControlGroup(colors: colors, height: 34) {
                 HStack(spacing: 2) {
-                    ForEach(state.chromeLayout.sidebarTop) { item in
+                    ForEach(state.visibleChromeItems(state.chromeLayout.sidebarTop)) { item in
                         ChromeItemView(item: item, state: state, colors: colors, commands: commands)
                     }
                 }

@@ -232,6 +232,7 @@ extension BrowserWindowController: BrowserCommands, NSMenuItemValidation {
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
         let tab = state.activeTab
         switch item.action {
+        case #selector(askThisPage(_:)): return state.browserPreferences.pageIntelligence == true
         case #selector(togglePerformanceStats(_:)):
             item.state = showsPerformanceStats ? .on : .off
             return true

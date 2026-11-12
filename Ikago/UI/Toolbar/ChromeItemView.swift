@@ -30,6 +30,8 @@ struct ChromeItemView: View {
         case .history: button(help: "History (⌘Y)") { commands?.openPage(.history) }
         case .downloads: DownloadToolbarButton(colors: colors, commands: commands, size: size)
         case .settings: button(help: "Settings (⌘,)") { commands?.openPage(.settings) }
+        case .assistant:
+            if state.browserPreferences.pageIntelligence == true { button(help: "Ask this page") { commands?.togglePageAssistant() } }
         case .notes: button(help: "Notes") { commands?.openPage(.notes) }
         case .tabOverview: button(help: "Tab Overview (⇧⌘S)") { commands?.toggleSidebar() }
         case .share:
