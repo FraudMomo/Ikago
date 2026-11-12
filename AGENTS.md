@@ -577,3 +577,5 @@ instead of crashing. They live in `WebTab.swift` and are toggled by Settings ▸
 - Sidebar animated rows must render their live model immediately, including initially empty lists; retained closing rows contain only metadata. Never wait for an empty ForEach to appear before seeding rows.
 - Tab previews replace native title tooltips on rows, tiles and top tabs. Button accessibility labels remain available.
 - The media island exposes PiP for video. WebKit uses its public presentation-mode JavaScript in the reporting frame; Chromium keeps native windows forbidden and uses AVKit for direct streams or its native-video fallback source.
+
+- SPI: guarded WKWebView `_updateMediaPlaybackControlsManager`, `_canTogglePictureInPicture`, `_togglePictureInPicture` allow native macOS PiP for MSE media; DOM presentation-mode APIs remain the fallback.

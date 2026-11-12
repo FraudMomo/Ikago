@@ -70,7 +70,7 @@ enum FeatureBatchChecks {
         } else { check(false, "bottom toolbar reports geometry") }
         state.barCondensed = true
         await settle()
-        check(LayoutChecks.frames["top-header"].map { abs($0.height - 36) < 1 } == true, "reading ribbon has compact native height")
+        check(LayoutChecks.frames["top-header"].map { abs($0.height - (state.barFloating ? 52 : 36)) < 1 } == true, "reading ribbon has compact native height and floating margins")
         state.barCondensed = false
         state.browserPreferences.collapseBarOnScroll = false
         state.barAtBottom = false

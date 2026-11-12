@@ -8,6 +8,8 @@ extension TestDriver {
     static func performCheck(_ action: String, _ arg: String, _ c: BrowserWindowController) async -> Bool {
         let state = c.state
         switch action {
+        case "pinassistantchecks": await PinAssistantChecks.run(c)
+        case "refinementchecks": await InteractionRefinementChecks.run(c, base: arg)
         case "sidebarvisibilitychecks": await SidebarVisibilityChecks.run(c)
         case "featurebatchchecks": await FeatureBatchChecks.run(c)
         case "reopenchecks": ReopenChecks.run(c)
