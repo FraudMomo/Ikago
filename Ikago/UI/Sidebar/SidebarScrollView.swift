@@ -149,7 +149,7 @@ final class ListScrollView: NSScrollView {
         if shrinks {
             let visible = contentView.bounds
             let lowest = max(0, max(visible.height, height) - visible.height)
-            if visible.minY > lowest + 0.5 { follow(to: lowest) }
+            if liveScrollStart == nil, visible.minY > lowest + 0.5 { follow(to: lowest) }
             DispatchQueue.main.asyncAfter(deadline: .now() + Self.shrinkDelay, execute: work)
         }
         // Never inside a layout pass: resizing the document there asks AppKit for another one.
@@ -160,7 +160,7 @@ final class ListScrollView: NSScrollView {
     private func applyContentHeight(animated: Bool) {
         let visible = contentView.bounds
         let lowest = max(0, max(visible.height, contentHeight) - visible.height)
-        guard animated, following == nil, visible.minY > lowest, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
+        guard animated, liveScrollStart == nil, following == nil, visible.minY > lowest, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
             if following == nil {
                 sizeDocument()
                 updateFade()
@@ -230,7 +230,7 @@ final class ListScrollView: NSScrollView {
         document.setFrameSize(size)
         // A shorter list must not stay scrolled past its new end.
         let lowest = max(0, size.height - visible.height)
-        if visible.minY > lowest {
+        if liveScrollStart == nil, visible.minY > lowest {
             contentView.scroll(to: NSPoint(x: visible.minX, y: lowest))
             reflectScrolledClipView(contentView)
         }

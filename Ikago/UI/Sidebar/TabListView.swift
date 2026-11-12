@@ -59,14 +59,12 @@ struct TabListView: View {
         return GeometryReader { geometry in
             SidebarScrollView(chrome: chrome) {
                 VStack(spacing: 2) {
-                    ForEach(pinnedItems) { item in itemView(item) }
+                    AnimatedListItems(items: pinnedItems) { item in itemView(item) }
                     ForEach(folderItems, id: \.folder.id) { entry in
                         SidebarFolderSection(folder: entry.folder, state: state, chrome: chrome,
                                              colors: colors, selection: selection, showSelection: !activeIsListed,
                                              count: entry.count, containsActiveTab: activeFolderID == entry.folder.id, commands: commands) {
-                            ForEach(entry.items) { item in
-                                itemView(item)
-                            }
+                            AnimatedListItems(items: entry.items) { item in itemView(item) }
                         }
                     }
                     if state.chromeLayout.sidebarShowsNewTab {
@@ -76,7 +74,7 @@ struct TabListView: View {
                         }
                         NewTabRow(colors: colors) { commands?.newTab() }
                     }
-                    ForEach(looseItems) { item in itemView(item) }
+                    AnimatedListItems(items: looseItems) { item in itemView(item) }
                     Color.clear.frame(minHeight: 40)
                         .tabListEndDrop(state: state, chrome: chrome)
                 }
@@ -118,6 +116,68 @@ struct TabListView: View {
             .recordLayout("sidebar-tab-\(tab.id)")
             .transition(.asymmetric(insertion: .move(edge: .top).combined(with: .opacity),
                                     removal: .opacity.combined(with: .scale(scale: 0.96))))
+    }
+}
+
+/// Keeps removed row models alive inside the isolated list host long enough to animate their slots closed.
+/// Closing a tab still releases its page immediately; these snapshots contain only lightweight tab metadata.
+private struct AnimatedListItems<Content: View>: View {
+    struct Retired: Identifiable {
+        let id: String
+        let item: TabListItem
+        let index: Int
+    }
+    struct Entry: Identifiable {
+        let id: String
+        let item: TabListItem
+        let retiring: Bool
+    }
+
+    let items: [TabListItem]
+    @ViewBuilder let content: (TabListItem) -> Content
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var rendered: [TabListItem] = []
+    @State private var retired: [Retired] = []
+
+    private var entries: [Entry] {
+        var result = rendered.map { Entry(id: $0.id, item: $0, retiring: false) }
+        for item in retired.sorted(by: { $0.index < $1.index }) {
+            result.insert(Entry(id: item.id, item: item.item, retiring: true), at: min(item.index, result.count))
+        }
+        return result
+    }
+
+    var body: some View {
+        ForEach(entries) { entry in
+            content(entry.item)
+                .frame(height: entry.retiring ? 0 : nil)
+                .opacity(entry.retiring ? 0 : 1)
+                .clipped()
+                .allowsHitTesting(!entry.retiring)
+                .accessibilityHidden(entry.retiring)
+                .animation(reduceMotion ? nil : .ikagoQuick, value: entry.retiring)
+        }
+        .onAppear { if rendered.isEmpty { rendered = items } }
+        .onChange(of: items.map(\.id)) { _, ids in
+            let live = Set(ids)
+            let leaving = rendered.enumerated().compactMap { index, item in
+                live.contains(item.id) ? nil : Retired(id: item.id, item: item, index: index)
+            }
+            guard !leaving.isEmpty || rendered.map(\.id) != ids else { return }
+            withAnimation(reduceMotion ? nil : .ikagoQuick) {
+                rendered = items
+                retired.removeAll { live.contains($0.id) }
+                retired.append(contentsOf: leaving)
+            }
+            guard !leaving.isEmpty else { return }
+            let retiredIDs = Set(leaving.map(\.id))
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(180))
+                withAnimation(reduceMotion ? nil : .ikagoQuick) {
+                    retired.removeAll { retiredIDs.contains($0.id) }
+                }
+            }
+        }
     }
 }
 
