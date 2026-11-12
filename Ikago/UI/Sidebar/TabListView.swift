@@ -139,25 +139,33 @@ private struct AnimatedListItems<Content: View>: View {
     @State private var rendered: [TabListItem] = []
     @State private var retired: [Retired] = []
 
+    init(items: [TabListItem], @ViewBuilder content: @escaping (TabListItem) -> Content) {
+        self.items = items
+        self.content = content
+        _rendered = State(initialValue: items)
+    }
+
     private var entries: [Entry] {
-        var result = rendered.map { Entry(id: $0.id, item: $0, retiring: false) }
-        for item in retired.sorted(by: { $0.index < $1.index }) {
+        // Live rows come directly from the model. Only departing metadata is cached.
+        var result = items.map { Entry(id: $0.id, item: $0, retiring: false) }
+        for item in retired.filter({ old in !items.contains { $0.id == old.id } }).sorted(by: { $0.index < $1.index }) {
             result.insert(Entry(id: item.id, item: item.item, retiring: true), at: min(item.index, result.count))
         }
         return result
     }
 
     var body: some View {
-        ForEach(entries) { entry in
-            content(entry.item)
-                .frame(height: entry.retiring ? 0 : nil)
-                .opacity(entry.retiring ? 0 : 1)
-                .clipped()
-                .allowsHitTesting(!entry.retiring)
-                .accessibilityHidden(entry.retiring)
-                .animation(reduceMotion ? nil : .ikagoQuick, value: entry.retiring)
+        VStack(spacing: 2) {
+            ForEach(entries) { entry in
+                content(entry.item)
+                    .frame(height: entry.retiring ? 0 : nil)
+                    .opacity(entry.retiring ? 0 : 1)
+                    .clipped()
+                    .allowsHitTesting(!entry.retiring)
+                    .accessibilityHidden(entry.retiring)
+                    .animation(reduceMotion ? nil : .ikagoQuick, value: entry.retiring)
+            }
         }
-        .onAppear { if rendered.isEmpty { rendered = items } }
         .onChange(of: items.map(\.id)) { _, ids in
             let live = Set(ids)
             let leaving = rendered.enumerated().compactMap { index, item in
