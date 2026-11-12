@@ -9,6 +9,7 @@ final class BrowserState {
     var tabs: [TabItem] = [] { didSet { tabsByID = Self.index(tabs) } }
     /// `tabs` by ID (the first tab with each ID, like a linear search), rebuilt whenever `tabs` changes.
     @ObservationIgnored private var tabsByID: [String: TabItem] = [:]
+    var barCondensed = false
     var activeTabID: String?
     var closed: [SavedTab] = []
     var history: [Visit] = [] { didSet { knownSitesGeneration &+= 1 } }

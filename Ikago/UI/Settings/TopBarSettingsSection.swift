@@ -5,6 +5,17 @@ struct TopBarSettingsSection: View {
 
     var body: some View {
         PageSection(title: "Top Bar Tabs", footer: "Compact puts tabs in the toolbar.") {
+            PageRow(title: "Bar position") {
+                Picker("Bar position", selection: Binding(get: { state.barAtBottom }, set: { state.barCondensed = false; state.barAtBottom = $0 })) {
+                    Label("Top", systemImage: "rectangle.topthird.inset.filled").tag(false)
+                    Label("Bottom", systemImage: "rectangle.bottomthird.inset.filled").tag(true)
+                }.labelsHidden().pickerStyle(.segmented).fixedSize()
+            }
+            PageDivider()
+            PageRow(title: "Compact on scroll", subtitle: "Scroll up or click the page title to expand") {
+                Toggle("Compact on scroll", isOn: Binding(get: { state.browserPreferences.collapseBarOnScroll == true }, set: { state.browserPreferences.collapseBarOnScroll = $0; state.barCondensed = false })).labelsHidden().toggleStyle(.switch)
+            }
+            PageDivider()
             PageRow(title: "Tab bar style") {
                 Picker("Tab bar style", selection: $state.topTabStyle.animation(.ikago)) {
                     ForEach(TopTabStyle.allCases) { Text($0.name).tag($0) }

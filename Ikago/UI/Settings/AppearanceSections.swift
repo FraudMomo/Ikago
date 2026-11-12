@@ -80,6 +80,18 @@ struct SpacingSection: View {
                     .labelsHidden().pickerStyle(.segmented).fixedSize()
                 }
                 PageDivider()
+                PageRow(title: "Sidebar side") {
+                    Picker("Sidebar side", selection: Binding(get: { state.sidebarOnRight }, set: { state.sidebarOnRight = $0 })) {
+                        Text("Left").tag(false); Text("Right").tag(true)
+                    }.labelsHidden().pickerStyle(.segmented).fixedSize()
+                }
+                if state.sidebarOnRight {
+                    PageDivider()
+                    PageRow(title: "Move window controls with sidebar") {
+                        Toggle("Move window controls with sidebar", isOn: Binding(get: { state.sidebarLightsFollow }, set: { state.sidebarLightsFollow = $0 })).labelsHidden().toggleStyle(.switch)
+                    }
+                }
+                PageDivider()
                 SliderRow(title: "Sidebar gap", subtitle: "Space between the sidebar and page",
                           value: $state.sidebarGap, range: 0...24, defaultValue: BrowserState.defaultSidebarGap)
             } else {

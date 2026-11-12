@@ -10,7 +10,9 @@ struct TopBarBrowserView: View {
     var body: some View {
         let colors = state.topBarPalette
         VStack(spacing: 0) {
-            if state.topTabStyle == .separate {
+            if state.barCondensed && state.browserPreferences.collapseBarOnScroll == true {
+                CondensedNavigationBar(state: state, chrome: chrome, commands: commands)
+            } else if state.topTabStyle == .separate {
                 TopToolbar(state: state, chrome: chrome, palette: palette, commands: commands)
                 if state.topBarShowsTabStrip {
                     TopTabStrip(state: state, chrome: chrome, commands: commands)
@@ -22,7 +24,7 @@ struct TopBarBrowserView: View {
                 TopToolbar(state: state, chrome: chrome, palette: palette, commands: commands)
             } else {
                 IslandBarView(state: state, chrome: chrome, palette: palette, commands: commands,
-                              foldOutsideControls: true, reserveTrafficLights: true)
+                              foldOutsideControls: true, reserveTrafficLights: !state.barAtBottom)
                     .recordLayout("connected-tab-row")
             }
             if state.showsBookmarksBar { BookmarksBar(state: state, chrome: chrome, commands: commands) }

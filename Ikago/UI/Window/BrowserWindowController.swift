@@ -92,7 +92,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
         observeState { [weak self] in
             guard let self else { return }
             _ = (state.palette.nsTint, state.isDark, state.tabLayout, state.sidebarVisible, chrome.peeking, state.isImmersive, state.developerTools, state.browserPreferences.translucentSidebar,
-                 state.browserPreferences.sidebarCompact, state.browserPreferences.fullScreenUnderNotch, state.frameInset)
+                 state.browserPreferences.sidebarOnRight, state.browserPreferences.sidebarLightsFollow, state.browserPreferences.barAtBottom, state.browserPreferences.sidebarCompact, state.browserPreferences.fullScreenUnderNotch, state.frameInset)
         } onChange: { [weak self] in self?.applyChrome() }
         // Bar size changes (a slider drag fires many) only move the traffic lights; everything
         // else in applyChrome is far heavier.

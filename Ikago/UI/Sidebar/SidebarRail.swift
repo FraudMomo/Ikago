@@ -16,7 +16,7 @@ struct SidebarRail: View {
     var body: some View {
         let colors = state.palette
         VStack(spacing: 8) {
-            Color.clear.frame(height: Self.lightsHeight)
+            Color.clear.frame(height: state.sidebarOnRight && !state.sidebarLightsFollow ? 10 : Self.lightsHeight)
             if !state.pinnedTabs.isEmpty {
                 VStack(spacing: 6) {
                     ForEach(state.pinnedTabs) { tab in tabTile(tab, colors: colors, essential: true) }
@@ -38,6 +38,7 @@ struct SidebarRail: View {
         .padding(.bottom, 10)
         .frame(width: BrowserState.sidebarRailWidth)
         .frame(maxHeight: .infinity, alignment: .top)
+        .background(SidebarSpaceSwipe(state: state))
         .background(WindowDragArea())
         .ignoresSafeArea(.container, edges: .top)
         .animation(.ikagoQuick, value: state.activeTabID)
@@ -54,7 +55,7 @@ struct SidebarRail: View {
             Button {
                 if open { openGroups.remove(folder.id) } else { openGroups.insert(folder.id) }
             } label: {
-                FolderIcon(folder: folder, colors: colors, size: 15)
+                FolderIcon(folder: folder, colors: colors, tabs: state.tabs(in: folder), size: 15)
                 .frame(width: 36, height: 36)
                 .background {
                     // An active tab hidden in a closed group still shows where it is.
@@ -88,7 +89,7 @@ struct SidebarRail: View {
 
     private func tabTile(_ tab: TabItem, colors: Palette, essential: Bool = false) -> some View {
         let active = tab.id == state.activeTabID
-        return Button { state.select(tab.id) } label: {
+        return Button { if NSEvent.modifierFlags.contains(.shift) { commands?.peekTab(tab.id) } else { state.select(tab.id) } } label: {
             FaviconView(tab: tab, size: essential ? 18 : 16)
                 .opacity(tab.isHibernating && !active ? 0.55 : 1)
                 .frame(width: 36, height: 36)
@@ -111,11 +112,9 @@ struct SidebarRail: View {
                 .background { if tab.isMuted || tab.isPlayingAudio { Circle().fill(colors.panel) } }
                 .offset(x: 5, y: 3)
         }
+        .tabPeek(tab, commands: commands)
         .help(tab.title.isEmpty ? tab.url : tab.title)
-        .contextMenu {
-            Button(tab.pinned ? "Unpin Tab" : "Pin Tab") { state.togglePin(tab.id) }
-            Button("Close Tab") { commands?.closeTab(tab.id) }
-        }
+        .contextMenu { TabContextMenu(tab: tab, state: state, commands: commands) }
     }
 
     private func spaces(_ colors: Palette) -> some View {

@@ -50,7 +50,7 @@ struct SidebarResizeHandle: View {
                 var instant = Transaction()
                 instant.disablesAnimations = true
                 withTransaction(instant) {
-                    state.sidebarWidth = min(420, max(200, (start + value.translation.width).rounded()))
+                    state.sidebarWidth = min(420, max(200, (start + value.translation.width * (state.sidebarOnRight ? -1 : 1)).rounded()))
                 }
             }
             .onEnded { _ in startWidth = nil }
@@ -65,7 +65,7 @@ struct SidebarPeek: View {
     weak var commands: BrowserCommands?
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
+        ZStack(alignment: state.sidebarOnRight ? .topTrailing : .topLeading) {
             Color.clear
                 .frame(width: 10)
                 .frame(maxHeight: .infinity)
@@ -84,8 +84,9 @@ struct SidebarPeek: View {
                         chrome.peekHovered = inside
                         if inside { chrome.peek() } else { chrome.endPeek() }
                     }
-                    .transition(.move(edge: .leading).combined(with: .opacity))
+                    .transition(.move(edge: state.sidebarOnRight ? .trailing : .leading).combined(with: .opacity))
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: state.sidebarOnRight ? .trailing : .leading)
     }
 }

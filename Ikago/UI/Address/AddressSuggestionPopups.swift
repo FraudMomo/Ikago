@@ -18,9 +18,10 @@ struct AddressSuggestionsOverlay: View {
             if let rect = anchor, chrome.isEditingAddress(of: state.activeTabID), !palette.suggestions.isEmpty || palette.error != nil {
                 let width = min(max(420, rect.width + 40), max(0, geometry.size.width - 24))
                 let x = min(max(12, rect.midX - width / 2), max(12, geometry.size.width - width - 12))
+                let popupHeight = CGFloat(min(OmniboxEngine.maxResults, palette.suggestions.count)) * OmniboxRow.height + 10 + (palette.error == nil ? 0 : 32)
                 TopAddressSuggestionPopup(model: palette, isDark: state.topBarPalette.isDark)
                     .frame(width: width)
-                    .offset(x: x, y: rect.maxY + 6)
+                    .offset(x: x, y: state.barAtBottom ? max(6, rect.minY - popupHeight - 6) : rect.maxY + 6)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         }

@@ -25,6 +25,9 @@ enum SettingsSearch {
     }
 
     static let index: [SettingsSearchEntry] = [
+        .init(title: "Bar position", category: .appearance, section: "Top Bar Tabs", keywords: "bottom top toolbar"),
+        .init(title: "Compact on scroll", category: .appearance, section: "Top Bar Tabs", keywords: "collapse minimal toolbar"),
+        .init(title: "Sidebar side", category: .appearance, section: "Window and Sidebar", keywords: "left right window controls traffic lights"),
         .init(title: "Page assistance", category: .general, section: "Apple Intelligence", keywords: "ai summarize chat local model"),
         .init(title: "Browser engine", category: .general, section: "Browser Engine", keywords: "webkit chromium relaunch"),
         .init(title: "Translate X videos", category: .general, section: "Chromium", keywords: "twitter video h.264 av1"),

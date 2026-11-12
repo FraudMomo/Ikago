@@ -9,7 +9,7 @@ extension BrowserWindowController {
     }
 
     /// The icon rail stacks the lights in a column, which the titlebar has no room for.
-    private var railLights: Bool { state.showsSidebarRail }
+    private var railLights: Bool { state.showsSidebarRail && (!state.sidebarOnRight || state.sidebarLightsFollow) }
 
     /// The system's buttons in a window; Ikago's own (`FullScreenWindowControls`) in full screen and on the
     /// rail. Convert both axes through the content view: a standard button's titlebar container has its own
@@ -21,7 +21,10 @@ extension BrowserWindowController {
             window.standardWindowButton(kind)?.isHidden = drawn
         }
         let topTabs = state.tabLayout.usesTopTabs
-        let centerFromTop = state.barTopInset + state.barShownHeight / 2
+        let followsRight = !topTabs && state.sidebarOnRight && state.sidebarLightsFollow
+        let rightInset = content.bounds.width - CGFloat(state.sidebarWidth) + 19
+
+        let centerFromTop: CGFloat = state.barAtBottom ? 24 : state.barTopInset + state.barShownHeight / 2
         let firstX: CGFloat = state.barFloating ? BrowserState.topBarFloatingMargin + 12 : 11
         if drawn {
             fullScreenControls.show()
@@ -30,7 +33,7 @@ extension BrowserWindowController {
             let lower = state.immersiveChromeTop
             let inset = state.isImmersive ? 0 : CGFloat(state.frameInset)
             if railLights {
-                fullScreenControls.place(firstX: inset + (BrowserState.sidebarRailWidth - 14) / 2,
+                fullScreenControls.place(firstX: state.sidebarOnRight && state.sidebarLightsFollow ? content.bounds.width - inset - (BrowserState.sidebarRailWidth + 14) / 2 : inset + (BrowserState.sidebarRailWidth - 14) / 2,
                                          centerFromTop: max(inset, 8) + 16 + lower, band: band, vertical: true, visible: true)
             } else if topTabs {
                 fullScreenControls.place(firstX: firstX, centerFromTop: centerFromTop + lower, band: band, visible: showsTrafficLights)
@@ -38,7 +41,7 @@ extension BrowserWindowController {
                 // The sidebar's top row: docked from the top edge, or peeking inside its margin.
                 let frame = CGFloat(state.frameInset)
                 let panel: CGFloat = state.sidebarVisible ? 0 : max(frame, 6)
-                fullScreenControls.place(firstX: state.sidebarVisible ? 19 : panel + 15,
+                fullScreenControls.place(firstX: followsRight ? rightInset : state.sidebarVisible ? 19 : panel + 15,
                                          centerFromTop: panel + max(0, 8 - frame) + 18 + lower, band: band, visible: showsTrafficLights)
             }
             return
@@ -54,7 +57,7 @@ extension BrowserWindowController {
                 let origin = NSPoint(x: point.x, y: point.y - button.frame.height / 2)
                 if button.frame.origin != origin { button.setFrameOrigin(origin) }
             } else {
-                let x = parent.convert(NSPoint(x: 19 + CGFloat(index) * 23, y: 0), from: content).x
+                let x = parent.convert(NSPoint(x: (followsRight ? rightInset : 19) + CGFloat(index) * 23, y: 0), from: content).x
                 if button.frame.origin.x != x { button.setFrameOrigin(NSPoint(x: x, y: button.frame.origin.y)) }
             }
         }

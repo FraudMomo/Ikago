@@ -14,52 +14,21 @@ struct BrowserRootView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// The docked sidebar stays mounted while it slides out, then leaves the tree.
     @State private var sidebarMounted = true
+    var sidebarMountedForPlacement: Bool { sidebarMounted }
 
     var body: some View {
         let colors = state.palette
         ZStack(alignment: .topLeading) {
             if state.tabLayout == .vertical {
-                HStack(spacing: 0) {
-                    if docksSidebar || sidebarMounted {
-                        Group {
-                            if state.showsSidebarRail {
-                                SidebarRail(state: state, commands: commands)
-                                    .transition(.opacity)
-                            } else {
-                                IsolatedHost(chrome: chrome) {
-                                    SidebarView(state: state, chrome: chrome, palette: palette, commands: commands)
-                                }
-                                .frame(width: state.sidebarWidth)
-                                .transition(.opacity)
-                            }
-                        }
-                        .frame(width: sidebarShownWidth, alignment: .leading)
-                        // Full screen: the panel runs to the top, its contents start below the menu bar.
-                        .padding(.top, state.isImmersive ? state.immersiveChromeTop : 0)
-                        .clipped()
-                        .sidebarPanel(colors, radius: radius, translucent: state.browserPreferences.translucentSidebar == true)
-                        .padding([.leading, .top, .bottom], inset)
-                        // Hiding narrows this frame with the panel pinned to its trailing edge, so the panel slides out
-                        // beside the page. A transition can't move the AppKit views inside it; they would only fade.
-                        .frame(width: docksSidebar ? sidebarShownWidth + inset : 0, alignment: .trailing)
-                        .clipped()
-                        .allowsHitTesting(docksSidebar)
-                    }
-                    if docksSidebar {
-                        // The gap between sidebar and page is the resize handle (the rail has a fixed width).
-                        if state.showsSidebarRail { Color.clear.frame(width: state.sidebarGap) } else {
-                            SidebarResizeHandle(state: state, width: state.sidebarGap)
-                        }
-                    }
-                    contentCard(for: .vertical).padding(.leading, docksSidebar ? 0 : inset)
-                }
+                sidebarLayout
             } else {
                 VStack(spacing: 0) {
-                    if !state.barFloating && !state.isImmersive { topBar }
+                    if !state.barAtBottom && !state.barFloating && !state.isImmersive { topBar }
                     contentCard(for: .horizontal).padding(.leading, inset)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    if state.barAtBottom && !state.isImmersive { topBar }
                 }
-                .overlay(alignment: .top) {
+                .overlay(alignment: state.barAtBottom ? .bottom : .top) {
                     if state.isImmersive {
                         TopBarReveal(state: state, chrome: chrome, palette: palette, commands: commands)
                     } else if state.barFloating {
@@ -70,6 +39,9 @@ struct BrowserRootView: View {
             if state.tabLayout == .vertical && !docksSidebar {
                 SidebarPeek(state: state, chrome: chrome, palette: palette, commands: commands)
             }
+            if ((state.tabLayout == .vertical && state.sidebarOnRight && !state.sidebarLightsFollow) || (state.tabLayout.usesTopTabs && state.barAtBottom)) && !state.isImmersive {
+                Capsule().fill(state.palette.panel).frame(width: 86, height: 32).padding(.leading, 8).padding(.top, 7).allowsHitTesting(false)
+            }
             overlays
             if chrome.showPageAssistant {
                 PageAssistantView(state: state, chrome: chrome, commands: commands)
@@ -79,6 +51,9 @@ struct BrowserRootView: View {
                 TemporaryTabSidebar(state: state, chrome: chrome, palette: palette, commands: commands)
             }
         }
+        .background(BarScrollBehavior(state: state, chrome: chrome))
+        .onChange(of: state.activeTabID) { _, _ in state.barCondensed = false }
+        .onChange(of: chrome.inlineAddress) { _, editing in if editing { state.barCondensed = false } }
         .environment(\.tabHighlightStyle, state.tabHighlightStyle)
         .recordLayout("shell")
         .overlayPreferenceValue(DownloadsAnchorKey.self) { anchors in
@@ -144,22 +119,22 @@ struct BrowserRootView: View {
     }
 
     /// Full screen has no margins: the page meets the screen's edges.
-    private var inset: CGFloat { state.isImmersive ? 0 : state.frameInset }
+    var inset: CGFloat { state.isImmersive ? 0 : state.frameInset }
     /// The sidebar sits beside the page in its Full or Icons form, in full screen too; Hidden slides in over it.
-    private var docksSidebar: Bool { state.sidebarVisible }
+    var docksSidebar: Bool { state.sidebarVisible }
     /// Revealed chrome arrives with a soft spring and leaves a little quicker.
     private var revealAnimation: Animation? {
         reduceMotion ? .easeInOut(duration: 0.15) : chrome.peeking ? .spring(response: 0.34, dampingFraction: 0.86) : .smooth(duration: 0.24)
     }
-    private var sidebarShownWidth: CGFloat { state.showsSidebarRail ? BrowserState.sidebarRailWidth : state.sidebarWidth }
+    var sidebarShownWidth: CGFloat { state.showsSidebarRail ? BrowserState.sidebarRailWidth : state.sidebarWidth }
     /// Width the sidebar takes before the page starts (0 without a visible sidebar).
     private var pageLeadingOffset: CGFloat {
-        state.tabLayout == .vertical && docksSidebar ? sidebarShownWidth + inset + CGFloat(state.sidebarGap) : 0
+        state.tabLayout == .vertical && docksSidebar && !state.sidebarOnRight ? sidebarShownWidth + inset + CGFloat(state.sidebarGap) : 0
     }
     /// Corners follow the border: flush panels are square.
-    private var radius: CGFloat { inset == 0 ? 0 : 12 }
+    var radius: CGFloat { inset == 0 ? 0 : 12 }
 
-    private func contentCard(for layout: TabLayout) -> some View {
+    func contentCard(for layout: TabLayout) -> some View {
         ContentHost(view: content, state: state, layout: layout)
             .anchorPreference(key: DownloadsAnchorKey.self, value: .bounds) { DownloadAnchors(page: $0) }
             .recordLayout("content")
@@ -199,7 +174,9 @@ struct BrowserRootView: View {
                 .frame(width: 520)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .padding(.top, 92)
-                .padding(.leading, state.frameInset + 10)
+                .padding(.leading, state.sidebarOnRight ? 0 : state.frameInset + 10)
+                .padding(.trailing, state.sidebarOnRight ? state.frameInset + 10 : 0)
+                .frame(maxWidth: .infinity, alignment: state.sidebarOnRight ? .trailing : .leading)
                 .transition(.scale(scale: 0.98, anchor: .topLeading).combined(with: .opacity))
         }
         if chrome.showFind {

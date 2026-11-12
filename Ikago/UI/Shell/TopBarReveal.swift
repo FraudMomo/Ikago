@@ -10,7 +10,7 @@ struct TopBarReveal: View {
     weak var commands: BrowserCommands?
 
     var body: some View {
-        ZStack(alignment: .top) {
+        ZStack(alignment: state.barAtBottom ? .bottom : .top) {
             // A thin strip along the top edge; the band above it belongs to the menu bar.
             Color.clear
                 .frame(maxWidth: .infinity)
@@ -28,15 +28,15 @@ struct TopBarReveal: View {
                             CardShadow(shape: Rectangle(), color: .black.opacity(state.isDark ? 0.42 : 0.16), radius: 18, y: 6)
                         }
                     }
-                    .padding(.top, state.immersiveChromeTop)
+                    .padding(.top, state.barAtBottom ? 0 : state.immersiveChromeTop)
                     .onHover { inside in
                         chrome.peekHovered = inside
                         if inside { chrome.peek() } else { chrome.endPeek() }
                     }
-                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .transition(.move(edge: state.barAtBottom ? .bottom : .top).combined(with: .opacity))
             }
         }
-        .frame(maxWidth: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: state.barAtBottom ? .bottom : .top)
         .recordLayout("topbar-reveal")
     }
 }
