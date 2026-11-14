@@ -13,7 +13,7 @@ statement of direction, not a schedule.
 
 A complete everyday browser on Apple's WebKit, written in Swift 6 with AppKit and SwiftUI.
 
-- Two layouts, Sidebar and Top Bar, with Separate or Compact tabs and adjustable bar sizes
+- The sidebar, with an optional row of tabs and an address bar above the page (Sidebar + Tabs)
 - Spaces, each with its own tabs, pinned tabs, groups, colors and optionally its own website data
 - Split view with up to four panes as columns, rows or a grid, built by dragging tabs onto the page
 - Tab groups, pinned essentials, a bookmarks bar, and nested bookmark folders
@@ -105,3 +105,15 @@ visibly.
 - App Sandbox review, opt-in crash reporting and a privacy policy
 - Private vulnerability reporting and an independent security review
 - Accessibility, keyboard and visual regression passes across both layouts
+
+---
+
+## Known limitations
+
+- **Sound indicator on Chromium.** The tab's speaker comes from an isolated script that watches `<audio>` and
+  `<video>` players, including those in open shadow roots. It can't see players embedded from another site (a
+  YouTube or Spotify embed runs in its own process under site isolation), Web Audio (games, synths, some music
+  apps) or `Audio` objects never added to the page. CEF exposes no per-tab audible signal, and its audio handler
+  would take over playback. Embedded players could be reached later by attaching to child frames over DevTools
+  (`Target.setAutoAttach`); Web Audio needs an audible signal from CEF. WebKit tabs are fully covered through
+  WebKit's own flag.

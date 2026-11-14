@@ -51,7 +51,8 @@ Ikago/
 │                Apple Passwords), Chromium/ (CEFWebTab, sessions, hidden services, DevTools dock, window guard)
 ├── Extensions/  WebKit/ (WKWebExtension manager, tab bridge, Web Store), Chromium/ (hidden manager, popups)
 ├── Import/      Browser data import
-├── UI/          Window/ (controllers), Content/ (tab panes), Shell/ (root view), Toolbar/, Tabs/, Sidebar/, Address/,
+├── UI/          Window/ (controllers), Content/ (tab panes), Shell/ (root view), Toolbar/ (customizable controls),
+│                Tabs/ (Sidebar + Tabs row), Sidebar/, Address/,
 │                Overlays/, Pages/ (ikago:// pages), Settings/, Downloads/, Design/ (Palette, glass buttons, logos)
 ├── Checks/      Chromium/ (runtime checks, IKAGO_CHECKS builds), Debug/ (WebKit test driver, DEBUG builds)
 └── Resources/   Info.plist, entitlements, Assets.xcassets
@@ -86,9 +87,9 @@ text and international formatting remain available; `CEFLocaleChecks` verifies m
    the page.
 5. **Overlays live in the window's SwiftUI tree** (`BrowserRootView`), not child windows, so
    Liquid Glass samples the page behind them. Show/hide them through `ChromeModel`.
-   The sidebar and the top bars run in their own `NSHostingView`s (`IsolatedHost`) so their updates don't walk the whole
-   window's graph; anchors can't cross hosts, so the Downloads button's and address field's frames reach the shell through
-   `ChromeModel.downloadsButtonFrame`/`addressFieldFrame`, published after layout (never during it).
+   The sidebar and the Sidebar + Tabs row run in their own `NSHostingView`s (`IsolatedHost`) so their updates don't walk the
+   whole window's graph; anchors can't cross hosts, so the Downloads button's frame reaches the shell through
+   `ChromeModel.downloadsButtonFrame`, published after layout (never during it).
    Sidebar lists scroll in AppKit's `NSScrollView` (`SidebarScrollView`), never SwiftUI's `ScrollView`.
    The list's document follows the row height SwiftUI measures (`ScrollRoot`), not the host's intrinsic size.
    While a trackpad scroll is live the rows' host skips its layout passes (`ListScrollView.pausesRowUpdates`): the rows
@@ -126,8 +127,6 @@ text and international formatting remain available; `CEFLocaleChecks` verifies m
     (AppKit). While `chrome.inlineAddress`/`showPalette` is set the page must not be focused
     (`shouldFocusPage`); views show the field only for `chrome.isEditingAddress(of:)` the edited
     tab, and a tab switch ends editing. `state.addressStyle` picks Integrated or Floating.
-    Top layouts always create a real tab and edit inline, append ordinary new tabs, and place
-    links after their opener. Sidebar alone honors placement/address-style/focus preferences.
     The opt-in `focusAddressBarOnNewTab` setting focuses the address after opening the chosen
     homepage/extension provider, using current-tab navigation and an empty query. Use the floating
     field if the integrated field is hidden. BrowserWindow rejects page focus before resigning
@@ -136,18 +135,11 @@ text and international formatting remain available; `CEFLocaleChecks` verifies m
     BrowserWindow dismisses address editing on outside mouse-downs across the whole window,
     preserving the original click. Address fields and results mark their bounds with
     AddressInteractionRegion so cursor placement, popup actions and clear buttons keep working.
-13. **Top bars use their layout's palette.** `TabItem.themeColor` (from `WKWebView.themeColor`)
-    blends subtly into the Space through `BrowserState.barTint`/`barPalette`. The Top Bar's neutral
-    surface opts into webpage tint. Never draw bar controls with the sidebar palette.
-    Tab widths come from `TabStripLayout`; the island is centred, outside-island buttons are zones.
-    Bound the viewport to the parent GeometryReader, budget actual control widths and gaps, and
-    scroll the active tab/group into view on appearance and resize. Overflow customized controls
-    before squeezing tabs; fold outside controls into the island when their zones cannot fit.
-    Regular tabs share a dynamic width (Compact up to 280 pt; Separate fills its tab row) down to
-    a readable 120 pt, then scroll. Regular tabs must not collapse into favicon-only close targets.
-    Use actual scroll geometry for edge fades: only fade a side with hidden content beyond it.
-14. **Toolbar controls come from `state.chromeLayout`** (`ChromeLayout`, zones of `ChromeItem`),
-    drawn by `ChromeItemView`. New controls get a `ChromeItem` case so users can place them. "Chrome" in
+    Typing straight after ⌘L/⌘T never loses letters: keys that arrive before the field has the keyboard go to its text
+    (`BrowserWindow.typeAhead`), and the field selects all only while nothing has been typed (`palette.edited`,
+    `selectsAllOnFocus`), or a late re-focus selects the first letters and the next keystroke replaces them (`typefast`).
+13. **Toolbar controls come from `state.chromeLayout`** (`ChromeLayout`: the sidebar's top row and bottom bar, lists of
+    `ChromeItem`), drawn by `ChromeItemView`. New controls get a `ChromeItem` case so users can place them. "Chrome" in
     these names means the browser's own UI, not Google Chrome.
 
 ---
@@ -157,41 +149,82 @@ text and international formatting remain available; `CEFLocaleChecks` verifies m
 1. **Clean first.** No decorative icons or labels; secondary actions appear on hover or in
    context menus. Ikago's own pages (Settings, History, Downloads, Bookmarks) are `ikago://` tabs
    (`InternalPage`), never separate windows or panels.
-2. **Floating surfaces use `.surface(shape, palette)`**: Liquid Glass, or a flat panel when the
-   user turns glass off (Settings ▸ Appearance). Sidebars may independently use the native
-   frosted material via `surface(..., translucentSidebar:)`; honor Reduce Transparency and
-   preserve readable Space tint. Never call `glassEffect` directly. Glass can't
+2. **Corners come from `Radius`** (6 inner, 8 control, 10 row, 12 card, 16 sheet, 26 bar for the Spotlight-style command bar): pick by the surface's size, never a
+   one-off literal (small Settings mockups excepted).
+2a. **Floating surfaces use `.surface(shape, palette)`**: Liquid Glass, or a flat panel when the
+   user turns glass off (Settings ▸ Appearance). With the frosted sidebar (`frostedChrome`) the window itself is the one frosted
+   layer (`WindowBackgroundView`: vibrant `.sidebar` blur under a light Space wash), and docked sidebars, the rail and
+   the tab row draw no material of their own (`sidebarJoinsWindow`), since stacked blurs read flat and grey; floating
+   sidebars (the peek) use `surface(..., translucentSidebar:)`. Honor Reduce Transparency and preserve readable Space tint. Never call `glassEffect` directly. Glass can't
    render offscreen, so drag previews use plain fills. Related icon controls share one reactive capsule (`GlassControlGroup`); a lone control uses
    `glassControl`, which adds nothing inside a group. Don't merge separate glass circles in a container: they melt together with visible necks.
    Don't switch styles with an `if` around large subtrees: `glassButtons` is one style that decides inside, because
    an `if` at the root rebuilds the window on change and overflowed the stack when a page inserted a button.
-3. **Space colors tint the full chrome**, including flat sidebars and top bars. Use
+3. **Space colors tint the full chrome**, including flat sidebars and the Sidebar + Tabs row. Use
    `state.palette` and `.surface`; glass surfaces retain the Space tint. Keep page contents
    neutral, provide readable ink for arbitrary custom colors, and let website theme colors
    blend subtly rather than replace the Space's identity. Margins follow `state.frameInset`.
-4. **Top tabs move; everything else stays immediate.** `TabMotion` (`TabSlotMotion.swift`, a 200 ms ease-out)
-   animates top-strip *structure*: an opened tab's slot grows in while neighbours, the viewport and the + button
-   slide; a closed tab (closed at once, no delay) shrinks out; reorders and group collapse/expand reflow.
-   Strips animate only on `TabMotionKey` (item ids) through `tabStripMotion`, which blocks callers'
-   transactions. Selection, address editing, window resizes and Space switches stay immediate, and so does
+4. **The tab row moves; everything else stays immediate.** `TabMotion` (`TabSlotMotion.swift`, a 200 ms ease-out)
+   animates the Sidebar + Tabs row's *structure*: an opened tab's slot grows in while neighbours and the + button slide;
+   a closed tab (closed at once, no delay) shrinks out; reorders reflow. A settled slot isn't clipped, so an attached
+   tab's flares reach into the page. The row animates only on `TabMotionKey` (item ids) through `tabStripMotion`, which
+   blocks callers' transactions. Selection, address editing, window resizes and Space switches stay immediate, and so does
    suggestion selection. Titles crossfade over 100 ms, hover fills fade (~0.1s in, 0.2s out), and the address
    field eases its focus fill/ring. Respect Reduce Motion. Other changes animate quickly: `Animation.ikago`
    (0.2s) or `.ikagoQuick` (0.12s). Sidebar selection highlights follow the configured `TabSelectionHighlight` style.
-5. **Two layouts:** `TabLayout.vertical` (Sidebar) and `.horizontal` (Top Bar). The Top Bar offers
-   Separate and Compact tabs. Features must work in both. Layout switches keep the page in the window
-   even mid-animation (`ContentHost`).
-6. **Extensions live in the site-and-extensions popover** in the address field. On WebKit use native
+5. **One layout, the sidebar, with an optional tab row.** Settings ▸ Appearance ▸ Layout (`LayoutChoice`) picks Sidebar or
+   Sidebar + Tabs (`browserPreferences.sidebarTopTabs`, `state.usesTabsLayout`, `state.showsSidebarTopTabs`): `SidebarTopTabs` (its own
+   `IsolatedHost`) shows the Space's ungrouped tabs above the page as arched, attached tabs (`AttachedTabShape`), and
+   `TabsToolbar` (its own host) is the top of the page card: navigation left, the centred address field, other controls right;
+   the page's top corners are square under it (`WebTabContainerView.squareTop`). The address bar is 36 pt with no rule under it; the active tab and the bar share `tabSheetColor` (the page color, see-through when frosted), so tab and bar read as one lighter sheet that settles into the solid page. There is no full sidebar in this layout:
+   the sidebar is a rail of pins and groups below the tab row, or hidden (its peek is the rail). New tabs open on the right
+   (`effectiveNewTabPosition`); the address frame reaches the shell through `ChromeModel.addressFieldFrame`. There is one `ContentHost`, so turning the row on or off never moves the page.
+   Switching layouts goes through `LayoutSwitch.set`: the new layout is built in one frame with animations disabled and
+   the window cross-fades (a `CATransition` on its layer); never animate the switch's geometry, which resized every page
+   and rebuilt the sidebar list each frame (measure with `layoutprobe`). The Top Bar
+   layout was removed; sessions saved with it (or the older Chrome layout) open as Sidebar + Tabs, and their saved Top Bar
+   fields are ignored. Sidebar groups are tinted cards or an indented folder list (`SidebarGroupStyle`); group
+   headers line up with tab rows (icon where favicons sit), with semibold names and the chevron right after the name (a pill keeps
+   it at the far end). Groups nest (`TabFolder.parentID`, optional; `BrowserState+NestedGroups`, `GroupEntry.tree`): nested
+   groups sit inside the top-level group's card as plain, indented headers, listed before the group's own tabs; counts, sleep
+   and the active tab cover the subtree; deleting a group moves its tabs and groups up a level; moves into a group's own
+   subtree are refused (`nestedgroupchecks`). The rail shows top-level groups only, and the Color pill label fills the header like a book's bookmark: a light wash of the group's color, a solid 3 pt spine on the leading edge, `Radius.control` corners; a group whose tabs are all closed or asleep fades to half until hovered (rail tiles too); closed groups stack 4 pt apart, and a hairline separates pinned rows from groups. With glass off the
+   docked sidebar joins the window (`sidebarJoinsWindow`): it draws no card, so sidebar and tab row are one surface and only the
+   page is rounded. The traffic lights, the sidebar's top row and the tab row share one centre (`sidebarRowCenter`);
+   `positionTrafficLights` sets both axes in every layout. Top-row controls that don't fit beside the lights move to a second
+   row (`SidebarView.topRowCapacity`), never under them. An optional Space header and shortcut rows (`SidebarShortcuts`,
+   `sidebarShortcuts`) sit under the top row.
+6. **Extensions live in the site-and-extensions popover** in the address field. It is Ikago's own card over the window
+   (`SiteInfoOverlay`, `ChromeModel.showSiteInfo`, centred under its button, from the address bar's frame in Sidebar + Tabs; a click outside or Esc closes
+   it; the button sits beside the address button, never inside its label or overlay, which took the first click), never an NSPopover: one hung from the hover button closed the moment it opened, and its see-through material made
+   the text unreadable. The card is a `modalSurface` on the chrome palette (Liquid Glass with little Space tint when on,
+   the frosted window's material with the translucent sidebar, solid otherwise) that grows out of its button on a short
+   spring. Rows have white symbols on colored circles (`SiteSettingRow`, `SettingTile`); choices are `CompactMenu`s, a
+   white pill opening a real `NSMenu` (SwiftUI's `Menu` drops a custom label's background on macOS); controls answer a
+   press (`SiteCardPressStyle`). Zoom moves in 10 % steps (`PageZoom`, also ⌘+/⌘−) with Reset away from 100 %. Its card
+   holds the site's settings (`SiteSettingsCard`): camera and microphone Ask/Allow/Block (`SitePermissions`, applied by
+   `rememberedDecision` before any prompt; private windows always ask), engine, tracker blocking, keep awake, zoom, and
+   Clear Site Data (that site only, both engines). An extension's page (Momentum's new tab) shows its extension's icon
+   (`ExtensionPageIcon`): its own icon can't be fetched outside the page. On WebKit use native
    `performAction` and popup anchors; on Chromium popups open in `ChromiumExtensionPopup`.
-7. **Settings is quiet and typographic.** A 220 pt navigation column on the page's own background: a "Settings" heading,
-   a search field (`SettingsSearch`: add every new setting to its index, with the `PageSection` title it lives under),
-   monochrome outline symbols, a neutral fill for the selected row (no colored tiles, no accent fill). Pages use
-   `PageScaffold` (26 pt title; Settings pages use a compact category visual and one short descriptive line), `PageSection` (12 pt secondary heading over a soft
-   panel, 14 pt corners in Settings and 12 pt elsewhere) and `PageRow` (52 pt Settings rows, 44 pt elsewhere, 13 pt titles, 12 pt subtitles, no decorative per-row icons; an engine
-   logo beside an engine choice shows its value). Controls are
-   standard macOS ones (`.buttonStyle(.automatic)`, `.borderedProminent`, small switches), not the browser's glass buttons.
-   Titles and subtitles describe; they never sell ("Import", not "Bring Your Browser to Ikago"). Subtitles are a few words and
-   footers one short sentence, or none. No ambient glows, tinted
-   cards or rounded display fonts. `.ikago` animations never overshoot.
+7. **Settings is quiet and ordered: one sub-page at a time.** A 220 pt navigation column on a slightly quieter background: a small
+   "Settings" heading, a search field (`SettingsSearch`: add every new setting to its index, with the `PageSection` title it lives
+   under), categories under small group headings (Personalize, Your Browsing), monochrome outline symbols, a neutral fill for the
+   selected row (no colored tiles, no accent fill, no chevron). Pages use `PageScaffold` on `SettingsColors.page`; Settings pages open
+   with a 24 pt title and one short descriptive line, no artwork, then a segmented bar of the category's sub-pages (`SettingsSubpage`,
+   `SettingsSubnav`; the chosen one rides a sliding pill). A sub-page lists the `PageSection` titles it shows
+   (`settingsVisibleSections`): a new section must be added to one, or it never appears. Search results open the sub-page holding
+   their section. Inside Settings (`settingsSurface`), `PageSection` is a card (`SettingsColors.card`, 14 pt corners, hairline rim,
+   soft shadow) with its 13 pt semibold heading inside and rows divided by hairlines; its footer sits under the card. Elsewhere
+   `PageSection` keeps its soft 12 pt panel. Keep visual previews where a choice is about looks (layout cards, color mode, group
+   label style, the sidebar and toolbar editor's figure). `PageRow`:
+   56 pt rows with 13 pt medium titles and 12 pt subtitles in Settings (44 pt elsewhere), no decorative per-row icons; an engine logo
+   beside an engine choice shows its value. Controls come from `SettingsControls`: `SettingsMenu` (a white pill opening a native
+   menu, never a stock pop-up button), `SettingsSegmented` (sliding pill), `SettingsButtonStyle` (white pill, or `prominent` in the
+   accent; never blue text), native switches and sliders, all in `SettingsColors.accent` (a soft iris, `Color.settingsAccent` where
+   the palette isn't at hand), never the system blue. Narrow windows show `SettingsCategoryMenu` instead of the column. Titles and subtitles describe; they never sell ("Import", not "Bring Your
+   Browser to Ikago"). Search engines show their favicons (`SearchEngineIcons`). Subtitles are a few words and footers one short sentence, or none. No ambient glows, tinted cards or rounded
+   display fonts. `.ikago` animations never overshoot.
 
 ---
 
@@ -233,6 +266,11 @@ text and international formatting remain available; `CEFLocaleChecks` verifies m
   on view task restarts or failed fetches. Page/site aliases retain the last valid image across
   changing icon URLs. Validate fetched replacements before updating tab/bookmark metadata,
   and reject late results from a different page or document.
+  Icons follow Ikago's light/dark mode: `FaviconScript` picks the `<link rel=icon>` whose `media` matches Ikago's mode (both
+  engines, isolated world; open pages pick again once on a mode switch), the page/site last-good entries are kept per mode
+  (`FaviconCache.modeKey`, older unsuffixed entries are a fallback), and SVG icons have their `prefers-color-scheme` CSS
+  resolved before decoding, because macOS's SVG renderer always draws the light style. Stored bytes are never duplicated
+  per mode; only small decoded images are (`faviconappearancechecks`).
   Address-bar searches/URLs from a pinned tab open a new regular tab instead of replacing it.
   This guard lives in the window's shared address-open path for both integrated and floating
   fields, including suggestions. Page links and redirects stay native. Bookmarks are shared
@@ -251,8 +289,9 @@ text and international formatting remain available; `CEFLocaleChecks` verifies m
   CEF's renderer helper reports its PID over native process messages, not page scripts. `PageLifetimeCanary` watches
   retired page owners/views weakly, checks every 30 seconds only while records remain (cap 200), and flags retention
   without claiming a proven leak. No page contents, URLs, dumps or canary data are written to disk.
-- The sidebar's media island (`SidebarMediaPlayer`) is a compact black island: black glass (solid black with
-  glass off), Media Session title, artist and artwork (`MediaArtwork`: cookie-free, raster only, memory only).
+- The sidebar's media island (`SidebarMediaPlayer`) is one clean row on the sidebar's own glass (`.surface` with the chrome
+  palette; a flat panel with glass off): artwork, Media Session title and artist, and Play/Pause and Next always in reach.
+  Clicking the title opens the card with mute, PiP and the source picker. Artwork comes from `MediaArtwork` (cookie-free, raster only, memory only).
   Artwork falls back to the playing media's poster and HTTPS page thumbnails when isolated-world metadata is absent;
   decode only a bounded 160 px thumbnail. Mute and Next have equal hit targets around the centred Play/Pause button;
   the source picker lives in the header so it cannot shift playback controls. Close stays inside the island.
@@ -262,11 +301,11 @@ text and international formatting remain available; `CEFLocaleChecks` verifies m
 - Completed download rows open files on a single click via a dedicated button; cancel and
   Show in Finder are separate hit targets. Keep popup styling on the current chrome palette
   and shared surface; a missing file or failed open reports an error without removing history.
-- Downloads use a toolbar-anchored dropdown in all layouts, plus `ikago://downloads` for
+- Downloads use a dropdown anchored to the sidebar's Downloads control, plus `ikago://downloads` for
   full history. `DownloadCenter` owns byte progress and cancellation; `DownloadHistoryStore` saves
   owner-only atomic history with backup (up to 1,000 entries). Keep completed/failed/cancelled
   entries across relaunches, restore unfinished entries as interrupted, and never delete files
-  when clearing history. The automatic toolbar control stays for active/recent (24-hour) downloads;
+  when clearing history. The automatic toolbar control stays for active/recent (24-hour) downloads started since launch (history restored at launch never brings it back);
   the dropdown’s × dismisses it without clearing history (active work stays visible until finished,
   and a new download brings it back). A user-placed Downloads control is permanent. Download flight
   and completion feedback is visual only, passes through input and respects Reduce Motion.
@@ -320,10 +359,10 @@ text and international formatting remain available; `CEFLocaleChecks` verifies m
   Swift tasks, so the Debug `quit` action terminates from the run loop like a menu. Session cookies
   ending at quit is WebKit behaviour. Verify with `datapersistencechecks:write|<base>` then
   `datapersistencechecks:read|<base>` in two launches sharing `IKAGO_TEST_STORAGE_UUID`.
-- Window dragging works like the sidebar in every layout: a `WindowDragArea` sits *behind* each bar's
-  content (Top Bar toolbar and tab row, Compact island), so any empty bar space moves the window,
-  and behind the page card, so the window margins do too. A floating Top Bar card's surrounding margin
-  drags as well. Never cover bars with a drag overlay plus exclusion rects.
+- Window dragging: a `WindowDragArea` sits *behind* the sidebar's and the tab row's content, so any empty space there
+  moves the window, and behind the page card and the whole layout, so the window margins do too (the hidden sidebar's
+  hover edge is one). The tab row's scroll view is only as tall as the tabs, so the strip above them moves the window
+  (`sidebarinteractionchecks` hit-tests it). Never cover bars with a drag overlay plus exclusion rects.
 - In every layout a still press-and-hold (0.12 s) within 10 pt of the page's top edge (web pages and
   `pageSurface`-marked internal, error and empty pages) becomes a
   window drag (`PageWindowGrab`, a passive local event monitor; no view, inset or overlay). The page
@@ -332,9 +371,14 @@ text and international formatting remain available; `CEFLocaleChecks` verifies m
 - Split drops use a permanently mounted AppKit SplitDropTarget above WKWebView, with
   preview and acceptance driven by native dragging callbacks. Transparent SwiftUI-only drop
   surfaces can fall through to embedded pages. Decode TabDrag from the live pasteboard
-  rather than transient chrome drag state. Pane headers
-  use native independent drag handles/buttons; page focus must not interrupt header controls.
-  Dropping the active unsplit tab creates a `ikago://split-empty` slot. Filling the slot
+  rather than transient chrome drag state. In Sidebar + Tabs only panes along the top have square tops
+  (`TabHostView.touchesTop`); which corners are the bottom follows the pane view's own `isFlipped`
+  (a backing layer uses its view's coordinates; the layer's `isGeometryFlipped` follows the flipped NSSplitView around it
+  and must not be used), re-applied whenever it moves; check with the `corners:<png>` test action. In the tab row a split pair shows, on hover, a close button per tab and a
+  centred Separate button (`SplitTabButton`, `unsplitGroup`). Pane headers (`PaneHeaderView`) are a small frosted pill centred at the pane's
+  top that fades in only while the pointer is near that edge (`TabHostView.onMove`) and fades out otherwise, so they never
+  cover the page at rest; they use native independent drag handles/buttons; page focus must not interrupt header controls.
+  Switching tabs moves page views straight between panes and the hidden parking view, never out of the window: a Chromium page taken out of the window is resized to 0×0, and ChatGPT lost its scroll position and blinked on return (`CEFTabSwitchChecks`). Never call `removeArrangedSubview` (it removes the view from the window; split views arrange all their subviews, so moving one is enough), and a parked view goes back to autoresizing (a split view put it on Auto Layout, which sized it 0×0 in parking). A Chromium page gets one fresh resize the first time it shows (`CEFWebTab.visibilityChanged`), since an adopted link tab could stay blank. Each split keeps its panes' shares across resizes (`PaneSplitView.layout`): Auto Layout alone gave a resize to one pane, and a layout switch collapsed a grid's column to 0 pt (measure with the `panes` test action). Dropping the active unsplit tab creates a `ikago://split-empty` slot. Filling the slot
   preserves its side/layout and removes the placeholder; sessions retain empty slots.
 - Page-switch fades and tab-highlight motion are independent Settings ▸ Appearance options.
   Instant mode removes in-flight layer fades; shared TabSelectionHighlight implements None,
@@ -346,8 +390,9 @@ text and international formatting remain available; `CEFLocaleChecks` verifies m
   1240–1279 (up to three), remote predictions 1230 and below (up to five, requested from the first
   letter after a short debounce), and history/bookmark/open-tab pages ≤ 1199 from
   topicality × frecency (Visit `visits`/`typed`, Chromium recency buckets). One row per page,
-  at most `OmniboxEngine.maxResults`. Only pages that were typed, visited ≥ 3 times or bookmarked
-  inline-autocomplete, completing to the host root within the host. Inline completion follows
+  at most `OmniboxEngine.maxResults`. Any page visited, open or bookmarked inline-autocompletes to
+  its host root while the input is within the host (Safari's top hit); past the host only pages typed, visited ≥ 3
+  times or bookmarked complete. Inline completion follows
   forward typing only (`userEdited`), never deletion or programmatic text. ↑/↓ preview a row's
   `fill` as `temporaryText` without replacing the typed query and never wrap; hover only highlights.
   Esc restores the typed text before closing. Tab focuses a row's "Switch to this tab" button,
@@ -359,6 +404,49 @@ text and international formatting remain available; `CEFLocaleChecks` verifies m
   are independently configurable; remote search autocomplete is opt-in. Debounce requests,
   exclude addresses, use cookie-free ephemeral sessions, cancel on dismiss/changes and ignore
   late responses. Provider failures must preserve direct search and local suggestions.
+- Swiping Back/Forward across an engine handoff (`HistorySwipe`): a passive scroll monitor follows a sideways
+  two-finger swipe with an arrow at the page's edge, only where the page's own history ends and a parked page of the
+  other engine waits, and navigates on release past 110 pt. It never swallows events. CEF reports no unconsumed scroll,
+  so Chromium offers no swipe within its own history (a sideways pan in maps or carousels must not go Back).
+- Several regular windows, as in Chrome (`BrowserWindows`, `BrowserState+Windows`): each window has its own `BrowserState`
+  with its own tabs, groups, splits and recently closed; Spaces, settings, history and bookmarks are shared, copied between
+  the windows' states when any changes them (`readShared`/`shareChanges`, each field only when it differs). The first
+  window's state (`BrowserWindows.primary`) owns the session and saves the others in `Session.windows` (`WindowSession`:
+  tabs, groups, splits, frame); the others' saves forward to it, and they reopen at launch. File ▸ New Window (⌘N), Tab ▸
+  Move Tab to New Window (and the tab menu), a tab dragged out of every Ikago window (`ChromeModel.onTabDragEnded` →
+  `tearOff`: a new window under the pointer; a window's only tab moves the window instead) and a tab dropped on another
+  window's tabs (`TabDrag.load(_:into:)` → `bring`) all move the tab with its live page (`WebContentViewController.release`
+  / `adopt`, `TabController.releasePage`): never reload it. A window after the first closes with its last tab, and its
+  tabs join recently closed; closing the first window while others are open hands it another window's tabs and place
+  (`handOver`) so the session keeps its owner. Private windows stay apart: no moves in or out. Check with `windowchecks`.
+- History (`ikago://history` and Settings ▸ History share `HistoryBrowser`): newest first, grouped by day or by site
+  (`HistoryGroup.build`, once per change of history, search or arrangement, never in `body`; search waits 150 ms), groups
+  folded except the newest, an open group showing 25 rows with Show More. Clear Browsing Data (`ClearDataSheet` over the
+  window, `ChromeModel.showClearData`, from the History page, Settings, the History menu ⇧⌘⌫ and the address bar's action)
+  takes a period (last hour, today, since yesterday, all time, custom days) and what to remove: browsing history, search
+  history (search result pages, `Visit.isSearch`), cookies and website data, caches, recently closed tabs, the downloads
+  list, site icons (`BrowserState.clearData`, on the first window's state, then the session backup is discarded). WebKit
+  clears website data by time; Chromium has no time filter, so a period clears the sites visited in it
+  (`ChromiumWebsiteData.clear(onlyKnown:)`). Check with `historychecks`.
+- Back history survives relaunch, unloading and ⌘⇧T (`TabHistory` on `TabItem`/`SavedTab`, recorded when a page finishes
+  loading, `TabController+History`): WebKit restores its own `interactionState` (≤ 32 KB); every engine keeps up to 12 Back
+  addresses, which Chromium (no API to restore entries) walks with `replace(with:)` so the page's own Back never points
+  forward (`CEFHistoryChecks`). Private windows keep none.
+- The media script stays cheap on huge, changing pages (Pinterest): mutations are looked at once a quarter second (only
+  the added elements themselves, never their subtrees; deeper shadow roots are found on load, clicks and keys), no
+  layout-forcing reads (`getClientRects`) in reports, artwork only for playing media, and WebKit reports once per burst.
+  Silent autoplay previews never report: only media that has been heard, errors and volume changes do.
+- Closing the active tab follows Chrome: back to its opener (`TabItem.openerID`, set for link tabs and forgotten once
+  another tab is chosen), then its split partner, then the tab to the right, then the left. ⌘⇧T reopens a tab in its
+  Space, group and place (`SavedTab.after`) and selects it. Closing a top tab with the mouse keeps the others' width until
+  the pointer leaves the row, as Chrome does. In Sidebar + Tabs, tabs opened from a pin open on the right.
+- The sidebar's top row and bottom bar each have a left, centre and right place (`ChromeZone`, `ChromeLayout.topLeading`,
+  `topCenter`, `sidebarTop` = right; `bottomLeading`, `sidebarBottom` = centre, `bottomTrailing`), filled by dragging in
+  Settings ▸ Sidebar & Toolbar ▸ Customize; the centre stays centred, and left/centre top groups start after the traffic
+  lights. Too many for one row wrap to a second row on the right as before. Readers of a whole row use `topItems`/`bottomItems`. A two-finger swipe over the sidebar pages between Spaces live (`SpaceSwipe`):
+  pins and tabs follow the fingers, and the next Space comes in on release past a third or after a flick; otherwise it
+  springs back. With Liquid Glass on, every chrome control is glass: toolbar groups, the Sidebar + Tabs controls and
+  address field, the tab row's +, rail tiles and pinned tiles.
 - New-tab placement is configurable (top/bottom); links can open before/after their opener or
   follow the new-tab setting. Preserve manual order and other Spaces; adjacent links inherit the
   opener's group, while normal new tabs remain loose and unpinned. All link paths, including
@@ -421,52 +509,47 @@ text and international formatting remain available; `CEFLocaleChecks` verifies m
   handles, never log or persist decryption keys, and read browsing records only after Import. Report unsupported/encrypted formats instead of silently claiming
   a complete import.
 
-- Top layouts can close a tab group (folder context menu ▸ Close Group, `BrowserState+ClosedGroups`):
-  `TabFolder.isClosed` (optional) removes it from the strip, its pages hibernate, and selection moves
-  off it. Reopen from Tab ▸ Reopen Closed Group, the new-tab button's right-click menu, or the tab
-  sidebar; selecting any of its tabs reopens it. Closing also cancels pending background loads of its tabs. Strips list `stripFolders`; next/previous tab and
-  close-neighbour selection use `navigationOrder`, which skips closed groups in top layouts. The
-  Sidebar layout still lists closed groups.
-- Top layouts have independent saved visibility choices for pinned essentials. The optional
-  bookmarks row starts hidden. Visible pins live in the tab strip. The temporary tab sidebar
-  uses rows, never the vertical layout's tile grid. Hidden pins stay reachable in the tab sidebar,
-  without falling back into the top tab strip; visible splits remain represented there.
-  Enabled accessory rows touch the tab row on one shared surface, with no separate glass
-  capsules or inter-row gaps. Accessory bars have bounded scroll viewports and contribute
-  to the floating page's content inset so fixed page controls stay reachable.
-- The optional bookmarks bar is a separate Top Bar row and an upward-expanding bottom drawer
-  in the vertical sidebar. ⇧⌘B and Settings ▸ Toolbar & Sidebar toggle the same saved preference. Bookmarks and
+- Closed tab groups (`TabFolder.isClosed`, `BrowserState+ClosedGroups`) came from the retired Top Bar's Close Group. Their
+  pages stay unloaded until reopened from Tab ▸ Reopen Closed Group or by selecting one of their tabs; the sidebar lists
+  them, and `navigationOrder` is the sidebar's order.
+- Bookmarks show in an optional upward-expanding drawer at the bottom of the sidebar. ⇧⌘B and Settings ▸ Sidebar &
+  Toolbar toggle the same saved preference. Bookmarks and
   nested `BookmarkFolder`s are shared across Spaces and independent of live tab groups; keep
   session additions optional, validate folder trees, and never delete saved pages when removing
   a folder. Bookmark drops save live tabs without closing them.
-- The Top Bar uses a native neutral surface with a restrained Space tint and correctly matched
-  ink. Webpage tint is opt-in and subtle. Flat surfaces must use that same surface color without
-  darkening it again. Separate tabs live below the toolbar; its centered address field stays
-  available for pinned, split and collapsed-group tabs. Compact uses the shared address field while editing, outside the scrolling tab document. Both styles
-  keep optional rows connected and support the floating toolbar setting. Heights are adjustable
-  (`topToolbarHeight` 40–64 pt for the toolbar or Compact row, `topTabBarHeight` 28–48 pt for
-  Separate tabs, both optional preferences); tabs and capsules derive from the row height and the
-  address field stays 32 pt. Floating mode is a detached card: `topBarFloatingMargin` on every
-  side, continuous 14 pt corners, its own shadow and no docked hairline. The address field
-  centres the domain at rest, fades the page menu/reload in on hover, and left-aligns on an opaque
-  field with the system focus ring while editing; its results use accent-filled rows (white text).
-- Top layouts have static selection; insertion follows `TabMotion`. ActiveTabScrollAnchor reports document-space geometry to one always-mounted native viewport owner: observe clip/document frame changes and reveal clipped edges,
-  never recenter an already-visible active tab through a delayed SwiftUI scroll proxy.
+- The tab row has static selection; insertion follows `TabMotion`. ActiveTabScrollAnchor reports document-space geometry to
+  one always-mounted native viewport owner: reveal clipped edges (including the active tab's flares), never recenter an
+  already-visible active tab through a delayed SwiftUI scroll proxy.
 - Integrated address editing uses opaque light/dark surfaces independent of glass. Every address presentation shares
-  `OmniboxResults`/`OmniboxRow`: 13 pt rows, favicons, accent-filled selection with white text like a menu item, and in
-  dropdowns (`TopAddressSuggestionPopup`) the system material. Selection updates immediately without matched geometry or
-  spring motion.
+  `OmniboxResults`/`OmniboxRow`, laid out like Spotlight: bare icons, 13–14 pt titles, a neutral rounded fill for the
+  selection (text keeps its colors), the top hits without a heading and other sections headed over a hairline with
+  "Show More" (opens the matching scope). The floating bar (`CommandPaletteView`, `Radius.bar`) is a capsule with a 22 pt
+  field that opens into a card; the highlighted result's icon sits at its end and what Return does follows the text
+  ("— Open", "— Search", "— Switch to Tab", "— Run"); with nothing typed it lists the scopes. The inline field leads with
+  the highlighted result's icon.
+  Browser commands and every setting are results too (`PaletteAction`, source `.action`, `ikago-action:` URLs, at most
+  three, from 1215 down, only those that apply): commands in `PaletteActionCatalog` (tabs, windows, split view, appearance
+  such as Light/Dark/System, layouts and sidebar styles, pages, places), settings registered from `SettingsSearch.index`
+  (opens Settings at the section via `BrowserState.pendingSettingsSection`). Commands show their shortcut, settings where
+  they live; each is aimed at its own window (`perform(in:)`, handlers in `BrowserWindowController+PaletteActions`),
+  never sent to whichever window is key. Results are
+  grouped under headings (`CommandPaletteModel.grouped`/`sections`: Top Hit, then Search, Open Tabs, Pages, Actions in
+  ranked order). Scopes, after Spotlight's filters (`AddressScope`: Tabs ⌘1, History ⌘2, Bookmarks ⌘3, Actions ⌘4, which
+  win over Select Tab while the field has the keyboard via `FocusingTextField.onCommandDigit`), list every match of one
+  kind; a scope shows as a token, and Esc or ⌫ on an empty field leaves it. Address cards are solid
+  (`AddressSurface`, `AddressAppearance`) and frosted only when `frostedChrome` is on, never Liquid Glass. Selection updates
+  immediately without matched geometry or spring motion.
   Full screen is Ikago's own (`BrowserWindow.toggleFullScreen` → `BrowserWindowController+FullScreen`), because macOS's slides
   a titlebar strip over the bars whenever the menu bar shows: the window covers the display, Dock and menu bar auto-hide while
   it is key, the shell starts below a black camera band (`fullScreenTopBand`), the page goes edge to edge (`state.isImmersive`), the
-  sidebar peeks from the left edge and the top bars drop in from the top (`TopBarReveal`), staying while `chrome.holdsPeek`,
+  sidebar peeks from the left edge, staying while `chrome.holdsPeek`,
   and `FullScreenWindowControls` draws the traffic lights with the revealed chrome. Settings ▸ Appearance can drop the band
-  (`fullScreenUnderNotch`). The Sidebar layout has three states: full, a rail of icons (`SidebarRail`, `sidebarCompact`, ⌃⌘S),
+  (`fullScreenUnderNotch`). The sidebar has three states: full, a rail of icons (`SidebarRail`, `sidebarCompact`, ⌃⌘S),
   hidden (`sidebarVisible`, ⇧⌘S); the sidebar button cycles all three (`cycleSidebar`). The rail stacks Ikago-drawn traffic
-  lights in a column and shows groups as one tile each. Groups show `FolderIcon` (`TabFolder.icon`: an SF Symbol or an emoji,
-  a folder in the group's color by default); an open group sits on a light fill of its color. In full screen, revealed bars and lights start below the menu bar
-  (`immersiveChromeTop`). Check full screen with `window.isInFullScreen`, never `styleMask.contains(.fullScreen)`. Native traffic-light origins convert through the content view on both axes; test their actual
-  frames against the rendered toolbar at multiple window sizes and after layout changes.
+  lights in a column (`FullScreenWindowControls`, kept directly above the shell view, never above the first subview: with the frosted window that is the material, and the shell covered the buttons; `railhit:click` checks) and shows groups as one tile each. Groups show `FolderIcon` (`TabFolder.icon`: an SF Symbol or an emoji,
+  a folder in the group's color by default); an open group sits on a light fill of its color. In full screen, the revealed sidebar and lights start below the menu bar
+  (`immersiveChromeTop`). Check full screen with `window.isInFullScreen`, never `styleMask.contains(.fullScreen)`. Native traffic-light origins convert through the content view on both axes; `sizingchecks` tests their actual
+  frames against `sidebarRowCenter` at several window sizes, with and without the tab row.
 
 
 ## 7. Private SPI in use
@@ -488,6 +571,11 @@ instead of crashing. They live in `WebTab.swift` and are toggled by Settings ▸
 
 - `responsibility_get_pid_responsible_for_pid` (`PerformanceSampler`, looked up with `dlsym`): finds the WebKit processes that
   belong to Ikago, which launchd starts. Without it the performance overlay counts the app and its child processes only.
+
+- `WKWebView._isPlayingAudio` (`PlayingAudioObserver`, KVO, guarded by `responds(to:)`): WebKit's own audible flag, so
+  Web Audio, detached `Audio` elements and closed shadow roots still show the tab's speaker. The media script stays the
+  source for playback controls. When the flag is available it alone decides the tab's speaker; the script's reports are keyed per document (a random
+  `documentID`, cleared on pagehide), never by frame address, which pushState changes and left stale "playing" reports.
 
 - `_webProcessIdentifier` (`PagePerformance`, checked before calling): maps a WebKit tab to its renderer for the visible
   Performance page and demand-driven tab preview. There is no public mapping; absence returns unavailable. It never changes page behavior.
@@ -535,6 +623,14 @@ instead of crashing. They live in `WebTab.swift` and are toggled by Settings ▸
   a launch where Chromium runs); the whole-store copy on a default switch skips sites ruled to the destination, which
   holds their newest logins. Clearing data clears both engines. Check runs (`CEFSessions.overrideRoot`) get disposable
   WebKit stores; `CEFSiteEngineChecks` covers the rules and a real handoff.
+- Chromium pages follow Ikago's light/dark mode, not macOS's (`ChromiumAppearance`, from `applyChrome`): Chromium themes
+  page content from the app's appearance, so `NSApp.appearance` is Ikago's mode (nil in System mode; set by
+  regular windows only, never private ones). `systemIsDark` therefore comes from macOS's own setting (`SystemAppearance`:
+  `AppleInterfaceStyle` and its change notification), never `NSApp.effectiveAppearance`, which reports Ikago's choice back; CEF's `SetChromeColorScheme` (`IKCEFContexts.setColorScheme`) covers Chromium's own UI.
+  `CEFColorSchemeChecks` checks both directions, so the Mac's own appearance can't make it pass. Never emulate it per tab.
+- Known limitation (ROADMAP.md ▸ Known limitations): Chromium's speaker indicator misses cross-origin embedded players,
+  Web Audio and detached `Audio` objects; WebKit's covers everything (`PlayingAudioObserver`). Don't fix it with a main-world
+  script, a `CefAudioHandler` or disabled site isolation.
 - Both engines play their own page audio. Chromium uses CEF's native output and `SetAudioMuted`; Ikago does not install
   a `CefAudioHandler` or reroute sound for visualization. Never route WebKit media through Web Audio to read it
   (cross-origin, redirected and HLS media go silent). `CEFAudioChecks` verifies native mute/unmute without stopping playback.
@@ -564,7 +660,9 @@ instead of crashing. They live in `WebTab.swift` and are toggled by Settings ▸
 
 ## 9. Optional browser tools and layout choices
 
-- Modals share `ModalDesign`: window-integrated surfaces, native typography, clear fields and consistent actions.
+- Modals share `ModalDesign`: with glass off, solid neutral sheets (`ModalMetrics.card`, 16 pt corners, hairline rim, a contact
+  and an ambient `CardShadow`); 15 pt semibold headings, 32 pt fields, an accent default button beside bordered secondary ones,
+  and a full-width hairline above the footer.
   Cast shadows from `CardShadow`, never the changing card contents. Settings appearance choices show light/dark/system previews.
 - Group appearance uses a bounded integrated editor with a local icon/color draft. The default icon stays a folder, even with several tabs.
   Use Emoji opens the public macOS character picker through a native text input client. Done saves both choices;
@@ -572,19 +670,54 @@ instead of crashing. They live in `WebTab.swift` and are toggled by Settings ▸
 
 - Notes (`ikago://notes`) shares an observable buffer, saves only dirty edits through `SealedStorage`, flushes on quit,
   and fails closed on read/decrypt errors. Private buffers are memory-only and discarded with their window. Checks use temporary storage.
-- Page assistance is off by default. Enabling it seeds a customizable control in both layouts; moves and explicit removal persist.
+- Page assistance is off by default. Its panel (`PageAssistantView`) is a page-colored card beside the page with the page card's
+  margins: header, conversation, suggestions and a composer naming the page it reads. With the translucent sidebar it draws no
+  card and sits on the frosted window. Enabling it seeds a customizable sidebar control; moves and explicit removal persist.
   Existing enabled profiles receive this placement once (`assistantToolbarInitialized`). Disabled assistance has no live control or open pane.
   Apple Foundation Models runs on-device only, checks model availability, and reads a bounded
   isolated-world page excerpt only on an explicit request. It has no browser tools; page content is untrusted data. Cancel on tab change or close.
 - Native page menus keep WebKit editing and media actions. Search stays in Ikago; translation explicitly names Google.
   Direct media can open in a floating AVKit player; protected and page-managed streams retain engine-owned PiP controls.
 - Shared Spaces use the Default cookie store. Switching sharing releases old pages and reopens with the selected store; it never copies cookies.
-- The sidebar can sit on either side; window controls optionally follow it. Top navigation can move to the bottom, with suggestions opening upward.
-  Optional scroll compaction uses a passive native event monitor and a 36 pt reading ribbon. Page bounds must never overlap the docked bars.
-- Delayed previews and Shift-click peeks never wake unloaded tabs. Snapshots stay in memory at bounded thumbnail size; process metrics sample only while a preview is shown.
+- The sidebar can sit on either side; window controls optionally follow it. Page bounds must never overlap the docked bars.
+- When a clicked link opens in Peek is a setting (Settings ▸ Tabs ▸ Peek, `LinkPeek`): Off (Shift-click opens a new tab),
+  Shift-click (default), or Automatically, which also peeks links to other sites from pinned tabs and from search results,
+  and optionally every link that would open a new tab. Both engines ask `WebTabDelegate.webTab(_:peeks:trigger:)` →
+  `BrowserState.peeks` (WebKit's navigation and popup policies; Chromium's `IKCEFPage.peekHandler` from `OnBeforePopup`
+  and `OnBeforeBrowse`); a page shown in Peek never peeks its own links (`selectionpeekchecks`).
+- Tabs select like Finder's (`TabClick`): Shift-click a range in sidebar order, ⌘-click one more, ⌥-click to peek, a plain
+  click opens a tab and ends the selection (`ChromeModel.selectedTabIDs`, tinted with `tabSelectionTint`). Their menu
+  moves, groups or closes them all, and dragging one carries the rest (`TabDrag.companions`, taken by every drop through
+  `TabDrag.travelling`, group headers included), including out to a new window; the drag shows a stack with a count badge
+  and the others fade while they travel (`travellingWithDrag`). A drop's payload arrives after the drag-out check
+  (`tabDraggedOut`, 250 ms after release), so that check takes the companions only when the pointer left every window;
+  several tabs placed after one row go in last-first to keep their order. Measure with `dragprobe` and a real posted drag.
+- Shift-clicking a link (both engines) opens Peek (`peekLink`, `LivePeekPanel`): the page in a large floating card over
+  the dimmed window, its site above it and a glass column beside it to close it or keep it as a tab; it is never in the tab
+  list unless kept. Keeping it grows the card onto the page's place (`chrome.peekExpanding`, `peekTarget`), then the same live
+  page becomes a tab placed like a link from the current tab (`newTabFromLink`, `content.adopt(_:fromPeek:)`), shown without the switch
+  fade (`switchesInstantly`), on both engines with no reload. Two rules keep a Chromium page drawing in place: while the card grows the
+  page takes its final size once and only its origin follows the card (`PeekAnchorView.fixedSize`), because a stream of animated
+  resizes made Chromium's own layers drift taller than its view (36 pt, page shifted up) and no later resize undoes that; and the page
+  moves straight into the tab's view, never out of the window (`releasePage(inWindow:)`). The preview's page
+  sits in a plain AppKit view over the card (`PeekAnchorView`), never inside SwiftUI's host. `peekshot:<dir>` measures where
+  a kept page really draws from the window's pixels; for Chromium run it with `IKAGO_CEF_SOFTWARE_COMPOSITING=1` (test mode only),
+  since GPU-composited pages live in another process's layers. Delayed previews and Shift-click peeks never wake unloaded tabs. The hover card (`TabPeek`, 232 pt) shows title, site and
+  memory, with an optional small thumbnail; Settings ▸ Tabs ▸ Tab Previews turns the card or its thumbnail off. Snapshots stay
+  in memory at bounded thumbnail size; process metrics sample only while a preview is shown.
 
 - Sidebar animated rows must render their live model immediately, including initially empty lists; retained closing rows contain only metadata. Never wait for an empty ForEach to appear before seeding rows.
 - Tab previews replace native title tooltips on rows, tiles and top tabs. Button accessibility labels remain available.
-- The media island exposes PiP for video. WebKit uses its public presentation-mode JavaScript in the reporting frame; Chromium keeps native windows forbidden and uses AVKit for direct streams or its native-video fallback source.
+- Picture in Picture (the media island's button, the video's right-click item, a page's own PiP button). WebKit: macOS's own
+  PiP, which WebKit turns off for embedding apps; `MediaPictureInPicture.allow` turns it on for every web view (measured:
+  YouTube reported no PiP support, so every route silently did nothing). Chromium: its own PiP opens a borderless Chromium
+  window, which `ChromiumWindowGuard` hides; instead `ChromiumPictureInPicture` puts the video in element fullscreen inside
+  its frame (a user gesture through DevTools) and moves the page view into Ikago's floating panel, with Back to Tab and
+  Play/Pause on hover, while the tab shows a note. A page's own request (`enterpictureinpicture`, reported by the
+  page-state world) is taken out of Chromium's PiP into the panel. Videos Chromium can't play (H.264 files) fall back to
+  AVKit for direct addresses. A tab moving windows ends the panel first (`WebTab.endPictureInPicture`). Check with
+  `pipchecks` (WebKit) and `CEFPictureInPictureChecks`.
 
 - SPI: guarded WKWebView `_updateMediaPlaybackControlsManager`, `_canTogglePictureInPicture`, `_togglePictureInPicture` allow native macOS PiP for MSE media; DOM presentation-mode APIs remain the fallback.
+- SPI: guarded WKPreferences `_setAllowsPictureInPictureMediaPlayback:` (`MediaPictureInPicture.allow`): without it WebKit
+  reports no PiP support to pages and the toggle above does nothing. No public switch exists on macOS.
