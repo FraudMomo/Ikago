@@ -72,7 +72,6 @@ extension TabController {
         view.autoresizingMask = [.width, .height]
         hostView.addSubview(view)
         errorView = view
-        applyInset()
     }
     func hideError() {
         errorView?.removeFromSuperview()

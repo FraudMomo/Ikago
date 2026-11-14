@@ -9,8 +9,8 @@ struct SiteProtectionControl: View {
     private var host: String { URL(string: tab.url)?.host?.lowercased() ?? "" }
     private var disabled: Bool { (state.browserPreferences.trackerExceptions ?? []).contains(host) }
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Toggle("Built-in tracker blocking", isOn: Binding(get: { !disabled }, set: { enabled in
+        SiteSettingRow(symbol: "hand.raised.fill", title: "Block trackers", detail: changing ? "Reloading…" : "Turning it off reloads the site", tint: .green) {
+            Toggle("Block trackers", isOn: Binding(get: { !disabled }, set: { enabled in
                 var exceptions = state.browserPreferences.trackerExceptions ?? []
                 exceptions.removeAll { $0 == host }
                 if !enabled { exceptions.append(host) }
@@ -22,9 +22,7 @@ struct SiteProtectionControl: View {
                     changing = false
                     if commands?.activeExtensionTab?.tab.id == tab.id { commands?.activeExtensionTab?.page?.reload() }
                 }
-            })).toggleStyle(.switch).controlSize(.small).disabled(changing || host.isEmpty)
-            Text("Reloads this site. Extension ad blockers have their own controls.")
-                .font(.system(size: 10)).foregroundStyle(.secondary)
+            })).labelsHidden().toggleStyle(.switch).controlSize(.mini).disabled(changing || host.isEmpty)
         }
     }
 }

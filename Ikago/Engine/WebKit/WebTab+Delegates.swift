@@ -14,12 +14,19 @@ extension WebKitTab: WKNavigationDelegate {
         // Auxiliary navigation can also be .other instead of .linkActivated.
         let flags = action.modifierFlags
         if action.navigationType == .linkActivated, flags.contains(.shift), !flags.contains(.command), action.buttonNumber != 4 {
-            delegate?.webTab(self, perform: .peek(url.absoluteString))
+            // Peek, or with Peek off a new tab in front, as Shift-click does in other browsers.
+            if delegate?.webTab(self, peeks: url, trigger: .shiftClick) != true {
+                delegate?.webTab(self, openInNewTab: url.absoluteString, background: false)
+            }
             return (.cancel, preferences)
         }
         let newTabGesture = action.buttonNumber == 4 || (action.navigationType == .linkActivated && flags.contains(.command))
         if newTabGesture, AddressResolver.isPageURL(url.absoluteString) || ["chrome-extension", "webkit-extension"].contains(scheme) {
             delegate?.webTab(self, openInNewTab: url.absoluteString, background: !flags.contains(.shift))
+            return (.cancel, preferences)
+        }
+        if action.navigationType == .linkActivated, action.targetFrame?.isMainFrame == true,
+           delegate?.webTab(self, peeks: url, trigger: .link) == true {
             return (.cancel, preferences)
         }
         if action.targetFrame?.isMainFrame == true, delegate?.webTab(self, blocksUnsafeNavigation: url) == true {
@@ -93,12 +100,12 @@ extension WebKitTab: WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         if isMuted { applyMute() }
-        let script = """
-            (() => { const l = document.querySelector('link[rel~="icon"], link[rel="apple-touch-icon"]');
-                     return l ? l.href : null })()
-            """
+        refreshFavicon()
+    }
+
+    func refreshFavicon() {
         let documentURL = currentURL
-        webView.evaluateJavaScript(script, in: nil, in: .defaultClient) { [weak self] result in
+        webView.evaluateJavaScript(FaviconScript.pick(dark: FaviconCache.shared.dark), in: nil, in: .defaultClient) { [weak self] result in
             guard let self, self.currentURL == documentURL else { return }
             let href = (try? result.get()) as? String
             self.delegate?.webTab(self, didFindFavicon: href.flatMap(URL.init(string:)))
@@ -143,6 +150,10 @@ extension WebKitTab: WKUIDelegate {
         let background = (action.modifierFlags.contains(.command) || action.buttonNumber == 4) && !action.modifierFlags.contains(.shift)
         // A clicked link to a site another engine opens: a plain new tab there. Scripted windows (sign-in) stay
         // here, because they need window.opener.
+        if action.navigationType == .linkActivated, !background, let target = action.request.url,
+           delegate?.webTab(self, peeks: target, trigger: .newTabLink) == true {
+            return nil
+        }
         if action.navigationType == .linkActivated, let target = action.request.url, delegate?.webTab(self, usesOtherEngine: target) == true {
             delegate?.webTab(self, openInNewTab: target.absoluteString, background: background)
             return nil

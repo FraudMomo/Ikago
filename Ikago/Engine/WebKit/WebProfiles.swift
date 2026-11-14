@@ -89,6 +89,22 @@ enum WebProfiles {
     static func clearWebKitWebsiteData(_ profileID: String) async {
         await dataStore(for: profileID).removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
     }
+    /// Clear Browsing Data in one Space's WebKit store: cookies and site storage and/or caches modified since `since`.
+    static func removeWebKitData(_ profileID: String, storage: Bool, cache: Bool, since: Date?) async {
+        let cacheTypes: Set<String> = [WKWebsiteDataTypeDiskCache, WKWebsiteDataTypeMemoryCache, WKWebsiteDataTypeFetchCache]
+        let all = WKWebsiteDataStore.allWebsiteDataTypes()
+        let types = (storage ? all.subtracting(cacheTypes) : []).union(cache ? cacheTypes.intersection(all) : [])
+        guard !types.isEmpty else { return }
+        await dataStore(for: profileID).removeData(ofTypes: types, modifiedSince: since ?? .distantPast)
+    }
+    /// One site's cookies and storage (records for its registrable domain) in a Space's WebKit store.
+    static func removeWebKitData(_ profileID: String, forSite host: String) async {
+        let store = dataStore(for: profileID), types = WKWebsiteDataStore.allWebsiteDataTypes()
+        let site = PublicSuffix.registrableDomain(host.lowercased())
+        let records = await store.dataRecords(ofTypes: types).filter { PublicSuffix.registrableDomain($0.displayName.lowercased()) == site }
+        guard !records.isEmpty else { return }
+        await store.removeData(ofTypes: types, for: records)
+    }
     /// Drops a private window's store so its cookies and storage are released with it.
     static func forget(_ profileID: String) {
         stores[profileID] = nil

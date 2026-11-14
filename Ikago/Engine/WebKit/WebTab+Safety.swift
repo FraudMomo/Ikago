@@ -33,3 +33,20 @@ extension WebKitTab {
         webView.reload()
     }
 }
+
+// MARK: - Session history
+
+extension WebKitTab {
+    /// WebKit's own record of the tab (Back and Forward, scroll positions), when small enough, and the Back addresses.
+    func sessionHistory() async -> TabHistory? {
+        var history = TabHistory(back: TabHistory.trimmed(webView.backForwardList.backList.map(\.url.absoluteString)))
+        if let data = webView.interactionState as? Data, data.count <= TabHistory.maxState { history.state = data.base64EncodedString() }
+        return history.isEmpty ? nil : history
+    }
+
+    func restoreHistory(_ history: TabHistory) -> Bool {
+        guard let state = history.state, let data = Data(base64Encoded: state) else { return false }
+        webView.interactionState = data
+        return true
+    }
+}
