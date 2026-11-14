@@ -17,6 +17,8 @@ NS_SWIFT_UI_ACTOR
 @property(nonatomic, copy, nullable) void (^externalLinkHandler)(NSURL *, NSString *);
 @property(nonatomic, copy, nullable) BOOL (^popupHandler)(IKCEFPage *, NSString *, BOOL);
 @property(nonatomic, copy, nullable) BOOL (^navigationHandler)(NSURL *, NSString *method);
+/// A clicked link Peek may take: trigger 0 Shift-click, 1 a link that opens a new tab, 2 a plain link. YES: peeked.
+@property(nonatomic, copy, nullable) BOOL (^peekHandler)(NSURL *, NSInteger trigger);
 /// A link the person asked to open in a new tab (⌘-click, middle-click): the URL and whether it stays in the background.
 @property(nonatomic, copy, nullable) void (^newTabHandler)(NSURL *, BOOL background);
 @property(nonatomic, copy, nullable) void (^mediaPermissionHandler)(IKCEFMediaRequest *);

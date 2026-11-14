@@ -21,14 +21,13 @@ protocol TabHost: AnyObject {
 final class TabController: NSObject, WebTabDelegate {
     let tab: TabItem
     let hostView = TabHostView()
-    private let reflection = ReflectionView()
     /// Split view: strip over the pane on hover (move, remove from split).
     private(set) var header: PaneHeaderView?
-    private var reflectionTask: Task<Void, Never>?
     weak var host: TabHost?
     private weak var state: BrowserState?
     var browserState: BrowserState? { state }
-    private(set) var page: WebTab?
+    /// Set by `attach`, cleared on close or when the tab moves to another window (`releasePage`).
+    var page: WebTab?
     var isClosing = false
     /// Opened by another page (window.open / target=_blank): keeps its engine, so window.opener keeps working.
     let isPopup: Bool
@@ -44,18 +43,15 @@ final class TabController: NSObject, WebTabDelegate {
     var failedURL: String?
     /// The HTTP address HTTPS-only mode just upgraded, so a failure can offer to open it anyway.
     var upgradedURL: URL?
-    var topInset: CGFloat = 0 {
-        didSet { if topInset != oldValue { applyInset() } }
-    }
-    /// `page` is set for popups, whose web view WebKit needs immediately.
-    init(tab: TabItem, state: BrowserState, host: TabHost, page: WebTab? = nil) {
+    /// `page` is set for popups, whose web view WebKit needs immediately, and for tabs moved in from another window.
+    init(tab: TabItem, state: BrowserState, host: TabHost, page: WebTab? = nil, popup: Bool? = nil) {
         self.tab = tab
         self.state = state
         self.host = host
-        isPopup = page != nil
+        isPopup = popup ?? (page != nil)
         super.init()
-        hostView.addSubview(reflection)
-        hostView.onHover = { [weak self] inside in self?.setHeaderVisible(inside) }
+        hostView.onHover = { [weak self] inside in if !inside { self?.setHeaderVisible(false) } }
+        hostView.onMove = { [weak self] point in self?.pointerMoved(to: point) }
         if let page { attach(page) }
     }
     var isStarted: Bool { page != nil || internalView != nil }
@@ -84,6 +80,7 @@ final class TabController: NSObject, WebTabDelegate {
         let page: any WebTab
         do { page = try makePage(engine, extensionContext: extensionContext) } catch { showError(error.localizedDescription); return }
         attach(page)
+        if restoreHistory(into: page, destination: destination) { return }  // the page brought back its saved history (and its page)
         // Chromium loads extension pages (a new-tab page such as Momentum) in an ordinary page.
         let chromiumExtensionPage = engine == .chromium && ExtensionURL.isExtension(destination)
         if AddressResolver.isPageURL(destination) || extensionContext != nil || chromiumExtensionPage, let url {
@@ -99,7 +96,6 @@ final class TabController: NSObject, WebTabDelegate {
         tab.engine = page.engine
         tab.hasLivePage = true
         self.page = page
-        page.setTopInset(topInset)
         page.setMuted(tab.isMuted)
         page.delegate = self
         page.contentView.frame = hostView.bounds
@@ -140,16 +136,22 @@ final class TabController: NSObject, WebTabDelegate {
     func refreshSplitHeader() {
         guard let window = hostView.window else { return }
         let point = hostView.convert(window.convertPoint(fromScreen: NSEvent.mouseLocation), from: nil)
-        setHeaderVisible(hostView.bounds.contains(point))
+        pointerMoved(to: point)
+    }
+    /// The header shows while the pointer is near the pane's top edge (or on the header itself), and fades away otherwise.
+    private func pointerMoved(to point: NSPoint) {
+        let band = PaneHeaderView.topGap + PaneHeaderView.height + 22
+        let nearTop = hostView.bounds.contains(point) && point.y >= hostView.bounds.height - band
+        setHeaderVisible(nearTop)
     }
     func setHeaderVisible(_ visible: Bool) {
         guard let state else { return }
-        guard visible, state.splitGroup(of: tab.id) != nil else { header?.isHidden = true; return }
+        guard visible, state.splitGroup(of: tab.id) != nil else { fadeHeader(in: false); return }
         if header == nil {
             let view = PaneHeaderView(tab: tab)
             view.onRemove = { [weak self] in
                 guard let self, let state = self.state else { return }
-                self.header?.isHidden = true
+                self.fadeHeader(in: false)
                 if self.tab.url == InternalPage.splitEmpty.url { state.closeTab(self.tab.id) }
                 else { state.separate(self.tab.id) }
             }
@@ -160,31 +162,31 @@ final class TabController: NSObject, WebTabDelegate {
                 guard let self else { return }; self.host?.tabControllerEndedDrag(self)
             }
             header = view
-            header?.autoresizingMask = [.width, .minYMargin]
         }
         guard let header else { return }
         header.handle.title.stringValue = tab.displayTitle
-        header.frame = NSRect(x: 10, y: hostView.bounds.height - topInset - 34, width: max(0, hostView.bounds.width - 20), height: 26)
-        hostView.addSubview(header, positioned: .above, relativeTo: nil)  // above the page and any internal view
-        header.isHidden = false
+        let width = header.preferredWidth(in: hostView.bounds.width)
+        header.frame = NSRect(x: ((hostView.bounds.width - width) / 2).rounded(),
+                              y: hostView.bounds.height - PaneHeaderView.topGap - PaneHeaderView.height,
+                              width: width, height: PaneHeaderView.height)
+        header.autoresizingMask = [.minXMargin, .maxXMargin, .minYMargin]
+        if header.superview !== hostView || hostView.subviews.last !== header {
+            hostView.addSubview(header, positioned: .above, relativeTo: nil)  // above the page and any internal view
+        }
+        fadeHeader(in: true)
     }
-    func applyInset() {
-        page?.setTopInset(topInset)
-        let insets = NSEdgeInsets(top: topInset, left: 0, bottom: 0, right: 0)
-        internalView?.additionalSafeAreaInsets = insets
-        errorView?.additionalSafeAreaInsets = insets
-        reflection.frame = NSRect(x: 0, y: hostView.bounds.height - topInset, width: hostView.bounds.width, height: topInset)
-        if topInset > 0 { refreshReflection() } else { reflection.clear() }
-    }
-    /// Re-copies the top of the page into the reflection (after a load, or when the inset changes).
-    /// Debounced and cancellable: dragging a size slider changes the inset many times a second.
-    private func refreshReflection(after delay: Duration = .milliseconds(200)) {
-        guard isActive, topInset > 0, page != nil else { return reflection.clear() }
-        reflectionTask?.cancel()
-        reflectionTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: delay)
-            guard !Task.isCancelled, let self, self.isActive, self.topInset > 0, let page = self.page else { return }
-            page.snapshotBelowInset(self.topInset) { [weak self] image in self?.reflection.show(image) }
+
+    private func fadeHeader(in visible: Bool) {
+        guard let header else { return }
+        if visible { header.isHidden = false }
+        guard header.alphaValue != (visible ? 1 : 0) || (!visible && !header.isHidden) else { return }
+        let reduce = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = reduce ? 0 : visible ? 0.14 : 0.22
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            header.animator().alphaValue = visible ? 1 : 0
+        } completionHandler: { [weak header] in
+            MainActor.assumeIsolated { if let header, header.alphaValue == 0 { header.isHidden = true } }
         }
     }
     private func showInternal(_ builtIn: InternalPage) {
@@ -201,7 +203,6 @@ final class TabController: NSObject, WebTabDelegate {
         view.autoresizingMask = [.width, .height]
         hostView.addSubview(view)
         internalView = view
-        applyInset()
         tab.title = builtIn.title
         tab.isLoading = false
         tab.canGoBack = false
@@ -210,8 +211,6 @@ final class TabController: NSObject, WebTabDelegate {
     func focus() { page?.focus() }
     func hibernate() {
         guard !isActive, isStarted else { return }
-        reflectionTask?.cancel()
-        reflection.clear()
         page?.delegate = nil
         page?.tearDown()
         page = nil
@@ -252,7 +251,6 @@ final class TabController: NSObject, WebTabDelegate {
     }
     func webTab(_ page: WebTab, didCommit url: String) {
         showLinkStatus(nil)
-        reflection.clear()
         upgradedURL = nil
         state?.recordVisit(tabID: tab.id, url: url)
     }
@@ -268,9 +266,8 @@ final class TabController: NSObject, WebTabDelegate {
             if tab.loadError != nil { tab.loadError = nil }
             hideError()
         } else {
+            captureHistory()
             if tab.progress != 1 { tab.progress = 1 }
-            // Give the page a moment to paint before copying its top.
-            refreshReflection(after: .milliseconds(700))
         }
         ExtensionManager.shared.tabChanged(self, .loading)
     }

@@ -15,7 +15,7 @@ final class LinkStatusView: NSVisualEffectView {
         blendingMode = .withinWindow
         state = .active
         wantsLayer = true
-        layer?.cornerRadius = 6
+        layer?.cornerRadius = Radius.inner
         layer?.cornerCurve = .continuous
         layer?.masksToBounds = true
         layer?.borderWidth = 0.5

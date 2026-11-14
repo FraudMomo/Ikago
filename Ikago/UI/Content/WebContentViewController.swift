@@ -9,11 +9,16 @@ final class WebContentViewController: NSViewController {
     let state: BrowserState
     weak var host: TabHost?
     private let surface = WebTabContainerView()
+    /// The next tab switch shows its page at once: a Peek grown to the page's place becomes the tab (no fade).
+    var switchesInstantly = false
+    /// Where pages sit, in `view`'s coordinates.
+    var pageArea: NSView { surface }
     private var emptyView: NSView!
     private(set) var controllers: [String: TabController] = [:]
     private var stopped = false
     private var lastActiveID: String?
     private var mouseMonitor: Any?
+    private var historySwipe: HistorySwipe?
     private(set) lazy var memoryManagement = TabMemoryManagement(content: self)
     /// False while the user types in the address/command bar: don't hand the keyboard to the page.
     var shouldFocusPage: () -> Bool = { true }
@@ -68,6 +73,14 @@ final class WebContentViewController: NSViewController {
         reconcile()
         memoryManagement.markVisible()
         // In split view, clicking into a pane focuses its tab (the address bar follows it).
+        // Swipes Back/Forward across an engine handoff, which neither engine's own gesture can reach.
+        historySwipe = HistorySwipe { [weak self] event in
+            guard let self, event.window === self.view.window else { return nil }
+            return self.state.visibleTabIDs.lazy.compactMap { self.controllers[$0] }.first { controller in
+                controller.hostView.window != nil
+                    && controller.hostView.bounds.contains(controller.hostView.convert(event.locationInWindow, from: nil))
+            }
+        }
         mouseMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
             self?.focusPane(at: event)
             return event
@@ -104,7 +117,6 @@ final class WebContentViewController: NSViewController {
         _ = state.activeTabID
         _ = state.palette.nsTint
         _ = state.frameInset
-        _ = state.floatingContentInset
         _ = state.isImmersive
     }
 
@@ -114,6 +126,7 @@ final class WebContentViewController: NSViewController {
         memoryManagement.stop()
         if let mouseMonitor { NSEvent.removeMonitor(mouseMonitor) }
         mouseMonitor = nil
+        historySwipe?.stop(); historySwipe = nil
         for controller in controllers.values { controller.close() }
         controllers.removeAll()
     }
@@ -134,19 +147,23 @@ final class WebContentViewController: NSViewController {
         for controller in controllers.values where controller.tab.isHibernating && !controller.isActive { controller.hibernate() }
         let visible = state.visibleTabIDs.compactMap { id in controllers[id].map { (id: id, view: $0.hostView as NSView) } }
         emptyView.isHidden = !visible.isEmpty
-        surface.show(visible, layout: state.splitLayout, animate: state.browserPreferences.instantTabSwitching != true && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
+        let fades = state.browserPreferences.instantTabSwitching != true && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        surface.show(visible, layout: state.splitLayout, animate: fades && !switchesInstantly)
+        switchesInstantly = false
         surface.highlight(state.activeTabID, views: visible, color: state.palette.nsAccent)
         // Native video overlays stop monitoring while parked and resume when shown.
         for controller in controllers.values { controller.page?.visibilityChanged() }
-        for controller in controllers.values { controller.topInset = state.floatingContentInset }
         memoryManagement.markVisible()
         for id in state.visibleTabIDs { controllers[id]?.startIfNeeded() }
         for id in state.visibleTabIDs { controllers[id]?.refreshSplitHeader() }
         surface.setPaneBackground(state.isDark ? NSColor(hex: 0x1C1C1E) : .white)
         let switchedTab = state.activeTabID != lastActiveID
         let radius: CGFloat = state.pageCornerRadius
-        if WebTabContainerView.cornerRadius != radius {
+        // Under the Sidebar + Tabs address bar the page's top corners are square: the bar is the card's top.
+        let squareTop = state.showsSidebarTopTabs
+        if WebTabContainerView.cornerRadius != radius || WebTabContainerView.squareTop != squareTop {
             WebTabContainerView.cornerRadius = radius
+            WebTabContainerView.squareTop = squareTop
             for controller in controllers.values { WebTabContainerView.round(controller.hostView) }
             WebTabContainerView.round(emptyView)
         }
@@ -175,11 +192,43 @@ final class WebContentViewController: NSViewController {
         return controller
     }
 
+    /// The tab is moving to another window: its controller leaves this window and hands over the live page, if any.
+    func release(_ id: String) -> (page: WebTab?, popup: Bool)? {
+        guard let controller = controllers.removeValue(forKey: id) else { return nil }
+        ExtensionManager.shared.tabClosed(controller)
+        return (controller.releasePage(), controller.isPopup)
+    }
+
+    /// A tab moved in from another window, keeping its live page.
+    func adopt(_ tab: TabItem, page: WebTab?, popup: Bool) {
+        guard let host, controllers[tab.id] == nil else { return }
+        let controller = TabController(tab: tab, state: state, host: host, page: page, popup: popup)
+        controllers[tab.id] = controller
+        surface.park(controller.hostView)
+        controller.hostView.frame = surface.bounds
+        ExtensionManager.shared.tabOpened(controller)
+    }
+
+    /// A Peek kept as a tab: its live page moves straight from the preview into the tab's view, never out of the window.
+    func adopt(_ tab: TabItem, fromPeek peek: TabController) {
+        guard let host, controllers[tab.id] == nil else { return }
+        let controller = TabController(tab: tab, state: state, host: host)
+        controllers[tab.id] = controller
+        surface.park(controller.hostView)
+        controller.hostView.frame = surface.bounds
+        if let page = peek.releasePage(inWindow: true) { controller.attach(page) }
+        peek.hostView.removeFromSuperview()
+        ExtensionManager.shared.tabOpened(controller)
+    }
+
     func adoptCEFPopup(_ page: CEFWebTab, url: String, background: Bool, opener: TabController) -> Bool {
         guard let host, let tab = state.newTabFromLink(url: url.isEmpty ? "about:blank" : url, opener: opener.tab, select: !background) else { return false }
         let controller = TabController(tab: tab, state: state, host: host, page: page)
         controllers[tab.id] = controller
         surface.park(controller.hostView)
+        // Sized like any page from the start: a Chromium page adopted at 0×0 could stay blank when shown.
+        controller.hostView.frame = surface.bounds
+        ExtensionManager.shared.tabOpened(controller)
         return true
     }
     /// Adopts a popup into a new tab. It must use WebKit's `configuration` so

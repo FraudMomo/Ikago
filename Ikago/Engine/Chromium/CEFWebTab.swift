@@ -24,6 +24,8 @@ final class CEFWebTab: WebTab {
     var pageStateContexts: Set<Int> = []
     var pageStateRoot: Int?
     var pageFrameReports: [Int: [String: Any]] = [:]
+    /// Each page-state context's count of Picture in Picture requests the page made itself.
+    var pagePictureInPictureCounts: [Int: Int] = [:]
     var stateScriptInstalls = 0
     var nativeVideoRequested = false
     /// Last theme color reported by the document observer.
@@ -39,6 +41,17 @@ final class CEFWebTab: WebTab {
     private lazy var storeBridge = ChromiumStoreBridge(tab: self)
     /// A page's element fullscreen (YouTube's fullscreen button).
     private lazy var fullscreen = ChromiumFullscreen(page: page)
+    /// Whether the page has been on screen yet (`visibilityChanged`).
+    private var hasBeenShown = false
+    /// Picture in Picture in Ikago's own floating panel (`ChromiumPictureInPicture`).
+    lazy var floatingVideo: ChromiumPictureInPicture = {
+        let pip = ChromiumPictureInPicture(page: page)
+        pip.togglePlayback = { [weak self] in
+            guard let self else { return }
+            Task { @MainActor in await self.controlMedia(self.playback.playing ? .pause : .play) }
+        }
+        return pip
+    }()
     var zoomLevel: Double {
         get { page.zoomLevel }
         set { page.zoomLevel = min(9, max(-7, newValue)) }
@@ -102,6 +115,12 @@ final class CEFWebTab: WebTab {
                 Task { @MainActor in reply(await delegate.webTab(self, mayDownload: URL(string: download))) }
             }
         }
+        page.peekHandler = { [weak self] url, trigger in
+            MainActor.assumeIsolated {
+                guard let self, let delegate = self.delegate else { return false }
+                return delegate.webTab(self, peeks: url, trigger: trigger == 0 ? .shiftClick : trigger == 1 ? .newTabLink : .link)
+            }
+        }
         page.newTabHandler = { [weak self] url, background in
             MainActor.assumeIsolated {
                 guard let self else { return }
@@ -124,6 +143,12 @@ final class CEFWebTab: WebTab {
     func visibilityChanged() {
         guard !isTornDown else { return }
         nativeVideo.visibilityChanged()
+        // The first time a page shows (a link's new tab, adopted while out of sight), Chromium may not have painted at
+        // the real size yet and the tab stayed blank until reloaded in the other engine: give it a fresh resize.
+        if !hasBeenShown, isPageShown {
+            hasBeenShown = true
+            DispatchQueue.main.async { [weak self] in MainActor.assumeIsolated { self?.page.refit() } }
+        }
     }
     func goBack() { page.goBack() }
     func goForward() { page.goForward() }
@@ -140,21 +165,14 @@ final class CEFWebTab: WebTab {
         nativeVideo.tearDown()
         storeBridge.tearDown()
         fullscreen.tearDown()
+        floatingVideo.tearDown()
         delegate = nil
-        page.eventHandler = nil; page.externalLinkHandler = nil; page.popupHandler = nil; page.newTabHandler = nil; page.navigationHandler = nil; page.downloadGateHandler = nil
+        page.eventHandler = nil; page.externalLinkHandler = nil; page.popupHandler = nil; page.newTabHandler = nil; page.peekHandler = nil; page.navigationHandler = nil; page.downloadGateHandler = nil
         page.mediaPermissionHandler = nil
         page.close(); page.removeFromSuperview()
     }
     /// After full screen comes or goes (see `IKCEFPage.refitPage`).
     func refitPage() { page.refit() }
-    func setTopInset(_ inset: CGFloat) {
-        // While a video has the whole screen the page has no inset; keep the tab's latest for afterwards.
-        if fullscreen.isActive { fullscreen.pendingInset = inset } else { page.topInset = inset }
-    }
-    func snapshotBelowInset(_ inset: CGFloat, completion: @escaping (NSImage?) -> Void) {
-        guard inset > 0 else { completion(nil); return }
-        Task { @MainActor in completion(try? await snapshot(rect: NSRect(x: 0, y: 0, width: page.bounds.width, height: inset))) }
-    }
     func find(_ text: String, forward: Bool, matchCase: Bool) { page.findText(text, forward: forward, matchCase: matchCase) }
     func clearFindSelection() { page.clearFind() }
     func stopCapture(camera: Bool, microphone: Bool) {
@@ -183,7 +201,8 @@ final class CEFWebTab: WebTab {
             microphoneActive = payload["microphone"] as? Bool ?? false
             reportMedia()
         case "contextAction":
-            let action = payload["action"] as? String ?? ""
+            // The menu sends its text as "text" (other events use "value"); reading "value" left every action empty.
+            let action = payload["action"] as? String ?? "", text = payload["text"] as? String ?? text
             if action == "peek" { delegate?.webTab(self, perform: .peek(text)) }
             else if action == "private" { delegate?.webTab(self, perform: .privateLink(text)) }
             else if action == "search" { delegate?.webTab(self, perform: .search(text)) }
@@ -191,12 +210,14 @@ final class CEFWebTab: WebTab {
             else if action == "translate" { delegate?.webTab(self, perform: .translate) }
         case "title": delegate?.webTab(self, didChangeTitle: text)
         case "status": delegate?.webTab(self, didHoverLink: text.isEmpty ? nil : text)
-        case "fullscreen": fullscreen.pageChanged(fullscreen: payload["value"] as? Bool ?? false)
+        case "fullscreen":
+            let on = payload["value"] as? Bool ?? false
+            if !floatingVideo.pageChanged(fullscreen: on) { fullscreen.pageChanged(fullscreen: on) }
         case "url": currentURL = text; delegate?.webTab(self, didChangeURL: text); storeBridge.pageChanged()
         case "commit":
             documentGeneration += 1; currentURL = text
             stateTask?.cancel()
-            pageStateContexts.removeAll(); pageFrameReports.removeAll(); pageStateRoot = nil
+            pageStateContexts.removeAll(); pageFrameReports.removeAll(); pagePictureInPictureCounts.removeAll(); pageStateRoot = nil
             nativeVideoRequested = false
             updatePlayback([])
             observePageState()
@@ -208,7 +229,7 @@ final class CEFWebTab: WebTab {
         case "loading":
             if !page.loading { injectPasswordKey(); nativeVideo.inject(); storeBridge.pageChanged() }
             delegate?.webTab(self, didChangeLoading: page.loading, canGoBack: page.canGoBack, canGoForward: page.canGoForward)
-        case "favicon": delegate?.webTab(self, didFindFavicon: URL(string: text))
+        case "favicon": pickFavicon(fallback: URL(string: text))
         case "security": delegate?.webTab(self, didChangeSecureContent: payload["value"] as? Bool ?? false)
         case "theme":
             let argb = (payload["value"] as? NSNumber)?.uint32Value ?? 0

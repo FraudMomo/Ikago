@@ -16,6 +16,8 @@ struct EngineHandoff {
     /// What the current page itself reports.
     var pageCanGoBack = false
     var pageCanGoForward = false
+    /// Saved Back addresses a page couldn't restore itself (Chromium), newest last (`TabController+History`).
+    var restoredBack: [String] = []
 
     mutating func allowsAnother() -> Bool {
         recent = recent.filter { $0 > Date().addingTimeInterval(-10) }
@@ -79,6 +81,7 @@ extension TabController {
 
     /// Back: within the page, else to the page before the last engine switch.
     func goBack() {
+        if goBackThroughRestored() { return }
         if handoff.pageCanGoBack || (handoff.previous == nil && handoff.previousDestination == nil) { page?.goBack(); return }
         swapParked(back: true)
     }
@@ -118,7 +121,7 @@ extension TabController {
     }
 
     func refreshHistoryButtons() {
-        tab.canGoBack = handoff.pageCanGoBack || handoff.previous != nil || handoff.previousDestination != nil
+        tab.canGoBack = handoff.pageCanGoBack || handoff.previous != nil || handoff.previousDestination != nil || !handoff.restoredBack.isEmpty
         tab.canGoForward = handoff.pageCanGoForward || handoff.next != nil || handoff.nextDestination != nil
     }
 
@@ -137,7 +140,7 @@ extension TabController {
         let badge = PassThroughHostingView(rootView: EngineBadge(engine: engine, palette: state.palette))
         badge.sizingOptions = [.intrinsicContentSize]
         let size = badge.fittingSize
-        badge.frame = NSRect(x: 12, y: hostView.bounds.height - topInset - size.height - 12, width: size.width, height: size.height)
+        badge.frame = NSRect(x: 12, y: hostView.bounds.height - size.height - 12, width: size.width, height: size.height)
         badge.autoresizingMask = [.minYMargin, .maxXMargin]
         badge.setAccessibilityLabel("Opened in \(engine.title)")
         hostView.addSubview(badge, positioned: .above, relativeTo: nil)

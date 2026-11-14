@@ -76,10 +76,13 @@ class Client final : public CefClient, public CefLifeSpanHandler,
       const CefString& url, const CefString&, WindowOpenDisposition disposition, bool gesture,
       const CefPopupFeatures&, CefWindowInfo& window, CefRefPtr<CefClient>& client,
       CefBrowserSettings&, CefRefPtr<CefDictionaryValue>&, bool*) override {
-    if (gesture && disposition == CEF_WOD_NEW_WINDOW && (NSEvent.modifierFlags & NSEventModifierFlagShift) && !(NSEvent.modifierFlags & NSEventModifierFlagCommand)) {
+    // Peek decides first (the person's setting): Shift-click, or a link that would open a new tab.
+    if (gesture) {
       IKCEFPage *page = page_;
-      if (page && !page.isClosed) [page emit:@"contextAction" payload:@{@"action": @"peek", @"text": IKCEFString(url)}];
-      return true;
+      const BOOL shift = (NSEvent.modifierFlags & NSEventModifierFlagShift) && !(NSEvent.modifierFlags & NSEventModifierFlagCommand);
+      const NSInteger trigger = (disposition == CEF_WOD_NEW_WINDOW && shift) ? 0 : (disposition == CEF_WOD_NEW_FOREGROUND_TAB && !shift) ? 1 : -1;
+      NSURL *target = [NSURL URLWithString:IKCEFString(url)];
+      if (trigger >= 0 && page && !page.isClosed && page.peekHandler && target && page.peekHandler(target, trigger)) return true;
     }
 
     IKCEFPage *opener = page_;
@@ -167,7 +170,7 @@ class Client final : public CefClient, public CefLifeSpanHandler,
     return true;
   }
   bool OnBeforeBrowse(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame> frame,
-      CefRefPtr<CefRequest> request, bool, bool) override {
+      CefRefPtr<CefRequest> request, bool gesture, bool redirect) override {
     if (frame->IsMain()) {
       [page_ invalidateRequests:@"The page is navigating."];
       [page_ emit:@"navigation" payload:@{}];
@@ -179,6 +182,11 @@ class Client final : public CefClient, public CefLifeSpanHandler,
     if ([scheme isEqual:@"file"])
       return !frame->IsMain() || ![url.URLByStandardizingPath.path isEqual:owner->_approvedFilePath];
     if (frame->IsMain() && ![scheme isEqual:@"about"]) owner->_approvedFilePath = nil;
+    // A plain link click Peek takes (Automatic Peek from a pinned tab or search results).
+    if (frame->IsMain() && gesture && !redirect && owner.peekHandler && url
+        && (request->GetTransitionType() & TT_SOURCE_MASK) == TT_LINK
+        && !(NSEvent.modifierFlags & (NSEventModifierFlagShift | NSEventModifierFlagCommand))
+        && owner.peekHandler(url, 2)) return true;
     if (frame->IsMain() && owner.navigationHandler && !owner.navigationHandler(url, IKCEFString(request->GetMethod()))) return true;
     if ([scheme isEqual:@"http"] || [scheme isEqual:@"https"] ||
         [scheme isEqual:@"about"] || [scheme isEqual:@"chrome-extension"]) return false;

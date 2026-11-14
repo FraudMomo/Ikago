@@ -22,18 +22,25 @@ protocol WebTab: AnyObject {
     func stopLoading()
     func focus()
     func tearDown()
-    func setTopInset(_ inset: CGFloat)
-    func snapshotBelowInset(_ inset: CGFloat, completion: @escaping (NSImage?) -> Void)
     func find(_ text: String, forward: Bool, matchCase: Bool)
     func clearFindSelection()
     func stopCapture(camera: Bool, microphone: Bool)
     func setCaptureMuted(_ muted: Bool, microphone: Bool)
     func setMuted(_ muted: Bool)
     func pictureInPicture() async throws
+    /// The page's Back history for the session (`TabHistory`), nil when there is nothing to keep.
+    func sessionHistory() async -> TabHistory?
+    /// Restores saved history into a page that hasn't loaded yet, in place of loading its address. False when the
+    /// engine can't (Chromium); the tab then goes back through `TabHistory.back` itself.
+    func restoreHistory(_ history: TabHistory) -> Bool
+    /// Ends Picture in Picture the page drew itself (Chromium's panel) before the page moves to another window.
+    func endPictureInPicture()
     func controlMedia(_ action: MediaPlaybackAction) async
     func evaluate(_ script: String) async throws -> Any?
     func callAsync(_ body: String) async throws -> Any?
     func printPage()
+    /// Looks up the page's icon again for Ikago's current light or dark mode (`FaviconScript`).
+    func refreshFavicon()
     func setDeveloperTools(_ enabled: Bool)
     func toggleInspector()
     func snapshot() async throws -> NSImage
@@ -51,6 +58,18 @@ extension WebTab {
     }
     func stopCapture() { stopCapture(camera: true, microphone: true) }
     func visibilityChanged() {}
+    func endPictureInPicture() {}
+    func sessionHistory() async -> TabHistory? { nil }
+    func restoreHistory(_ history: TabHistory) -> Bool { false }
+    /// Goes to `url` in place of the current history entry (Back through restored history, without stacking entries).
+    func replace(with url: String) {
+        guard let data = try? JSONEncoder().encode(url), let literal = String(data: data, encoding: .utf8) else { return load(url) }
+        Task { @MainActor in
+            // Answer first, then go: navigating right away ends the script before it can answer, which read as a
+            // failure and loaded the page a second time, stacking an entry.
+            if (try? await callAsync("setTimeout(() => location.replace(\(literal)), 0); return true")) == nil { load(url) }
+        }
+    }
     func pauseForHistory() { Task { @MainActor in await controlMedia(.pause) } }
     func hasNavigationHistory() async -> Bool { true }
 }

@@ -90,6 +90,30 @@ enum EngineCookieSync {
         catch { retryChromiumClear(profile: profile); throw error }
     }
 
+    /// Clear Browsing Data: cookies and site storage and/or caches, since `since` (nil: all time). WebKit clears by
+    /// modification time; Chromium has no time filter, so a period clears the sites visited in it (`knownURLs`). A full
+    /// clear Chromium can't run in this launch waits for the next one; a period's is skipped (this launch's visits were
+    /// all in WebKit).
+    static func clear(profile: String, knownURLs: [String], storage: Bool, cache: Bool, since: Date?) async throws {
+        if usesRealStores || !BrowserRuntime.runs(.chromium) {
+            await WebProfiles.removeWebKitData(profile, storage: storage, cache: cache, since: since)
+        }
+        guard BrowserRuntime.runs(.chromium) else {
+            if storage, since == nil { retryChromiumClear(profile: profile) }
+            return
+        }
+        try await ChromiumWebsiteData.clear(profile: profile, knownURLs: knownURLs, storage: storage, cache: cache, onlyKnown: since != nil)
+    }
+
+    /// The site popover's Clear Site Data: one site's cookies and storage, in both engines.
+    static func clearSite(profile: String, url: URL) async throws {
+        if usesRealStores || !BrowserRuntime.runs(.chromium), let host = url.host {
+            await WebProfiles.removeWebKitData(profile, forSite: host)
+        }
+        guard BrowserRuntime.runs(.chromium) else { return }
+        try await ChromiumWebsiteData.clear(profile: profile, knownURLs: [url.absoluteString], storage: true, cache: false, onlyKnown: true)
+    }
+
     /// A Chromium clear failed: try again at the next launch, before any tab opens.
     static func retryChromiumClear(profile: String) {
         guard usesRealStores else { return }

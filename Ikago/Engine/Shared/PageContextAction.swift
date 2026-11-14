@@ -6,6 +6,14 @@ enum PageContextAction {
 }
 
 extension TabController {
+    /// The person's Peek setting decides (`BrowserState.peeks`); a page shown in Peek never peeks its own links.
+    func webTab(_ page: WebTab, peeks url: URL, trigger: PeekTrigger) -> Bool {
+        guard page === self.page, let state = browserState, let window = host as? BrowserWindowController,
+              window.peekController !== self, state.peeks(url, trigger: trigger, in: tab, pageURL: page.currentURL) else { return false }
+        window.peekLink(url.absoluteString)
+        return true
+    }
+
     func webTab(_ page: WebTab, perform action: PageContextAction) {
         guard page === self.page else { return }
         switch action {
@@ -21,8 +29,9 @@ extension TabController {
             var components = URLComponents(string: "https://translate.google.com/translate")!
             components.queryItems = [.init(name: "sl", value: "auto"), .init(name: "tl", value: Locale.current.language.languageCode?.identifier ?? "en"), .init(name: "u", value: url.absoluteString)]
             if let address = components.url?.absoluteString { (host as? BrowserCommands)?.openInNewTab(address) }
-        case .pictureInPicture(let address):
-            NativePictureInPicture.shared.open(address, owner: page, window: hostView.window)
+        case .pictureInPicture:
+            // The page's own Picture in Picture (WebKit's, or Ikago's panel on Chromium), which plays streams too.
+            (host as? BrowserCommands)?.pictureInPicture(tab.id)
         }
     }
 }

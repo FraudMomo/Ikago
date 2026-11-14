@@ -19,6 +19,9 @@ protocol WebTabDelegate: AnyObject {
     func webTab(_ page: WebTab, handsOff url: URL, method: String) -> Bool
     /// A link opening in a new tab leads to a site another engine opens: open it as a new tab there instead.
     func webTab(_ page: WebTab, usesOtherEngine url: URL) -> Bool
+    /// A clicked link the person's Peek setting opens in Peek (`LinkPeek`): true when it went there, so the page
+    /// doesn't navigate.
+    func webTab(_ page: WebTab, peeks url: URL, trigger: PeekTrigger) -> Bool
     /// HTTPS-only mode is retrying this HTTP address over HTTPS, in case that fails.
     func webTab(_ page: WebTab, willUpgradeToHTTPS url: URL)
     /// A site wants to save a file. Asks the person the first time.

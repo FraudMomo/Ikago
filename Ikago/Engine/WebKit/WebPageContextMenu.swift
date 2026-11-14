@@ -36,8 +36,8 @@ extension FileDropWebView {
             if let link = hit["link"], AddressResolver.isWebURL(link) {
                 self.addPageItem("Open Link in Private Window", to: menu) { [weak self] in self?.pageAction(.privateLink(link)) }
             }
-            if let video = hit["video"], AddressResolver.isWebURL(video) {
-                self.addPageItem("Float Video in Native Player", to: menu) { [weak self] in self?.pageAction(.pictureInPicture(video)) }
+            if let video = hit["video"], !video.isEmpty, !menu.items.contains(where: { $0.title.localizedCaseInsensitiveContains("Picture in Picture") }) {
+                self.addPageItem("Picture in Picture", to: menu) { [weak self] in self?.pageAction(.pictureInPicture(video)) }
             }
         }
     }

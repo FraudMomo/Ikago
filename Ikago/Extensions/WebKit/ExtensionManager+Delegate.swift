@@ -2,16 +2,16 @@ import AppKit
 import WebKit
 
 /// What extensions can ask of the browser: windows, new tabs, options pages, popups and
-/// extra permissions. Ikago has one window, so "new windows" become tabs in it.
+/// extra permissions. "New windows" become tabs in the front regular window.
 extension ExtensionManager: WKWebExtensionControllerDelegate {
     func webExtensionController(_ controller: WKWebExtensionController,
                                 openWindowsFor extensionContext: WKWebExtensionContext) -> [any WKWebExtensionWindow] {
-        browser.map { [$0] } ?? []
+        BrowserWindows.all
     }
 
     func webExtensionController(_ controller: WKWebExtensionController,
                                 focusedWindowFor extensionContext: WKWebExtensionContext) -> (any WKWebExtensionWindow)? {
-        browser?.window?.isKeyWindow == true ? browser : nil
+        BrowserWindows.all.first { $0.window?.isKeyWindow == true }
     }
 
     func webExtensionController(_ controller: WKWebExtensionController,

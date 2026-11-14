@@ -53,3 +53,23 @@ extension TabController {
     /// The address exactly as the page gave it (never decoded: decoded text could imitate another address).
     static func statusText(_ url: String) -> String { String(url.prefix(512)) }
 }
+
+extension TabController {
+    /// The tab is moving to another window: hands over its live page (still loaded, with its history and state) and
+    /// retires this controller without touching the tab, which the other window's controller now owns.
+    /// `inWindow`: the page stays where it is until its new tab's view takes it (a kept Peek), and the caller removes
+    /// this controller's view afterwards. A Chromium page that leaves the window rebuilds its drawing layers, and they
+    /// came back a point off its view.
+    func releasePage(inWindow: Bool = false) -> WebTab? {
+        isClosing = true
+        let released = page
+        released?.endPictureInPicture()
+        released?.delegate = nil
+        if !inWindow { released?.contentView.removeFromSuperview() }
+        page = nil
+        tearDownParked()
+        linkStatus?.removeFromSuperview()
+        if !inWindow { hostView.removeFromSuperview() }
+        return released
+    }
+}

@@ -59,7 +59,10 @@ enum ChromiumWebsiteData {
     /// Chromium has no API listing every origin holding storage, so this clears those with cookies, `knownURLs`
     /// (the sites in history and open tabs) and any the profile's files name (`storedOrigins`).
     /// Cookies and the cache are cleared for all sites.
-    static func clear(profile: String, knownURLs: [String] = []) async throws {
+    /// `onlyKnown` (Clear Browsing Data for a period): only the sites in `knownURLs` and their registrable domains, since
+    /// Chromium can't clear cookies or storage by time. `storage` is cookies and site storage; `cache` the HTTP cache.
+    static func clear(profile: String, knownURLs: [String] = [], storage: Bool = true, cache: Bool = true,
+                      onlyKnown: Bool = false) async throws {
         try CEFSessions.prepare(profile)
         let page = try IKCEFPage.make(profile: profile)
         defer { page.close() }
@@ -70,18 +73,27 @@ enum ChromiumWebsiteData {
         for _ in 0..<200 where !page.ready { try await Task.sleep(for: .milliseconds(25)) }
         guard page.ready else { throw CEFError.script("Chromium could not start to clear website data.") }
 
-        let cookies = try await settled(page, "Network.getAllCookies", [:])["cookies"] as? [[String: Any]] ?? []
-        var origins = Set(knownURLs.compactMap(origin(of:))).union(storedOrigins(in: CEFSessions.directory(for: profile)))
-        for cookie in cookies {
-            guard let domain = cookie["domain"] as? String else { continue }
-            let host = domain.hasPrefix(".") ? String(domain.dropFirst()) : domain
-            origins.formUnion(["https://\(host)", "http://\(host)"])
+        if storage {
+            var origins = Set(knownURLs.compactMap(origin(of:)))
+            if onlyKnown {
+                // Cookies often live on the site's registrable domain (.youtube.com for www.youtube.com).
+                let hosts = knownURLs.compactMap { URLComponents(string: $0)?.host?.lowercased() }
+                origins.formUnion(hosts.flatMap { ["https://\(PublicSuffix.registrableDomain($0))", "http://\(PublicSuffix.registrableDomain($0))"] })
+            } else {
+                origins.formUnion(storedOrigins(in: CEFSessions.directory(for: profile)))
+                let cookies = try await settled(page, "Network.getAllCookies", [:])["cookies"] as? [[String: Any]] ?? []
+                for cookie in cookies {
+                    guard let domain = cookie["domain"] as? String else { continue }
+                    let host = domain.hasPrefix(".") ? String(domain.dropFirst()) : domain
+                    origins.formUnion(["https://\(host)", "http://\(host)"])
+                }
+            }
+            for origin in origins.sorted() {
+                _ = try await settled(page, "Storage.clearDataForOrigin", ["origin": origin, "storageTypes": "all"])
+            }
+            if !onlyKnown { _ = try await settled(page, "Network.clearBrowserCookies", [:]) }
         }
-        for origin in origins.sorted() {
-            _ = try await settled(page, "Storage.clearDataForOrigin", ["origin": origin, "storageTypes": "all"])
-        }
-        _ = try await settled(page, "Network.clearBrowserCookies", [:])
-        _ = try await settled(page, "Network.clearBrowserCache", [:])
+        if cache { _ = try await settled(page, "Network.clearBrowserCache", [:]) }
     }
 
     /// A new page's first navigation can commit mid-command, which cancels it. These commands are safe to

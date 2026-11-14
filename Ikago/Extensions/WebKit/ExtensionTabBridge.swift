@@ -4,12 +4,13 @@ import WebKit
 // What chrome.tabs / chrome.windows see: Ikago's real tabs and its window.
 
 extension TabController: WKWebExtensionTab {
-    func window(for context: WKWebExtensionContext) -> (any WKWebExtensionWindow)? {
-        ExtensionManager.shared.browser
-    }
+    /// The window the tab is in (each regular window has its own tabs).
+    private var extensionWindow: BrowserWindowController? { (host as? BrowserWindowController) ?? ExtensionManager.shared.browser }
+
+    func window(for context: WKWebExtensionContext) -> (any WKWebExtensionWindow)? { extensionWindow }
 
     func indexInWindow(for context: WKWebExtensionContext) -> Int {
-        ExtensionManager.shared.browser?.orderedTabControllers.firstIndex { $0 === self } ?? 0
+        extensionWindow?.orderedTabControllers.firstIndex { $0 === self } ?? 0
     }
 
     func webView(for context: WKWebExtensionContext) -> WKWebView? { (page as? WebKitTab)?.webView }

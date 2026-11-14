@@ -20,10 +20,8 @@ class ContextMenu final : public CefContextMenuHandler {
     if (!params->GetSelectionText().empty()) model->AddItem(kSearch, "Search Selection in Ikago");
     model->AddItem(kTranslate, "Translate Page with Google…");
     if (params->GetMediaType() == CM_MEDIATYPE_VIDEO) {
-      const auto source = params->GetSourceUrl().ToString();
-      const bool direct = source.starts_with("https://") || source.starts_with("http://");
-      model->AddItem(kVideo, direct ? "Float Video in Native Player" : "Native Player Unavailable for This Stream");
-      model->SetEnabled(kVideo, direct);
+      // Ikago's own panel (ChromiumPictureInPicture) floats any video Chromium plays, streams included.
+      model->AddItem(kVideo, "Picture in Picture");
     }
     if (!page->_developerTools) return;
     if (model->GetCount()) model->AddSeparator();

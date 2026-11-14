@@ -19,9 +19,12 @@ final class WebKitTab: NSObject, WebTab {
     private struct LoadingState: Equatable { var isLoading, canGoBack, canGoForward: Bool }
     private var reportedLoading: LoadingState?
     private(set) var isMuted = false
-    /// Latest audible report per frame (keyed by the frame's URL), with the frame to mute.
+    /// Latest audible report per document (the media script's own key), with the frame to mute.
     var audibleFrames: [String: (audible: Bool, frame: WKFrameInfo, playback: MediaPlaybackState)] = [:]
     private(set) var isAudible = false
+    /// WebKit's own audible flag (`PlayingAudioObserver`), for sound the media script can't see.
+    private var audioObserver: PlayingAudioObserver?
+    private var nativeAudible = false
 
     /// A fresh page in `profileID`'s storage.
     convenience init(profileID: String) {
@@ -30,6 +33,7 @@ final class WebKitTab: NSObject, WebTab {
 
     /// A page for an existing configuration (popups must use WebKit's).
     init(configuration: WKWebViewConfiguration) {
+        MediaPictureInPicture.allow(in: configuration.preferences)
         let view = FileDropWebView(frame: .zero, configuration: configuration)
         webView = view
         super.init()
@@ -48,6 +52,11 @@ final class WebKitTab: NSObject, WebTab {
         setDeveloperTools(WebProfiles.developerTools)
         webView.autoresizingMask = [.width, .height]
         observe()
+        audioObserver = PlayingAudioObserver(webView) { [weak self] playing in
+            guard let self, self.nativeAudible != playing else { return }
+            self.nativeAudible = playing
+            self.reportMedia()
+        }
         MediaMonitor.shared.register(self)
         LinkHoverMonitor.shared.register(self)
         BrowserSecurity.shared.register(self)
@@ -71,24 +80,17 @@ final class WebKitTab: NSObject, WebTab {
         on(\.microphoneCaptureState) { $0.reportMedia() }
     }
 
-    /// Page content starts `inset` below the top (the floating island); it scrolls under it.
-    func setTopInset(_ inset: CGFloat) {
-        webView.obscuredContentInsets = NSEdgeInsets(top: inset, left: 0, bottom: 0, right: 0)
-    }
-
-    /// The `inset` points of page just under the top inset, for the floating island's reflection.
-    func snapshotBelowInset(_ inset: CGFloat, completion: @escaping (NSImage?) -> Void) {
-        guard inset > 0, webView.bounds.height > inset * 2 else { return completion(nil) }
-        let config = WKSnapshotConfiguration()
-        config.rect = CGRect(x: 0, y: inset, width: webView.bounds.width, height: inset)
-        webView.takeSnapshot(with: config) { image, _ in completion(image) }
-    }
-
     // MARK: Media state
 
-    func frameReportedAudio(_ audible: Bool, playback: MediaPlaybackState, frame: WKFrameInfo) {
-        audibleFrames[frame.request.url?.absoluteString ?? ""] = (audible, frame, playback)
+    func frameReportedAudio(_ audible: Bool, playback: MediaPlaybackState, frame: WKFrameInfo, document: String) {
+        audibleFrames[document] = (audible, frame, playback)
         if isMuted { applyMute() }
+        reportMedia()
+    }
+
+    /// A document went away (navigated, closed or its frame removed): its media went with it.
+    func documentGone(_ document: String) {
+        guard audibleFrames.removeValue(forKey: document) != nil else { return }
         reportMedia()
     }
 
@@ -99,7 +101,10 @@ final class WebKitTab: NSObject, WebTab {
     }
 
     private func reportMedia() {
-        isAudible = audibleFrames.values.contains { $0.audible }
+        // WebKit's own flag is what Safari's speaker follows, and it turns off when the sound stops whatever the page's
+        // scripts last said; the media script only stands in without it. A muted tab silences its media elements,
+        // not Web Audio, so WebKit's flag counts only while unmuted.
+        isAudible = audioObserver != nil ? nativeAudible && !isMuted : audibleFrames.values.contains { $0.audible }
         var playback = audibleFrames.values.first { $0.playback.available && $0.playback.playing }?.playback
             ?? audibleFrames.values.first { $0.playback.available }?.playback ?? MediaPlaybackState()
         playback.hasVideo = audibleFrames.values.contains { $0.playback.available && $0.playback.hasVideo }
@@ -146,6 +151,7 @@ final class WebKitTab: NSObject, WebTab {
     func tearDown() {
         PageLifetimeCanary.shared.retire(self)
         observations.removeAll()
+        audioObserver?.stop(); audioObserver = nil
         // Detaching a web view doesn't end its page: anything still holding it (an extension's tab
         // reference, a pending callback) would keep the camera and microphone open. Release them now.
         stopCapture()
@@ -200,6 +206,7 @@ final class WebKitTab: NSObject, WebTab {
     func setMuted(_ muted: Bool) {
         isMuted = muted
         applyMute()
+        reportMedia()
     }
 
     func applyMute() {

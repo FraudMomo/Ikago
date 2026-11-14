@@ -87,6 +87,7 @@ enum CEFSmoke {
                   value["text"] as? Bool == true else { throw CEFError.script("DOM or isolated-world fixture failed.") }
             try await CEFLocaleChecks.run(browser, context: context)
             try await CEFAudioChecks.run(browser)
+            try await CEFColorSchemeChecks.run(browser)
             print("CEF_SMOKE_STAGE persistence")
             let reading = CommandLine.arguments.contains("--cef-smoke-read")
             if !reading {
