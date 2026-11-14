@@ -13,7 +13,9 @@ final class FaviconCache {
     /// Keys with no file on disk, so rows without icons don't read the disk on every render.
     private var misses: Set<String> = []
     /// Images whose sealed file is still being written, so an evicted entry isn't mistaken for a miss.
-    private var writing: [String: (token: Int, image: NSImage)] = [:]
+    private var writing: [String: (token: Int, image: NSImage, dark: Bool)] = [:]
+    /// Ikago's appearance (set by the window): picks a site's light or dark icon and how SVG icons draw.
+    var dark = false
     private var writeToken = 0
     /// Sealing and writing happen here, in order, off the main thread.
     private static let writer = DispatchQueue(label: "app.ikago.favicons.write", qos: .utility)
@@ -35,27 +37,30 @@ final class FaviconCache {
     }
 
     /// `persist: false` (private windows) keeps the icon in memory only, so no trace reaches the disk.
-    func image(for url: URL, persist: Bool = true) async -> NSImage? {
+    func image(for url: URL, persist: Bool = true, dark: Bool? = nil) async -> NSImage? {
+        let dark = dark ?? self.dark
         let scheme = url.scheme?.lowercased() ?? ""
         // HTTPS-only mode covers the browser's own requests too.
         guard scheme == "https" || (scheme == "http" && !BrowserSecurity.shared.requiresHTTPS(url)) else { return nil }
-        if let image = cachedImage(for: url) { return image }
+        if let image = cachedImage(for: url, dark: dark) { return image }
         if let task = pending[url] { return await task.value }
         let stamp = generation
         let task = Task<NSImage?, Never> { [self, session] in
             // The download runs off the main thread; only decoding a validated, bounded icon happens here.
             let download = Task.detached(priority: .utility) { await Self.download(url, session: session) }
             let data = await withTaskCancellationHandler { await download.value } onCancel: { download.cancel() }
-            guard let data, !Task.isCancelled, stamp == generation, let image = NSImage(data: data),
+            guard let data, !Task.isCancelled, stamp == generation, let image = Self.decode(data, dark: dark),
                   image.size.width <= 4096, image.size.height <= 4096 else { return nil }
             originals.setObject(data as NSData, forKey: url.absoluteString as NSString)
-            if persist { storeCached(image, data: data, key: url.absoluteString) }
-            else { images.setObject(image, forKey: url.absoluteString as NSString) }
+            if persist { storeCached(image, data: data, key: url.absoluteString, dark: dark) }
+            else { images.setObject(image, forKey: memoryKey(url.absoluteString, dark: dark) as NSString) }
             return image
         }
         pending[url] = task
         let image = await task.value
         if stamp == generation { pending[url] = nil }
+        // A request already running decoded for the mode it started in; the other mode reads the stored bytes.
+        if let image, let other = cachedImage(for: url, dark: dark), other !== image { return other }
         return image
     }
 
@@ -100,16 +105,22 @@ final class FaviconCache {
         Self.file(for: key, in: directory)
     }
 
-    func readCached(key: String) -> NSImage? {
-        let identity = key as NSString
+    func readCached(key: String, dark: Bool? = nil) -> NSImage? {
+        let dark = dark ?? self.dark
+        let identity = memoryKey(key, dark: dark) as NSString
         if let image = images.object(forKey: identity) { return image }
-        if let image = writing[key]?.image { return image }
+        if let entry = writing[key], entry.dark == dark { return entry.image }
         if misses.contains(key) { return nil }
+        // The other mode's decode is in memory: decode its bytes again for this mode instead of reading the disk.
+        if let data = originals.object(forKey: key as NSString).map({ $0 as Data }), let image = Self.decode(data, dark: dark) {
+            images.setObject(image, forKey: identity)
+            return image
+        }
         let destination = file(for: key)
         if let raw = try? Data(contentsOf: destination), let data = try? SealedStorage.open(raw),
-           let image = NSImage(data: data) {
+           let image = Self.decode(data, dark: dark) {
             images.setObject(image, forKey: identity)
-            originals.setObject(data as NSData, forKey: identity)
+            originals.setObject(data as NSData, forKey: key as NSString)
             return image
         }
         if misses.count >= 4096 { misses.removeAll() }
@@ -118,20 +129,25 @@ final class FaviconCache {
     }
 
     /// Memory only, never the disk: the icon URL, then the page, then its site, like `cachedImage(pageURL:iconURL:)`.
-    func memoryImage(pageURL: String, iconURL: URL?) -> NSImage? {
-        func memory(_ key: String) -> NSImage? { images.object(forKey: key as NSString) ?? writing[key]?.image }
+    func memoryImage(pageURL: String, iconURL: URL?, dark: Bool) -> NSImage? {
+        func memory(_ key: String) -> NSImage? {
+            images.object(forKey: memoryKey(key, dark: dark) as NSString) ?? writing[key].flatMap { $0.dark == dark ? $0.image : nil }
+        }
+        let hasOwn = Self.hasOwnIcon(pageURL)
+        if hasOwn, let image = memory(Self.modeKey("page:" + pageURL, dark: dark)) { return image }
         if let iconURL, let image = memory(iconURL.absoluteString) { return image }
-        guard Self.hasOwnIcon(pageURL) else { return nil }
-        return memory("page:" + pageURL) ?? memory("site:" + Self.siteKey(pageURL))
+        guard hasOwn else { return nil }
+        return memory(Self.modeKey("site:" + Self.siteKey(pageURL), dark: dark))
     }
 
-    func storeCached(_ image: NSImage, data: Data, key: String) {
-        images.setObject(image, forKey: key as NSString)
+    func storeCached(_ image: NSImage, data: Data, key: String, dark: Bool? = nil) {
+        let dark = dark ?? self.dark
+        images.setObject(image, forKey: memoryKey(key, dark: dark) as NSString)
         originals.setObject(data as NSData, forKey: key as NSString)
         misses.remove(key)
         writeToken += 1
         let token = writeToken, directory = directory
-        writing[key] = (token, image)
+        writing[key] = (token, image, dark)
         Self.writer.async {
             try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             // Icons reveal which sites were visited, so they're encrypted like history. Never written in plain text.
