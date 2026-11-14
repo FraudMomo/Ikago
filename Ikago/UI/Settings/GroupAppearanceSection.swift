@@ -10,7 +10,13 @@ struct GroupAppearanceSection: View {
                 HStack(alignment: .top, spacing: 14) { cards(minimumWidth: 180) }
                 VStack(spacing: 14) { cards(minimumWidth: 0) }
             }
-            .padding(16)
+            .padding(.vertical, 16)
+            PageDivider()
+            PageRow(title: "Groups in the sidebar", subtitle: "Tinted cards or an indented folder list") {
+                SettingsSegmented(selection: Binding(
+                    get: { state.sidebarGroupStyle },
+                    set: { style in withAnimation(.ikago) { state.browserPreferences.sidebarGroupStyle = style == .cards ? nil : style } }), options: SidebarGroupStyle.allCases.map { ($0, $0.name) })
+            }
             PageDivider()
             PageRow(title: "Show tab counts", subtitle: "On collapsed groups") {
                 Toggle("Show tab counts", isOn: Binding(
@@ -44,14 +50,14 @@ private struct GroupStyleCard: View {
             VStack(alignment: .leading, spacing: 10) {
                 illustration
                     .frame(height: 112)
-                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(colors.tint))
-                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .strokeBorder(selected ? colors.accent : colors.separator, lineWidth: selected ? 2 : 1))
+                    .background(RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(colors.tint))
+                    .overlay(RoundedRectangle(cornerRadius: Radius.row, style: .continuous)
+                        .strokeBorder(selected ? Color.settingsAccent : colors.separator, lineWidth: selected ? 2 : 1))
                     .accessibilityHidden(true)
                 HStack {
                     Text(style.name).font(.system(size: 13, weight: selected ? .semibold : .regular))
                     Spacer(minLength: 0)
-                    Image(systemName: "checkmark.circle.fill").foregroundStyle(colors.accent)
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.settingsAccent)
                         .opacity(selected ? 1 : 0)
                 }
                 Text(style.detail).font(.system(size: 12)).foregroundStyle(.secondary)

@@ -31,9 +31,9 @@ struct IntegratedEditors: View {
                           text: Binding(get: { prompt.text }, set: { prompt.text = $0 }))
                     .modalInput(state.palette).focused($focused)
                     .onSubmit { prompt.confirm() }
-                HStack {
-                    Text("Return or click outside to save").font(.system(size: 11)).foregroundStyle(.secondary)
+                HStack(spacing: 8) {
                     Spacer()
+                    Button("Cancel") { prompt.finish(nil) }.buttonStyle(ModalButtonStyle(colors: state.palette))
                     Button("Done") { prompt.confirm() }.buttonStyle(ModalButtonStyle(colors: state.palette, primary: true))
                         .keyboardShortcut(.defaultAction)
                 }

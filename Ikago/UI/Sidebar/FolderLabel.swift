@@ -92,7 +92,7 @@ extension TabFolder {
     }
 }
 
-/// Right-click menu for a folder (sidebar header and top-bar chip).
+/// Right-click menu for a group's sidebar header.
 struct FolderContextMenu: View {
     let folder: TabFolder
     let state: BrowserState
@@ -103,17 +103,32 @@ struct FolderContextMenu: View {
         Button("Icon and Color…") { commands?.customizeFolder(folder.id) }
         if folder.isClosed == true {
             Button("Reopen Group") { state.reopenFolder(folder.id) }
-        } else if state.tabLayout.usesTopTabs {
-            // Close Group: out of the strip, pages unloaded, reopenable from Tab ▸ Reopen Closed Group.
-            Button("Close Group") { commands?.closeGroup(folder.id) }
         }
         if state.tabs(in: folder).contains(where: { !$0.isHibernating }) {
             Button("Unload Group") { commands?.unloadGroup(folder.id) }
         }
+        Button("New Group Inside") {
+            let child = withAnimation(.ikago) { state.createFolder(named: "New Group", parentID: folder.id) }
+            commands?.renameFolder(child.id)
+        }
+        let targets = state.folderMoveTargets(for: folder.id)
+        if !targets.isEmpty {
+            Menu("Move Into") {
+                ForEach(targets) { target in
+                    Button(target.name) { withAnimation(.ikago) { state.moveFolder(folder.id, into: target.id) } }
+                }
+            }
+        }
+        if folder.parentID != nil {
+            Button("Move Out of Group") {
+                let grandparent = state.folders.first { $0.id == folder.parentID }?.parentID
+                withAnimation(.ikago) { state.moveFolder(folder.id, into: grandparent) }
+            }
+        }
         Button("Delete Group") { withAnimation(.ikago) { state.deleteFolder(folder.id) } }
         Divider()
         Button("Close Tabs in Group") {
-            for tab in state.tabs(in: folder) { commands?.closeTab(tab.id) }
+            for tab in state.tabs(inSubtree: folder) { commands?.closeTab(tab.id) }
         }
     }
 }

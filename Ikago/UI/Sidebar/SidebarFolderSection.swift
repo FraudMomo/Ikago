@@ -12,6 +12,10 @@ struct SidebarFolderSection<Content: View>: View {
     /// The group's tab count and whether it holds the active tab, worked out once by the list for every group.
     let count: Int
     let containsActiveTab: Bool
+    /// Every tab in the group is closed or asleep: the header fades back until it is hovered or a tab wakes.
+    var sleeping = false
+    /// 0 for a top-level group; nested groups sit inside their parent's card as plain headers.
+    var depth = 0
     weak var commands: BrowserCommands?
     @ViewBuilder let content: () -> Content
     @State private var hovering = false
@@ -28,6 +32,10 @@ struct SidebarFolderSection<Content: View>: View {
     @State private var closing: DispatchWorkItem?
 
     private var isOpen: Bool { open ?? folder.isOpen }
+    private var asFolder: Bool { state.sidebarGroupStyle == .folders }
+    private var nested: Bool { depth > 0 }
+    /// Indented under the parent's name, no card or pill of its own: one card per top-level group.
+    private var plain: Bool { asFolder || nested }
 
     var body: some View {
         // No spacing between the header and the rows: the gap lives inside the animated frame, so a shut group is
@@ -36,9 +44,11 @@ struct SidebarFolderSection<Content: View>: View {
             header
             if mounted || isOpen {
                 VStack(spacing: 2, content: content)
-                    .padding(.horizontal, 4)
-                    .padding(.top, 2)
-                    .padding(.bottom, 4)
+                    // Cards inset their rows a little; folders indent them under the folder, like a file tree.
+                    .padding(.leading, asFolder ? 22 : nested ? 16 : 4)
+                    .padding(.trailing, plain ? 0 : 4)
+                    .padding(.top, plain ? 0 : 2)
+                    .padding(.bottom, plain ? 0 : 4)
                     .fixedSize(horizontal: false, vertical: true)
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
                     // Only the frame's height animates; the rows keep their place and the clip reveals them.
@@ -48,12 +58,12 @@ struct SidebarFolderSection<Content: View>: View {
             }
         }
         .background {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: pill ? Self.pillRadius : Radius.row, style: .continuous)
                 .fill(fill)
                 .allowsHitTesting(false)
-                .opacity(isOpen ? 1 : 0)
+                .opacity(isOpen && !plain ? 1 : 0)
         }
-        .padding(.vertical, 3)
+        .padding(.vertical, plain ? 0 : pill ? 1 : 3)
         .recordLayout("sidebar-folder-\(folder.id)")
 #if DEBUG
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { GroupDisclosureProbe.shared.note(folder.name, $0) }
@@ -93,35 +103,63 @@ struct SidebarFolderSection<Content: View>: View {
         return tint.opacity(colors.isDark ? 0.16 : 0.11)
     }
 
+    /// The Color pill label spans the whole header like a bookmark in a book: a light wash of the group's color with a
+    /// solid spine of it down the leading edge. Squarer than a tab row (`Radius.control`), so groups read as their own kind.
+    private var pill: Bool { state.groupLabelStyle == .colorPill && !nested }
+    static var pillRadius: CGFloat { Radius.control }
+    private var tint: Color { folder.tagValue?.color ?? colors.tertiary }
+    private var pillFill: Color { tint.opacity(colors.isDark ? 0.18 : 0.12) }
+
+    private var chevron: some View {
+        Image(systemName: "chevron.down")
+            .font(.system(size: 9, weight: .bold))
+            .rotationEffect(.degrees(isOpen ? 0 : -90))
+            .foregroundStyle(hovering ? colors.secondary : colors.tertiary)
+    }
+
+    /// Laid out like a tab row: the group's icon where tab favicons sit, the name where their titles start. The name
+    /// is semibold, a title for the rows under it. A pill keeps its chevron at the far end, out of the colored label;
+    /// plain headers put it right after the name, like a disclosure title.
     private var header: some View {
         Button { state.toggleFolder(folder.id) } label: {
-            HStack(spacing: 8) {
-                FolderLabel(folder: folder, colors: colors,
-                            isActive: containsActiveTab, style: state.groupLabelStyle)
+            HStack(spacing: 9) {
+                FolderIcon(folder: folder, colors: colors, size: 13).frame(width: 16, height: 16)
+                HStack(spacing: 5) {
+                    Text(folder.name).lineLimit(1)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(colors.text)
+                    if !pill { chevron.padding(.top, 1) }
+                }
                 Spacer(minLength: 4)
                 if state.showsGroupTabCounts {
                     Text(count, format: .number)
-                        .font(.system(size: 10, weight: .medium).monospacedDigit())
+                        .font(.system(size: 11, weight: .medium).monospacedDigit())
                         .foregroundStyle(colors.tertiary)
                         .opacity(!isOpen || hovering || targeted ? 1 : 0)
                 }
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 8, weight: .semibold))
-                    .rotationEffect(.degrees(isOpen ? 90 : 0))
-                    .foregroundStyle(hovering ? colors.secondary : colors.tertiary)
-                    .frame(width: 12)
+                if pill { chevron.frame(width: 12) }
             }
             .padding(.horizontal, 10)
-            .frame(height: 34)
+            .frame(height: pill ? 32 : nested ? 30 : 34)
+            .background {
+                if pill {
+                    let shape = RoundedRectangle(cornerRadius: Self.pillRadius, style: .continuous)
+                    shape.fill(pillFill)
+                        .overlay(alignment: .leading) { Rectangle().fill(tint).frame(width: 3) }
+                        .clipShape(shape)
+                }
+            }
+            .opacity(sleeping && !hovering && !targeted ? 0.5 : 1)
+            .animation(reduceMotion ? nil : .ikago, value: sleeping)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .background {
-            TabSelectionHighlight(shape: RoundedRectangle(cornerRadius: 10, style: .continuous),
+            TabSelectionHighlight(shape: RoundedRectangle(cornerRadius: Radius.row, style: .continuous),
                                   active: showSelection && containsActiveTab && !folder.isOpen, color: colors.selected,
                                   selection: selection, id: "active-tab")
             if targeted || (hovering && !(showSelection && containsActiveTab && !folder.isOpen)) {
-                RoundedRectangle(cornerRadius: 10, style: .continuous).fill(targeted ? colors.selected : colors.hover)
+                RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(targeted ? colors.selected : colors.hover)
             }
         }
         .sidebarHover($hovering)
@@ -129,8 +167,14 @@ struct SidebarFolderSection<Content: View>: View {
         .animation(.ikagoQuick, value: targeted)
         .dropDestination(for: TabDrag.self) { drags, _ in
             chrome.endTabDrag()
-            guard let id = drags.first?.id, state.tab(id) != nil else { return false }
-            withAnimation(.ikagoQuick) { state.moveToFolder(id, folderID: folder.id) }
+            guard let id = drags.first?.id else { return false }
+            // The dragged tab and every selected tab with it (`TabDrag.companions`), from this window or another.
+            let ids = TabDrag.travelling(with: id)
+            for tab in ids { BrowserWindows.bring(tab, into: state) }
+            let moving = ids.filter { state.tab($0) != nil }
+            guard !moving.isEmpty else { return false }
+            withAnimation(.ikago) { for tab in moving { state.moveToFolder(tab, folderID: folder.id) } }
+            chrome.selectedTabIDs = []
             return true
         } isTargeted: { targeted = $0 }
         .contextMenu { FolderContextMenu(folder: folder, state: state, commands: commands) }

@@ -18,14 +18,14 @@ struct GroupAppearanceEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top, spacing: 13) {
-                FolderIcon(folder: preview, colors: state.palette, size: 23)
-                    .frame(width: 52, height: 52)
-                    .background(RoundedRectangle(cornerRadius: 16).fill(color.opacity(0.12)))
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(folder.name).font(.system(size: 20, weight: .semibold)).tracking(-0.4).lineLimit(1)
+            HStack(alignment: .center, spacing: 12) {
+                FolderIcon(folder: preview, colors: state.palette, size: 18)
+                    .frame(width: 38, height: 38)
+                    .background(RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(color.opacity(0.12)))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(folder.name).font(.system(size: 15, weight: .semibold)).lineLimit(1)
                     Text("Group appearance").font(.system(size: 12)).foregroundStyle(.secondary)
-                }.padding(.top, 4)
+                }
                 Spacer(minLength: 0)
                 ModalCloseButton(colors: state.palette, action: close, label: "Cancel group appearance")
                     .recordLayout("group-editor-cancel")
@@ -43,13 +43,13 @@ struct GroupAppearanceEditor: View {
                         Button { icon = choice.symbol == "folder.fill" ? nil : choice.symbol } label: {
                             Image(systemName: choice.symbol).font(.system(size: 16, weight: .medium))
                                 .foregroundStyle(selected ? color : state.palette.secondary)
-                                .frame(maxWidth: .infinity).frame(height: 32).contentShape(RoundedRectangle(cornerRadius: 10))
-                                .background(RoundedRectangle(cornerRadius: 10).fill(selected ? color.opacity(0.12) : .clear))
-                                .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(color.opacity(selected ? 0.5 : 0), lineWidth: 1))
+                                .frame(maxWidth: .infinity).frame(height: 32).contentShape(RoundedRectangle(cornerRadius: Radius.row))
+                                .background(RoundedRectangle(cornerRadius: Radius.row).fill(selected ? color.opacity(0.12) : .clear))
+                                .overlay(RoundedRectangle(cornerRadius: Radius.row).strokeBorder(color.opacity(selected ? 0.5 : 0), lineWidth: 1))
                         }.buttonStyle(.plain).accessibilityLabel(choice.name).accessibilityAddTraits(selected ? .isSelected : [])
                             .recordLayout("group-editor-icon-\(choice.symbol)")
                     }
-                }.padding(8).background(RoundedRectangle(cornerRadius: 15).fill(state.palette.hover.opacity(0.65)))
+                }.padding(6).background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(state.palette.hover.opacity(0.8)))
             }
             VStack(alignment: .leading, spacing: 10) {
                 section("Color")
@@ -58,16 +58,17 @@ struct GroupAppearanceEditor: View {
                     ForEach(FolderTag.allCases) { value in swatch(value) }
                 }
             }
-            Rectangle().fill(state.palette.separator).frame(height: 0.5)
-            HStack {
+            Rectangle().fill(state.palette.separator).frame(height: 0.5).padding(.horizontal, -20)
+            HStack(spacing: 8) {
                 Button("Reset") { icon = nil; tag = nil }.font(.system(size: 12)).foregroundStyle(.secondary).buttonStyle(.plain)
                 Spacer()
+                Button("Cancel", action: close).buttonStyle(ModalButtonStyle(colors: state.palette))
                 Button("Done", action: save)
                     .buttonStyle(ModalButtonStyle(colors: state.palette, primary: true))
                     .keyboardShortcut(.defaultAction).recordLayout("group-editor-done")
             }
         }
-        .modalCard(state.palette, width: 340)
+        .modalCard(state.palette, width: 352)
         .onExitCommand(perform: close)
         .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: icon)
         .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: tag)

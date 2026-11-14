@@ -12,10 +12,14 @@ extension BrowserState {
         set { browserPreferences.showGroupTabCounts = newValue }
     }
 
-    /// Creates a folder in the active Space, optionally moving `tabID` into it.
+    /// Creates a folder in the active Space, optionally inside another group and moving `tabID` into it.
     @discardableResult
-    func createFolder(named name: String, with tabID: String? = nil) -> TabFolder {
-        let folder = TabFolder(name: name.isEmpty ? "New Group" : name, spaceID: activeSpaceID)
+    func createFolder(named name: String, with tabID: String? = nil, parentID: String? = nil) -> TabFolder {
+        var folder = TabFolder(name: name.isEmpty ? "New Group" : name, spaceID: activeSpaceID)
+        if let parentID, let index = folders.firstIndex(where: { $0.id == parentID && $0.spaceID == activeSpaceID }) {
+            folder.parentID = parentID
+            folders[index].isOpen = true
+        }
         folders.append(folder)
         if let tabID { moveToFolder(tabID, folderID: folder.id) }
         scheduleSave()
@@ -47,9 +51,11 @@ extension BrowserState {
         scheduleSave()
     }
 
-    /// Deletes the folder; its tabs stay open as loose tabs.
+    /// Deletes the folder; its tabs and the groups inside it move up to its parent (loose tabs at the top level).
     func deleteFolder(_ id: String) {
-        for tab in tabs where tab.folderID == id { tab.folderID = nil }
+        let parent = folders.first { $0.id == id }?.parentID
+        for tab in tabs where tab.folderID == id { tab.folderID = parent }
+        for index in folders.indices where folders[index].parentID == id { folders[index].parentID = parent }
         folders.removeAll { $0.id == id }
         scheduleSave()
     }
@@ -69,6 +75,13 @@ extension BrowserState {
     /// Puts a tab at the end of a folder (or loose with `nil`), unpinning it if needed.
     func moveToFolder(_ tabID: String, folderID: String?) {
         move(tabID, before: nil, pinned: false, folderID: folderID)
-        if let folderID, let index = folders.firstIndex(where: { $0.id == folderID }) { folders[index].isOpen = true }
+        // Open the group and every group around it, so the moved tab is on screen.
+        var next = folderID
+        var steps = 0
+        while let id = next, steps < 16, let index = folders.firstIndex(where: { $0.id == id }) {
+            folders[index].isOpen = true
+            next = folders[index].parentID
+            steps += 1
+        }
     }
 }
