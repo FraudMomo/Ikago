@@ -15,16 +15,14 @@ enum NativeSplitDropChecks {
         }
         let state = browser.state
         let original = Set(state.tabs.map(\.id)), active = state.activeTabID
-        let layout = state.tabLayout, rounded = state.barRounded
         defer {
             browser.chrome.endTabDrag()
             for tab in state.tabs where !original.contains(tab.id) { state.closeTab(tab.id, removingPin: true) }
-            state.tabLayout = layout; state.barRounded = rounded
             if let active { state.select(active) }
         }
         browser.palette.onDismiss()
-        for (mode, floating) in [(TabLayout.vertical, false), (.horizontal, false), (.horizontal, true)] {
-            state.tabLayout = mode; state.barRounded = floating
+        for mode in ["sidebar", "tabs"] {
+            state.browserPreferences.sidebarTopTabs = mode == "tabs" ? true : nil
             let a = state.newTab(url: "https://native-drop.invalid")!
             try? await Task.sleep(for: .milliseconds(300))
             guard let root = browser.window?.contentView, var target = find(root), let window = target.window else {
@@ -38,7 +36,7 @@ enum NativeSplitDropChecks {
             try? await Task.sleep(for: .milliseconds(50))
             let rootPoint = target.convert(center, to: root.superview)
             let routed = root.hitTest(rootPoint) as? SplitDropTargetView
-            check(routed?.active == true, "\(mode) floating=\(floating) drag hit testing reaches native destination above web view")
+            check(routed?.active == true, "\(mode) drag hit testing reaches native destination above web view")
             guard let routed else { continue }
             target = routed
             center = NSPoint(x: target.bounds.midX, y: target.bounds.midY)

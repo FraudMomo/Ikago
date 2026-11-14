@@ -71,9 +71,9 @@ struct SplitDropOverlay: View {
         return ZStack(alignment: .topLeading) {
             ForEach(Array(rects.enumerated()), id: \.offset) { index, rect in
                 let isNew = index == newIndex
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                     .fill(isNew ? colors.accent.opacity(0.22) : Color.primary.opacity(0.06))
-                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                         .strokeBorder(isNew ? colors.accent.opacity(0.8) : Color.primary.opacity(0.12), lineWidth: isNew ? 2 : 1))
                     .overlay {
                         if isNew { Image(systemName: isMove ? "arrow.up.left.and.arrow.down.right" : "plus")

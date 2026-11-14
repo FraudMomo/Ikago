@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// The whole window below the titlebar: sidebar or top bar, the web content card, and the
+/// The whole window below the titlebar: the sidebar, the web content card, and the
 /// floating layer (peeked sidebar, command bar, find bar, split targets). One SwiftUI tree,
 /// so Liquid Glass samples the page behind it and everything animates together.
 struct BrowserRootView: View {
@@ -19,27 +19,11 @@ struct BrowserRootView: View {
     var body: some View {
         let colors = state.palette
         ZStack(alignment: .topLeading) {
-            if state.tabLayout == .vertical {
-                sidebarLayout
-            } else {
-                VStack(spacing: 0) {
-                    if !state.barAtBottom && !state.barFloating && !state.isImmersive { topBar }
-                    contentCard(for: .horizontal).padding(.leading, inset)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    if state.barAtBottom && !state.barFloating && !state.isImmersive { topBar }
-                }
-                .overlay(alignment: state.barAtBottom ? .bottom : .top) {
-                    if state.isImmersive {
-                        TopBarReveal(state: state, chrome: chrome, palette: palette, commands: commands)
-                    } else if state.barFloating {
-                        topBar
-                    }
-                }
-            }
-            if state.tabLayout == .vertical && !docksSidebar {
+            sidebarLayout
+            if !docksSidebar {
                 SidebarPeek(state: state, chrome: chrome, palette: palette, commands: commands)
             }
-            if ((state.tabLayout == .vertical && state.sidebarOnRight && !state.sidebarLightsFollow) || (state.tabLayout.usesTopTabs && state.barAtBottom)) && !state.isImmersive {
+            if state.sidebarOnRight && !state.sidebarLightsFollow && !state.showsSidebarTopTabs && !state.isImmersive {
                 Capsule().fill(.regularMaterial).frame(width: 86, height: 32).padding(.leading, 8).padding(.top, 7).allowsHitTesting(false)
             }
             overlays
@@ -52,38 +36,55 @@ struct BrowserRootView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity).transition(.opacity.combined(with: .scale(scale: 0.98)))
                     .onExitCommand { chrome.showNotes = false }
             }
+            if chrome.showSiteInfo { SiteInfoOverlay(state: state, chrome: chrome, commands: commands) }
+            if chrome.showClearData {
+                Color.black.opacity(state.isDark ? 0.25 : 0.1).onTapGesture { chrome.showClearData = false }
+                ClearDataSheet(state: state) { chrome.showClearData = false }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity).transition(.opacity.combined(with: .scale(scale: 0.98)))
+            }
             if let id = chrome.hoverTabID, let tab = state.tab(id) {
                 GeometryReader { geometry in
                     let anchor = chrome.hoverTabAnchor
-                    let x = anchor.maxX + 332 < geometry.size.width ? anchor.maxX + 12 : max(8, anchor.minX - 332)
-                    let y = max(8, min(geometry.size.height - 390, geometry.size.height - anchor.maxY))
+                    let width = TabPeek.width
+                    // Beside the tab (rows in the sidebar), or under it (the Sidebar + Tabs row).
+                    let below = state.showsSidebarTopTabs && geometry.size.height - anchor.maxY < SidebarTopTabs.height(state)
+                    let x = below ? min(max(8, anchor.minX), geometry.size.width - width - 8)
+                        : anchor.maxX + width + 12 < geometry.size.width ? anchor.maxX + 8 : max(8, anchor.minX - width - 8)
+                    let y = below ? geometry.size.height - anchor.minY + 6
+                        : max(8, min(geometry.size.height - TabPeek.maxHeight, geometry.size.height - anchor.maxY))
                     TabPeek(tab: tab, commands: commands, image: chrome.hoverImage)
-                        .surface(RoundedRectangle(cornerRadius: 12), state.palette)
+                        .modalSurface(state.palette, radius: Radius.card)
                         .offset(x: x, y: y)
                         .id(id).transition(.opacity.combined(with: .scale(scale: 0.98)))
                 }.allowsHitTesting(false)
             }
             if chrome.previewTabID != nil, let page = commands?.peekContent {
-                Color.black.opacity(0.2).onTapGesture { commands?.closePeek() }
-                LivePeekPanel(page: page, commands: commands, colors: state.palette)
-                    .padding(.horizontal, 70).padding(.vertical, 55)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                Color.black.opacity(chrome.peekExpanding ? 0 : state.isDark ? 0.35 : 0.22)
+                    .contentShape(Rectangle())
+                    .onTapGesture { commands?.closePeek() }
+                    .transition(.opacity)
+                GeometryReader { geometry in
+                    let rect = chrome.peekExpanding ? LivePeekPanel.frame(around: chrome.peekTarget)
+                        : LivePeekPanel.frame(in: geometry.size)
+                    LivePeekPanel(page: page, tab: commands?.peekTab, commands: commands, colors: state.palette,
+                                  expanding: chrome.peekExpanding, finalPageSize: chrome.peekTarget.size)
+                        .frame(width: rect.width, height: rect.height)
+                        .offset(x: rect.minX, y: rect.minY)
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.92)).combined(with: .offset(y: 16)))
             }
             if chrome.showPageAssistant && state.browserPreferences.pageIntelligence == true {
                 PageAssistantView(state: state, chrome: chrome, commands: commands)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-            }
-            if state.tabLayout.usesTopTabs, chrome.showTabOverview {
-                TemporaryTabSidebar(state: state, chrome: chrome, palette: palette, commands: commands)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
         .onChange(of: state.browserPreferences.pageIntelligence) { _, enabled in if enabled != true { chrome.showPageAssistant = false } }
-        .background(BarScrollBehavior(state: state, chrome: chrome))
-        .onChange(of: state.activeTabID) { _, _ in state.barCondensed = false; commands?.closePeek(); chrome.hoverTabID = nil }
-        .onChange(of: chrome.inlineAddress) { _, editing in if editing { state.barCondensed = false; chrome.hoverTabID = nil } }
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: state.barCondensed)
+        .onChange(of: state.activeTabID) { _, _ in if !chrome.peekExpanding { commands?.closePeek() }; chrome.hoverTabID = nil; chrome.showClearData = false; chrome.showSiteInfo = false }
+        .onChange(of: chrome.inlineAddress) { _, editing in if editing { chrome.hoverTabID = nil } }
         .animation(reduceMotion ? nil : .ikago, value: chrome.showNotes)
+        .animation(reduceMotion ? nil : .ikago, value: chrome.showClearData)
+        .animation(reduceMotion ? nil : .ikagoQuick, value: chrome.showSiteInfo)
         .animation(reduceMotion ? nil : .ikago, value: chrome.textPrompt?.id)
         .animation(reduceMotion ? nil : .ikago, value: chrome.editFolderID)
         .animation(reduceMotion ? nil : .ikago, value: chrome.showNewSpace)
@@ -91,19 +92,12 @@ struct BrowserRootView: View {
         .environment(\.tabHighlightStyle, state.tabHighlightStyle)
         .recordLayout("shell")
         .overlayPreferenceValue(DownloadsAnchorKey.self) { anchors in
-            // The button reports an anchor from this tree (top bars) or a frame from the sidebar's own host.
+            // The sidebar's Downloads button reports its frame from the sidebar's own host.
             GeometryReader { geometry in
                 let toolbar = anchors.toolbar.map { geometry[$0] } ?? chrome.downloadsButtonFrame
                 DownloadFeedbackOverlay(toolbar: toolbar, page: anchors.page.map { geometry[$0] },
-                                        colors: state.tabLayout.usesTopTabs ? state.barPalette : state.palette, content: content)
+                                        colors: state.palette, content: content)
                 if chrome.showDownloads { DownloadsDropdownOverlay(state: state, chrome: chrome, anchor: toolbar, commands: commands) }
-            }
-        }
-        .overlayPreferenceValue(AddressAnchorKey.self) { anchor in
-            if state.tabLayout.usesTopTabs {
-                GeometryReader { geometry in
-                    AddressSuggestionsOverlay(anchor: anchor.map { geometry[$0] } ?? chrome.addressFieldFrame, state: state, chrome: chrome, palette: palette)
-                }
             }
         }
         .onChange(of: state.activeTabID) { _, _ in chrome.showDownloads = false }
@@ -114,29 +108,23 @@ struct BrowserRootView: View {
                 if !docksSidebar { sidebarMounted = false }
             }
         }
-        .onChange(of: state.tabLayout) { _, _ in chrome.showTabOverview = false; chrome.showDownloads = false }
         .animation(reduceMotion ? nil : .ikagoQuick, value: chrome.showDownloads)
         // The floating address bar and the sidebar's suggestions ease in and out; typing is never delayed by it.
         .animation(reduceMotion ? nil : .ikago, value: chrome.showPalette)
         .animation(reduceMotion ? nil : .ikago, value: showsSidebarSuggestions)
-        .animation(.ikago, value: chrome.showTabOverview)
         .animation(.ikago, value: state.sidebarVisible)
         .animation(reduceMotion ? .easeInOut(duration: 0.15) : .spring(response: 0.36, dampingFraction: 0.9), value: state.showsSidebarRail)
-        .animation(.ikago, value: state.tabLayout)
         .animation(revealAnimation, value: chrome.peeking)
         .animation(nil, value: state.isImmersive)
         // Typing an address, or ⌘L / a new tab, brings the hidden bar in for as long as it lasts.
         .onChange(of: chrome.inlineAddress) { _, editing in
-            guard state.isImmersive, state.tabLayout.usesTopTabs || !state.sidebarVisible else { return }
+            guard state.isImmersive, !state.sidebarVisible else { return }
             if editing { chrome.peek() } else { chrome.endPeek(after: .milliseconds(600)) }
         }
         .onChange(of: chrome.showDownloads) { _, shown in
             if !shown { DownloadCenter.shared.dismissToolbarButton() }
             if state.isImmersive, !shown { chrome.endPeek() }
         }
-        // The bar tint animates inside the island (`IslandBarView`), so this body doesn't depend on the active tab's
-        // URL and theme colour. Gap and rounding follow Settings sliders immediately instead of animating the window.
-        .animation(.ikago, value: state.tabLayout == .horizontal && state.topBarShowsTabStrip)
         .environment(\.colorScheme, colors.isDark ? .dark : .light)
         .glassButtons(colors.glass)
         .tint(colors.accent)
@@ -145,13 +133,6 @@ struct BrowserRootView: View {
         }
     }
 
-    /// The top bars in their own host (`IsolatedHost`), at the height they set for themselves.
-    private var topBar: some View {
-        IsolatedHost(chrome: chrome) {
-            TopBarBrowserView(state: state, chrome: chrome, palette: palette, commands: commands)
-        }
-        .frame(height: state.topBarHeaderHeight)
-    }
 
     /// Full screen has no margins: the page meets the screen's edges.
     var inset: CGFloat { state.isImmersive ? 0 : state.frameInset }
@@ -164,25 +145,25 @@ struct BrowserRootView: View {
     var sidebarShownWidth: CGFloat { state.showsSidebarRail ? BrowserState.sidebarRailWidth : state.sidebarWidth }
     /// Width the sidebar takes before the page starts (0 without a visible sidebar).
     private var pageLeadingOffset: CGFloat {
-        state.tabLayout == .vertical && docksSidebar && !state.sidebarOnRight ? sidebarShownWidth + inset + CGFloat(state.sidebarGap) : 0
+        docksSidebar && !state.sidebarOnRight ? sidebarShownWidth + inset + CGFloat(state.sidebarGap) : 0
     }
     /// Corners follow the border: flush panels are square.
-    var radius: CGFloat { inset == 0 ? 0 : 12 }
+    var radius: CGFloat { inset == 0 ? 0 : Radius.card }
 
-    func contentCard(for layout: TabLayout) -> some View {
-        ContentHost(view: content, state: state, layout: layout)
+    var contentCard: some View {
+        ContentHost(view: content, state: state)
             .anchorPreference(key: DownloadsAnchorKey.self, value: .bounds) { DownloadAnchors(page: $0) }
             .recordLayout("content")
             .overlay { SplitDropOverlay(state: state, chrome: chrome) }
-            .padding(.trailing, (chrome.showPageAssistant && state.browserPreferences.pageIntelligence == true) ? 380 : 0)
-            .padding(.bottom, state.barAtBottom && state.barFloating && !state.isImmersive ? state.topBarHeaderHeight : 0)
-            .padding(.top, ((state.barAtBottom && state.tabLayout.usesTopTabs) || (state.sidebarOnRight && !state.sidebarLightsFollow)) && !state.isImmersive ? 40 : 0)
-            .padding(.top, state.tabLayout == .vertical || state.isImmersive ? inset : state.barPageGap)
+            .padding(.trailing, (chrome.showPageAssistant && state.browserPreferences.pageIntelligence == true) ? PageAssistantView.width : 0)
+            .padding(.top, state.sidebarOnRight && !state.sidebarLightsFollow && !state.showsSidebarTopTabs && !state.isImmersive ? 40 : 0)
+            // Under the Sidebar layout's tab row the page meets the active tab directly.
+            .padding(.top, state.showsSidebarTopTabs ? 0 : inset)
             .padding([.trailing, .bottom], inset)
             // The window's margins around the page move the window in every layout (the page itself is on top).
             .background(WindowDragArea())
             .overlay(alignment: .top) {
-                if state.tabLayout == .vertical && inset > 1 {
+                if inset > 1 && !state.showsSidebarTopTabs {
                     WindowDragArea().frame(height: inset).padding(.trailing, inset)
                         .recordLayout("sidebar-page-drag-margin")
                 }
@@ -190,7 +171,7 @@ struct BrowserRootView: View {
     }
 
     private var showsSidebarSuggestions: Bool {
-        state.tabLayout == .vertical && chrome.isEditingAddress(of: state.activeTabID)
+        chrome.isEditingAddress(of: state.activeTabID)
             && (!palette.suggestions.isEmpty || palette.error != nil)
     }
 
@@ -202,11 +183,20 @@ struct BrowserRootView: View {
                 .transition(.opacity)
             CommandPaletteView(model: palette, colors: state.palette, commands: commands)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .padding(.top, state.tabLayout.usesTopTabs ? max(110, state.topBarChromeHeight + 12) : 110)
+                .padding(.top, 110)
                 .padding(.leading, pageLeadingOffset)  // centred on the page, not the window
                 .transition(.scale(scale: 0.96, anchor: .top).combined(with: .opacity))
         }
-        if showsSidebarSuggestions {
+        if showsSidebarSuggestions, state.showsSidebarTopTabs, let field = chrome.addressFieldFrame {
+            // Hanging from the address bar above the page, at least wide enough to read.
+            let width = max(field.width, 460)
+            SuggestionList(model: palette, colors: state.palette)
+                .frame(width: width)
+                .padding(.leading, max(8, field.midX - width / 2))
+                .padding(.top, field.maxY + 6)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .transition(.scale(scale: 0.98, anchor: .top).combined(with: .opacity))
+        } else if showsSidebarSuggestions {
             // Under the sidebar's address field.
             SuggestionList(model: palette, colors: state.palette)
                 .frame(width: 520)
@@ -220,7 +210,7 @@ struct BrowserRootView: View {
         if chrome.showFind {
             FindBarView(model: find, colors: state.palette)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                .padding(.top, state.tabLayout.usesTopTabs && !state.isImmersive ? state.topBarChromeHeight + 8 : 20)
+                .padding(.top, state.showsSidebarTopTabs ? SidebarTopTabs.height(state) + BrowserState.tabsToolbarHeight + 12 : 20)
                 .padding(.trailing, 20)
                 .transition(.move(edge: .top).combined(with: .opacity))
         }

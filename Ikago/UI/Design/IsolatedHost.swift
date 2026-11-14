@@ -1,15 +1,15 @@
 import AppKit
 import SwiftUI
 
-/// Runs a part of the window (the sidebar, the top bars) in its own `NSHostingView` with its own view graph.
+/// Runs a part of the window (the sidebar, the Sidebar + Tabs row) in its own `NSHostingView` with its own view graph.
 ///
 /// The window is otherwise one SwiftUI tree, so a change anywhere made SwiftUI walk everything: measured, a third of
 /// the main thread went to that bookkeeping while browsing. A separate host keeps sidebar updates in the sidebar and
 /// the rest of the window's updates out of it. The parent still sizes and animates the host like any view, and glass
 /// inside it samples the window behind it as before.
 ///
-/// Preferences can't cross hosts, so the ones the shell needs, the Downloads button's and the address field's frames,
-/// are passed through `ChromeModel.downloadsButtonFrame` and `addressFieldFrame` in the shell's coordinates.
+/// Preferences can't cross hosts, so the one the shell needs, the Downloads button's frame, is passed through
+/// `ChromeModel.downloadsButtonFrame` in the shell's coordinates.
 struct IsolatedHost<Content: View>: FillingViewRepresentable {
     let chrome: ChromeModel
     @ViewBuilder let content: Content
@@ -50,9 +50,10 @@ struct IsolatedHost<Content: View>: FillingViewRepresentable {
         }
 
         private func publish() {
-            let downloadsFrame = shellFrame(downloads), addressFrame = shellFrame(address)
+            let downloadsFrame = shellFrame(downloads)
             if chrome.downloadsButtonFrame != downloadsFrame { chrome.downloadsButtonFrame = downloadsFrame }
-            if chrome.addressFieldFrame != addressFrame { chrome.addressFieldFrame = addressFrame }
+            // Only the host that has an address field reports one; the others leave it alone.
+            if let address, let frame = shellFrame(address), chrome.addressFieldFrame != frame { chrome.addressFieldFrame = frame }
         }
     }
 
@@ -75,13 +76,13 @@ struct IsolatedHost<Content: View>: FillingViewRepresentable {
 
     static func dismantleNSView(_ view: NSView, coordinator: Coordinator) {
         coordinator.reportDownloads(nil)
-        coordinator.reportAddress(nil)
     }
 
     private func root(_ context: Context) -> IsolatedRoot<Content> {
         let coordinator = context.coordinator
         return IsolatedRoot(content: content, environment: environment,
-                            reportDownloads: { coordinator.reportDownloads($0) }, reportAddress: { coordinator.reportAddress($0) })
+                            reportDownloads: { coordinator.reportDownloads($0) },
+                            reportAddress: { coordinator.reportAddress($0) })
     }
 }
 
@@ -98,12 +99,7 @@ struct IsolatedRoot<Content: View>: View {
             .overlayPreferenceValue(DownloadsAnchorKey.self) { anchors in
                 GeometryReader { geometry in
                     Color.clear.onChange(of: anchors.toolbar.map { geometry[$0] }, initial: true) { _, rect in reportDownloads(rect) }
-                }
-                .allowsHitTesting(false)
-            }
-            .overlayPreferenceValue(AddressAnchorKey.self) { anchor in
-                GeometryReader { geometry in
-                    Color.clear.onChange(of: anchor.map { geometry[$0] }, initial: true) { _, rect in reportAddress(rect) }
+                    Color.clear.onChange(of: anchors.address.map { geometry[$0] }, initial: true) { _, rect in reportAddress(rect) }
                 }
                 .allowsHitTesting(false)
             }

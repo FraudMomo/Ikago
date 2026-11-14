@@ -43,9 +43,7 @@ struct TabMotionSection: View {
             }
             PageDivider()
             PageRow(title: "Tab highlight animation") {
-                Picker("Tab highlight animation", selection: Binding(get: { state.tabHighlightStyle }, set: { state.tabHighlightStyle = $0 })) {
-                    ForEach(TabHighlightStyle.allCases) { Text($0.title).tag($0) }
-                }.labelsHidden()
+                SettingsMenu(selection: Binding(get: { state.tabHighlightStyle }, set: { state.tabHighlightStyle = $0 }), options: TabHighlightStyle.allCases.map { ($0, $0.title) })
             }
         }
     }
@@ -56,31 +54,26 @@ struct SpacingSection: View {
     @Bindable var state: BrowserState
 
     var body: some View {
-        PageSection(title: state.tabLayout == .vertical ? "Window and Sidebar" : "Top Bar Window") {
+        PageSection(title: "Window and Sidebar") {
             SliderRow(title: "Window border", subtitle: "Space around the page", value: $state.frameInset,
                       range: 0...24, defaultValue: BrowserState.defaultFrameInset)
             PageDivider()
-            if state.tabLayout == .vertical {
+            Group {
                 PageRow(title: "Sidebar", subtitle: "⌃⌘S switches, ⇧⌘S hides") {
-                    Picker("Sidebar", selection: Binding(
-                        get: { !state.sidebarVisible ? 2 : state.browserPreferences.sidebarCompact == true ? 1 : 0 },
+                    SettingsSegmented(selection: Binding(
+                        get: { !state.sidebarVisible ? 2 : state.showsSidebarRail ? 1 : 0 },
                         set: { mode in
                             withAnimation(.ikago) {
                                 state.sidebarVisible = mode != 2
                                 if mode != 2 { state.browserPreferences.sidebarCompact = mode == 1 ? true : nil }
                             }
-                        })) {
-                        Text("Full").tag(0)
-                        Text("Icons").tag(1)
-                        Text("Hidden").tag(2)
-                    }
-                    .labelsHidden().pickerStyle(.segmented).fixedSize()
+                        }),
+                        // Sidebar + Tabs has no full sidebar.
+                        options: (state.usesTabsLayout ? [] : [(0, "Full")]) + [(1, "Icons"), (2, "Hidden")])
                 }
                 PageDivider()
                 PageRow(title: "Sidebar side") {
-                    Picker("Sidebar side", selection: Binding(get: { state.sidebarOnRight }, set: { state.sidebarOnRight = $0 })) {
-                        Text("Left").tag(false); Text("Right").tag(true)
-                    }.labelsHidden().pickerStyle(.segmented).fixedSize()
+                    SettingsSegmented(selection: Binding(get: { state.sidebarOnRight }, set: { state.sidebarOnRight = $0 }), options: [(false, "Left"), (true, "Right")])
                 }
                 if state.sidebarOnRight {
                     PageDivider()
@@ -91,18 +84,8 @@ struct SpacingSection: View {
                 PageDivider()
                 SliderRow(title: "Sidebar gap", subtitle: "Space between the sidebar and page",
                           value: $state.sidebarGap, range: 0...24, defaultValue: BrowserState.defaultSidebarGap)
-            } else {
-                PageRow(title: "Floating toolbar", subtitle: "A floating card over the page") {
-                    Toggle("Floating toolbar", isOn: $state.barRounded.animation(.ikago)).labelsHidden().toggleStyle(.switch)
-                }
-                if state.barFloating {
-                    PageDivider()
-                    SliderRow(title: "Toolbar outline", value: $state.barBorder, range: 0...3, defaultValue: 0, step: 0.5,
-                              format: { $0 == 0 ? "None" : String(format: "%.1f pt", $0) })
-                }
             }
         }
-        .animation(.ikago, value: state.tabLayout)
         PageSection(title: "Full Screen") {
             PageRow(title: "Use the area beside the camera", subtitle: "Otherwise a black band sits below it") {
                 Toggle("Use the area beside the camera", isOn: Binding(

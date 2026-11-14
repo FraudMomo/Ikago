@@ -5,8 +5,6 @@ import SwiftUI
 struct ContentHost: FillingViewRepresentable {
     let view: NSView
     let state: BrowserState
-    /// The layout this host belongs to; each layout has its own.
-    let layout: TabLayout
 
     func makeNSView(context: Context) -> NSView {
         let container = NSView()
@@ -14,10 +12,9 @@ struct ContentHost: FillingViewRepresentable {
         return container
     }
 
-    /// Switching back while a layout is still animating out revives its host without `makeNSView`.
-    /// Reclaim the page here, or it leaves the window along with the other layout's host.
+    /// There is one host, so it always holds the page; reattach in case anything else borrowed the view.
     func updateNSView(_ container: NSView, context: Context) {
-        if state.tabLayout == layout { attach(to: container) }
+        attach(to: container)
     }
 
     private func attach(to container: NSView) {

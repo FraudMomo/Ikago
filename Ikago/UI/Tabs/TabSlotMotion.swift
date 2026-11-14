@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Top-strip tab motion: an opened tab grows out of its slot while its neighbours and the + button slide aside, a closed
+/// Tab row motion (Sidebar + Tabs): an opened tab grows out of its slot while its neighbours and the + button slide aside, a closed
 /// tab shrinks to nothing while they slide in, and widths reflow smoothly when tabs open, close,
 /// or reorder. Window resizes and Space switches stay immediate.
 enum TabMotion {
@@ -16,6 +16,8 @@ enum TabMotion {
 /// resize, switching tabs in a crowded strip) don't animate.
 struct TabMotionKey: Equatable {
     let ids: [String]
+    /// Tabs keeping their width after a close under the pointer; letting go reflows them on the same motion.
+    var held = false
 }
 
 extension View {
@@ -44,7 +46,7 @@ struct TabSlotReveal: ViewModifier, Animatable {
 
     func body(content: Content) -> some View {
         SlotLayout(fraction: fraction) { content }
-            .clipShape(HorizontalClip())
+            .clipShape(HorizontalClip(open: fraction >= 1))
     }
 }
 
@@ -64,7 +66,9 @@ private struct SlotLayout: Layout {
     }
 }
 
-/// Clips only the sides, so shadows, focus rings and hover fills above and below are kept.
+/// Clips only the sides while the slot grows or shrinks, so shadows and fills above and below are kept. A settled slot
+/// isn't clipped at all: an attached tab's flares reach past its frame into the page.
 private struct HorizontalClip: Shape {
-    func path(in rect: CGRect) -> Path { Path(rect.insetBy(dx: 0, dy: -40)) }
+    var open = false
+    func path(in rect: CGRect) -> Path { Path(rect.insetBy(dx: open ? -40 : 0, dy: -40)) }
 }

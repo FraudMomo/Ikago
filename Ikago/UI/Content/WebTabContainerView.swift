@@ -5,7 +5,9 @@ import AppKit
 /// back is instant and never reloads. Web views autoresize with their panes.
 final class WebTabContainerView: NSView {
     /// Pane corner radius; 0 when the border is 0 (edge to edge).
-    static var cornerRadius: CGFloat = 12
+    static var cornerRadius: CGFloat = Radius.card
+    /// Sidebar + Tabs: the address bar above is the card's top, so only the bottom corners round.
+    static var squareTop = false
     private let panes = PaneSplitView()
     private let parking = NSView()
     private(set) var shownIDs: [String] = []
@@ -48,18 +50,27 @@ final class WebTabContainerView: NSView {
             fade.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             layer?.add(fade, forKey: "transition")
         }
-        // Dismantle the old arrangement; the live views go to parking until they are placed.
-        for split in splits {
-            for view in split.arrangedSubviews { split.removeArrangedSubview(view); view.removeFromSuperview() }
+        // Dismantle the old arrangement. Views never leave the window on the way (each moves straight to its pane or to
+        // parking): a Chromium page taken out of the window is resized to 0×0, and pages like ChatGPT lost their scroll
+        // position and blinked when shown again (`CEFTabSwitchChecks`).
+        // (`removeArrangedSubview` would take each view out of the window; split views arrange all their subviews, so
+        // moving a view elsewhere is enough.)
+        let oldSplits = splits
+        for old in paneViews where !views.contains(where: { $0.view === old }) { park(old) }
+        // Which panes sit along the top edge: every column, the first row, a grid's top pair.
+        let top: Set<Int> = switch layout {
+        case .columns: Set(views.indices)
+        case .rows: [0]
+        case .grid: [0, 1]
         }
-        for item in views {
-            item.view.removeFromSuperview()
+        for (index, item) in views.enumerated() {
+            // Its final size before it joins the split view, which would otherwise lay it out from 0×0: a Chromium page
+            // reports that size to the site, and ChatGPT reset its scroll position (`CEFTabSwitchChecks`).
+            if views.count == 1 { item.view.frame = panes.bounds }
             item.view.isHidden = false
+            (item.view as? TabHostView)?.touchesTop = top.contains(index)
             Self.round(item.view)
         }
-        // Anything still shown from before that is no longer wanted is parked.
-        for old in paneViews where !views.contains(where: { $0.view === old }) { park(old) }
-
         paneViews = views.map(\.view)
         splits = [panes]
         let v = views.map(\.view)
@@ -84,6 +95,8 @@ final class WebTabContainerView: NSView {
             panes.addArrangedSubview(nested([v[0], v[1]], vertical: true))
             panes.addArrangedSubview(nested([v[2], v[3]], vertical: true))
         }
+        // Nested split views of the old arrangement are empty now (their panes moved); drop them.
+        for split in oldSplits where split !== panes && !splits.contains(where: { $0 === split }) { split.removeFromSuperview() }
         shownIDs = ids
         shownLayout = layout
         panes.layoutSubtreeIfNeeded()
@@ -95,6 +108,15 @@ final class WebTabContainerView: NSView {
         view.wantsLayer = true
         view.layer?.cornerRadius = cornerRadius
         view.layer?.cornerCurve = .continuous
+        // AppKit gives a view's backing layer the view's own coordinate space, so the view's `isFlipped` says which
+        // edge minY is (panes aren't flipped: minY is the bottom). The layer's `isGeometryFlipped` doesn't: AppKit sets
+        // it to match the flipped NSSplitView around the pane, and reading it rounded the top and squared the bottom.
+        let bottom: CACornerMask = view.isFlipped
+            ? [.layerMinXMaxYCorner, .layerMaxXMaxYCorner] : [.layerMinXMinYCorner, .layerMaxXMinYCorner]
+        // Only panes along the top meet the address bar; lower split panes keep all four corners.
+        let touchesTop = (view as? TabHostView)?.touchesTop ?? true
+        view.layer?.maskedCorners = squareTop && touchesTop ? bottom
+            : [.layerMinXMinYCorner, .layerMaxXMinYCorner, .layerMinXMaxYCorner, .layerMaxXMaxYCorner]
         view.layer?.masksToBounds = true
     }
 
@@ -114,9 +136,13 @@ final class WebTabContainerView: NSView {
 
     func park(_ view: NSView) {
         guard view.superview !== parking else { return }
-        view.removeFromSuperview()
-        view.frame = parking.bounds
+        // Straight into parking (addSubview moves it), never out of the window first: a Chromium page out of the
+        // window is resized to 0×0 (`CEFTabSwitchChecks`).
         parking.addSubview(view)
+        // A split view put it on Auto Layout; with no constraints in parking that sized it to 0×0.
+        view.translatesAutoresizingMaskIntoConstraints = true
+        view.autoresizingMask = [.width, .height]
+        view.frame = parking.bounds
     }
 
     private func distributeEvenly(_ split: NSSplitView) {
@@ -133,4 +159,34 @@ final class WebTabContainerView: NSView {
 private final class PaneSplitView: NSSplitView {
     override var dividerThickness: CGFloat { 6 }
     override var dividerColor: NSColor { .clear }
+    /// Each pane's share of the split, as the person left it. Resizing (the window, the sidebar, a layout switch) keeps
+    /// the shares: Auto Layout alone hands the change to one pane, and a layout switch that squeezes the page area for a
+    /// moment collapsed a grid's right column to 0 pt and never gave it back (measured with the `panes` test action).
+    private var shares: [CGFloat] = []
+    private var lastRoom: CGFloat = 0
+
+    override func layout() {
+        super.layout()
+        let panes = arrangedSubviews
+        let room = (isVertical ? bounds.width : bounds.height) - dividerThickness * CGFloat(max(0, panes.count - 1))
+        guard panes.count > 1, room > CGFloat(panes.count) * 40 else { return }
+        let lengths = panes.map { isVertical ? $0.frame.width : $0.frame.height }
+        let collapsed = lengths.contains { $0 < 1 }
+        let known = shares.count == panes.count
+        // A split laid out collapsed before it ever had room (a new grid in a window not yet on screen) shares evenly.
+        if (room != lastRoom && known) || collapsed {
+            let wanted = known ? shares : Array(repeating: 1 / CGFloat(panes.count), count: panes.count)
+            lastRoom = room
+            var edge: CGFloat = 0
+            for i in 0..<(panes.count - 1) {
+                edge += (room * wanted[i]).rounded()
+                setPosition(edge + dividerThickness * CGFloat(i), ofDividerAt: i)
+            }
+        } else if !collapsed {
+            // The same room: a divider moved (or new panes were laid out), so these are the shares to keep.
+            lastRoom = room
+            let sum = lengths.reduce(0, +)
+            shares = lengths.map { $0 / sum }
+        }
+    }
 }

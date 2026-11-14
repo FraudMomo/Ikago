@@ -66,20 +66,23 @@ struct SidebarPeek: View {
 
     var body: some View {
         ZStack(alignment: state.sidebarOnRight ? .topTrailing : .topLeading) {
-            Color.clear
+            // Hovering the edge brings the sidebar in; pressing it moves the window, like the margin it sits on.
+            WindowDragArea()
                 .frame(width: 10)
                 .frame(maxHeight: .infinity)
-                .contentShape(Rectangle())
                 .onHover { if $0 { chrome.peek() } }
             if chrome.peeking {
                 IsolatedHost(chrome: chrome) {
-                    SidebarView(state: state, chrome: chrome, palette: palette, commands: commands)
+                    // Sidebar + Tabs has no full sidebar: its rail slides in instead, under the tab row.
+                    if state.usesTabsLayout { SidebarRail(state: state, commands: commands) }
+                    else { SidebarView(state: state, chrome: chrome, palette: palette, commands: commands) }
                 }
-                    .frame(width: state.sidebarWidth)
+                    .frame(width: state.usesTabsLayout ? BrowserState.sidebarRailWidth : state.sidebarWidth)
                     .frame(maxHeight: .infinity)
-                    .sidebarPanel(state.palette, radius: 12, shadow: 0.18, translucent: state.browserPreferences.translucentSidebar == true)
+                    .sidebarPanel(state.palette, radius: Radius.card, shadow: 0.18, translucent: state.browserPreferences.translucentSidebar == true)
                     .padding(max(state.frameInset, 6))
                     .padding(.top, state.isImmersive ? state.immersiveChromeTop : 0)
+                    .padding(.top, state.showsSidebarTopTabs ? SidebarTopTabs.height(state) : 0)
                     .onHover { inside in
                         chrome.peekHovered = inside
                         if inside { chrome.peek() } else { chrome.endPeek() }

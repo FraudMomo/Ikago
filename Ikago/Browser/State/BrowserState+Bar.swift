@@ -1,52 +1,35 @@
-import AppKit
+import SwiftUI
 
 extension BrowserState {
-    /// The Sidebar layout's three states: full, a rail of icons, or hidden (`sidebarVisible`).
-    var showsSidebarRail: Bool { tabLayout == .vertical && sidebarVisible && browserPreferences.sidebarCompact == true }
+    /// Settings ▸ Appearance ▸ Layout ▸ Sidebar + Tabs: tabs and an address bar above the page, and the sidebar only as
+    /// a rail of icons or hidden (never the full sidebar).
+    var usesTabsLayout: Bool { browserPreferences.sidebarTopTabs == true }
+    /// The tab row and address bar are on screen (full screen gives the page the whole display).
+    var showsSidebarTopTabs: Bool { usesTabsLayout && !isImmersive }
+    /// The address bar under the tab row, part of the page's card.
+    static let tabsToolbarHeight: CGFloat = 36
+    /// The sidebar's top row (traffic lights and toolbar controls), measured from the window's top edge. Everything
+    /// that shares that line, the lights, the sidebar's controls and the Sidebar + Tabs row, centres on `sidebarRowCenter`.
+    var sidebarRowTop: CGFloat { max(8, CGFloat(frameInset)) }
+    static let sidebarRowHeight: CGFloat = 36
+    var sidebarRowCenter: CGFloat { sidebarRowTop + Self.sidebarRowHeight / 2 }
+    /// The docked sidebar is part of the window's own surface (no card of its own), so only the page is a rounded card.
+    /// Liquid Glass keeps its glass panel, except with the frosted sidebar: then the window itself is the frosted surface
+    /// (`WindowBackgroundView`), and a card of its own would stack a second, flatter layer on it.
+    var sidebarJoinsWindow: Bool { !useGlass || frostedChrome }
+    /// Settings ▸ Appearance ▸ translucent sidebar, unless macOS's Reduce Transparency is on: the window is frosted, and
+    /// in Sidebar + Tabs the active tab and the address bar are one lighter, see-through sheet over it.
+    var frostedChrome: Bool {
+        browserPreferences.translucentSidebar == true && !NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
+    }
+    /// The active tab and address bar's fill: the page's color, see-through when the window is frosted, so tab and bar
+    /// read as one lighter sheet of the frost that settles into the solid page below.
+    var tabSheetColor: Color { frostedChrome ? palette.pageBackground.opacity(palette.isDark ? 0.42 : 0.62) : palette.pageBackground }
+    var sidebarGroupStyle: SidebarGroupStyle { browserPreferences.sidebarGroupStyle ?? .cards }
+    /// The sidebar's three states: full, a rail of icons, or hidden (`sidebarVisible`).
+    var showsSidebarRail: Bool { sidebarVisible && (browserPreferences.sidebarCompact == true || usesTabsLayout) }
     /// The rail's width: room for the traffic lights side by side, and a 36 pt tile.
     static let sidebarRailWidth: CGFloat = 64
 
-    var pageCornerRadius: CGFloat { frameInset == 0 || isImmersive ? 0 : 12 }
-    /// Floating island mode: the page fills the window and one pill floats over it, holding the
-    /// traffic lights, buttons and tabs. Height is adjustable within a narrower range; the gap doesn't apply.
-    var barFloating: Bool { tabLayout == .horizontal && (barRounded || barAtBottom) }
-    /// The island's height as drawn.
-    var barShownHeight: CGFloat { tabLayout == .horizontal ? topToolbarHeight : CGFloat(barHeight) }
-    /// The title row the island sits in (traffic lights are centred on it).
-    var barRegion: CGFloat { tabLayout == .horizontal ? topToolbarHeight + (barFloating ? Self.topBarFloatingMargin * 2 : 0) : max(38, barShownHeight + 6) }
-    /// A big gap (over 15 pt) joins the title row: the island is centred in row plus gap.
-    var barCentersInGap: Bool { !barFloating && barGap > 15 }
-    /// Title row height including a gap large enough to centre the island in.
-    var barArea: CGFloat { barRegion + (barCentersInGap ? CGFloat(barGap) : 0) }
-    /// What is left of the gap to put above the page.
-    var barPageGap: CGFloat { tabLayout == .horizontal ? (barFloating ? frameInset : 0) : CGFloat(barGap) }
-    /// Island top inset: level with the traffic lights, or centred when the gap is large.
-    var barTopInset: CGFloat {
-        if tabLayout == .horizontal { return barFloating ? Self.topBarFloatingMargin : 0 }
-        let h = barShownHeight
-        if barFloating { return 8 }
-        return barCentersInGap ? max(3, (barArea - h) / 2) : max(3, 19 - h / 2)
-    }
-
-    /// Floating island: how far the page content starts below the card's top edge. The page still
-    /// scrolls under the island, and fixed navbars sit below it.
-    var floatingContentInset: CGFloat {
-        tabLayout == .horizontal && barFloating && !barAtBottom && !isImmersive ? max(0, topBarChromeHeight - CGFloat(frameInset)) : 0
-    }
-
-    /// Space identity colors the whole chrome. A page theme can contribute a subtle tint.
-    var barTint: NSColor? {
-        if tabLayout == .horizontal { return topBarChromeTint }
-        guard tabLayout.usesTopTabs, !barFloating else { return nil }
-        let base = palette.nsTint
-        guard tintBarWithPage, let tab = activeTab, InternalPage(url: tab.url) == nil,
-              let page = tab.themeColor else { return base }
-        return base.blended(withFraction: 0.22, of: page) ?? base
-    }
-
-    /// Colors for controls drawn on the top bar: the Space's palette, or one that reads on the page color.
-    var barPalette: Palette {
-        if tabLayout == .horizontal { return topBarPalette }
-        return barTint.map { Palette(palette, over: $0) } ?? palette
-    }
+    var pageCornerRadius: CGFloat { frameInset == 0 || isImmersive ? 0 : Radius.card }
 }

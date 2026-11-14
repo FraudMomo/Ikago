@@ -1,27 +1,18 @@
 import Foundation
 
-/// Three independent browser presentations.
-enum TabLayout: String, Codable, CaseIterable, Identifiable {
-    case vertical, horizontal
-    var id: String { rawValue }
-    var name: String {
-        switch self { case .vertical: "Sidebar"; case .horizontal: "Top Bar" }
-    }
-    var usesTopTabs: Bool { self != .vertical }
-}
-
-enum TopTabStyle: String, CaseIterable, Identifiable {
-    case separate, compact
-    var id: String { rawValue }
-    var name: String { self == .separate ? "Separate" : "Compact" }
-}
-
 /// The group label treatment shared by sidebar and top bar.
 enum GroupLabelStyle: String, CaseIterable, Identifiable {
     case minimal, colorPill
     var id: String { rawValue }
     var name: String { self == .minimal ? "Minimal" : "Color pill" }
     var detail: String { self == .minimal ? "A small color marker." : "A softly colored background." }
+}
+
+/// How the vertical sidebar draws a group: a softly tinted card, or a plain folder with its tabs indented below.
+enum SidebarGroupStyle: String, Codable, CaseIterable, Identifiable {
+    case cards, folders
+    var id: String { rawValue }
+    var name: String { self == .cards ? "Cards" : "Folders" }
 }
 
 /// How you edit the address: in place or in a floating command bar.
@@ -66,7 +57,7 @@ struct SpaceColors: Codable, Equatable, Hashable {
 
     /// Space identity pairs that tint the full sidebar and top bar. The first is the standard; new Spaces take the next unused.
     static let presets: [Preset] = [
-        Preset(name: "Graphite", colors: SpaceColors(light: 0xE8E8EA, dark: 0x1E1E20)),
+        Preset(name: "Graphite", colors: SpaceColors(light: 0xE8E8EA, dark: 0x141416)),
         Preset(name: "Mist", colors: SpaceColors(light: 0xB9D9EB, dark: 0x204355)),
         Preset(name: "Sand", colors: SpaceColors(light: 0xEED4AD, dark: 0x51402A)),
         Preset(name: "Sage", colors: SpaceColors(light: 0xBFD8B9, dark: 0x294A37)),
@@ -80,7 +71,9 @@ struct SpaceColors: Codable, Equatable, Hashable {
         let neutralPairs: [SpaceColors: String] = [
             SpaceColors(light: 0xDDE5E8, dark: 0x212528): "Mist", SpaceColors(light: 0xE9E3D8, dark: 0x262420): "Sand",
             SpaceColors(light: 0xDFE7DC, dark: 0x212522): "Sage", SpaceColors(light: 0xEEE0E2, dark: 0x272224): "Rose",
-            SpaceColors(light: 0xE4E1EE, dark: 0x232229): "Lilac", SpaceColors(light: 0xE5E2DE, dark: 0x242321): "Stone"
+            SpaceColors(light: 0xE4E1EE, dark: 0x232229): "Lilac", SpaceColors(light: 0xE5E2DE, dark: 0x242321): "Stone",
+            // Graphite's dark tone was the page's own gray, so the page card vanished against the sidebar.
+            SpaceColors(light: 0xE8E8EA, dark: 0x1E1E20): "Graphite"
         ]
         if let name = neutralPairs[colors], let preset = presets.first(where: { $0.name == name }) { return preset.colors }
         let old: [UInt32: String] = [0x1F2A30: "Mist", 0x2B2620: "Sand", 0x2F2226: "Rose", 0x1F2A22: "Sage",

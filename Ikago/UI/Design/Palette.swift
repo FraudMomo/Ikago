@@ -73,7 +73,7 @@ extension Palette {
 extension View {
     /// A floating surface: Liquid Glass, or a flat panel when glass is turned off.
     @ViewBuilder
-    func surface<S: Shape>(_ shape: S, _ colors: Palette, translucentSidebar: Bool = false, tintOpacity: Double = 0.65) -> some View {
+    func surface<S: Shape>(_ shape: S, _ colors: Palette, translucentSidebar: Bool = false, tintOpacity: Double = 0.4) -> some View {
         if translucentSidebar {
             modifier(SidebarMaterialSurface(shape: shape, colors: colors))
         } else if colors.glass {

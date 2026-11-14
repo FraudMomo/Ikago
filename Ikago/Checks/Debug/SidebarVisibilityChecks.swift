@@ -12,7 +12,7 @@ enum SidebarVisibilityChecks {
         }
         func settle() async { try? await Task.sleep(for: .milliseconds(450)) }
         defer { state.apply(saved) }
-        state.tabLayout = .vertical; state.sidebarVisible = true
+        state.sidebarVisible = true
         state.browserPreferences.sidebarCompact = false
         state.useGlass = false
         state.tabs = []; state.folders = []; state.splits = []

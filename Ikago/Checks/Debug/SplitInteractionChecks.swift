@@ -45,21 +45,21 @@ enum SplitInteractionChecks {
         check(capacity.splits == before, "full target does not dismantle source group")
         let state = browser.state
         let originalIDs = Set(state.tabs.map(\.id)), active = state.activeTabID
-        let layout = state.tabLayout, rounded = state.barRounded, splitLayout = state.splitLayout
+        let topTabs = state.browserPreferences.sidebarTopTabs, splitLayout = state.splitLayout
         defer {
             for tab in state.tabs where !originalIDs.contains(tab.id) { state.closeTab(tab.id, removingPin: true) }
-            state.tabLayout = layout; state.barRounded = rounded; state.splitLayout = splitLayout
+            state.browserPreferences.sidebarTopTabs = topTabs; state.splitLayout = splitLayout
             if let active { state.select(active) }
         }
         browser.palette.onDismiss()
-        for (mode, floating) in [(TabLayout.vertical, false), (.horizontal, false), (.horizontal, true)] {
-            state.tabLayout = mode; state.barRounded = floating
+        for mode in ["sidebar", "tabs"] {
+            state.browserPreferences.sidebarTopTabs = mode == "tabs" ? true : nil
             let a = state.newTab(url: InternalPage.history.url)!, b = state.newTab(url: InternalPage.bookmarks.url, select: false)!
             let provider = TabDrag.provider(b.id)
             browser.chrome.beginTabDrag(b.id)
             browser.chrome.endTabDrag()
             await withCheckedContinuation { continuation in
-                TabDrag.load(provider) { id in
+                TabDrag.load(provider, into: nil) { id in
                     state.splitWithDropped(id, edge: .right)
                     continuation.resume()
                 }

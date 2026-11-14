@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// One customizable control (Settings ▸ Customize), as it appears in the top bar or sidebar.
+/// One customizable control (Settings ▸ Customize), as it appears in the sidebar.
 struct ChromeItemView: View {
     let item: ChromeItem
     let state: BrowserState
@@ -24,7 +24,7 @@ struct ChromeItemView: View {
             ChromeButton(symbol: tab?.isLoading == true ? "stop.fill" : "arrow.clockwise", help: "Reload (⌘R)",
                          colors: colors, size: size, enabled: tab != nil) { commands?.reloadOrStop() }
         case .sidebarToggle: button(help: "Sidebar: Full, Icons, Hidden") { commands?.cycleSidebar() }
-        case .newTab: button(help: "New Tab (⌘T)") { commands?.newTab() }.contextMenu { ClosedGroupItems(state: state) }
+        case .newTab: button(help: "New Tab (⌘T)") { commands?.newTab() }
         case .newSpace: button(help: "New Space (⇧⌘N)") { commands?.newSpace() }
         case .bookmarks: button(help: "Bookmarks (⌥⌘B)") { commands?.openPage(.bookmarks) }
         case .history: button(help: "History (⌘Y)") { commands?.openPage(.history) }
@@ -33,7 +33,6 @@ struct ChromeItemView: View {
         case .assistant:
             if state.browserPreferences.pageIntelligence == true { button(help: "Ask this page") { commands?.togglePageAssistant() } }
         case .notes: button(help: "Notes") { commands?.openPage(.notes) }
-        case .tabOverview: button(help: "Tab Overview (⇧⌘S)") { commands?.toggleSidebar() }
         case .share:
             if let tab, AddressResolver.isWebURL(tab.url), let url = URL(string: tab.url) {
                 ShareLink(item: url) {

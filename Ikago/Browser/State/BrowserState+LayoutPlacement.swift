@@ -9,17 +9,12 @@ extension BrowserState {
         get { browserPreferences.sidebarLightsFollow ?? true }
         set { browserPreferences.sidebarLightsFollow = newValue }
     }
-    var barAtBottom: Bool {
-        get { browserPreferences.barAtBottom == true }
-        set { browserPreferences.barAtBottom = newValue }
-    }
 }
 
 extension BrowserState {
-    /// Seed both layouts on enable; later customization, including removal, survives relaunch.
+    /// Seed the sidebar's toolbar on enable; later customization, including removal, survives relaunch.
     func preparePageAssistantToolbar() {
-        if !chromeLayout.contains(.assistant, inTopBar: true) { chromeLayout.place(.assistant, in: .topBarTrailing) }
-        if !chromeLayout.contains(.assistant, inTopBar: false) { chromeLayout.place(.assistant, in: .sidebarTop) }
+        if !chromeLayout.contains(.assistant) { chromeLayout.place(.assistant, in: .sidebarTop) }
         browserPreferences.assistantToolbarInitialized = true
     }
 

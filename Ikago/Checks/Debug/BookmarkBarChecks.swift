@@ -23,8 +23,6 @@ enum BookmarkBarChecks {
             Bookmark(url: "https://wikipedia.org", title: "Wikipedia")
         ]
         state.showsBookmarksBar = true
-        state.showsTopBarEssentials = true
-        state.showsTopBarPins = true
     }
 
     static func run(_ browser: BrowserWindowController) async {
@@ -43,12 +41,11 @@ enum BookmarkBarChecks {
         let grandchild = model.createBookmarkFolder(named: "API", parentID: child.id)!
         model.bookmarks = [Bookmark(url: "https://example.org/docs", title: "Docs", folderID: child.id)]
         model.showsBookmarksBar = true; model.sidebarBookmarksExpanded = true
-        model.showsTopBarEssentials = false
         model.saveNow()
         let restored = BrowserState(store: store)
         check(restored.bookmarkFolders == model.bookmarkFolders && restored.bookmarks == model.bookmarks,
               "nested folders and bookmark membership survive relaunch")
-        check(restored.showsBookmarksBar && restored.sidebarBookmarksExpanded && !restored.showsTopBarEssentials,
+        check(restored.showsBookmarksBar && restored.sidebarBookmarksExpanded,
               "independent surface preferences survive relaunch")
         model.removeBookmarkFolder(child.id)
         check(model.bookmarks.first?.folderID == parent.id
@@ -69,40 +66,12 @@ enum BookmarkBarChecks {
         }
         seed(browser)
         let state = browser.state
-        state.useGlass = false; state.tabLayout = .horizontal
-        state.topTabStyle = .separate
-        for floating in [false, true] {
-            state.barRounded = floating
-            for width in [1100.0, 420.0] {
-                browser.window?.setContentSize(NSSize(width: width, height: 750))
-                try? await Task.sleep(for: .milliseconds(500))
-                let bar = LayoutChecks.frames["bookmarks-bar"]
-                print("IKTEST bookmark bounds width=\(width) floating=\(floating) bar=\(String(describing: bar)) row=\(String(describing: LayoutChecks.frames["connected-tab-row"]))")
-                check(bar.map { $0.minX >= 0 && $0.maxX <= width + 1 && abs($0.height - 32) < 1 } == true,
-                      "bookmark bar stays bounded at \(Int(width)) pt, floating=\(floating)")
-                let tabRow = LayoutChecks.frames["connected-tab-row"]
-                check(bar.flatMap { bar in tabRow.map { abs(bar.minY - $0.maxY) < 1 } } == true,
-                      "bookmarks touch the tab row inside one surface")
-                if floating {
-                    check(browser.activeController?.topInset == state.floatingContentInset
-                          && state.floatingContentInset >= state.topBarAccessoryHeight,
-                          "floating page content starts below the bookmark bar")
-                }
-            }
-        }
-        state.showsTopBarEssentials = false
-        try? await Task.sleep(for: .milliseconds(500))
-        check(state.topBarAccessoryHeight == 32, "pinned tabs reserve no accessory row height")
-        state.showsBookmarksBar = false
-        check(state.topBarAccessoryHeight == 0, "hiding bookmarks returns accessory height to the page")
-        state.showsBookmarksBar = true; state.tabLayout = .vertical
+        state.useGlass = false; state.showsBookmarksBar = true
         state.sidebarBookmarksExpanded = true
         browser.window?.setContentSize(NSSize(width: 1100, height: 750))
         try? await Task.sleep(for: .milliseconds(500))
         check(LayoutChecks.frames["bookmarks-drawer"].map { $0.maxY <= 751 && $0.width <= state.sidebarWidth } == true,
               "expanded sidebar bookmarks stay inside the sidebar")
-        state.tabLayout = .horizontal
-        check(!state.presentsSidebarPinGrid, "top-bar tab overview uses rows rather than sidebar essentials grids")
         print("IKTEST bookmarkbarchecks \(failures == 0 ? "PASS" : "FAIL") failures=\(failures)")
     }
 }

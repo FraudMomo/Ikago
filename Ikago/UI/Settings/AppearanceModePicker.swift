@@ -13,12 +13,12 @@ struct AppearanceModePicker: View {
                                 preview(mode)
                                 if state.colorMode == mode {
                                     Image(systemName: "checkmark.circle.fill").font(.system(size: 12, weight: .semibold))
-                                        .foregroundStyle(.white, Color.accentColor).padding(4)
+                                        .foregroundStyle(.white, Color.settingsAccent).padding(4)
                                 }
                             }.frame(width: 68, height: 45)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .clipShape(RoundedRectangle(cornerRadius: Radius.control))
                                 .padding(3)
-                                .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(state.colorMode == mode ? Color.accentColor : Color.primary.opacity(0.12), lineWidth: state.colorMode == mode ? 1.5 : 0.7))
+                                .overlay(RoundedRectangle(cornerRadius: Radius.row).strokeBorder(state.colorMode == mode ? Color.settingsAccent : Color.primary.opacity(0.12), lineWidth: state.colorMode == mode ? 1.5 : 0.7))
                             Text(mode.name).font(.system(size: 11, weight: state.colorMode == mode ? .medium : .regular))
                                 .foregroundStyle(state.colorMode == mode ? .primary : .secondary)
                         }.contentShape(Rectangle())
@@ -26,9 +26,7 @@ struct AppearanceModePicker: View {
                         .accessibilityAddTraits(state.colorMode == mode ? .isSelected : [])
                 }
             }.fixedSize()
-            Picker("Appearance", selection: Binding(get: { state.colorMode }, set: { state.colorMode = $0 })) {
-                ForEach(ColorMode.allCases) { Text($0.name).tag($0) }
-            }.labelsHidden().pickerStyle(.menu)
+            SettingsMenu(selection: Binding(get: { state.colorMode }, set: { state.colorMode = $0 }), options: ColorMode.allCases.map { ($0, $0.name) })
         }
     }
 
