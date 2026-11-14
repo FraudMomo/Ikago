@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The address field's brain in every presentation (integrated field, top-bar field, the
+/// The address field's brain in every presentation (the sidebar's integrated field, the
 /// floating ⌘L / ⌘T bar): ranked matches from `OmniboxEngine`,
 /// inline autocompletion while typing forward, and arrow keys that preview a row in the field.
 @MainActor
@@ -19,6 +19,14 @@ final class CommandPaletteModel {
         }
     }
     var selection = 0
+    /// Spotlight-style filter (⌘1–⌘4): everything, or one kind of result.
+    var scope: AddressScope = .all {
+        didSet {
+            guard scope != oldValue else { return }
+            selection = scope == .all && isZeroSuggest ? -1 : 0
+            temporaryText = nil; switchFocused = false
+        }
+    }
     /// A highlighted row's text, shown in the field without replacing what was typed (Esc restores it).
     var temporaryText: String?
     /// Tab moved the keyboard onto the highlighted row's "Switch to this tab" button.
@@ -33,6 +41,8 @@ final class CommandPaletteModel {
     @ObservationIgnored var onOpen: (String, Mode) -> Void = { _, _ in }
     @ObservationIgnored var onSwitch: (String) -> Void = { _ in }
     @ObservationIgnored var onDismiss: () -> Void = {}
+    /// Runs a browser action in the field's window.
+    @ObservationIgnored var onAction: (PaletteAction) -> Void = { $0.perform(in: nil) }
 
     var completionActive = false
     var completions: [String] = []
@@ -40,13 +50,18 @@ final class CommandPaletteModel {
     @ObservationIgnored var completionProvider: (String, SearchEngine) async throws -> [String] = SearchSuggestions.fetch
     @ObservationIgnored var cache: (key: Int, matches: [Suggestion])?
 
-    init(state: BrowserState) { self.state = state; observeCompletionPreferences() }
+    init(state: BrowserState) {
+        self.state = state
+        observeCompletionPreferences()
+        SettingsSearch.registerPaletteActions()
+    }
 
     func prepare(mode: Mode) {
         self.mode = mode
         completionActive = true
         allowsInline = false
         query = mode == .currentTab ? editableAddress : ""
+        scope = .all
         edited = false; selection = -1; temporaryText = nil; switchFocused = false
         refreshCompletions()
     }
@@ -82,7 +97,7 @@ final class CommandPaletteModel {
         let items = suggestions
         guard !items.isEmpty else { return }
         // The on-focus list has no default row: ↑ from the first row returns to what was there.
-        let floor = isZeroSuggest ? -1 : 0
+        let floor = isZeroSuggest && scope == .all ? -1 : 0
         selection = min(max(floor, selection + delta), items.count - 1)
         switchFocused = false
         temporaryText = selection == floor || selection < 0 ? nil : items[selection].fill
@@ -109,8 +124,10 @@ final class CommandPaletteModel {
     /// Esc first restores what was typed; a second Esc closes the field.
     func cancel() {
         let floor = isZeroSuggest ? -1 : 0
-        if selection != floor || temporaryText != nil || switchFocused {
+        if temporaryText != nil || switchFocused || (scope == .all && selection != floor) {
             selection = floor; temporaryText = nil; switchFocused = false
+        } else if scope != .all {
+            scope = .all
         } else {
             onDismiss()
         }
@@ -129,7 +146,23 @@ final class CommandPaletteModel {
         }
     }
 
-    func activate(_ suggestion: Suggestion) { onOpen(suggestion.url, mode) }
+    /// ⌫ on an empty field leaves the scope, like deleting Spotlight's filter token.
+    func deleteOnEmpty() -> Bool {
+        guard query.isEmpty, scope != .all else { return false }
+        scope = .all
+        return true
+    }
+
+    func activate(_ suggestion: Suggestion) {
+        // A tab row in the Tabs scope goes to that tab rather than opening its page again.
+        if suggestion.source == .openTab, let id = suggestion.tabID { onSwitch(id); return }
+        if let action = suggestion.action {
+            onDismiss()
+            DispatchQueue.main.async { [onAction] in onAction(action) }  // after the field lets go of the keyboard
+            return
+        }
+        onOpen(suggestion.url, mode)
+    }
 
     func switchToTab(_ suggestion: Suggestion) { if let id = suggestion.tabID { onSwitch(id) } }
 

@@ -5,7 +5,7 @@ import Foundation
 /// (1200s) and ordinary history/bookmark matches (≤ 1199).
 struct OmniboxMatch: Identifiable, Equatable {
     enum Kind: Hashable { case open(String), search(String) }
-    enum Source: Equatable { case whatYouTyped, history, bookmark, openTab, searchHistory, suggestion }
+    enum Source: Equatable { case whatYouTyped, history, bookmark, openTab, searchHistory, suggestion, action }
 
     var id: Kind { kind }
     let kind: Kind
@@ -31,8 +31,11 @@ struct OmniboxMatch: Identifiable, Equatable {
         case .history: "clock"
         case .bookmark: "star"
         case .openTab: "square.on.square"
+        case .action: PaletteAction(url: url)?.symbol ?? "command"
         }
     }
+    /// A browser command (`PaletteAction`), not a page.
+    var action: PaletteAction? { source == .action ? PaletteAction(url: url) : nil }
     var isSearch: Bool { if case .search = kind { true } else { false } }
     var url: String { switch kind { case .open(let url), .search(let url): url } }
 }
@@ -44,7 +47,7 @@ struct OmniboxEngine {
 
     func matches(for input: OmniboxInput, remote: [String], zeroSuggest: Bool) -> [OmniboxMatch] {
         if input.text.isEmpty || zeroSuggest { return onFocus() }
-        var results = whatYouTyped(input) + searchHistory(input) + suggestions(input, remote: remote)
+        var results = whatYouTyped(input) + searchHistory(input) + suggestions(input, remote: remote) + actions(input)
         let (pages, best) = navigation(input)
         if let best { results.append(best) }
         results += pages
@@ -97,6 +100,19 @@ struct OmniboxEngine {
         }
     }
 
+    /// Up to three browser commands or settings named like the input, between searches and pages (1215 down).
+    private func actions(_ input: OmniboxInput) -> [OmniboxMatch] {
+        guard input.kind != .url else { return [] }
+        // Only what applies here: splitting a split tab or closing a split that isn't there would do nothing.
+        let split = state.activeTabID.flatMap { state.splitGroup(of: $0) } != nil
+        let applicable = PaletteAction.matching(input.text).filter { $0.id != (split ? "split" : "unsplit") }
+            .filter { $0.id != "moveToWindow" || (state.tabs.count > 1 && !state.isPrivate) }
+        return applicable.prefix(3).enumerated().map { index, action in
+            OmniboxMatch(kind: .open(action.url), source: .action, title: action.title, subtitle: action.detail.isEmpty ? action.shortcut : action.detail,
+                         fill: action.title, relevance: 1215 - index)
+        }
+    }
+
     private func suggestions(_ input: OmniboxInput, remote: [String]) -> [OmniboxMatch] {
         remote.prefix(5).enumerated().map { index, text in
             OmniboxMatch(kind: .search(state.searchEngine.searchURL(text)), source: .suggestion, title: text,
@@ -111,8 +127,10 @@ struct OmniboxEngine {
             let base = inHistory ? OmniboxScore.frecency(visits: visits, typed: typed, time: time) : 0.4
             return min(1, base + (bookmarked ? 0.2 : 0))
         }
-        /// Chromium only inline-autocompletes pages the user has typed or visited repeatedly.
+        /// Pages typed, visited repeatedly or bookmarked inline-autocomplete all the way (as in Chromium).
         var inlineable: Bool { typed > 0 || visits >= 3 || bookmarked }
+        /// Any site you've been to or have open completes to its host, as Safari's top hit does ("tel" → telnyx.com).
+        var hostInlineable: Bool { inlineable || visits >= 1 || tabID != nil }
     }
 
     /// History, bookmarks and open tabs merged per page, plus the best inline-autocompletion.
@@ -149,9 +167,12 @@ struct OmniboxEngine {
             let topicality = OmniboxScore.topicality(terms: input.terms, stripped: input.stripped, title: page.title, url: page.url)
             guard topicality > 0 else { continue }
             let stripped = OmniboxURL.strip(page.url)
-            if page.inlineable, !input.stripped.isEmpty, stripped.hasPrefix(input.stripped) {
-                let host = OmniboxURL.host(stripped)
-                let target = input.stripped.count <= host.count ? host : stripped
+            let host = OmniboxURL.host(stripped)
+            let withinHost = input.stripped.count <= host.count
+            // Within the host any visited site completes; past it only pages with a strong history do, and the typed
+            // address stays the default otherwise.
+            if !input.stripped.isEmpty, stripped.hasPrefix(input.stripped), withinHost ? page.hostInlineable : page.inlineable {
+                let target = withinHost ? host : stripped
                 if page.frecency > hosts[target]?.score ?? -1 { hosts[target] = (page, page.frecency) }
             }
             matches.append(match(for: page, relevance: 900 + Int(299 * topicality * page.frecency)))

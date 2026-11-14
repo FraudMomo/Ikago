@@ -15,6 +15,16 @@ struct SettingsSearchEntry: Identifiable, Hashable {
 }
 
 enum SettingsSearch {
+    /// Every setting becomes an address-field action that opens Settings at it (`openSetting:`). Once per launch.
+    @MainActor static func registerPaletteActions() {
+        guard PaletteAction.settings.isEmpty else { return }
+        PaletteAction.settings = index.map { entry in
+            PaletteAction("setting:" + entry.id, entry.title, entry.category.symbol, "",
+                          "\(entry.section) \(entry.category.title) \(entry.keywords) setting settings preference", "openSetting:",
+                          argument: entry.id, kind: .setting, detail: "Settings · \(entry.category.title)")
+        }
+    }
+
     /// Matches every term, titles that start with the query first.
     static func results(for query: String) -> [SettingsSearchEntry] {
         let terms = query.lowercased().split(whereSeparator: \.isWhitespace).map(String.init)
@@ -25,35 +35,38 @@ enum SettingsSearch {
     }
 
     static let index: [SettingsSearchEntry] = [
-        .init(title: "Bar position", category: .appearance, section: "Top Bar Tabs", keywords: "bottom top toolbar"),
-        .init(title: "Compact on scroll", category: .appearance, section: "Top Bar Tabs", keywords: "collapse minimal toolbar"),
         .init(title: "Sidebar side", category: .appearance, section: "Window and Sidebar", keywords: "left right window controls traffic lights"),
         .init(title: "Page assistance", category: .general, section: "Apple Intelligence", keywords: "ai summarize chat local model"),
         .init(title: "Browser engine", category: .general, section: "Browser Engine", keywords: "webkit chromium relaunch"),
-        .init(title: "Translate X videos", category: .general, section: "Chromium", keywords: "twitter video h.264 av1"),
+        .init(title: "Translate X videos", category: .general, section: "Advanced", keywords: "twitter video h.264 av1 chromium"),
         .init(title: "Engine by site", category: .general, section: "Engine by Site", keywords: "webkit chromium rules"),
         .init(title: "Add a site", category: .general, section: "Your Sites", keywords: "engine rule"),
         .init(title: "Default browser", category: .general, section: "Default Browser"),
 
-        .init(title: "Layout", category: .appearance, section: "Layout", keywords: "sidebar top bar tabs"),
+        .init(title: "Layout", category: .appearance, section: "Layout", keywords: "sidebar tabs top row chrome attached"),
         .init(title: "Window border", category: .appearance, section: "Window and Sidebar", keywords: "inset margin"),
         .init(title: "Sidebar style", category: .appearance, section: "Window and Sidebar", keywords: "full icons rail hidden"),
         .init(title: "Sidebar gap", category: .appearance, section: "Window and Sidebar", keywords: "spacing"),
-        .init(title: "Floating toolbar", category: .appearance, section: "Top Bar Window"),
         .init(title: "Use the area beside the camera", category: .appearance, section: "Full Screen", keywords: "notch"),
         .init(title: "Light or dark mode", category: .appearance, section: "Color & Theme", keywords: "appearance system"),
         .init(title: "Space colors", category: .appearance, section: "Color & Theme", keywords: "theme tint"),
         .init(title: "Liquid Glass", category: .appearance, section: "Materials", keywords: "transparency"),
         .init(title: "Translucent sidebar", category: .appearance, section: "Materials", keywords: "frosted vibrancy"),
         .init(title: "Tab group labels", category: .appearance, section: "Tab Groups", keywords: "minimal color pill folder"),
+        .init(title: "Groups in the sidebar", category: .appearance, section: "Tab Groups", keywords: "cards folders tree indent"),
         .init(title: "Show tab counts", category: .appearance, section: "Tab Groups"),
         .init(title: "Instant tab switching", category: .appearance, section: "Tab Animations", keywords: "fade motion"),
         .init(title: "Tab highlight animation", category: .appearance, section: "Tab Animations", keywords: "slide spring motion"),
-        .init(title: "Tab bar style", category: .appearance, section: "Top Bar Tabs", keywords: "separate compact"),
 
+        .init(title: "Tab previews", category: .tabs, section: "Tab Previews", keywords: "hover popover card"),
+        .init(title: "Open links in Peek", category: .tabs, section: "Peek", keywords: "shift click preview link automatic off"),
+        .init(title: "Peek links from pinned tabs", category: .tabs, section: "Peek", keywords: "automatic other sites"),
+        .init(title: "Peek search results", category: .tabs, section: "Peek", keywords: "automatic google"),
+        .init(title: "Peek links that open a new tab", category: .tabs, section: "Peek", keywords: "automatic target blank"),
+        .init(title: "Page thumbnail in previews", category: .tabs, section: "Tab Previews", keywords: "hover screenshot image"),
+        .init(title: "Space header and shortcuts", category: .toolbar, section: "Sidebar", keywords: "space name assistant bookmarks history navigation"),
         .init(title: "Pinned-tab grid", category: .toolbar, section: "Sidebar Essentials", keywords: "essentials pins"),
         .init(title: "Grid columns", category: .toolbar, section: "Sidebar Essentials", keywords: "pinned tabs size count"),
-        .init(title: "Show pinned tabs", category: .toolbar, section: "Pinned Essentials", keywords: "essentials pins top bar"),
         .init(title: "Show bookmarks bar", category: .toolbar, section: "Bookmarks Bar"),
         .init(title: "Switch to an open tab", category: .toolbar, section: "Opening Bookmarks", keywords: "bookmarks"),
         .init(title: "Customize toolbar", category: .toolbar, section: "Customize", keywords: "buttons controls sidebar"),
@@ -82,6 +95,9 @@ enum SettingsSearch {
         .init(title: "Block third-party cookies", category: .security, section: "Tracking Protection", keywords: "privacy"),
         .init(title: "Clear website data", category: .security, section: "Browsing Data", keywords: "cookies cache"),
         .init(title: "Clear browsing history", category: .security, section: "Browsing Data"),
+        .init(title: "Browsing history", category: .history, section: "History", keywords: "visited pages sites search by date by site"),
+        .init(title: "Clear browsing data", category: .history, section: "History",
+              keywords: "delete history cookies cache searches last hour today since yesterday custom range"),
         .init(title: "Clear data when quitting", category: .security, section: "Browsing Data"),
 
         .init(title: "Fill passwords", category: .passwords, section: "AutoFill", keywords: "autofill touch id"),
@@ -110,8 +126,9 @@ struct SettingsSearchField: View {
                     .buttonStyle(.plain).accessibilityLabel("Clear search")
             }
         }
-        .padding(.horizontal, 8).frame(height: 28)
-        .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.primary.opacity(0.06)))
+        .padding(.horizontal, 9).frame(height: 30)
+        .background(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).fill(Color.primary.opacity(0.045)))
+        .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).strokeBorder(Color.primary.opacity(0.07), lineWidth: 0.5))
     }
 }
 
@@ -144,7 +161,7 @@ struct SettingsSearchResults: View {
 
 private struct SettingsResultStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label.background(RoundedRectangle(cornerRadius: 8, style: .continuous)
+        configuration.label.background(RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
             .fill(Color.primary.opacity(configuration.isPressed ? 0.09 : 0)))
     }
 }

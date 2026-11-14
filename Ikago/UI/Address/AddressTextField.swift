@@ -1,11 +1,14 @@
 import AppKit
 import SwiftUI
 
-/// The address/search input used everywhere (floating command bar, top-bar tab, sidebar).
+/// The address/search input used everywhere (floating command bar, sidebar).
 /// AppKit underneath so focus is explicit: it takes the keyboard from the page when it
 /// appears, selects its text, and handles ↑ ↓ Return and Esc itself.
 struct AddressTextField: NSViewRepresentable {
     @Binding var text: String
+    /// Whether the field may select all its text when it takes the keyboard: only while nothing has been typed, or
+    /// the letters typed straight after ⌘L or ⌘T get selected and the next keystroke replaces them.
+    var selectsAllOnFocus = true
     var fontSize: CGFloat = 13
     var weight: NSFont.Weight = .regular
     var alignment: NSTextAlignment = .left
@@ -22,6 +25,9 @@ struct AddressTextField: NSViewRepresentable {
     var onBacktab: (() -> Void)? = nil
     /// Shift+Delete on a highlighted row; returns whether it was handled.
     var onRemove: (() -> Bool)? = nil
+    /// ⌫ with nothing typed (leaves a scope); ⌘1–⌘9 while the field has the keyboard (picks a scope).
+    var onDeleteEmpty: (() -> Bool)? = nil
+    var onCommandDigit: ((Int) -> Bool)? = nil
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -38,11 +44,15 @@ struct AddressTextField: NSViewRepresentable {
         field.lineBreakMode = .byTruncatingTail
         field.delegate = context.coordinator
         field.stringValue = text
+        field.onCommandDigit = onCommandDigit
+        let coordinator = context.coordinator
+        field.selectsAllOnFocus = { [weak coordinator] in coordinator?.parent.selectsAllOnFocus ?? true }
         return field
     }
 
     func updateNSView(_ field: FocusingTextField, context: Context) {
         context.coordinator.parent = self
+        field.onCommandDigit = onCommandDigit
         // Each assignment invalidates the field's layout, so only change what actually changed.
         let font = NSFont.systemFont(ofSize: fontSize, weight: weight)
         if field.font != font { field.font = font }
@@ -80,6 +90,8 @@ struct AddressTextField: NSViewRepresentable {
             case #selector(NSResponder.insertBacktab(_:)):
                 guard let back = parent.onBacktab else { return false }
                 back()
+            case #selector(NSResponder.deleteBackward(_:)) where textView.string.isEmpty && parent.onDeleteEmpty?() == true:
+                break
             case #selector(NSResponder.deleteForward(_:)), #selector(NSResponder.deleteBackward(_:)):
                 guard NSApp.currentEvent?.modifierFlags.contains(.shift) == true, parent.onRemove?() == true else { return false }
             default: return false
@@ -91,6 +103,9 @@ struct AddressTextField: NSViewRepresentable {
 
 /// Becomes first responder (and selects its text) as soon as it is in a window.
 final class FocusingTextField: NSTextField {
+    /// ⌘ + a digit while editing: the field's scopes win over the menu's "select tab" (`ShortcutRouter`).
+    var onCommandDigit: ((Int) -> Bool)?
+    var selectsAllOnFocus: () -> Bool = { true }
     override func becomeFirstResponder() -> Bool {
         let accepted = super.becomeFirstResponder()
         if accepted, let editor = currentEditor() as? NSTextView {
@@ -107,7 +122,10 @@ final class FocusingTextField: NSTextField {
         DispatchQueue.main.async { [weak self] in
             guard let self, self.window === window else { return }
             window.makeFirstResponder(self)
-            self.currentEditor()?.selectAll(nil)
+            if self.selectsAllOnFocus() { self.currentEditor()?.selectAll(nil) }
+            else if let editor = self.currentEditor() {
+                editor.selectedRange = NSRange(location: (editor.string as NSString).length, length: 0)
+            }
         }
     }
 }

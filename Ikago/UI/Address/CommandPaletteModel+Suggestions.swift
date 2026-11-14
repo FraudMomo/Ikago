@@ -17,11 +17,18 @@ extension CommandPaletteModel {
         for tab in state.tabs { hasher.combine(tab.id); hasher.combine(tab.url); hasher.combine(tab.spaceID) }
         hasher.combine(state.activeTabID); hasher.combine(state.activeSpaceID)
         hasher.combine(state.browserPreferences.showSwitchToTabSuggestions); hasher.combine(state.searchShowsHistory)
+        hasher.combine(scope)
         let key = hasher.finalize()
         if let cache, cache.key == key { return cache.matches }
+        if scope != .all {
+            let matches = scopedMatches(scope)
+            cache = (key, matches)
+            return matches
+        }
         // Focusing the field (empty, or the untouched page address) lists recent searches and top pages.
         let input = OmniboxInput(query, engine: state.searchEngine, allowsInline: allowsInline)
-        let matches = OmniboxEngine(state: state).matches(for: input, remote: remote, zeroSuggest: isZeroSuggest)
+        let matches = Self.grouped(OmniboxEngine(state: state).matches(for: input, remote: remote, zeroSuggest: isZeroSuggest),
+                                   zeroSuggest: isZeroSuggest)
         cache = (key, matches)
         return matches
     }

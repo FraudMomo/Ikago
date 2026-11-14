@@ -108,8 +108,8 @@ enum AutocompleteChecks {
         check(opened.last == "https://github.com/", "Return opens the inline-autocompleted page")
         model.prepare(mode: .newTab)
         for text in ["git", "gitl"] { model.userEdited(text) }
-        check(model.inlineCompletion.isEmpty && model.suggestions.contains { $0.url == "https://gitlab.com/" },
-              "pages visited once are suggested but never inline-autocompleted")
+        check(model.inlineCompletion == "ab.com" && model.suggestions.first?.url == "https://gitlab.com/",
+              "a site visited once completes to its host, as Safari's top hit does")
         model.prepare(mode: .newTab)
         model.userEdited("github.com/a")
         check(model.inlineCompletion.isEmpty && model.suggestions.first?.url == "https://github.com/a",

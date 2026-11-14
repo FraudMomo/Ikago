@@ -8,6 +8,9 @@ import IKCEFBridge
 final class BrowserWindow: NSWindow {
     var protectsAddressFocus: @MainActor () -> Bool = { false }
     var dismissAddress: @MainActor () -> Void = {}
+    /// Letters typed after ⌘L or ⌘T before the address field has the keyboard: they go to the field's text instead
+    /// of nowhere. True when taken.
+    var typeAhead: @MainActor (String) -> Bool = { _ in false }
     private var closing = false
     /// Ikago's own full screen (`IkagoFullScreen`) instead of macOS's, which slides its titlebar over the bars.
     var fullScreenHandler: (@MainActor () -> Void)?
@@ -34,6 +37,13 @@ final class BrowserWindow: NSWindow {
     }
 
     override func sendEvent(_ event: NSEvent) {
+        if event.type == .keyDown, protectsAddressFocus(), !(firstResponder is NSTextView),
+           event.modifierFlags.isDisjoint(with: [.command, .control, .option, .function]),
+           let characters = event.characters, !characters.isEmpty,
+           characters.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) && $0.value < 0xF700 }),
+           typeAhead(characters) {
+            return
+        }
         if [.leftMouseDown, .rightMouseDown, .otherMouseDown].contains(event.type),
            protectsAddressFocus(), let root = contentView,
            !AddressRegionView.contains(event.locationInWindow, in: root) {

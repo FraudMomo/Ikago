@@ -17,9 +17,9 @@ enum ProtectedAddressChecks {
         state.browserPreferences.searchEngineAutocomplete = false
         state.browserPreferences.showSwitchToTabSuggestions = false
         state.sidebarVisible = true
-        for layout in TabLayout.allCases {
+        for layout in ["sidebar", "tabs"] {
             for style in AddressStyle.allCases {
-                state.tabLayout = layout
+                state.browserPreferences.sidebarTopTabs = layout == "tabs" ? true : nil
                 state.addressStyle = style
                 let initialIDs = Set(state.tabs.map(\.id))
                 for pinned in [true, false] {
@@ -39,7 +39,7 @@ enum ProtectedAddressChecks {
                         check(state.tabs.count == count + (pinned ? 1 : 0)
                               && (pinned ? state.activeTabID != tab.id : state.activeTabID == tab.id)
                               && state.activeTab?.url == expected && state.activeTab?.pinned == false && state.activeTab?.folderID == nil,
-                              "\(layout.rawValue)/\(style.rawValue)/\(pinned ? "pin opens separately" : "bookmarked tab navigates in place")")
+                              "\(layout)/\(style.rawValue)/\(pinned ? "pin opens separately" : "bookmarked tab navigates in place")")
                         check((!pinned || tab.url == savedURL) && tab.pinned == pinned && !browser.isEditingAddress,
                               "pin stays unchanged; address editing ends")
                         if !pinned { check(state.bookmarks.contains { $0.url == savedURL }, "bookmark retains its saved address") }

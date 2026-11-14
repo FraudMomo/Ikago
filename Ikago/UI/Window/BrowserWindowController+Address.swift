@@ -3,9 +3,8 @@ import SwiftUI
 import WebKit
 
 extension BrowserWindowController {
-    /// ⌘L / ⌘T. Integrated style edits in place (the active top-bar tab or the sidebar's
-    /// address field); a new tab first opens a blank tab. Floating style shows
-    /// the command bar island.
+    /// ⌘L / ⌘T. Integrated style edits in place (the sidebar's address field); a new tab first opens a
+    /// blank tab. Floating style shows the command bar.
     func showCommandPalette(newTab: Bool) {
         chrome.showDownloads = false
         // Take the keyboard from the page first: pages that focus their own input (Momentum's
@@ -49,7 +48,8 @@ extension BrowserWindowController {
             guard let field = fields.last else { return }
             if let editor = field.currentEditor(), window.firstResponder === editor { return }
             window.makeFirstResponder(field)
-            if selectAll { field.currentEditor()?.selectAll(nil) }
+            // Never over letters already typed: the next keystroke would replace them.
+            if selectAll && !self.palette.edited { field.currentEditor()?.selectAll(nil) }
             else if let editor = field.currentEditor() as? NSTextView {
                 editor.setSelectedRange(NSRange(location: editor.string.utf16.count, length: 0))
             }
@@ -78,7 +78,7 @@ extension BrowserWindowController {
         }
     }
 
-    /// ⌘T and + keep the chosen page provider. Top layouts always focus their address field.
+    /// ⌘T and + keep the chosen page provider; the address field takes focus when that is turned on.
     func newTab() {
         let previous = state.activeTabID
         switch state.newTabMode {
@@ -116,15 +116,17 @@ extension BrowserWindowController {
             }
             withAnimation(nil) { _ = openTabForExtension(url: url.absoluteString, active: true, pinned: false, useNewTabPosition: true) }
         }
-        if (state.tabLayout.usesTopTabs || state.focusAddressBarOnNewTab), state.activeTabID != previous {
+        if state.focusAddressBarOnNewTab, state.activeTabID != previous {
             showCommandPalette(newTab: false)
         }
     }
 
-    /// Top layouts always edit in their own address field; Sidebar can opt into an overlay. The icon rail
-    /// has no address field, so it uses the overlay.
+    /// The sidebar edits in place unless the floating command bar is chosen. The icon rail has no address
+    /// field, so it uses the floating one.
     private var canUseInlineAddress: Bool {
-        state.tabLayout.usesTopTabs || (state.addressStyle == .integrated
-            && state.sidebarVisible && !state.showsSidebarRail && state.chromeLayout.sidebarShowsAddress)
+        guard state.addressStyle == .integrated else { return false }
+        // Sidebar + Tabs edits in its address bar above the page.
+        if state.showsSidebarTopTabs { return true }
+        return state.sidebarVisible && !state.showsSidebarRail && state.chromeLayout.sidebarShowsAddress
     }
 }

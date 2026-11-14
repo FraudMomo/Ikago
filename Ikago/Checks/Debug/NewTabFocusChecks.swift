@@ -19,7 +19,7 @@ enum NewTabFocusChecks {
         let state = browser.state, manager = ExtensionManager.shared
         let initialIDs = Set(state.tabs.map(\.id)), previous = state.activeTabID
         let original = (state.newTabMode, state.homepage, state.newTabExtensionID, state.focusAddressBarOnNewTab,
-                        state.tabLayout, state.addressStyle, state.sidebarVisible, state.chromeLayout)
+                        state.browserPreferences.sidebarTopTabs, state.addressStyle, state.sidebarVisible, state.chromeLayout)
         let root = FileManager.default.temporaryDirectory.appending(path: "IkagoNewTabFocus-\(UUID().uuidString)")
         let id = "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm"
         defer {
@@ -27,7 +27,7 @@ enum NewTabFocusChecks {
             for tab in state.tabs where !initialIDs.contains(tab.id) { state.closeTab(tab.id, removingPin: true) }
             manager.remove(id)
             state.newTabMode = original.0; state.homepage = original.1; state.newTabExtensionID = original.2
-            state.focusAddressBarOnNewTab = original.3; state.tabLayout = original.4; state.addressStyle = original.5
+            state.focusAddressBarOnNewTab = original.3; state.browserPreferences.sidebarTopTabs = original.4; state.addressStyle = original.5
             state.sidebarVisible = original.6; state.chromeLayout = original.7
             if let previous { state.select(previous) }
             try? FileManager.default.removeItem(at: root)
@@ -48,8 +48,8 @@ enum NewTabFocusChecks {
             state.newTabExtensionID = id
             state.sidebarVisible = true
             state.chromeLayout = ChromeLayout()
-            for layout in TabLayout.allCases {
-                state.tabLayout = layout
+            for layout in ["sidebar", "tabs"] {
+                state.browserPreferences.sidebarTopTabs = layout == "tabs" ? true : nil
                 for style in AddressStyle.allCases {
                     // Settings cannot change address styles while the command overlay is open.
                     // Settle its dismissal before configuring the next independent UI case.
@@ -64,10 +64,10 @@ enum NewTabFocusChecks {
                         browser.newTab()
                         let loaded = await waitForPage(browser)
                         check(loaded && state.tabs.count == count + 1,
-                              "\(layout.rawValue)/\(style.rawValue)/\(mode.rawValue) opens exactly one provider tab")
+                              "\(layout)/\(style.rawValue)/\(mode.rawValue) opens exactly one provider tab")
                         if !addressHasFocus(browser) { dumpFocus(browser) }
                         check(browser.isEditingAddress && browser.chrome.editingTabID == state.activeTabID && addressHasFocus(browser),
-                              "\(layout.rawValue)/\(style.rawValue)/\(mode.rawValue) gives the keyboard to the address field")
+                              "\(layout)/\(style.rawValue)/\(mode.rawValue) gives the keyboard to the address field")
                         check(browser.palette.query.isEmpty && browser.palette.mode == .currentTab && !browser.content.shouldFocusPage(),
                               "new address input is ready to type and targets the opened page")
                         let input = try? await browser.activeController?.page?.callAsync("return document.activeElement?.id")
@@ -76,7 +76,7 @@ enum NewTabFocusChecks {
                 }
             }
             browser.palette.onDismiss()
-            state.tabLayout = .vertical; state.addressStyle = .integrated; state.sidebarVisible = false
+            state.browserPreferences.sidebarTopTabs = nil; state.addressStyle = .integrated; state.sidebarVisible = false
             browser.newTab()
             _ = await waitForPage(browser)
             check(browser.chrome.showPalette && addressHasFocus(browser), "collapsed sidebar uses a visible floating address field")
