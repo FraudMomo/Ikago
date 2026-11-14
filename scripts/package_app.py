@@ -124,6 +124,7 @@ def main():
 
     # Password matching groups sites by registrable domain (PublicSuffix.swift).
     shutil.copyfile(ROOT/'Ikago/Resources/public_suffix_list.dat', contents/'Resources/public_suffix_list.dat')
+    shutil.copyfile(ROOT/'Ikago/Resources/webkit-logo.svg', contents/'Resources/webkit-logo.svg')
 
     framework = contents/'Frameworks/Chromium Embedded Framework.framework'
     source_framework = ROOT/'.cef/distribution/Release/Chromium Embedded Framework.framework'

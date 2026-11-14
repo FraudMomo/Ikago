@@ -33,6 +33,27 @@ extension TestDriver {
         print("IKTEST snapshot \(path)")
     }
 
+    /// Each visible pane's corner mask and its parent's orientation, then the window's layer tree rendered by Core
+    /// Animation itself (cacheDisplay ignores layer corner masks).
+    static func corners(_ c: BrowserWindowController, to path: String) {
+        for id in c.state.visibleTabIDs {
+            guard let host = c.content.controller(for: id)?.hostView, let layer = host.layer else { continue }
+            print("IKTEST corners \(id.suffix(4)) super=\(type(of: host.superview!)) flipped=\(host.superview?.isFlipped ?? false) superLayerFlipped=\(host.superview?.layer?.isGeometryFlipped ?? false) layerFlipped=\(layer.isGeometryFlipped) masked=\(layer.maskedCorners.rawValue) radius=\(layer.cornerRadius) masks=\(layer.masksToBounds) frame=\(host.convert(host.bounds, to: nil))")
+        }
+        guard let view = c.window?.contentView, let root = view.layer else { return }
+        let scale: CGFloat = 2
+        let size = view.bounds.size
+        guard let ctx = CGContext(data: nil, width: Int(size.width * scale), height: Int(size.height * scale), bitsPerComponent: 8,
+                                  bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return }
+        ctx.setFillColor(NSColor.systemPink.cgColor); ctx.fill(CGRect(origin: .zero, size: CGSize(width: size.width * scale, height: size.height * scale)))
+        ctx.scaleBy(x: scale, y: scale)
+        root.render(in: ctx)
+        if let image = ctx.makeImage() {
+            try? NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
+        }
+        print("IKTEST cornershot \(path)")
+    }
+
     static func dump(_ c: BrowserWindowController) {
         let s = c.state
         let tabs: [[String: Any]] = s.tabs.map { t in
@@ -52,12 +73,12 @@ extension TestDriver {
             "active": s.activeTabID.map { String($0.suffix(4)) } ?? "nil",
             "visible": s.visibleTabIDs.map { String($0.suffix(4)) },
             "splits": s.splits.map { $0.map { String($0.suffix(4)) } }, "splitLayout": s.splitLayout.rawValue, "closed": s.closed.count,
-            "history": s.history.count, "layout": s.tabLayout.rawValue, "dark": s.isDark, "sidebarVisible": s.sidebarVisible,
+            "history": s.history.count, "layout": s.showsSidebarTopTabs ? "tabs" : "sidebar", "dark": s.isDark, "sidebarVisible": s.sidebarVisible,
             "spaces": s.spaces.map { "\($0.name)\($0.isolated ? "*" : "")" }, "activeSpace": s.activeSpace.name,
             "folders": s.folders.map { "\($0.name):\($0.isOpen ? "open" : "closed")" },
             "sidebar": s.sidebarOrder.map { String($0.id.suffix(4)) },
             "pages": s.tabs.filter { c.content.controller(for: $0.id)?.isStarted == true }.count,
-            "tabOverview": c.chrome.showTabOverview, "settingsCategory": s.settingsCategory.rawValue, "paletteShown": c.chrome.showPalette, "peeking": c.chrome.peeking, "errorShown": c.activeController?.hostView.subviews.count ?? 0 > 1,
+            "settingsCategory": s.settingsCategory.rawValue, "paletteShown": c.chrome.showPalette, "peeking": c.chrome.peeking, "errorShown": c.activeController?.hostView.subviews.count ?? 0 > 1,
             "downloads": DownloadCenter.shared.items.map { "\($0.fileURL?.lastPathComponent ?? "?"):\($0.finished)" },
             "find": "\(c.find.activeMatch)/\(c.find.matchCount)",
             "windows": windows, "tabs": tabs,

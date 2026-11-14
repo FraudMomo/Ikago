@@ -8,11 +8,11 @@ extension TestDriver {
     static func performCheck(_ action: String, _ arg: String, _ c: BrowserWindowController) async -> Bool {
         let state = c.state
         switch action {
-        case "productpolishpreview": await ProductPolishPreview.run(c)
         case "pinassistantchecks": await PinAssistantChecks.run(c)
         case "refinementchecks": await InteractionRefinementChecks.run(c, base: arg)
         case "sidebarvisibilitychecks": await SidebarVisibilityChecks.run(c)
         case "featurebatchchecks": await FeatureBatchChecks.run(c)
+        case "nestedgroupchecks": NestedGroupChecks.run(c)
         case "reopenchecks": ReopenChecks.run(c)
         case "settingsshot":
             // settingsshot:<category>|<dark or light>|<file.png>[|<width>]: renders Settings to an image.
@@ -36,6 +36,7 @@ extension TestDriver {
         case "sidebarprobe": await SidebarToggleProbe.run(c)
         case "islandprobe": await GroupDisclosureProbe.shared.runIsland(c)
         case "mediafullscreenchecks": await MediaFullscreenChecks.run(c)
+        case "mediadetectionchecks": await MediaDetectionChecks.run(c)
         case "performancechecks": await PerformanceChecks.run(c)
         case "resourcechecks": await TabMemoryChecks.run(c, base: arg)
         case "downloadpopupchecks": await DownloadPopupChecks.run(c)
@@ -73,17 +74,12 @@ extension TestDriver {
         case "newtabfocuschecks": await NewTabFocusChecks.run(c, base: arg)
         case "bookmarkdemo": BookmarkBarChecks.seed(c)
         case "bookmarkbarchecks": await BookmarkBarChecks.run(c)
-        case "chromegeometrychecks": await BrowserChromeGeometryChecks.run(c)
-        case "topbarpolishchecks": await TopBarPolishChecks.run(c, base: arg)
-        case "topbarlayoutchecks": await TopBarLayoutChecks.run(c)
         case "storebridgechecks": await StoreBridgeChecks.run(c)
         case "groupseed": GroupDisclosureProbe.seed(c, perGroup: Int(arg) ?? 8)
         case "groupprobe":  // <group number>[,<scroll fraction 0…1>]
             let p = arg.split(separator: ",").map(String.init)
             await GroupDisclosureProbe.shared.run(c, group: Int(p.first ?? "") ?? 1, scrollTo: p.count > 1 ? Double(p[1]) : nil)
         case "layoutdemo": LayoutChecks.seed(c)
-        case "taboverflowchecks": await TabOverflowChecks.run(c)
-        case "tabscroll": await TabOverflowChecks.scroll(c, to: Double(arg) ?? 0)
         case "sizingchecks": await LayoutChecks.run(c)
         case "layoutmetrics": LayoutChecks.dump(c)
         case "splitinteractionchecks":
@@ -92,7 +88,6 @@ extension TestDriver {
             // before subsequent native-scroll geometry checks start.
             try? await Task.sleep(for: .milliseconds(500))
         case "tabanimationchecks": await TabAnimationChecks.run()
-        case "toplayoutfeaturechecks": await TopLayoutFeatureChecks.run(c)
         case "securitychecks": await SecurityChecks.run(c, base: arg)
         case "applinkchecks": await ExternalLinkChecks.run(c, base: arg)
         case "privacychecks": await PrivacyChecks.run(c, base: arg)
@@ -105,7 +100,12 @@ extension TestDriver {
         case "passwordautofillchecks": await PasswordAutoFillChecks.run(c, base: arg)
         case "featurechecks": await BrowserFeatureChecks.run(c)
         case "faviconstabilitychecks": await FaviconStabilityChecks.run(c)
+        case "faviconappearancechecks": await FaviconAppearanceChecks.run(c)
         case "sidebarinteractionchecks": await SidebarInteractionChecks.run(c)
+        case "windowchecks": await WindowChecks.run(c)
+        case "pipchecks": await PictureInPictureChecks.run(c)
+        case "historychecks": await HistoryChecks.run(c)
+        case "selectionpeekchecks": await SelectionPeekChecks.run(c)
         case "tabreorderingchecks": await TabReorderingChecks.run(c)
         case "essentialschecks": await EssentialsChecks.run(c)
         case "bookmarknavigationchecks": await BookmarkNavigationChecks.run(c)

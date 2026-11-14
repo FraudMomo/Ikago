@@ -27,6 +27,24 @@ enum TestDriver {
         print("IKTEST action \(action)")
         switch parts[0] {
         case "wait": try? await Task.sleep(for: .seconds(Double(arg) ?? 1))
+        case "dragprobe":  // <seconds>: selects two tabs, prints screen points to drag the first below the fifth (a real drag
+                           // needs posted mouse events from outside, e.g. a CGEvent script), then prints the order
+            let s = c.state
+            let made = (1...5).compactMap { s.newTab(url: "https://example.com/?drag\($0)") }
+            try? await Task.sleep(for: .seconds(1.5))
+            c.chrome.selectedTabIDs = [made[0].id, made[1].id]
+            try? await Task.sleep(for: .milliseconds(500))
+            func point(_ id: String) -> String {
+                guard let f = LayoutChecks.frames["sidebar-tab-\(id)"], let w = c.window, let content = w.contentView else { return "none" }
+                let p = w.convertPoint(toScreen: content.convert(NSPoint(x: f.midX, y: content.isFlipped ? f.midY : content.bounds.height - f.midY), to: nil))
+                let h = NSScreen.screens[0].frame.height
+                return "\(Int(p.x)),\(Int(h - p.y))"
+            }
+            NSApp.activate(ignoringOtherApps: true); c.window?.makeKeyAndOrderFront(nil)
+            print("IKTEST dragfrom \(point(made[0].id)) dragto \(point(made[4].id)) order=\(s.regularTabs.map(\.url).joined(separator: " "))")
+            fflush(stdout)
+            try? await Task.sleep(for: .seconds(Double(arg) ?? 8))
+            print("IKTEST dragafter order=\(s.regularTabs.map(\.url).joined(separator: " ")) selected=\(c.chrome.selectedTabIDs.count)")
         case "perfstats":
             // Shows the performance overlay and prints what it reads after a few seconds.
             c.togglePerformanceStats(nil)
@@ -48,7 +66,7 @@ enum TestDriver {
         case "rail": c.toggleCompactSidebar(nil)
         case "notch": state.browserPreferences.fullScreenUnderNotch = arg == "on" ? true : nil
         case "frames":  // window, shell and active page geometry
-            print("IKTEST sidebar visible=\(state.sidebarVisible) compact=\(String(describing: state.browserPreferences.sidebarCompact)) rail=\(state.showsSidebarRail) layout=\(state.tabLayout) immersive=\(state.isImmersive) peeking=\(c.chrome.peeking) lights=\(c.fullScreenControls.isShown) \(c.fullScreenControls.debugFrame)")
+            print("IKTEST sidebar visible=\(state.sidebarVisible) compact=\(String(describing: state.browserPreferences.sidebarCompact)) rail=\(state.showsSidebarRail) immersive=\(state.isImmersive) peeking=\(c.chrome.peeking) lights=\(c.fullScreenControls.isShown) \(c.fullScreenControls.debugFrame)")
             if let w = c.window, let content = w.contentView {
                 print("IKTEST frames window=\(w.frame) content=\(content.frame) shell=\(content.subviews.first?.frame ?? .zero) safe=\(content.safeAreaInsets)")
                 if let page = c.activeController?.page?.contentView {
@@ -57,10 +75,17 @@ enum TestDriver {
                     if let web = page as? WKWebView { print("IKTEST   obscured=\(web.obscuredContentInsets)") }
                 }
             }
-        case "layout": if let l = TabLayout(rawValue: arg) { withAnimation(.ikago) { state.tabLayout = l } }
+        case "layout": LayoutSwitch.set(tabs: arg == "tabs", state: state)  // sidebar | tabs
         case "mode": if let m = ColorMode(rawValue: arg) { state.colorMode = m }
         case "preset": if let p = SpaceColors.presets.first(where: { $0.name.lowercased() == arg }) { state.setColors(p.colors, for: state.activeSpaceID) }
         case "peek": c.chrome.peek()
+        case "movetowindow": if let id = state.activeTabID { c.moveToNewWindow(id) }  // Move Tab to New Window
+        case "windows":  // every regular window: its tabs and frame
+            for (i, w) in BrowserWindows.all.enumerated() {
+                print("IKTEST window \(i) tabs=\(w.state.tabs.map(\.url)) active=\(w.state.activeTab?.url ?? "-") frame=\(w.window.map { NSStringFromRect($0.frame) } ?? "-")")
+            }
+        case "peeklink": c.peekLink(arg)  // the Shift-click link preview
+        case "layoutprobe": await LayoutSwitchProbe.run(c, switches: Int(arg) ?? 4)
         case "relaunch": AppRelaunch.relaunch(URL(fileURLWithPath: arg))  // Opens this app instead of Ikago.
         case "engine":  // Chooses an engine in Settings without relaunching.
             if let engine = BrowserEngine(rawValue: arg) { state.browserPreferences.preferredEngine = engine; state.saveNow() }
@@ -70,6 +95,7 @@ enum TestDriver {
         case "palette": c.showCommandPalette(newTab: arg == "new")
         case "palettequery": c.palette.userEdited(arg)
         case "palettecommit": c.palette.commit()
+        case "palettescope": _ = c.palette.toggleScope(Int(arg) ?? 0)
         case "palettedown": c.palette.moveSelection(1); c.palette.query = c.palette.query  // same text written back
         case "suggestions": print("IKTEST suggestions \(c.palette.selection) " + c.palette.suggestions.map(\.title).joined(separator: " | "))
         case "suggestionkinds": print("IKTEST suggestionkinds " + c.palette.suggestions.map { "\($0.source)" }.joined(separator: ","))
@@ -80,9 +106,53 @@ enum TestDriver {
                 let result = try await c.activeController?.page?.callAsync(arg)
                 print("IKTEST js \(result.map { "\($0)" } ?? "nil")")
             } catch { print("IKTEST js error \(error.localizedDescription)") }
+        case "pip":  // the media island's PiP button on the active tab, then the page's video presentation
+            if let id = state.activeTabID {
+                let tab = state.tab(id)
+                print("IKTEST pip before hasVideo=\(tab?.playback.hasVideo ?? false) playing=\(tab?.playback.playing ?? false) engine=\(tab?.engine.map { "\($0)" } ?? "-")")
+                if let web = (c.activeController?.page as? WebKitTab)?.webView {
+                    let names = ["_updateMediaPlaybackControlsManager", "_canTogglePictureInPicture", "_togglePictureInPicture", "_isPictureInPictureActive"]
+                    web.perform(NSSelectorFromString(names[0]))
+                    try? await Task.sleep(for: .milliseconds(300))
+                    var can = "n/a"
+                    if let imp = web.method(for: NSSelectorFromString(names[1])), web.responds(to: NSSelectorFromString(names[1])) {
+                        typealias Getter = @convention(c) (AnyObject, Selector) -> Bool
+                        can = "\(unsafeBitCast(imp, to: Getter.self)(web, NSSelectorFromString(names[1])))"
+                    }
+                    let prefs = web.configuration.preferences
+                    let keys = ["allowsPictureInPictureMediaPlayback", "_allowsPictureInPictureMediaPlayback", "pictureInPictureAPIEnabled", "_pictureInPictureAPIEnabled"]
+                    print("IKTEST pip prefs " + keys.map { key in prefs.responds(to: NSSelectorFromString(key)) ? "\(key)=\(prefs.value(forKey: key) ?? "nil")" : "\(key)=-" }.joined(separator: " "))
+                    let enabled = try? await c.activeController?.page?.callAsync("return String(document.pictureInPictureEnabled) + ' supports=' + String(document.querySelector('video')?.webkitSupportsPresentationMode?.('picture-in-picture'))")
+                    print("IKTEST pip document \(enabled.map { "\($0)" } ?? "nil")")
+                    print("IKTEST pip spi responds=\(names.map { web.responds(to: NSSelectorFromString($0)) }) canToggle=\(can)")
+                }
+                _ = try? await c.activeController?.page?.callAsync("""
+                    window.__ikModes = []; const v = document.querySelector('video');
+                    v?.addEventListener('webkitpresentationmodechanged', () => window.__ikModes.push(v.webkitPresentationMode));
+                    v?.addEventListener('enterpictureinpicture', () => window.__ikModes.push('enter'));
+                    v?.addEventListener('leavepictureinpicture', () => window.__ikModes.push('leave'));
+                    return true
+                    """)
+                if arg == "script", let page = c.activeController?.page {
+                    do { try MediaPictureInPicture.finish(try await page.callAsync(MediaPictureInPicture.source), page: page) }
+                    catch { print("IKTEST pip script error \(error.localizedDescription)") }
+                } else if arg == "standard" {
+                    let r = try? await c.activeController?.page?.callAsync("try { await document.querySelector('video').requestPictureInPicture(); return 'ok' } catch (e) { return 'error ' + e.name + ': ' + e.message }")
+                    print("IKTEST pip standard \(r.map { "\($0)" } ?? "nil")")
+                } else {
+                    c.pictureInPicture(id)
+                }
+                try? await Task.sleep(for: .seconds(2))
+                let modes = try? await c.activeController?.page?.callAsync("return JSON.stringify(window.__ikModes)")
+                print("IKTEST pip events \(modes.map { "\($0)" } ?? "nil")")
+                let mode = try? await c.activeController?.page?.callAsync("const v = document.querySelector('video'); return v ? String(v.webkitPresentationMode ?? '') + ' pipElement=' + String(document.pictureInPictureElement === v) + ' src=' + (v.currentSrc || '').slice(0, 30) : 'no video'")
+                let sheet = c.window?.attachedSheet.map { _ in "alert" } ?? "none"
+                print("IKTEST pip after \(mode.map { "\($0)" } ?? "nil") sheet=\(sheet) windows=\(NSApp.windows.filter(\.isVisible).map { $0.title })")
+            }
         case "permission":  // answer the visible permission sheet: allow | deny
             c.finishPermission(arg == "allow" ? .allow : .deny)
         case "snapshot": snapshot(c.window, to: arg)
+        case "corners": corners(c, to: arg)
         case "fullscreen":  // toggles window full screen, then reports every window of the app (arg "notch": on a notched screen)
             if arg == "notch", let screen = NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 }), let w = c.window {
                 w.setFrame(NSRect(x: screen.frame.midX - 600, y: screen.frame.midY - 380, width: 1200, height: 760), display: true)
@@ -100,9 +170,189 @@ enum TestDriver {
                 print("IKTEST pageshot \(arg) \(Int(image.size.width))x\(Int(image.size.height))")
             }
         case "settings": c.showSettings()
+        case "cleardata": c.showClearData()
+        case "back": c.goBack()
+        case "scrollprobe":  // <seconds>: scrolls the page smoothly while sampling CPU (app + its WebKit processes)
+            let seconds = Double(arg) ?? 8
+            let sampler = PerformanceSampler()
+            var samples: [PerformanceSample] = []
+            sampler.start { samples.append($0) }
+            let page = c.activeController?.page
+            Task { _ = try? await page?.callAsync("const end = Date.now() + \(Int(seconds * 1000)); while (Date.now() < end) { window.scrollBy(0, 24); await new Promise(r => requestAnimationFrame(r)); } return true") }
+            try? await Task.sleep(for: .seconds(seconds + 1))
+            sampler.stop()
+            let cpu = samples.dropFirst().map(\.cpu)
+            let app = samples.dropFirst().map { $0.rows.filter { $0.name.hasPrefix("Ikago") }.reduce(0) { $0 + $1.cpu } }
+            let web = samples.dropFirst().map { $0.rows.filter { $0.name.contains("WebContent") }.reduce(0) { $0 + $1.cpu } }
+            func avg(_ v: [Double]) -> Int { v.isEmpty ? 0 : Int(v.reduce(0, +) / Double(v.count)) }
+            print("IKTEST scrollprobe total avg=\(avg(cpu))% max=\(Int(cpu.max() ?? 0))% app=\(avg(app))% webcontent=\(avg(web))%")
+        case "siteinfoclick":  // hovers the Sidebar + Tabs address bar, clicks its site button, reports the card
+            guard let window = c.window, let field = c.chrome.addressFieldFrame, let height = window.contentView?.bounds.height else {
+                print("IKTEST siteinfoclick no address frame"); break
+            }
+            let point = NSPoint(x: field.maxX - 15, y: height - field.midY)
+            func send(_ type: NSEvent.EventType) {
+                if let event = NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                  windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: type == .mouseMoved ? 0 : 1) {
+                    window.sendEvent(event)
+                }
+            }
+            send(.mouseMoved)
+            try? await Task.sleep(for: .milliseconds(400))
+            send(.leftMouseDown); send(.leftMouseUp)
+            try? await Task.sleep(for: .milliseconds(500))
+            print("IKTEST siteinfoclick shown=\(c.chrome.showSiteInfo) palette=\(c.chrome.showPalette) editing=\(c.chrome.inlineAddress)")
+        case "settingsshot":  // <category>[/<section page>]|<png>: Settings drawn offscreen at a window's size
+            let parts = arg.split(separator: "|", maxSplits: 1).map(String.init)
+            guard parts.count == 2 else { break }
+            let sized = parts[0].split(separator: "@").map(String.init)
+            let names = sized[0].split(separator: "/").map(String.init)
+            let width = CGFloat(Double(sized.dropFirst().first ?? "") ?? 1180)
+            if let category = SettingsCategory(rawValue: names[0]) { state.settingsCategory = category }
+            if names.count > 1 { state.settingsSubpage[state.settingsCategory] = names[1] }
+            let colors = state.palette
+            let host = NSHostingView(rootView: SettingsPage(state: state, commands: c)
+                .environment(\.colorScheme, colors.isDark ? .dark : .light).environment(\.pagePalette, colors).tint(colors.accent))
+            host.frame = NSRect(x: 0, y: 0, width: width, height: 820)
+            let window = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+            window.contentView = host
+            try? await Task.sleep(for: .milliseconds(600))
+            host.layoutSubtreeIfNeeded()
+            if let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
+                host.cacheDisplay(in: host.bounds, to: rep)
+                try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: parts[1]))
+            }
+            window.contentView = nil
+        case "typefast":  // new|current[,delay ms]: ⌘T or ⌘L, two letters, more after the field's re-focus; prints the text
+            let typeArgs = arg.split(separator: ",").map(String.init)
+            c.showCommandPalette(newTab: typeArgs.first != "current")
+            func typeKeys(_ text: String) async {
+                guard let window = c.window else { return }
+                for ch in text {
+                    for type: NSEvent.EventType in [.keyDown, .keyUp] {
+                        if let event = NSEvent.keyEvent(with: type, location: .zero, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                        windowNumber: window.windowNumber, context: nil, characters: String(ch),
+                                                        charactersIgnoringModifiers: String(ch), isARepeat: false, keyCode: 0) {
+                            window.sendEvent(event)
+                        }
+                    }
+                    try? await Task.sleep(for: .milliseconds(40))
+                }
+            }
+            try? await Task.sleep(for: .milliseconds(Int(typeArgs.dropFirst().first ?? "") ?? 20))
+            await typeKeys("go")
+            print("IKTEST typefast early query=\(c.palette.query) responder=\(c.window?.firstResponder.map { String(describing: Swift.type(of: $0)) } ?? "nil")")
+            try? await Task.sleep(for: .milliseconds(600))
+            await typeKeys("ogle")
+            try? await Task.sleep(for: .milliseconds(200))
+            print("IKTEST typefast \(arg) query=\(c.palette.query)")
+        case "peekshot":  // <dir>: Open as Tab on a page with a red top strip and blue bottom strip; captures the window
+            for (label, keep) in [("normal", false), ("kept", true)] {
+                let url = "https://example.com/?peekshot-\(label)"
+                if keep {
+                    c.peekLink(url)
+                    for _ in 0..<60 where c.peekController?.page?.isLoading != false { try? await Task.sleep(for: .milliseconds(100)) }
+                    try? await Task.sleep(for: .milliseconds(500))
+                    c.openPeek()
+                } else {
+                    c.open(url, inNewTab: true)
+                }
+                try? await Task.sleep(for: .seconds(2))
+                guard let page = c.activeController?.page else { continue }
+                _ = try? await page.callAsync("""
+                    for (const [id, css] of [['ik-top', 'top:0'], ['ik-bottom', 'bottom:0']]) {
+                      let el = document.getElementById(id) || document.body.appendChild(Object.assign(document.createElement('div'), {id}));
+                      el.style.cssText = 'position:fixed;left:0;right:0;height:12px;z-index:2147483647;' + css + ';background:' + (id === 'ik-top' ? '#ff0000' : '#0000ff');
+                    }
+                    return true
+                    """)
+                try? await Task.sleep(for: .milliseconds(600))
+                print("IKTEST peekshot \(label) \(PeekShot.measure(page.contentView, window: c.window, save: arg.isEmpty ? nil : arg + "/peek-\(label).png"))")
+            }
+        case "railhit":  // what receives a click on each of the rail's drawn traffic lights
+            if let host = c.fullScreenControls.hostView, let frame = c.window?.contentView?.superview {
+                for i in 0..<3 {
+                    let size = host.bounds.width, spacing = (host.bounds.height - size) / 2
+                    let y = host.isFlipped ? size / 2 + CGFloat(i) * spacing : host.bounds.height - size / 2 - CGFloat(i) * spacing
+                    let p = frame.convert(NSPoint(x: size / 2, y: y), from: host)
+                    var chain: [String] = []
+                    var v = frame.hitTest(p)
+                    while let view = v, chain.count < 6 { chain.append(String(describing: type(of: view))); v = view.superview }
+                    print("IKTEST railhit \(i) host=\(host.frame) hit=\(chain.joined(separator: " < "))")
+                }
+                if arg == "click", let window = c.window {
+                    // A real click on Minimize (the second light).
+                    let size = host.bounds.width, spacing = (host.bounds.height - size) / 2
+                    let local = NSPoint(x: size / 2, y: host.isFlipped ? size / 2 + spacing : host.bounds.height - size / 2 - spacing)
+                    let point = host.convert(local, to: nil)
+                    for type: NSEvent.EventType in [.mouseMoved, .leftMouseDown, .leftMouseUp] {
+                        if let event = NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                          windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1) {
+                            window.sendEvent(event)
+                        }
+                        try? await Task.sleep(for: .milliseconds(150))
+                    }
+                    try? await Task.sleep(for: .milliseconds(800))
+                    print("IKTEST railhit minimized=\(window.isMiniaturized)")
+                    window.deminiaturize(nil)
+                }
+                print("IKTEST railhit subviews=\(c.window?.contentView?.subviews.map { "\(type(of: $0))" } ?? [])")
+            } else { print("IKTEST railhit none") }
+        case "siteinfoshot":  // <png>: the site popover's content, drawn on the page color
+            let colors = state.palette
+            let host = NSHostingView(rootView: SiteInfoPopoverPreview.view(state: state, commands: c)
+                .background(colors.pageBackground).environment(\.colorScheme, colors.isDark ? .dark : .light))
+            host.frame = NSRect(origin: .zero, size: host.fittingSize)
+            try? await Task.sleep(for: .milliseconds(300))
+            host.layoutSubtreeIfNeeded()
+            if let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
+                host.cacheDisplay(in: host.bounds, to: rep)
+                try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: arg))
+            }
+        case "resizeprobe":  // install: record the first tab's resizes and scroll it; report: print them
+            guard let page = c.content.controller(for: state.sidebarOrder.first { !$0.pinned }?.id ?? "")?.page else { break }
+            if arg == "install" {
+                _ = try? await page.callAsync("document.body.style.height = '20000px'; window.scrollTo(0, 5000); window.__ikSizes = []; addEventListener('resize', () => window.__ikSizes.push(innerWidth + 'x' + innerHeight)); return true")
+            } else {
+                let report = try? await page.callAsync("return JSON.stringify({sizes: window.__ikSizes, scroll: scrollY})")
+                print("IKTEST resizeprobe \(report.map { "\($0)" } ?? "nil")")
+            }
+        case "searchselection":  // selects the page's heading, runs the menu's Search in Ikago, prints the tabs
+            guard let web = (c.activeController?.page as? WebKitTab)?.webView as? FileDropWebView else { break }
+            _ = try? await c.activeController?.page?.callAsync("const r = document.createRange(); r.selectNodeContents(document.querySelector('h1') || document.body); getSelection().removeAllRanges(); getSelection().addRange(r); return getSelection().toString()")
+            let menu = NSMenu()
+            let item = NSMenuItem(title: "Search With Google", action: NSSelectorFromString("_searchWeb:"), keyEquivalent: "")
+            item.identifier = NSUserInterfaceItemIdentifier("WKMenuItemIdentifierSearchWeb")
+            menu.addItem(item)
+            let event = NSEvent.mouseEvent(with: .rightMouseDown, location: NSPoint(x: 100, y: 100), modifierFlags: [], timestamp: 0,
+                                           windowNumber: c.window?.windowNumber ?? 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+            web.configurePageMenu(menu, event: event)
+            print("IKTEST searchselection items=\(menu.items.map(\.title))")
+            if let index = menu.items.firstIndex(where: { $0.title == "Search in Ikago" }) { menu.performActionForItem(at: index) }
+            try? await Task.sleep(for: .seconds(1))
+            print("IKTEST searchselection tabs=\(state.tabs.map(\.url))")
+        case "seedhistory":  // <count> visits to made-up sites, spread over the last 30 days
+            let now = Date().timeIntervalSince1970
+            state.history = (0..<(Int(arg) ?? 300)).map { i in
+                Visit(url: "https://site\(i % 40).example/page/\(i)", title: "Page \(i) on site \(i % 40)",
+                      time: UInt64((now - Double(i) * 4300) * 1000))
+            }
         case "settingscategory": if let category = SettingsCategory(rawValue: arg) { state.settingsCategory = category }
         case "downloads": c.toggleDownloads()
         case "overview": c.toggleSidebar()
+        case "assistant": state.browserPreferences.pageIntelligence = true; c.chrome.showPageAssistant = arg != "off"
+        case "newspace": c.chrome.showNewSpace = arg != "off"
+        case "groupeditor": c.chrome.editFolderID = arg == "off" ? nil : state.spaceFolders.first?.id
+        case "hover":  // <loose tab number>: shows the hover card beside the sidebar, as resting on that tab would
+            if let tab = state.looseTabs[safe: (Int(arg) ?? 1) - 1], let content = c.window?.contentView {
+                c.chrome.hoverTabAnchor = CGRect(x: 20, y: content.bounds.height - 260, width: CGFloat(state.sidebarWidth) - 20, height: 34)
+                c.chrome.hoverImage = await c.previewImage(tab.id)
+                c.chrome.hoverTabID = tab.id
+            }
+        case "sidebarshortcuts": state.browserPreferences.sidebarShortcuts = arg == "on" ? true : nil
+        case "labelstyle": if let style = GroupLabelStyle(rawValue: arg) { state.groupLabelStyle = style }
+        case "sidebartoptabs": state.browserPreferences.sidebarTopTabs = arg == "on" ? true : nil
+        case "sidebargroups": state.browserPreferences.sidebarGroupStyle = SidebarGroupStyle(rawValue: arg)
         case "sidebartranslucency": state.browserPreferences.translucentSidebar = arg == "on"
         case "glass": state.useGlass = arg != "off"
         case "inset": state.frameInset = Double(arg) ?? 8
@@ -112,14 +362,17 @@ enum TestDriver {
             if p.first == "place", p.count >= 3, let item = ChromeItem(rawValue: p[1]), let zone = ChromeZone(rawValue: p[2]) {
                 state.chromeLayout.place(item, in: zone, before: p.count > 3 ? ChromeItem(rawValue: p[3]) : nil)
             }
-            if p.first == "remove", p.count == 3, let item = ChromeItem(rawValue: p[1]) { state.chromeLayout.remove(item, fromTopBar: p[2] == "top") }
-            print("IKTEST chrome \(state.chromeLayout.topBarLeading.map(\.rawValue)) \(state.chromeLayout.topBarTrailing.map(\.rawValue)) | \(state.chromeLayout.sidebarTop.map(\.rawValue)) \(state.chromeLayout.sidebarBottom.map(\.rawValue))")
+            if p.first == "remove", p.count >= 2, let item = ChromeItem(rawValue: p[1]) { state.chromeLayout.remove(item) }
+            print("IKTEST chrome \(state.chromeLayout.sidebarTop.map(\.rawValue)) \(state.chromeLayout.sidebarBottom.map(\.rawValue))")
         case "newtabfocus": state.focusAddressBarOnNewTab = arg == "on"
         case "newtab": c.newTab()
         case "newtabmode": if let m = NewTabMode(rawValue: arg) { state.newTabMode = m }
         case "homepage": state.homepage = arg
         case "separate": if let id = state.activeTabID { state.separate(id) }
         case "unsplitall": state.splits = []
+        case "panes":  // each visible pane's size, in pane order
+            print("IKTEST panes layout=\(state.splitLayout) " + state.visibleTabIDs.map { id in
+                c.content.controller(for: id).map { NSStringFromSize($0.hostView.frame.size) } ?? "-" }.joined(separator: " "))
         case "address": c.showCommandPalette(newTab: false)
         case "dropedge":  // <tab number in sidebar>:<left|right|top|bottom>
             let parts = arg.split(separator: ":").map(String.init)
@@ -131,14 +384,6 @@ enum TestDriver {
         case "groupstyle": if let style = GroupLabelStyle(rawValue: arg) { withAnimation(.ikago) { state.groupLabelStyle = style } }
         case "bookmarkbar": state.showsBookmarksBar = arg != "off"
         case "bookmarkdrawer": state.sidebarBookmarksExpanded = arg != "off"
-        case "essentials": state.showsTopBarEssentials = arg != "off"
-        case "topbarstyle": if let style = TopTabStyle(rawValue: arg) { state.topTabStyle = style }
-        case "bargap": state.barGap = Double(arg) ?? 6
-        case "barrounded": state.barRounded = arg != "off"
-        case "barheight": state.barHeight = Double(arg) ?? 28
-        case "toptoolbarheight": state.browserPreferences.topToolbarHeight = Double(arg)
-        case "toptabbarheight": state.browserPreferences.topTabBarHeight = Double(arg)
-        case "barborder": state.barBorder = Double(arg) ?? 0
         case "addressstyle": if let s = AddressStyle(rawValue: arg) { state.addressStyle = s }
         case "inspector":
             c.toggleDevTools(nil)
@@ -152,6 +397,9 @@ enum TestDriver {
         case "switchspace": if let i = Int(arg), state.spaces.indices.contains(i - 1) { state.switchSpace(state.spaces[i - 1].id) }
         case "deletespace": if let i = Int(arg), state.spaces.indices.contains(i - 1) { state.deleteSpace(state.spaces[i - 1].id) }
         case "folder": state.createFolder(named: arg, with: state.activeTabID)
+        case "nestfolder":  // <child index>:<parent index> among the Space's groups
+            let parts = arg.split(separator: ":").compactMap { Int($0) }, f = state.spaceFolders
+            if parts.count == 2, f.indices.contains(parts[0]), f.indices.contains(parts[1]) { state.moveFolder(f[parts[0]].id, into: f[parts[1]].id) }
         case "togglefolder": if let f = state.spaceFolders.first { state.toggleFolder(f.id) }
         case "unfolder": if let id = state.activeTabID { state.moveToFolder(id, folderID: nil) }
         case "tospace": if let i = Int(arg), let id = state.activeTabID, state.spaces.indices.contains(i - 1) {
