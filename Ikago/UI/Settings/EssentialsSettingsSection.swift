@@ -4,7 +4,14 @@ struct EssentialsSettingsSection: View {
     @Bindable var state: BrowserState
 
     var body: some View {
-        if state.tabLayout == .vertical {
+        Group {
+            PageSection(title: "Sidebar") {
+                PageRow(title: "Space header and shortcuts", subtitle: "The Space's name, Assistant, Bookmarks and History") {
+                    Toggle("Space header and shortcuts", isOn: Binding(get: { state.browserPreferences.sidebarShortcuts == true },
+                        set: { on in withAnimation(.ikago) { state.browserPreferences.sidebarShortcuts = on ? true : nil } }))
+                        .labelsHidden().toggleStyle(.switch)
+                }
+            }
             PageSection(title: "Sidebar Essentials") {
                 PageRow(title: "Show pinned-tab grid", subtitle: "Pinned tabs as a grid at the top of the sidebar") {
                     Toggle("Show pinned-tab grid", isOn: Binding(get: { state.showsPinnedGrid },
@@ -13,27 +20,16 @@ struct EssentialsSettingsSection: View {
                 if state.showsPinnedGrid {
                     PageDivider()
                     PageRow(title: "Grid columns", subtitle: "Maximum columns for pinned tabs") {
-                        Picker("Grid columns", selection: Binding(
+                        SettingsMenu(selection: Binding(
                             get: { state.browserPreferences.pinnedGridColumns ?? 3 },
                             set: { state.browserPreferences.pinnedGridColumns = $0 }
-                        )) {
-                            ForEach(2...8, id: \.self) { count in Text("\(count)").tag(count) }
-                        }.labelsHidden()
+                        ), options: (2...8).map { count in (count, "\(count)") })
                     }
-                }
-            }
-        } else {
-            PageSection(title: "Pinned Essentials") {
-                PageRow(title: "Show pinned tabs", subtitle: "Keep essentials in the tab strip.") {
-                    Toggle("Show pinned tabs", isOn: Binding(
-                        get: { state.showsTopBarEssentials && state.showsTopBarPins },
-                        set: { state.showsTopBarEssentials = $0; state.showsTopBarPins = $0 }
-                    ).animation(.ikago)).labelsHidden().toggleStyle(.switch)
                 }
             }
         }
         PageSection(title: "Bookmarks Bar", footer: "Toggle with ⇧⌘B.") {
-            PageRow(title: "Show bookmarks bar", subtitle: "A row below the toolbar, or a drawer in the sidebar") {
+            PageRow(title: "Show bookmarks", subtitle: "A drawer at the bottom of the sidebar") {
                 Toggle("Show bookmarks bar", isOn: $state.showsBookmarksBar.animation(.ikago)).labelsHidden().toggleStyle(.switch)
             }
         }
@@ -52,11 +48,8 @@ struct BookmarkOpeningSection: View {
             if state.browserPreferences.reuseBookmarkTabs ?? true {
                 PageDivider()
                 PageRow(title: "Match open tabs", subtitle: "Only tabs in the current Space.") {
-                    Picker("Match open tabs", selection: Binding(get: { state.browserPreferences.bookmarkMatchDomain ?? false },
-                        set: { state.browserPreferences.bookmarkMatchDomain = $0 })) {
-                        Text("Same page URL").tag(false)
-                        Text("Same domain").tag(true)
-                    }.labelsHidden()
+                    SettingsMenu(selection: Binding(get: { state.browserPreferences.bookmarkMatchDomain ?? false },
+                        set: { state.browserPreferences.bookmarkMatchDomain = $0 }), options: [(false, "Same page URL"), (true, "Same domain")])
                 }
             }
         }

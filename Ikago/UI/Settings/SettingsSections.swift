@@ -6,15 +6,13 @@ struct SearchSettingsSection: View {
     var body: some View {
         PageSection(title: "Search & Address Bar") {
             PageRow(title: "Search engine") {
-                Picker("Search engine", selection: $state.searchEngine) {
-                    ForEach(SearchEngine.allCases) { Text($0.name).tag($0) }
-                }.labelsHidden()
+                SettingsMenu(selection: $state.searchEngine, options: SearchEngine.allCases.map { ($0, $0.name) },
+                             icons: SearchEngineIcons.shared.icons)
+                    .task { await SearchEngineIcons.shared.load() }
             }
             PageDivider()
-            PageRow(title: "Address bar activation", subtitle: "Sidebar layout only") {
-                Picker("Address bar", selection: $state.addressStyle) {
-                    ForEach(AddressStyle.allCases) { Text($0.name).tag($0) }
-                }.labelsHidden().disabled(state.tabLayout.usesTopTabs)
+            PageRow(title: "Address bar activation") {
+                SettingsMenu(selection: $state.addressStyle, options: AddressStyle.allCases.map { ($0, $0.name) })
             }
         }
         PageSection(title: "Suggestions", footer: "Autocomplete sends what you type, never addresses, to your search engine.") {
@@ -41,6 +39,7 @@ struct SearchSettingsSection: View {
 
 struct PrivacySettingsSection: View {
     let state: BrowserState
+    weak var commands: BrowserCommands?
     @State private var confirmClear = false
     @State private var cleared = false
     @State private var cacheCleared = false
@@ -68,11 +67,11 @@ struct PrivacySettingsSection: View {
                     } message: { Text("You will be signed out of websites in this Space. Extensions stay installed.") }
             }
             if let issue {
-                Text(issue).font(.system(size: 12)).foregroundStyle(.red).padding(.horizontal, 16).padding(.bottom, 10)
+                Text(issue).font(.system(size: 12)).foregroundStyle(.red).padding(.bottom, 10)
             }
             PageDivider()
             PageRow(title: "Browsing history", subtitle: "\(state.history.count) pages") {
-                Button("Clear") { state.history.removeAll(); state.scheduleSave() }.disabled(state.history.isEmpty)
+                Button("Clear…") { commands?.showClearData() }
             }
             PageDivider()
             PageRow(title: "Cached site icons", subtitle: "Icons for tabs, pins and bookmarks") {
@@ -130,7 +129,7 @@ private struct ChromiumUpdateRow: View {
         PageRow(title: "Automatic security updates", subtitle: updates.summary) {
             HStack(spacing: 8) {
                 if updates.isReady {
-                    Button("Relaunch to Update") { updates.relaunchToInstall() }.buttonStyle(.borderedProminent)
+                    Button("Relaunch to Update") { updates.relaunchToInstall() }.buttonStyle(SettingsButtonStyle(prominent: true))
                 } else if updates.isEnabled {
                     Button("Check Now") { updates.checkNow() }
                 }

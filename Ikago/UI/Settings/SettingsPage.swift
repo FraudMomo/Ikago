@@ -1,16 +1,17 @@
 import SwiftUI
 
 enum SettingsCategory: String, CaseIterable, Identifiable {
-    case general, appearance, toolbar, tabs, search, extensions, security, passwords, imports, about
+    case general, appearance, toolbar, tabs, search, extensions, history, security, passwords, imports, about
     var id: String { rawValue }
     var title: String {
         switch self {
         case .general: "General"
         case .appearance: "Appearance"
         case .toolbar: "Sidebar & Toolbar"
-        case .tabs: "Tabs"
+        case .tabs: "Tabs & Links"
         case .search: "Search"
         case .extensions: "Extensions"
+        case .history: "History"
         case .security: "Privacy & Security"
         case .passwords: "Passwords"
         case .imports: "Import"
@@ -18,7 +19,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable {
         }
     }
     static var navigationGroups: [[Self]] {
-        [[.general, .appearance, .toolbar, .tabs, .search], [.extensions, .security, .passwords], [.imports, .about]]
+        [[.general, .appearance, .toolbar, .tabs, .search], [.security, .passwords, .extensions, .history], [.imports, .about]]
     }
     var symbol: String {
         switch self {
@@ -28,6 +29,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable {
         case .tabs: "square.on.square"
         case .search: "magnifyingglass"
         case .extensions: "puzzlepiece.extension"
+        case .history: "clock.arrow.circlepath"
         case .security: "hand.raised"
         case .passwords: "key"
         case .imports: "square.and.arrow.down"
@@ -57,12 +59,15 @@ struct SettingsPage: View {
                 }
                 VStack(spacing: 0) {
                     if !wide {
-                        Picker("Settings", selection: $state.settingsCategory) {
-                            ForEach(SettingsCategory.allCases) { Label($0.title, systemImage: $0.symbol).tag($0) }
-                        }.pickerStyle(.menu).padding(16).frame(maxWidth: .infinity, alignment: .leading)
+                        HStack(spacing: 10) {
+                            SettingsCategoryMenu(state: state)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 2)
                     }
-                    PageScaffold(title: state.settingsCategory.title, colors: state.palette, scrollTarget: target, settingsCategory: state.settingsCategory) {
-                        categoryContent
+                    PageScaffold(title: state.settingsCategory.title, colors: state.palette, scrollTarget: target,
+                                 settingsCategory: state.settingsCategory, background: SettingsColors.page(state.palette)) {
+                        subpageContent
                     }
                     .environment(\.settingsSurface, true)
                     .environment(\.settingsHighlight, highlight)
@@ -71,15 +76,19 @@ struct SettingsPage: View {
                 .frame(width: max(0, geometry.size.width - navigationWidth), height: geometry.size.height)
             }
             .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
-            .background(Color(nsColor: state.isDark ? NSColor(hex: 0x1C1C1E) : NSColor(hex: 0xF5F5F7)))
-            .buttonStyle(.automatic)  // standard macOS controls, not the browser's glass
+            .background(SettingsColors.page(state.palette))
+            .buttonStyle(SettingsButtonStyle())  // Settings' own buttons, not the browser's glass or stock blue text
+            .tint(SettingsColors.accent(state.palette))
+            .environment(\.pagePalette, state.palette)
         }.recordLayout("settings")
+        .onAppear(perform: openPending)
+        .onChange(of: state.pendingSettingsSection) { _, _ in openPending() }
     }
 
     private var navigation: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Settings").font(.system(size: 21, weight: .semibold)).tracking(-0.4)
-                .padding(.leading, 10).padding(.top, 20)
+            Text("Settings").font(.system(size: 15, weight: .semibold))
+                .padding(.leading, 8).padding(.top, 22).padding(.bottom, 2)
             SettingsSearchField(text: $query, focused: $searchFocused)
             ScrollView {
                 if query.trimmingCharacters(in: .whitespaces).isEmpty {
@@ -90,15 +99,21 @@ struct SettingsPage: View {
             }
             .scrollIndicators(.never)
         }
-        .padding(.horizontal, 14).padding(.top, 16)
+        .padding(.horizontal, 12).padding(.top, 16)
         .foregroundStyle(state.palette.text)
-        .overlay(alignment: .trailing) { Color.primary.opacity(0.08).frame(width: 1) }
+        // A quieter column beside the page, as in Mail and Notes.
+        .background(Color(nsColor: state.isDark ? NSColor(hex: 0x19191B) : NSColor(hex: 0xF7F7F8)))
+        .overlay(alignment: .trailing) { Color.primary.opacity(0.07).frame(width: 1) }
     }
 
     private var categories: some View {
         VStack(alignment: .leading, spacing: 14) {
-            ForEach(Array(SettingsCategory.navigationGroups.enumerated()), id: \.offset) { _, categories in
-                VStack(spacing: 2) {
+            ForEach(Array(SettingsCategory.navigationGroups.enumerated()), id: \.offset) { index, categories in
+                VStack(alignment: .leading, spacing: 1) {
+                    if let heading = SettingsCategory.navigationGroupTitles[safe: index], !heading.isEmpty {
+                        Text(heading).font(.system(size: 11, weight: .semibold)).foregroundStyle(state.palette.tertiary)
+                            .padding(.leading, 8).padding(.bottom, 4)
+                    }
                     ForEach(categories) { category in
                         SettingsNavigationRow(category: category, selected: state.settingsCategory == category, colors: state.palette) {
                             target = nil
@@ -111,15 +126,39 @@ struct SettingsPage: View {
         .padding(.bottom, 16)
     }
 
+    /// A section the address field asked for (`BrowserState.pendingSettingsSection`), once.
+    private func openPending() {
+        guard let section = state.pendingSettingsSection else { return }
+        state.pendingSettingsSection = nil
+        if let entry = SettingsSearch.index.first(where: { $0.category == state.settingsCategory && $0.section == section }) { open(entry) }
+    }
+
     /// Opens a result's page at its section and outlines the section for a moment.
     private func open(_ entry: SettingsSearchEntry) {
         state.settingsCategory = entry.category
+        if let page = entry.category.subpage(containing: entry.section) { state.settingsSubpage[entry.category] = page.title }
         target = entry.section
         highlight = entry.section
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(1.4))
             if highlight == entry.section { highlight = nil }
         }
+    }
+
+    /// The category's sub-page bar, then the chosen sub-page's sections (all of them where there's only one page).
+    @ViewBuilder private var subpageContent: some View {
+        let category = state.settingsCategory
+        let pages = category.subpages
+        let current = pages.first { $0.title == state.settingsSubpage[category] } ?? pages.first
+        if pages.count > 1, let current {
+            SettingsSubnav(pages: pages, selection: Binding(get: { current.title }, set: { state.settingsSubpage[category] = $0 }),
+                           colors: state.palette)
+                .padding(.bottom, 6)
+        }
+        VStack(alignment: .leading, spacing: 22) { categoryContent }
+            .environment(\.settingsVisibleSections, current?.sections)
+            .id(current?.title ?? "")
+            .transition(.opacity.combined(with: .offset(y: 6)))
     }
 
     @ViewBuilder private var categoryContent: some View {
@@ -134,12 +173,11 @@ struct SettingsPage: View {
         case .appearance:
             PageSection(title: "Layout") {
                 HStack(spacing: 14) {
-                    ForEach(TabLayout.allCases) { layout in
-                        LayoutCard(layout: layout, selected: state.tabLayout == layout, colors: state.palette) { state.tabLayout = layout }
+                    ForEach(LayoutChoice.allCases) { choice in
+                        LayoutCard(choice: choice, selected: choice.isSelected(in: state), colors: state.palette) { choice.apply(to: state) }
                     }
-                }.padding(16)
+                }.padding(.vertical, 16)
             }
-            if state.tabLayout == .horizontal { TopBarSettingsSection(state: state) }
             SpacingSection(state: state)
             AppearanceSection(state: state)
             GroupAppearanceSection(state: state)
@@ -151,6 +189,7 @@ struct SettingsPage: View {
             NewTabSection(state: state)
             TabPlacementSection(state: state)
             BookmarkOpeningSection(state: state)
+            PeekSettingsSection(state: state)
             BrowserFeaturesSection(state: state)
         case .extensions:
             // Each engine has its own extensions; with per-site engines both can run.
@@ -161,11 +200,13 @@ struct SettingsPage: View {
             if BrowserRuntime.runs(.chromium) {
                 CEFExtensionsSection(state: state, commands: commands)
             }
+        case .history:
+            HistoryBrowser(state: state, commands: commands)
         case .security:
             PageSection(title: "Status") { SecurityDashboard(state: state) }
             SecuritySettingsSection(state: state)
             TrackingProtectionSection(state: state)
-            PrivacySettingsSection(state: state)
+            PrivacySettingsSection(state: state, commands: commands)
         case .passwords:
             PasswordSettingsSection(state: state)
         case .imports:
@@ -184,17 +225,17 @@ private struct SettingsNavigationRow: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 10) {
-                Image(systemName: category.symbol).font(.system(size: 14, weight: selected ? .medium : .regular))
-                    .frame(width: 20)
+            HStack(spacing: 9) {
+                Image(systemName: category.symbol).font(.system(size: 13, weight: .regular))
+                    .frame(width: 18)
+                    .foregroundStyle(selected ? colors.text : colors.secondary)
                 Text(category.title).font(.system(size: 13, weight: selected ? .medium : .regular)).lineLimit(1)
                 Spacer(minLength: 0)
-                if selected { Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).foregroundStyle(.tertiary) }
             }
-            .foregroundStyle(selected ? colors.text : colors.secondary)
-            .padding(.horizontal, 10).frame(height: 38)
-            .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(selected ? 0.09 : hovering ? 0.045 : 0)))
+            .foregroundStyle(selected ? colors.text : colors.text.opacity(0.8))
+            .padding(.horizontal, 8).frame(height: 32)
+            .background(RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                .fill(Color.primary.opacity(selected ? 0.075 : hovering ? 0.04 : 0)))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

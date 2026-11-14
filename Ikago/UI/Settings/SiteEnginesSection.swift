@@ -27,8 +27,8 @@ struct SiteEnginesSection: View {
                 PageRow(title: rule.key) {
                     HStack(spacing: 6) {
                         enginePicker(siteSelection(rule.key), allowsDefault: false)
-                        Button { state.setSiteEngine(nil, for: rule.key) } label: { Image(systemName: "minus.circle") }
-                            .buttonStyle(.borderless).help("Remove \(rule.key)")
+                        SiteIconButton(symbol: "minus", help: "Remove \(rule.key)") { state.setSiteEngine(nil, for: rule.key) }
+                            .foregroundStyle(.secondary).help("Remove \(rule.key)")
                     }
                 }
             }
@@ -37,9 +37,7 @@ struct SiteEnginesSection: View {
                 HStack(spacing: 6) {
                     TextField("example.com", text: $newSite).textFieldStyle(.roundedBorder).frame(width: 150).onSubmit(add)
                     EngineLogo(engine: newEngine, size: 16)
-                    Picker("Engine", selection: $newEngine) {
-                        ForEach(BrowserEngine.allCases) { Text($0.title).tag($0) }
-                    }.labelsHidden().fixedSize()
+                    SettingsMenu(selection: $newEngine, options: BrowserEngine.allCases.map { ($0, $0.title) })
                     Button("Add", action: add).disabled(newSite.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
@@ -49,7 +47,7 @@ struct SiteEnginesSection: View {
                 Image(systemName: "arrow.triangle.2.circlepath").foregroundStyle(.secondary)
                 Text("Relaunch to start Chromium for these sites.").font(.system(size: 13))
                 Spacer(minLength: 8)
-                Button("Relaunch Now") { state.saveNow(); AppRelaunch.relaunch() }.buttonStyle(.borderedProminent)
+                Button("Relaunch Now") { state.saveNow(); AppRelaunch.relaunch() }.buttonStyle(SettingsButtonStyle(prominent: true))
             }
             .padding(.horizontal, 4)
         }
@@ -59,11 +57,8 @@ struct SiteEnginesSection: View {
     private func enginePicker(_ selection: Binding<String>, allowsDefault: Bool = true) -> some View {
         HStack(spacing: 8) {
             EngineLogo(engine: BrowserEngine(rawValue: selection.wrappedValue) ?? defaultEngine, size: 16)
-            Picker("Engine", selection: selection) {
-                if allowsDefault { Text("Default (\(defaultEngine.title))").tag("") }
-                ForEach(BrowserEngine.allCases) { Text($0.title).tag($0.rawValue) }
-            }
-            .labelsHidden().fixedSize()
+            SettingsMenu(selection: selection, options: (allowsDefault ? [("", "Default (\(defaultEngine.title))")] : [])
+                         + BrowserEngine.allCases.map { ($0.rawValue, $0.title) })
         }
     }
 

@@ -38,14 +38,14 @@ struct SettingsCategoryArtwork: View {
                         .padding(3)
                 }
                 .frame(width: 58, height: 38)
-                .background(RoundedRectangle(cornerRadius: 8).fill(colors.tint))
-                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(colors.separator, lineWidth: 1))
+                .background(RoundedRectangle(cornerRadius: Radius.control).fill(colors.tint))
+                .overlay(RoundedRectangle(cornerRadius: Radius.control).strokeBorder(colors.separator, lineWidth: 1))
             } else {
                 Image(systemName: category.symbol)
                     .font(.system(size: 24, weight: .regular))
                     .foregroundStyle(colors.secondary)
                     .frame(width: 54, height: 54)
-                    .background(RoundedRectangle(cornerRadius: 15).fill(Color.primary.opacity(0.045)))
+                    .background(RoundedRectangle(cornerRadius: Radius.card).fill(Color.primary.opacity(0.045)))
             }
         }
         .accessibilityHidden(true)
@@ -78,6 +78,7 @@ extension SettingsCategory {
         case .tabs: Color(hex: 0x6366F1)
         case .search: Color(hex: 0x3B82F6)
         case .extensions: Color(hex: 0x8B5CF6)
+        case .history: Color(hex: 0xF59E0B)
         case .security: Color(hex: 0x22A559)
         case .passwords: Color(hex: 0x8E8E93)
         case .imports: Color(hex: 0x06A5C9)

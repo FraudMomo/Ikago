@@ -19,7 +19,7 @@ struct CEFExtensionsSection: View {
                 HStack(spacing: 8) {
                     TextField("chromewebstore.google.com/detail/…", text: $link).textFieldStyle(.roundedBorder).frame(minWidth: 220, maxWidth: 300)
                         .onSubmit(addFromStore)
-                    Button("Add", action: addFromStore).buttonStyle(.borderedProminent).disabled(link.isEmpty || manager.busy)
+                    Button("Add", action: addFromStore).buttonStyle(SettingsButtonStyle(prominent: true)).disabled(link.isEmpty || manager.busy)
                 }
             }
             PageDivider()
@@ -47,7 +47,7 @@ struct CEFExtensionsSection: View {
             }
             if let issue = manager.issue {
                 PageDivider()
-                Label(issue, systemImage: "exclamationmark.triangle.fill").font(.system(size: 12)).foregroundStyle(.red).padding(14)
+                Label(issue, systemImage: "exclamationmark.triangle.fill").font(.system(size: 12)).foregroundStyle(.red).padding(.vertical, 14)
             }
         }
         .task(id: profile) {
@@ -102,7 +102,7 @@ private struct ChromiumExtensionRow: View {
                     }
                 } message: { Text("Its saved data is deleted too.") }
         }
-        .padding(.horizontal, 16).padding(.vertical, 12)
+        .padding(.vertical, 12)
         .opacity(item.enabled ? 1 : 0.6)
     }
 }

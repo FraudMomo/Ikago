@@ -22,7 +22,7 @@ private struct ChoiceRow<Icon: View>: View {
     @ViewBuilder let icon: Icon
     let action: () -> Void
 
-    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 12, style: .continuous) }
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: Radius.card, style: .continuous) }
 
     var body: some View {
         Button(action: action) {
@@ -96,7 +96,7 @@ struct WelcomeExtensionsStep: View {
                 Toggle("uBlock Origin Lite", isOn: $blocker).labelsHidden().toggleStyle(.switch)
             }
             .padding(14)
-            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.primary.opacity(0.045)))
+            .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(Color.primary.opacity(0.045)))
         }
         .onChange(of: blocker) { _, on in apply(on) }
     }

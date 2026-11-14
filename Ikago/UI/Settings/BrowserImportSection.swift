@@ -28,7 +28,7 @@ struct BrowserImportSection: View {
                             showDetails = false
                             Task { await model.importProfile(profile, into: state) }
                         }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(SettingsButtonStyle(prominent: true))
                         .disabled(model.importingID != nil || model.completed.contains(profile.id))
                         .accessibilityLabel("Import from \(profile.browser), \(profile.name)")
                     }
@@ -38,20 +38,20 @@ struct BrowserImportSection: View {
         .task { await model.refresh() }
         if let result = model.result {
             PageSection(title: model.accessNeededFor != nil ? "Allow Browser Access" : model.failed ? "Import Needs Attention" : "Import Complete") {
-                Text(result).frame(maxWidth: .infinity, alignment: .leading).padding(16)
+                Text(result).frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 14)
                 if model.accessNeededFor != nil {
                     HStack {
                         Button("Allow Access & Retry") { Task { await model.retryWithAccess(into: state) } }
-                            .buttonStyle(.borderedProminent).disabled(model.importingID != nil)
+                            .buttonStyle(SettingsButtonStyle(prominent: true)).disabled(model.importingID != nil)
                         Spacer()
-                    }.padding(.horizontal, 16).padding(.bottom, 16)
+                    }.padding(.bottom, 16)
                 }
                 if !model.notes.isEmpty {
                     DisclosureGroup("Details", isExpanded: $showDetails) {
                         ForEach(Array(model.notes.enumerated()), id: \.offset) { _, note in
                             Text(note).font(.callout).frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 4)
                         }
-                    }.padding(16)
+                    }.padding(.vertical, 14)
                 }
             }
         }

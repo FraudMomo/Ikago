@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// The Chromium project's logo, drawn in code: three blue segments around a white ring and a blue center.
@@ -31,19 +32,29 @@ struct ChromiumLogo: View {
     }
 }
 
-/// Ikago's own mark for the WebKit engine. WebKit's logo belongs to Apple and isn't free to use, so this is
-/// an original design: a blue disc with a globe.
+/// The WebKit project's logo (webkit.org, © Apple Inc.), bundled as `webkit-logo.svg` with its colors converted to
+/// sRGB, used only to identify the WebKit engine (see THIRD_PARTY_NOTICES.md). Its own shape on a clear background, like
+/// Chromium's; a blue disc with a globe stands in if the file is missing.
 struct WebKitLogo: View {
     var size: CGFloat = 56
 
+    @MainActor static let image: NSImage? = {
+        guard let url = Bundle.main.url(forResource: "webkit-logo", withExtension: "svg") else { return nil }
+        return NSImage(contentsOf: url)
+    }()
+
     var body: some View {
-        Circle()
-            .fill(LinearGradient(colors: [Color(hex: 0x5AC8FA), Color(hex: 0x0A6CFF)], startPoint: .top, endPoint: .bottom))
-            .overlay {
-                Image(systemName: "globe").font(.system(size: size * 0.56, weight: .medium)).foregroundStyle(.white)
+        Group {
+            if let image = Self.image {
+                Image(nsImage: image).resizable().interpolation(.high).aspectRatio(contentMode: .fit)
+            } else {
+                Circle()
+                    .fill(LinearGradient(colors: [Color(hex: 0x5AC8FA), Color(hex: 0x0A6CFF)], startPoint: .top, endPoint: .bottom))
+                    .overlay { Image(systemName: "globe").font(.system(size: size * 0.56, weight: .medium)).foregroundStyle(.white) }
             }
-            .frame(width: size, height: size)
-            .accessibilityLabel("WebKit")
+        }
+        .frame(width: size, height: size)
+        .accessibilityLabel("WebKit")
     }
 }
 

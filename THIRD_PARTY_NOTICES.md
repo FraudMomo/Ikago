@@ -23,6 +23,8 @@ following third-party components, each under its own license.
 
 ## Logos
 
+- The **WebKit logo** (`Ikago/Resources/webkit-logo.svg`) is the WebKit project's artwork from webkit.org, © Apple Inc.,
+  with its colors converted to sRGB. It only identifies the WebKit engine; WebKit is a trademark of Apple Inc.
 - The **Chromium logo** is drawn in code from the Chromium project's artwork, © The Chromium Authors, under
   [CC BY 2.5](https://creativecommons.org/licenses/by/2.5/). It only identifies the Chromium engine. Chromium is a
   trademark of Google LLC.

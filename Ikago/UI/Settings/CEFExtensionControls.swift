@@ -13,27 +13,23 @@ struct CEFExtensionControls: View {
             Text("Extensions are unavailable in private windows.").font(.system(size: 13)).foregroundStyle(.secondary)
         } else {
             let enabled = manager.items.filter(\.enabled)
-            if enabled.isEmpty, !manager.busy {
-                Text("No extensions yet.").font(.system(size: 13)).foregroundStyle(.secondary)
-            }
-            ForEach(enabled) { item in
-                Button { open(item) } label: {
-                    HStack(spacing: 8) {
-                        ChromiumExtensionIcon(item: item, size: 20)
-                        Text(item.name).font(.system(size: 13)).lineLimit(1)
-                        Spacer(minLength: 0)
-                    }
-                    .contentShape(Rectangle())
+            VStack(spacing: 0) {
+                if enabled.isEmpty, !manager.busy {
+                    Text("No extensions yet.").font(.system(size: 13)).foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, minHeight: 40)
                 }
-                .buttonStyle(.plain).disabled(item.popup == nil)
+                ForEach(Array(enabled.enumerated()), id: \.element.id) { index, item in
+                    if index > 0 { SiteCardDivider() }
+                    CEFExtensionRow(item: item) { open(item) }
+                }
             }
+            .siteCard(state.palette)
             if let issue { Text(issue).font(.system(size: 12)).foregroundStyle(.red) }
-            HStack {
-                Button("Get Extensions") { dismiss(); commands?.openInNewTab("https://chromewebstore.google.com/") }
-                Spacer()
-                Button("Manage") { state.settingsCategory = .extensions; dismiss(); commands?.openPage(.settings) }
+            SiteCardFooter(colors: state.palette) {
+                dismiss(); commands?.openInNewTab("https://chromewebstore.google.com/")
+            } manage: {
+                state.settingsCategory = .extensions; dismiss(); commands?.openPage(.settings)
             }
-            .controlSize(.small)
             .task(id: state.activeSpace.profileID) { await manager.refresh(profile: state.activeSpace.profileID) }
         }
     }
@@ -49,5 +45,32 @@ struct CEFExtensionControls: View {
                 NSApp.sendAction(hard ? #selector(BrowserWindowController.hardReloadPage(_:)) : #selector(BrowserWindowController.reloadPage(_:)), to: nil, from: nil)
             }
         }
+    }
+}
+
+/// One Chromium extension in the site popover: its icon and name; a click opens its popup.
+private struct CEFExtensionRow: View {
+    let item: ChromiumExtensions.Item
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                ChromiumExtensionIcon(item: item, size: 20).frame(width: 24, height: 24)
+                Text(item.name).font(.system(size: 13)).lineLimit(1)
+                Spacer(minLength: 0)
+                if item.popup != nil {
+                    Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).foregroundStyle(.tertiary)
+                        .opacity(hovering ? 1 : 0)
+                }
+            }
+            .padding(.horizontal, 10).frame(minHeight: 44)
+            .background(Color.primary.opacity(hovering ? 0.06 : 0))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(SiteCardPressStyle(scale: 0.98)).allowsHitTesting(item.popup != nil)  // no popup: nothing to open, but the name stays readable
+        .onHover { hovering = $0 }
+        .animation(.ikagoQuick, value: hovering)
     }
 }

@@ -1,55 +1,104 @@
 import SwiftUI
 import WebKit
 
-/// A selectable miniature of the Sidebar or Top Bar layout.
+/// The two ways to arrange the window: every tab in the sidebar, or tabs and an address bar above the page with the
+/// sidebar as a rail of icons (or hidden).
+enum LayoutChoice: String, CaseIterable, Identifiable {
+    case sidebar, sidebarTabs
+    var id: String { rawValue }
+    var name: String { self == .sidebar ? "Sidebar" : "Sidebar + Tabs" }
+
+    @MainActor func isSelected(in state: BrowserState) -> Bool {
+        (state.browserPreferences.sidebarTopTabs == true) == (self == .sidebarTabs)
+    }
+
+    @MainActor func apply(to state: BrowserState) {
+        LayoutSwitch.set(tabs: self == .sidebarTabs, state: state)
+    }
+}
+
+/// A small window drawing of a layout, with a selection ring.
 struct LayoutCard: View {
-    let layout: TabLayout
+    let choice: LayoutChoice
     let selected: Bool
     let colors: Palette
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 10) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous).fill(colors.tint)
-                    if layout == .vertical {
-                        HStack(spacing: 5) {
-                            VStack(spacing: 4) {
-                                ForEach(0..<4, id: \.self) { i in
-                                    RoundedRectangle(cornerRadius: 3).fill(i == 1 ? colors.selected : colors.hover.opacity(2)).frame(height: 8)
-                                }
-                                Spacer()
-                            }
-                            .frame(width: 40)
-                            RoundedRectangle(cornerRadius: 6).fill(colors.pageBackground)
-                        }
-                        .padding(7)
-                    } else {
-                        VStack(spacing: 4) {
-                            RoundedRectangle(cornerRadius: 4).fill(colors.hover).frame(height: 18)
-                                .overlay(alignment: .leading) {
-                                    RoundedRectangle(cornerRadius: 3).fill(colors.selected).frame(width: 48, height: 10).padding(.leading, 18)
-                                }
-                            HStack(spacing: 3) {
-                                ForEach(0..<3, id: \.self) { i in RoundedRectangle(cornerRadius: 3).fill(i == 1 ? colors.selected : colors.hover).frame(height: 10) }
-                            }
-                            RoundedRectangle(cornerRadius: 6).fill(colors.pageBackground)
-                        }
-                        .padding(7)
-                    }
-                }
-                .frame(height: 96)
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(selected ? colors.accent : Color.primary.opacity(0.08), lineWidth: selected ? 2 : 1)
-                    .padding(-3))
-                Text(layout.name).font(.system(size: 13, weight: selected ? .semibold : .regular))
+            VStack(spacing: 9) {
+                LayoutPreview(choice: choice, colors: colors)
+                    .frame(height: 92)
+                    .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5))
+                    .padding(3)
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(selected ? Color.settingsAccent : .clear, lineWidth: 2))
+                Text(choice.name).font(.system(size: 12, weight: selected ? .medium : .regular))
+                    .foregroundStyle(selected ? .primary : .secondary)
             }
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .animation(.ikagoQuick, value: selected)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+private struct LayoutPreview: View {
+    let choice: LayoutChoice
+    let colors: Palette
+
+    var body: some View {
+        let line = colors.text.opacity(0.14)
+        ZStack(alignment: .topLeading) {
+            colors.tint
+            switch choice {
+            case .sidebar:
+                HStack(alignment: .top, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        lights.padding(.bottom, 3)
+                        ForEach(0..<4, id: \.self) { i in
+                            RoundedRectangle(cornerRadius: 2).fill(i == 1 ? colors.selected : line).frame(width: i == 1 ? 34 : 28, height: 5)
+                        }
+                    }
+                    .frame(width: 38, alignment: .leading)
+                    RoundedRectangle(cornerRadius: 5).fill(colors.pageBackground)
+                }
+                .padding(7)
+            case .sidebarTabs:
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack(alignment: .bottom, spacing: 4) {
+                        lights.frame(height: 9)
+                        UnevenRoundedRectangle(topLeadingRadius: 3, topTrailingRadius: 3).fill(colors.pageBackground)
+                            .frame(width: 26, height: 9)
+                        ForEach(0..<2, id: \.self) { _ in
+                            RoundedRectangle(cornerRadius: 1.5).fill(line).frame(width: 16, height: 3).padding(.bottom, 3)
+                        }
+                    }
+                    HStack(alignment: .top, spacing: 5) {
+                        VStack(spacing: 4) {
+                            ForEach(0..<3, id: \.self) { _ in RoundedRectangle(cornerRadius: 2).fill(line).frame(width: 7, height: 7) }
+                        }
+                        .padding(.top, 4)
+                        UnevenRoundedRectangle(bottomLeadingRadius: 5, bottomTrailingRadius: 5, topTrailingRadius: 5)
+                            .fill(colors.pageBackground)
+                            .overlay(alignment: .top) {
+                                Capsule().fill(line).frame(width: 46, height: 5).padding(.top, 4)
+                            }
+                    }
+                }
+                .padding(7)
+            }
+        }
+    }
+
+    private var lights: some View {
+        HStack(spacing: 3) {
+            ForEach([Color(hex: 0xFF5F57), Color(hex: 0xFEBC2E), Color(hex: 0x28C840)], id: \.self) { Circle().fill($0).frame(width: 5, height: 5) }
+        }
     }
 }
 
@@ -62,10 +111,7 @@ struct SpaceColorEditor: View {
     var body: some View {
         PageRow(title: "Custom colors", subtitle: "Set light and dark colors for a Space") {
             VStack(alignment: .trailing, spacing: 8) {
-                Picker("Space", selection: Binding(get: { selectedSpace.id }, set: { state.themeEditingSpaceID = $0 })) {
-                    ForEach(state.spaces) { space in Text(space.name).tag(space.id) }
-                }
-                .labelsHidden().pickerStyle(.menu).fixedSize()
+                SettingsMenu(selection: Binding(get: { selectedSpace.id }, set: { state.themeEditingSpaceID = $0 }), options: state.spaces.map { space in (space.id, space.name) })
                 HStack(spacing: 8) {
                     SpaceColorPopover(title: "Light", color: binding(\.light))
                     SpaceColorPopover(title: "Dark", color: binding(\.dark))
@@ -136,17 +182,14 @@ struct NewTabSection: View {
         let providers = NewTabProviders.current
         PageSection(title: "New Tab", footer: footer(providers)) {
             PageRow(title: "New tabs open") {
-                Picker("", selection: Binding(get: { state.newTabMode },
-                                              set: { mode in withAnimation(.ikago) { state.newTabMode = mode } })) {
-                    ForEach(NewTabMode.allCases) { Text($0.name).tag($0) }
-                }
-                .pickerStyle(.menu).labelsHidden()
+                SettingsMenu(selection: Binding(get: { state.newTabMode },
+                                              set: { mode in withAnimation(.ikago) { state.newTabMode = mode } }), options: NewTabMode.allCases.map { ($0, $0.name) })
             }
             PageDivider()
-            PageRow(title: "Focus address bar on new tabs", subtitle: "Sidebar layout only") {
+            PageRow(title: "Focus address bar on new tabs") {
                 Toggle("Focus address bar on new tabs", isOn: Binding(get: { state.focusAddressBarOnNewTab },
                                                                      set: { state.focusAddressBarOnNewTab = $0 }))
-                    .labelsHidden().toggleStyle(.switch).disabled(state.tabLayout.usesTopTabs)
+                    .labelsHidden().toggleStyle(.switch)
             }
             if state.newTabMode == .homepage {
                 PageDivider()
@@ -160,11 +203,8 @@ struct NewTabSection: View {
             if state.newTabMode == .extensionPage, !providers.isEmpty {
                 PageDivider()
                 PageRow(title: "Extension") {
-                    Picker("", selection: Binding(get: { providers.contains { $0.id == state.newTabExtensionID } ? state.newTabExtensionID ?? providers[0].id : providers[0].id },
-                                                  set: { state.newTabExtensionID = $0 })) {
-                        ForEach(providers) { provider in Text(provider.name).tag(provider.id) }
-                    }
-                    .labelsHidden().fixedSize()
+                    SettingsMenu(selection: Binding(get: { providers.contains { $0.id == state.newTabExtensionID } ? state.newTabExtensionID ?? providers[0].id : providers[0].id },
+                                                  set: { state.newTabExtensionID = $0 }), options: providers.map { provider in (provider.id, provider.name) })
                 }
                 .transition(.opacity)
                 .onAppear { if state.newTabExtensionID == nil { state.newTabExtensionID = providers[0].id } }
@@ -174,7 +214,7 @@ struct NewTabSection: View {
 
     private func footer(_ providers: [NewTabProviders.Provider]) -> String? {
         switch state.newTabMode {
-        case .commandBar: "Sidebar opens the command bar. Top Bar creates a new tab with the address field ready to type."
+        case .commandBar: "Opens the address field, ready to type."
         case .homepage: "⌘T opens this page. ⌘L edits its address."
         case .extensionPage where providers.isEmpty:
             "No installed extension replaces the new tab page. Add one such as Momentum from the Chrome Web Store."

@@ -48,11 +48,11 @@ struct TrackingProtectionSection: View {
                 PageDivider()
                 option("Block third-party cookies", subtitle: "Some embedded sign-ins may need this off", key: \.blockThirdPartyCookies, defaultValue: true)
             } else {
-                Text("Manage Chromium’s per-Space cookie policy under Website Safety.").font(.system(size: 12)).foregroundStyle(.secondary).padding(12)
+                Text("Manage Chromium’s per-Space cookie policy under Website Safety.").font(.system(size: 12)).foregroundStyle(.secondary).padding(.vertical, 12)
             }
             if let issue = BrowserSecurity.shared.blockingIssue {
                 PageDivider()
-                Text(issue).foregroundStyle(.red).padding(16)
+                Text(issue).foregroundStyle(.red).padding(.vertical, 14)
             }
         }
     }

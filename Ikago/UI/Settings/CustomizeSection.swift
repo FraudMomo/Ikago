@@ -1,92 +1,39 @@
 import SwiftUI
 
-/// Settings ▸ Customize: live mockups of the top bar and sidebar. Drag items to reorder or
-/// move them, hover and click − to remove, drag (or click) from Available to add.
+/// Settings ▸ Customize: a live mockup of the sidebar. Its top row and bottom bar each have a left, centre and right
+/// place: drag items into any of them, reorder within one, hover and click − to remove, drag (or click) from Available
+/// to add.
 struct CustomizeSection: View {
     let state: BrowserState
-    @State private var editingTopBar: Bool
-
-    init(state: BrowserState) {
-        self.state = state
-        _editingTopBar = State(initialValue: state.tabLayout == .horizontal)
-    }
 
     var body: some View {
         let colors = state.palette
         PageSection(title: "Customize",
-                    footer: "Drag to reorder. Hover and click − to remove; click an item in Available to add it.") {
+                    footer: "Drag items to the left, centre or right of a row. Hover and click − to remove; click an item in Available to add it.") {
             VStack(alignment: .leading, spacing: 16) {
                 HStack {
-                    Picker("", selection: $editingTopBar.animation(.ikago)) {
-                        Text("Top Bar").tag(true)
-                        Text("Sidebar").tag(false)
-                    }
-                    .pickerStyle(.segmented).labelsHidden().fixedSize()
                     Spacer()
                     Button("Reset to Default") { withAnimation(.ikago) { state.chromeLayout = ChromeLayout() } }
                         .controlSize(.small)
                         .disabled(state.chromeLayout == ChromeLayout())
                 }
                 ScrollView(.horizontal) {
-                    Group {
-                        if editingTopBar { TopBarMockup(state: state, colors: colors) } else { SidebarMockup(state: state, colors: colors) }
-                    }
-                    .frame(minWidth: 420)  // narrower than this the mockup scrolls instead of squashing
+                    SidebarMockup(state: state, colors: colors)
+                        .frame(minWidth: 420)  // narrower than this the mockup scrolls instead of squashing
                 }
                 .scrollIndicators(.never)
                 .padding(14)
-                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(colors.tint))
+                .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(colors.tint))
                 .environment(\.colorScheme, colors.isDark ? .dark : .light)
-                AvailableTray(state: state, colors: colors, topBar: editingTopBar)
+                AvailableTray(state: state, colors: colors)
             }
-            .padding(16)
+            .padding(.vertical, 16)
         }
         .animation(.ikago, value: state.chromeLayout)
     }
 }
 
 // MARK: - Mockups
-
-private struct TopBarMockup: View {
-    let state: BrowserState
-    let colors: Palette
-
-    var body: some View {
-        VStack(spacing: 10) {
-            if state.topTabStyle == .separate {
-                HStack(spacing: 6) {
-                    TrafficLights()
-                    ZoneView(zone: .topBarOuterLeading, state: state, colors: colors)
-                    ZoneView(zone: .topBarLeading, state: state, colors: colors)
-                    RoundedRectangle(cornerRadius: 5).fill(colors.hover.opacity(2)).frame(minWidth: 100, maxWidth: .infinity).frame(height: 24)
-                    ZoneView(zone: .topBarTrailing, state: state, colors: colors)
-                    ZoneView(zone: .topBarOuterTrailing, state: state, colors: colors)
-                }
-                HStack(spacing: 3) {
-                    ForEach(0..<3, id: \.self) { i in RoundedRectangle(cornerRadius: 4).fill(i == 1 ? colors.selected : colors.hover).frame(height: 18) }
-                }
-            } else {
-            HStack(spacing: 6) {
-                TrafficLights()
-                ZoneView(zone: .topBarOuterLeading, state: state, colors: colors)
-                Spacer(minLength: 4)
-                HStack(spacing: 4) {
-                    ZoneView(zone: .topBarLeading, state: state, colors: colors)
-                    FakeTab(colors: colors, active: false, width: 64)
-                    FakeTab(colors: colors, active: true, width: 110)
-                    FakeTab(colors: colors, active: false, width: 64)
-                    ZoneView(zone: .topBarTrailing, state: state, colors: colors)
-                }
-                .padding(4)
-                .background(Capsule().fill(colors.panel.opacity(0.8)))
-                Spacer(minLength: 4)
-                ZoneView(zone: .topBarOuterTrailing, state: state, colors: colors)
-            }
-            }
-            RoundedRectangle(cornerRadius: 8, style: .continuous).fill(colors.pageBackground).frame(height: 90)
-        }
-    }
-}
 
 private struct SidebarMockup: View {
     let state: BrowserState
@@ -97,8 +44,7 @@ private struct SidebarMockup: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 4) {
                     TrafficLights()
-                    Spacer(minLength: 6)
-                    ZoneView(zone: .sidebarTop, state: state, colors: colors)
+                    row(ChromeZone.topRow)
                 }
                 ToggleRow(title: "Address", shown: state.chromeLayout.sidebarShowsAddress, colors: colors, filled: true) {
                     state.chromeLayout.sidebarShowsAddress.toggle()
@@ -107,21 +53,30 @@ private struct SidebarMockup: View {
                     state.chromeLayout.sidebarShowsNewTab.toggle()
                 }
                 ForEach(0..<3, id: \.self) { i in
-                    RoundedRectangle(cornerRadius: 6).fill(i == 0 ? colors.selected : colors.hover).frame(height: 18)
+                    RoundedRectangle(cornerRadius: Radius.inner).fill(i == 0 ? colors.selected : colors.hover).frame(height: 18)
                 }
                 Spacer(minLength: 10)
-                HStack {
-                    Spacer(minLength: 0)
-                    ZoneView(zone: .sidebarBottom, state: state, colors: colors)
-                    Spacer(minLength: 0)
-                }
+                row(ChromeZone.bottomRow)
             }
             .padding(8)
-            .frame(minWidth: 190, maxWidth: 250)
+            .frame(minWidth: 250, maxWidth: 300)
             .frame(height: 250)
-            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(colors.panel.opacity(0.8)))
-            RoundedRectangle(cornerRadius: 8, style: .continuous).fill(colors.pageBackground).frame(height: 250)
+            .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(colors.panel.opacity(0.8)))
+            RoundedRectangle(cornerRadius: Radius.control, style: .continuous).fill(colors.pageBackground).frame(height: 250)
         }
+    }
+
+    /// A row's three places: left, centre (kept centred) and right.
+    private func row(_ zones: [ChromeZone]) -> some View {
+        ZStack {
+            HStack(spacing: 0) {
+                ZoneView(zone: zones[0], state: state, colors: colors)
+                Spacer(minLength: 4)
+                ZoneView(zone: zones[2], state: state, colors: colors)
+            }
+            ZoneView(zone: zones[1], state: state, colors: colors)
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -136,19 +91,22 @@ struct ZoneView: View {
         let items = state.chromeLayout[zone]
         HStack(spacing: 2) {
             ForEach(items) { item in
-                ItemChip(item: item, colors: colors, spacesAsDots: zone == .sidebarBottom) {
-                    withAnimation(.ikago) { state.chromeLayout.remove(item, from: zone) }
+                ItemChip(item: item, colors: colors, spacesAsDots: !zone.isTop) {
+                    withAnimation(.ikago) { state.chromeLayout.remove(item) }
                 }
                 .dropDestination(for: String.self) { ids, _ in return place(ids, before: item) }
             }
             if items.isEmpty {
-                Text("Drop here").font(.system(size: 10)).foregroundStyle(colors.tertiary).padding(.horizontal, 8)
+                // An empty place: a small slot, so a row's three places fit beside each other.
+                Image(systemName: "plus").font(.system(size: 9, weight: .medium)).foregroundStyle(colors.tertiary)
+                    .frame(width: 22)
             }
         }
-        .frame(minWidth: 40, minHeight: 30)
+        .frame(minWidth: 26, minHeight: 30)
+        .help("\(zone.isTop ? "Top" : "Bottom") \(zone.title.lowercased())")
         .padding(.horizontal, 2)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
-            .strokeBorder(targeted ? Color.accentColor : colors.separator, style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
+        .background(RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+            .strokeBorder(targeted ? Color.settingsAccent : colors.separator, style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
             .opacity(targeted || items.isEmpty ? 1 : 0.6))
         .dropDestination(for: String.self) { ids, _ in place(ids, before: nil) } isTargeted: { targeted = $0 }
     }
@@ -182,7 +140,7 @@ private struct ItemChip: View {
                     .frame(width: 26, height: 26)
             }
         }
-        .background(RoundedRectangle(cornerRadius: 7).fill(hovering ? colors.hover.opacity(2) : .clear))
+        .background(RoundedRectangle(cornerRadius: Radius.control).fill(hovering ? colors.hover.opacity(2) : .clear))
         .overlay(alignment: .topTrailing) {
             if hovering {
                 Button(action: onRemove) {
@@ -201,15 +159,14 @@ private struct ItemChip: View {
     }
 }
 
-/// Items not placed in the bar being edited. Drop an item here to remove it.
+/// Items not placed in the sidebar. Drop an item here to remove it.
 private struct AvailableTray: View {
     let state: BrowserState
     let colors: Palette
-    let topBar: Bool
     @State private var targeted = false
 
     var body: some View {
-        let items = state.chromeLayout.available(topBar: topBar)
+        let items = state.chromeLayout.available()
         ScrollView(.horizontal) { HStack(spacing: 8) {
             Text("Available").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
             if items.isEmpty {
@@ -231,17 +188,17 @@ private struct AvailableTray: View {
         } }
         .scrollIndicators(.never)
         .padding(8)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
+        .background(RoundedRectangle(cornerRadius: Radius.row, style: .continuous)
             .strokeBorder(targeted ? Color.red.opacity(0.6) : .clear, style: StrokeStyle(lineWidth: 1, dash: [3, 3])))
         .dropDestination(for: String.self) { ids, _ in
             guard let id = ids.first, let item = ChromeItem(rawValue: id) else { return false }
-            withAnimation(.ikago) { state.chromeLayout.remove(item, fromTopBar: topBar) }
+            withAnimation(.ikago) { state.chromeLayout.remove(item) }
             return true
         } isTargeted: { targeted = $0 }
     }
 
     private func add(_ item: ChromeItem) {
-        withAnimation(.ikago) { state.chromeLayout.place(item, in: topBar ? .topBarTrailing : .sidebarTop) }
+        withAnimation(.ikago) { state.chromeLayout.place(item, in: .sidebarTop) }
     }
 }
 
@@ -251,7 +208,7 @@ private struct ChipPreview: View {
     let item: ChromeItem
     var body: some View {
         Label(item.name, systemImage: item.symbol).font(.system(size: 12)).padding(6)
-            .background(RoundedRectangle(cornerRadius: 6).fill(Color(white: 0.5).opacity(0.3)))
+            .background(RoundedRectangle(cornerRadius: Radius.inner).fill(Color(white: 0.5).opacity(0.3)))
     }
 }
 
@@ -289,7 +246,7 @@ private struct ToggleRow: View {
             }
             .padding(.horizontal, 8)
             .frame(height: 24)
-            .background(RoundedRectangle(cornerRadius: 6).fill(filled ? colors.hover.opacity(1.5) : .clear))
+            .background(RoundedRectangle(cornerRadius: Radius.inner).fill(filled ? colors.hover.opacity(1.5) : .clear))
             .opacity(shown ? 1 : 0.4)
             .contentShape(Rectangle())
         }

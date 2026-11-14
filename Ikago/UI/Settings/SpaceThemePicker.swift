@@ -8,10 +8,7 @@ struct SpaceThemePicker: View {
     var body: some View {
         PageRow(title: "Space theme", subtitle: "Choose colors for each Space") {
             VStack(alignment: .trailing, spacing: 8) {
-                Picker("Space", selection: Binding(get: { selectedSpace.id }, set: { state.themeEditingSpaceID = $0 })) {
-                    ForEach(state.spaces) { space in Text(space.name).tag(space.id) }
-                }
-                .labelsHidden().pickerStyle(.menu).fixedSize()
+                SettingsMenu(selection: Binding(get: { selectedSpace.id }, set: { state.themeEditingSpaceID = $0 }), options: state.spaces.map { space in (space.id, space.name) })
                 ScrollView(.horizontal) {
                     HStack(spacing: 8) {
                         ForEach(SpaceColors.presets) { preset in

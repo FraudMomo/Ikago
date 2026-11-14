@@ -1,19 +1,15 @@
 import SwiftUI
 
-/// A composed header with a compact visual, rather than a large decorative banner.
+/// The page's title and one short line, set like a document heading: no artwork, no banner.
 struct SettingsCategoryHeader: View {
     let category: SettingsCategory
     let colors: Palette
     var body: some View {
-        HStack(spacing: 16) {
-            SettingsCategoryArtwork(category: category, colors: colors)
-                .frame(width: 56, height: 56)
-            VStack(alignment: .leading, spacing: 5) {
-                Text(category.title).font(.system(size: 28, weight: .semibold)).tracking(-0.6)
-                Text(category.detail).font(.system(size: 12)).foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 0)
-        }.frame(maxWidth: .infinity, alignment: .leading).padding(.bottom, 4)
+        VStack(alignment: .leading, spacing: 4) {
+            Text(category.title).font(.system(size: 24, weight: .semibold)).tracking(-0.4)
+            Text(category.detail).font(.system(size: 13)).foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -26,6 +22,7 @@ extension SettingsCategory {
         case .tabs: "Opening, organizing and memory"
         case .search: "Search and address suggestions"
         case .extensions: "Manage what runs in your browser"
+        case .history: "Pages you’ve visited, and clearing browsing data"
         case .security: "Connections, permissions and browsing data"
         case .passwords: "Sign in with your preferred password source"
         case .imports: "Choose what to bring from another browser"

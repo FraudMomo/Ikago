@@ -19,17 +19,18 @@ struct EngineSettingsSection: View {
                         Image(systemName: "arrow.triangle.2.circlepath").foregroundStyle(.secondary)
                         Text("Relaunch to switch to \(chosen.title).").font(.system(size: 13))
                         Spacer(minLength: 8)
-                        Button("Relaunch Now") { state.saveNow(); AppRelaunch.relaunch() }.buttonStyle(.borderedProminent)
+                        Button("Relaunch Now") { state.saveNow(); AppRelaunch.relaunch() }.buttonStyle(SettingsButtonStyle(prominent: true))
                     }
                     .padding(.horizontal, 4)
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
-            .padding(10)
+            .padding(.vertical, 14)
             .animation(.ikagoQuick, value: chosen)
         }
-        if chosen == .chromium || BrowserRuntime.runs(.chromium) {
-            PageSection(title: "Chromium") {
+        // General ▸ Advanced: shown whichever engine is chosen, since sites can use Chromium by their own rule.
+        do {
+            PageSection(title: "Advanced", footer: "Applies to pages that open in Chromium.") {
                 PageRow(title: "Translate X videos", subtitle: "Converts X’s H.264 video to AV1 on this Mac so it plays") {
                     Toggle("", isOn: Binding(get: { state.browserPreferences.chromiumVideoTranslation ?? true }, set: { on in
                         state.browserPreferences.chromiumVideoTranslation = on
@@ -57,7 +58,7 @@ private struct EngineCard: View {
     let running: Bool
     let action: () -> Void
 
-    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 8, style: .continuous) }
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: Radius.control, style: .continuous) }
 
     var body: some View {
         Button(action: action) {
@@ -71,7 +72,7 @@ private struct EngineCard: View {
                     }
                     Spacer(minLength: 4)
                     Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                        .font(.system(size: 15)).foregroundStyle(selected ? Color.accentColor : Color.secondary.opacity(0.5))
+                        .font(.system(size: 15)).foregroundStyle(selected ? Color.settingsAccent : Color.secondary.opacity(0.5))
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     ForEach(engine.traits, id: \.title) { trait in
@@ -87,7 +88,7 @@ private struct EngineCard: View {
             .padding(10)
             .frame(maxWidth: .infinity, alignment: .topLeading)
             .background(shape.fill(Color.primary.opacity(0.03)))
-            .overlay(shape.strokeBorder(selected ? Color.accentColor : Color(nsColor: .separatorColor), lineWidth: selected ? 1.5 : 0.5))
+            .overlay(shape.strokeBorder(selected ? Color.settingsAccent : Color(nsColor: .separatorColor), lineWidth: selected ? 1.5 : 0.5))
             .contentShape(shape)
         }
         .buttonStyle(.plain)

@@ -30,7 +30,7 @@ struct ExtensionsSection: View {
             HStack {
                 Button("Check for Updates") { Task { await manager.checkForUpdates(force: true) } }
                 Button("Review Updates") { Task { await manager.checkForUpdates(force: true, reviewPermissions: true) } }
-            }.disabled(manager.checkingUpdates).padding(16)
+            }.disabled(manager.checkingUpdates).padding(.vertical, 14)
             PageDivider()
             if manager.records.isEmpty {
                 PageRow(title: "No extensions yet", subtitle: "Open one in the Chrome Web Store and click “Add to Ikago”.") { EmptyView() }
@@ -51,7 +51,7 @@ struct ExtensionsSection: View {
                 Button("Install from File…") { chooseLocalPackage() }
                 Spacer()
             }
-            .padding(16)
+            .padding(.vertical, 14)
         }
         .onAppear { foundSafariExtensions = ExtensionManager.safariExtensionsOnThisMac() }
     }
@@ -107,7 +107,6 @@ private struct ExtensionRow: View {
                 .controlSize(.small)
                 .help("Remove")
         }
-        .padding(.horizontal, 16)
         .padding(.vertical, 10)
         .disabled(ExtensionManager.shared.installing.contains(record.id))
     }

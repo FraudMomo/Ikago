@@ -26,12 +26,8 @@ struct PasswordSettingsSection: View {
             if webKit {
                 PageDivider()
                 PageRow(title: "Fill from", subtitle: "Chromium always uses Ikago Passwords") {
-                    Picker("Fill from", selection: Binding(get: { source },
-                                                          set: { state.browserPreferences.passwordSource = $0.rawValue })) {
-                        Text("Ikago Passwords").tag(PasswordSource.ikago)
-                        Text("Apple Passwords").tag(PasswordSource.apple)
-                    }
-                    .labelsHidden().fixedSize()
+                    SettingsMenu(selection: Binding(get: { source },
+                                                          set: { state.browserPreferences.passwordSource = $0.rawValue }), options: [(PasswordSource.ikago, "Ikago Passwords"), (PasswordSource.apple, "Apple Passwords")])
                 }
             }
         }
@@ -42,16 +38,16 @@ struct PasswordSettingsSection: View {
             }
             PageDivider()
             PageRow(title: "Exported file", subtitle: status ?? "A .csv file from Apple Passwords or Chrome") {
-                Button("Import…") { importFile() }.buttonStyle(.borderedProminent)
+                Button("Import…") { importFile() }.buttonStyle(SettingsButtonStyle(prominent: true))
             }
         }
         PageSection(title: "Saved in Ikago", footer: "Encrypted on this Mac. Every fill needs Touch ID or your Mac password.") {
             if let issue = vault.loadIssue {
                 Text(issue).font(.system(size: 13)).foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading).padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 12)
             } else if vault.logins.isEmpty {
                 Text("No passwords yet.").font(.system(size: 13)).foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading).padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 12)
             } else if !unlocked {
                 PageRow(title: "\(vault.logins.count) password\(vault.logins.count == 1 ? "" : "s")", subtitle: "Locked") {
                     Button("Show…") { unlock() }
@@ -68,7 +64,7 @@ struct PasswordSettingsSection: View {
                     PageDivider()
                     Text("Showing \(Self.listLimit) of \(matching.count). Search to find the others.")
                         .font(.system(size: 11)).foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading).padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 12)
                 }
                 PageDivider()
                 HStack {
