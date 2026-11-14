@@ -3,6 +3,8 @@ import SwiftUI
 struct DownloadAnchors {
     var toolbar: Anchor<CGRect>?
     var page: Anchor<CGRect>?
+    /// Sidebar + Tabs: the address field above the page, which its suggestions hang from.
+    var address: Anchor<CGRect>?
 }
 
 struct DownloadsAnchorKey: PreferenceKey {
@@ -11,6 +13,7 @@ struct DownloadsAnchorKey: PreferenceKey {
         let next = nextValue()
         value.toolbar = next.toolbar ?? value.toolbar
         value.page = next.page ?? value.page
+        value.address = next.address ?? value.address
     }
 }
 

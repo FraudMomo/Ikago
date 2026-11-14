@@ -66,7 +66,7 @@ private struct DownloadFlight: View {
             .font(.system(size: 22, weight: .medium))
             .foregroundStyle(colors.accent)
             .frame(width: 40, height: 40)
-            .background(.background, in: .rect(cornerRadius: 10))
+            .background(.background, in: .rect(cornerRadius: Radius.row))
             .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
             .modifier(DownloadFlightPath(progress: progress, start: start, end: end))
             .task {

@@ -57,7 +57,7 @@ struct DownloadRow: View {
             }
         }
         .padding(.trailing, 8)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(hovering ? colors.hover : .clear))
+        .background(RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(hovering ? colors.hover : .clear))
         .onHover { hovering = $0 }
         .animation(reduceMotion ? nil : .ikagoQuick, value: hovering)
         .animation(reduceMotion ? nil : .ikago, value: item.finished)

@@ -71,7 +71,9 @@ final class DownloadCenter: NSObject {
             if item.inProgress { item.interrupted = true; item.errorDescription = "Ikago closed before this download finished." }
             return item
         }
+        // Earlier downloads stay in the list but don't bring the automatic control back at launch; only this run's do.
         super.init()
+        dismissedToolbarItems = Set(items.map(\.id))
         trimHistory(); refreshButtonVisibility()
         IKCEFDownloads.shared.destinationHandler = { [weak self] identifier, name, source, ephemeral in
             MainActor.assumeIsolated {
@@ -156,7 +158,11 @@ final class DownloadCenter: NSObject {
               FileManager.default.fileExists(atPath: url.path) else { return false }
         return openFile(url)
     }
-    func clearFinished() { items.removeAll { !$0.inProgress }; saveNow(); history.discardBackup() }
+    /// Forgets finished downloads (those that finished within `period`, if given); never the files.
+    func clearFinished(in period: DateInterval? = nil) {
+        items.removeAll { !$0.inProgress && (period?.contains($0.completedAt ?? $0.startedAt) ?? true) }
+        saveNow(); history.discardBackup()
+    }
     func remove(_ id: UUID) { items.removeAll { $0.id == id && !$0.inProgress }; saveNow(); history.discardBackup() }
     func revealDownloadsFolder() { NSWorkspace.shared.open(Self.downloadsFolder) }
 

@@ -59,8 +59,8 @@ struct DownloadsDropdown: View {
         }
         .foregroundStyle(colors.text)
         .tint(colors.accent)
-        .surface(.rect(cornerRadius: 16), colors)
-        .clipShape(.rect(cornerRadius: 16))
+        .surface(.rect(cornerRadius: Radius.sheet), colors)
+        .clipShape(.rect(cornerRadius: Radius.sheet))
         .shadow(color: .black.opacity(colors.isDark ? 0.22 : 0.1), radius: 18, y: 6)
         .animation(reduceMotion ? nil : .ikagoQuick, value: center.items.map(\.id))
     }
@@ -81,7 +81,7 @@ struct DownloadsDropdownOverlay: View {
     var body: some View {
         GeometryReader { geometry in
             let measured = anchor
-            let bounds = measured ?? lastBounds ?? CGRect(x: geometry.size.width - 40, y: state.tabLayout.usesTopTabs ? state.topBarChromeHeight : 42, width: 24, height: 24)
+            let bounds = measured ?? lastBounds ?? CGRect(x: geometry.size.width - 40, y: 42, width: 24, height: 24)
             let width = min(390, max(0, geometry.size.width - 24))
             let below = max(0, geometry.size.height - bounds.maxY - 20)
             let above = max(0, bounds.minY - 20)
@@ -91,7 +91,7 @@ struct DownloadsDropdownOverlay: View {
             let y = below >= height ? bounds.maxY + 8 : max(12, bounds.minY - height - 8)
             ZStack(alignment: .topLeading) {
                 Color.clear.contentShape(Rectangle()).onTapGesture { dismiss() }
-                DownloadsDropdown(colors: state.tabLayout.usesTopTabs ? state.barPalette : state.palette, commands: commands, close: dismiss)
+                DownloadsDropdown(colors: state.palette, commands: commands, close: dismiss)
                     .frame(width: width, height: height).offset(x: x, y: y)
                     .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .topTrailing)))
             }
