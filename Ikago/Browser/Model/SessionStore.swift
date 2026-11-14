@@ -29,6 +29,8 @@ struct Session: Codable, Equatable {
     var browser: BrowserPreferences? = nil
     var bookmarks: [Bookmark]? = nil
     var bookmarkFolders: [BookmarkFolder]? = nil
+    /// The other regular windows and their tabs (`WindowSession`); this session's own tabs are the first window's.
+    var windows: [WindowSession]? = nil
 
     static let maxTabs = 100, maxClosed = 20, maxHistory = 1000
 
@@ -54,7 +56,7 @@ struct Session: Codable, Equatable {
         try BookmarkFolder.validate(bookmarkFolders ?? [], bookmarks: bookmarks ?? [])
         guard SearchEngine(rawValue: search) != nil else { throw Invalid() }
         if let active, !tabs.contains(where: { $0.id == active }) { throw Invalid() }
-        guard (spaces ?? []).count <= 50, (folders ?? []).count <= 500 else { throw Invalid() }
+        guard (spaces ?? []).count <= 50, (folders ?? []).count <= 500, (windows ?? []).count <= WindowSession.maxWindows else { throw Invalid() }
         for folder in folders ?? [] where !Self.isValidID(folder.id) || folder.name.utf8.count > 256 { throw Invalid() }
     }
 
@@ -70,11 +72,6 @@ struct UISettings: Codable, Equatable {
     var devTools: Bool
     var gap: Double? = nil
     var address: String? = nil
-    var tintBar: Bool? = nil
-    var barHeight: Double? = nil
-    var barBorder: Double? = nil
-    var barGap: Double? = nil
-    var barRounded: Bool? = nil
 }
 
 struct NewTabSettings: Codable, Equatable {

@@ -5,6 +5,7 @@ extension BrowserState {
 
     /// Coalesces changes for a second, then saves off the main thread if anything differs from the last save.
     func scheduleSave() {
+        if let primary { if !isFrozen { primary.scheduleSave() }; return }  // the first window saves every window
         guard !isFrozen, !isPrivate else { return }
         saveTask?.cancel()
         saveTask = Task { [weak self] in
@@ -27,6 +28,7 @@ extension BrowserState {
 
     /// Saves synchronously, after any background saves still queued, and always writes (so the backup catches up too).
     func saveNow() {
+        if let primary { if !isFrozen { primary.scheduleSave() }; return }
         guard !isFrozen, !isPrivate else { return }
         saveTask?.cancel()
         let session = snapshot()
@@ -43,11 +45,11 @@ extension BrowserState {
         session.bookmarkFolders = bookmarkFolders
         session.browser = browserPreferences
         session.theme = SpaceColors.presets.first { $0.colors == activeSpace.resolvedColors }?.name.lowercased() ?? "mist"
-        session.layout = tabLayout.rawValue
+        session.layout = "vertical"  // read by older builds; the Top Bar layout is gone
         session.colorMode = colorMode.rawValue
         session.sidebarWidth = sidebarWidth
         session.ui = UISettings(glass: useGlass, inset: frameInset, history: searchShowsHistory, devTools: developerTools,
-                                gap: sidebarGap, address: addressStyle.rawValue, tintBar: tintBarWithPage, barHeight: barHeight, barBorder: barBorder, barGap: barGap, barRounded: barRounded)
+                                gap: sidebarGap, address: addressStyle.rawValue)
         session.chrome = chromeLayout
         session.newTab = NewTabSettings(mode: newTabMode.rawValue, homepage: homepage, extensionID: newTabExtensionID, focusAddressBar: focusAddressBarOnNewTab)
         session.search = searchEngine.rawValue
@@ -61,6 +63,7 @@ extension BrowserState {
         if let activeTabID { remembered[activeSpaceID.uuidString] = activeTabID }
         session.lastActiveTab = remembered.filter { savedIDs.contains($0.value) }
         session.folders = folders
+        if primary == nil, !windowStates.isEmpty { session.windows = windowStates.filter { !$0.isFrozen }.map { $0.windowSnapshot() } }
         return session
     }
 
@@ -94,6 +97,7 @@ extension BrowserState {
             tab.isHibernating = saved.unloaded ?? false
             tab.pinAsRow = saved.pinAsRow ?? false
             tab.pinAfterFolderID = saved.pinAfterFolderID.flatMap { folderIDs.contains($0) ? $0 : nil }
+            tab.history = saved.history
             return tab
         }
         tabs = tabs.filter(\.pinned) + tabs.filter { !$0.pinned }
@@ -103,23 +107,21 @@ extension BrowserState {
             UUID(uuidString: key).map { ($0, value) }
         })
         closed = s.closed
+        pendingWindows = s.windows ?? []
         history = s.history
         bookmarks = s.bookmarks ?? []
         bookmarkFolders = s.bookmarkFolders ?? []
         browserPreferences = (s.browser ?? BrowserPreferences()).validated
-        // The retired Chrome layout had top tabs, so its sessions continue on the other top-tab layout.
-        tabLayout = s.layout == "chrome" ? .horizontal : s.layout.flatMap(TabLayout.init(rawValue:)) ?? .vertical
+        // The retired Top Bar (and older Chrome) layouts had their tabs on top: they continue as Sidebar + Tabs.
+        if s.layout == "horizontal" || s.layout == "chrome", browserPreferences.sidebarTopTabs == nil {
+            browserPreferences.sidebarTopTabs = true
+        }
         colorMode = s.colorMode.flatMap(ColorMode.init(rawValue:)) ?? .system
         sidebarWidth = min(420, max(200, s.sidebarWidth ?? Self.defaultSidebarWidth))
         useGlass = s.ui?.glass ?? true
         frameInset = min(24, max(0, s.ui?.inset ?? Self.defaultFrameInset))
         sidebarGap = min(24, max(0, s.ui?.gap ?? Self.defaultSidebarGap))
         addressStyle = s.ui?.address.flatMap(AddressStyle.init(rawValue:)) ?? .integrated
-        tintBarWithPage = s.ui?.tintBar ?? true
-        barHeight = min(56, max(22, s.ui?.barHeight ?? Self.defaultBarHeight))
-        barBorder = min(3, max(0, s.ui?.barBorder ?? 0))
-        barGap = min(24, max(0, s.ui?.barGap ?? Self.defaultBarGap))
-        barRounded = s.ui?.barRounded ?? false
         searchShowsHistory = s.ui?.history ?? true
         developerTools = s.ui?.devTools ?? true
         chromeLayout = s.chrome ?? ChromeLayout()
