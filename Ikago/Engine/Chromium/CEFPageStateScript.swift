@@ -6,7 +6,7 @@ enum CEFPageStateScript {
     \(MediaPlaybackScript.install)
     (() => {
       if (window.__ikagoPageState) return;
-      let last = '', queued = false, theme = '', color = null, canvas;
+      let last = '', queued = false, theme = '', color = null, canvas, pip = 0;
       const report = () => {
         queued = false;
         const value = document.querySelector('meta[name="theme-color"]')?.content || '';
@@ -19,11 +19,13 @@ enum CEFPageStateScript {
             color = [...context.getImageData(0, 0, 1, 1).data];
           }
         }
-        const json = JSON.stringify({media: window.__ikagoMedia.state(), color});
+        const json = JSON.stringify({media: window.__ikagoMedia.state(), color, pip});
         if (json !== last) { last = json; window.__ikagoStateChanged(json); }
       };
       const changed = () => { if (!queued) { queued = true; queueMicrotask(report); } };
       window.__ikagoMediaChanged = changed;
+      // The page asked for Picture in Picture (YouTube's button): Ikago takes it into its own panel.
+      document.addEventListener('enterpictureinpicture', () => { pip += 1; changed(); }, true);
       const observeHead = () => {
         if (document.head) new MutationObserver(changed).observe(document.head,
           {subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['content', 'href']});

@@ -15,8 +15,8 @@ enum MediaFullscreenChecks {
         guard let window = browser.window, let background = window.contentView as? WindowBackgroundView else { return }
         let original = window.frame
         // Repeated window transitions must restore the shell, not accumulate a titlebar or camera-band gap.
-        for layout in [TabLayout.vertical, .horizontal] {
-            browser.state.tabLayout = layout
+        for layout in ["sidebar", "tabs"] {
+            browser.state.browserPreferences.sidebarTopTabs = layout == "tabs" ? true : nil
             for cycle in 0..<3 {
                 window.toggleFullScreen(nil)
                 await settle()
@@ -30,7 +30,7 @@ enum MediaFullscreenChecks {
                       "window restores without padding \(layout) cycle \(cycle)")
             }
         }
-        browser.state.tabLayout = .vertical
+        browser.state.browserPreferences.sidebarTopTabs = nil
         let file = SessionStore.testDirectory.appending(path: "media-player.html")
         let audio = wave().base64EncodedString()
         let html = """

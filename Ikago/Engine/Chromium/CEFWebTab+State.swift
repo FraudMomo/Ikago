@@ -8,6 +8,29 @@ extension CEFWebTab {
     }
     var isPageShown: Bool { page.window != nil && !page.isHiddenOrHasHiddenAncestor }
 
+    func refreshFavicon() { pickFavicon(fallback: nil) }
+
+    /// Chromium reports its first icon candidate, ignoring `media`; choose the one for Ikago's mode in the top
+    /// document's isolated world (`FaviconScript`), and fall back to Chromium's when the script finds none.
+    func pickFavicon(fallback: URL?) {
+        guard !isTornDown, page.ready else { return }
+        let generation = documentGeneration, dark = FaviconCache.shared.dark
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            var picked: URL?
+            if let tree = try? await devTools("Page.getFrameTree", [:], generation: generation),
+               let id = ((tree["frameTree"] as? [String: Any])?["frame"] as? [String: Any])?["id"] as? String,
+               let world = try? await devTools("Page.createIsolatedWorld", ["frameId": id, "worldName": "ikago-browser"], generation: generation),
+               let context = world["executionContextId"] as? Int,
+               let result = try? await devTools("Runtime.evaluate", ["expression": FaviconScript.pick(dark: dark),
+                                                                    "contextId": context, "returnByValue": true], generation: generation) {
+                picked = ((result["result"] as? [String: Any])?["value"] as? String).flatMap(URL.init(string:))
+            }
+            guard !self.isTornDown, generation == self.documentGeneration, let url = picked ?? fallback else { return }
+            self.delegate?.webTab(self, didFindFavicon: url)
+        }
+    }
+
     /// A frame loaded or detached: subscribe once to each new isolated context, without a polling loop.
     func observePageState() {
         stateTask?.cancel()
@@ -53,6 +76,11 @@ extension CEFWebTab {
               let state = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               let media = state["media"] as? [String: Any] else { return }
         pageFrameReports[context] = media
+        // A page started Chromium's own Picture in Picture, whose window Ikago never shows: float it in Ikago's panel.
+        if let pip = state["pip"] as? Int, pip > (pagePictureInPictureCounts[context] ?? 0) {
+            pagePictureInPictureCounts[context] = pip
+            if !floatingVideo.isActive { Task { @MainActor [weak self] in try? await self?.pictureInPicture() } }
+        }
         updatePlayback(Array(pageFrameReports.values))
         if media["unsupportedVideo"] as? Bool == true { nativeVideoRequested = true; nativeVideo.inject() }
         guard context == pageStateRoot else { return }

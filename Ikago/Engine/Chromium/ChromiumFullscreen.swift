@@ -13,8 +13,6 @@ final class ChromiumFullscreen {
     private var observer: NSObjectProtocol?
     private var resizeObserver: NSObjectProtocol?
     private(set) var isActive = false
-    /// The tab's latest top inset while the page has the screen; applied when it gives it back.
-    var pendingInset: CGFloat?
 
     init(page: IKCEFPage) { self.page = page }
 
@@ -82,14 +80,13 @@ final class ChromiumFullscreen {
             } else {
                 saved.superview.addSubview(page)
             }
-            // The window changed size meanwhile: fill the tab's area as it is now, with its latest inset,
-            // or the page keeps the old size and leaves a gap.
+            // The window changed size meanwhile: fill the tab's area as it is now, or the page keeps the old size
+            // and leaves a gap.
             page.autoresizingMask = saved.mask.isEmpty ? [.width, .height] : saved.mask
             page.frame = saved.superview.bounds
-            page.topInset = pendingInset ?? saved.inset
+            page.topInset = saved.inset
         }
         saved = nil
-        pendingInset = nil
         if tookWindowFullScreen, let window, window.isInFullScreen { window.toggleFullScreen(nil) }
         tookWindowFullScreen = false
     }

@@ -14,6 +14,21 @@ enum MediaPictureInPicture {
     }
     return {video:true, source:video.currentSrc || video.src || ''};
     """
+    /// Lets WebKit pages use Picture in Picture. WebKit turns it off for apps that embed it (measured: YouTube's video
+    /// reported no PiP support, so the media island's button, `requestPictureInPicture` and the native toggle all did
+    /// nothing).
+    // SPI: WKPreferences `_setAllowsPictureInPictureMediaPlayback:`; macOS has no public switch. Guarded, so a WebKit
+    // change only turns PiP off again.
+    static func allow(in preferences: WKPreferences) {
+        #if DEBUG
+        if DebugEnvironment.value("IKAGO_NO_PIP_PREF") != nil { return }  // performance comparisons only
+        #endif
+        let setter = NSSelectorFromString("_setAllowsPictureInPictureMediaPlayback:")
+        guard preferences.responds(to: setter), let implementation = preferences.method(for: setter) else { return }
+        typealias Setter = @convention(c) (AnyObject, Selector, Bool) -> Void
+        unsafeBitCast(implementation, to: Setter.self)(preferences, setter, true)
+    }
+
     static func finish(_ result: Any?, page: WebTab) throws {
         guard let report = result as? [String: Any], report["video"] as? Bool == true else { throw Issue.noVideo }
         if report["native"] as? Bool == true { return }

@@ -1,9 +1,10 @@
 import AppKit
 import SwiftUI
 
-/// The media island at the bottom of the sidebar, after the iPhone's Dynamic Island: a black capsule with the artwork and
-/// track title, opening into a card with the controls. Black glass when Liquid Glass is on, solid
-/// black when it is off. Closing it hides it until something new starts playing.
+/// The media island at the bottom of the sidebar: one clean row with the artwork, the track and the controls you reach
+/// for (play/pause, next), on the same glass as the sidebar's other controls (a flat panel with glass off). Clicking the
+/// track opens it into a card with the artist, mute, picture in picture and the source picker. Closing it hides it until
+/// something new starts playing.
 struct SidebarMediaPlayer: View {
     let state: BrowserState
     weak var commands: BrowserCommands?
@@ -31,7 +32,7 @@ struct SidebarMediaPlayer: View {
         Set(mediaTabs.filter(\.playback.playing).map { "\($0.id)|\($0.playback.title)" })
     }
     private var shown: TabItem? { dismissed == nil ? current : nil }
-    private var expanded: Bool { hovering || pinnedOpen || focusOpen }
+    private var expanded: Bool { pinnedOpen || focusOpen }
     private var inactivityID: String { "\(shown?.id ?? "")|\(expanded)" }
     private var motion: Animation? { reduceMotion ? nil : .island }
 
@@ -74,58 +75,78 @@ struct SidebarMediaPlayer: View {
 
     private func island(_ tab: TabItem) -> some View {
         let art = MediaArtwork.shared.art(for: tab.playback.artwork)
-        let shape = RoundedRectangle(cornerRadius: expanded ? 22 : 20, style: .continuous)
+        let colors = state.palette
+        let shape = RoundedRectangle(cornerRadius: expanded ? Radius.sheet : Radius.card, style: .continuous)
         return VStack(spacing: 0) {
-            HStack(spacing: 10) {
+            HStack(spacing: 9) {
                 Button { state.select(tab.id) } label: {
-                    artwork(tab, art, size: expanded ? 40 : 28)
+                    artwork(tab, art, size: expanded ? 40 : 30)
                 }
                 .buttonStyle(.plain).help("Show Playing Tab")
                 Button { withAnimation(motion) { pinnedOpen.toggle() } } label: {
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: 1) {
                         Text(tab.playback.title.isEmpty ? tab.displayTitle : tab.playback.title)
-                            .font(.system(size: 12.5, weight: .semibold))
-                            .foregroundStyle(.white)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(colors.text)
                             .lineLimit(1)
                             .truncationMode(.tail)
-                        if expanded {
-                            Text(tab.playback.artist.isEmpty ? tab.addressLabel : tab.playback.artist)
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.white.opacity(0.6))
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                                .transition(.opacity)
-                        }
+                        Text(tab.playback.artist.isEmpty ? tab.addressLabel : tab.playback.artist)
+                            .font(.system(size: 11))
+                            .foregroundStyle(colors.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
                     }
-                    .frame(maxWidth: .infinity, minHeight: expanded ? 40 : 28, alignment: .leading)
+                    .frame(maxWidth: .infinity, minHeight: expanded ? 40 : 30, alignment: .leading)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .help(expanded ? "Collapse Player" : "Expand Player")
-                if expanded { sources }
-                if tab.playback.hasVideo {
-                    control("pip.enter", label: "Picture in Picture", font: 13) { commands?.pictureInPicture(tab.id) }
-                        .recordLayout("media-pip-button")
+                .accessibilityLabel(expanded ? "Collapse Player" : "More Controls")
+                if expanded {
+                    sources
+                    closeButton.transition(.opacity)
+                } else {
+                    // The controls people reach for stay in the row; the rest are a click away.
+                    if tab.playback.hasVideo {
+                        control("pip.enter", label: "Picture in Picture", font: 11, compact: true) { commands?.pictureInPicture(tab.id) }
+                            .recordLayout("media-pip-button")
+                    }
+                    control(tab.playback.playing ? "pause.fill" : "play.fill",
+                            label: tab.playback.playing ? "Pause" : "Play", font: 13, compact: true) {
+                        commands?.controlMedia(tab.id, action: tab.playback.playing ? .pause : .play)
+                    }
+                    if tab.playback.canGoNext {
+                        control("forward.fill", label: "Next Track", font: 11, compact: true) {
+                            commands?.controlMedia(tab.id, action: .next)
+                        }
+                    }
                 }
-                closeButton
-                    .frame(width: hovering || focusOpen ? 20 : 0).clipped()
-                    .opacity(hovering || focusOpen ? 1 : 0)
-                    .allowsHitTesting(hovering || focusOpen)
+            }
+            .overlay(alignment: .topTrailing) {
+                if !expanded {
+                    closeButton
+                        .background(Circle().fill(.regularMaterial))
+                        .offset(x: 12, y: -12)
+                        .opacity(hovering ? 1 : 0)
+                        .allowsHitTesting(hovering)
+                }
             }
             if expanded {
                 controls(tab)
-                    .padding(.top, 10)
-                    .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .top)))
+                    .padding(.top, 8)
+                    .transition(.opacity.combined(with: .offset(y: -6)))
             }
         }
-        .padding(.horizontal, expanded ? 12 : 6)
-        .padding(.vertical, expanded ? 12 : 6)
-        .clipShape(shape)
-        .surface(shape, islandColors, tintOpacity: 0.78)
-        // Glass gets a fine edge of light; the flat panel already draws its own outline.
-        .overlay { if islandColors.glass { shape.strokeBorder(.white.opacity(0.1), lineWidth: 0.5) } }
-        .shadow(color: .black.opacity(0.2), radius: expanded ? 12 : 6, y: expanded ? 4 : 2)
-        .environment(\.colorScheme, .dark)
+        .padding(.leading, expanded ? 10 : 6)
+        .padding(.trailing, expanded ? 8 : 4)
+        .padding(.vertical, expanded ? 10 : 6)
+        // Glass like the sidebar's other controls; with glass off a solid card in the page's color, so it stands apart
+        // from the sidebar instead of melting into it.
+        .background { if !colors.glass { shape.fill(colors.pageBackground) } }
+        .glassControl(shape, colors, reacts: false)
+        .overlay(shape.strokeBorder(colors.glass ? Color.white.opacity(colors.isDark ? 0.1 : 0.45) : colors.separator, lineWidth: 0.5)
+            .allowsHitTesting(false))
+        .shadow(color: .black.opacity(colors.isDark ? 0.22 : 0.08), radius: expanded ? 12 : 6, y: expanded ? 4 : 2)
+        .environment(\.colorScheme, colors.isDark ? .dark : .light)
         // Started here, so the whole sidebar takes part: the list above gives way as the island grows upward.
         .onHover { inside in withAnimation(motion) { hovering = inside } }
         .focusable(false)
@@ -133,44 +154,50 @@ struct SidebarMediaPlayer: View {
         .accessibilityLabel("Media Player")
     }
 
-    /// Black: tinted glass when Liquid Glass is on, a solid panel when it is off.
-    private var islandColors: Palette { Palette(state.palette, over: .black, panelIsSurface: true) }
-
     private func artwork(_ tab: TabItem, _ art: MediaArtwork.Art?, size: CGFloat) -> some View {
         let shape = RoundedRectangle(cornerRadius: size * 0.24, style: .continuous)
         return ZStack {
             if let art {
                 Image(nsImage: art.image).resizable().aspectRatio(contentMode: .fill)
             } else {
-                shape.fill(.white.opacity(0.1))
+                shape.fill(.primary.opacity(0.08))
                 FaviconView(tab: tab, size: size * 0.55)
             }
         }
         .frame(width: size, height: size)
         .clipShape(shape)
-        .overlay(shape.strokeBorder(.white.opacity(0.08), lineWidth: 0.5))
+        .overlay(shape.strokeBorder(.primary.opacity(0.08), lineWidth: 0.5))
     }
 
     private func controls(_ tab: TabItem) -> some View {
-        // Equal outside buttons keep Play at the island's centre. The source picker lives in the header, so its
-        // title/count can never shift the transport controls.
-        HStack(spacing: 18) {
+        // Five equal slots, whatever the sidebar's width: Play always in the middle, PiP and mute to its left, Next to
+        // its right. The source picker lives in the header, so its title/count can never shift the transport controls.
+        HStack(spacing: 0) {
+            Group {
+                if tab.playback.hasVideo {
+                    control("pip.enter", label: "Picture in Picture", font: 12) { commands?.pictureInPicture(tab.id) }
+                } else { Color.clear }
+            }.frame(maxWidth: .infinity)
             control(tab.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
-                    label: tab.isMuted ? "Unmute" : "Mute", font: 13) { commands?.toggleMute(tab.id) }
+                    label: tab.isMuted ? "Unmute" : "Mute", font: 12) { commands?.toggleMute(tab.id) }
+                .frame(maxWidth: .infinity)
             control(tab.playback.playing ? "pause.fill" : "play.fill",
-                    label: tab.playback.playing ? "Pause" : "Play", font: 20, prominent: true) {
+                    label: tab.playback.playing ? "Pause" : "Play", font: 17, prominent: true) {
                 commands?.controlMedia(tab.id, action: tab.playback.playing ? .pause : .play)
             }
-            control("forward.fill", label: "Next Track", enabled: tab.playback.canGoNext, font: 15) {
+            .frame(maxWidth: .infinity)
+            control("forward.fill", label: "Next Track", enabled: tab.playback.canGoNext, font: 13) {
                 commands?.controlMedia(tab.id, action: .next)
             }
+            .frame(maxWidth: .infinity)
+            Color.clear.frame(maxWidth: .infinity)
         }
-        .frame(maxWidth: .infinity, alignment: .center)
+        .frame(height: 40)
     }
 
     private func control(_ symbol: String, label: String, enabled: Bool = true, font: CGFloat,
-                         prominent: Bool = false, action: @escaping () -> Void) -> some View {
-        MediaPlayerControl(symbol: symbol, label: label, font: font, prominent: prominent, action: action)
+                         prominent: Bool = false, compact: Bool = false, action: @escaping () -> Void) -> some View {
+        MediaPlayerControl(symbol: symbol, label: label, font: font, prominent: prominent, compact: compact, action: action)
             .disabled(!enabled)
             .focused($controlsFocused)
     }
@@ -184,7 +211,7 @@ struct SidebarMediaPlayer: View {
         } label: {
             Image(systemName: "xmark")
                 .font(.system(size: 8, weight: .bold))
-                .foregroundStyle(.white.opacity(0.6))
+                .foregroundStyle(.secondary)
                 .frame(width: 20, height: 20)
                 .contentShape(Circle())
         }
@@ -203,7 +230,7 @@ struct SidebarMediaPlayer: View {
             } label: {
                 Image(systemName: "list.bullet")
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.6))
+                    .foregroundStyle(.secondary)
                     .frame(width: 24, height: 24)
             }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
