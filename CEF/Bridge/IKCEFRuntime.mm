@@ -33,6 +33,12 @@ class Application final : public CefApp, public CefBrowserProcessHandler {
         "OmniboxOnDeviceHeadProviderNonIncognito,OmniboxOnDeviceHeadProviderIncognito,OmniboxOnDeviceTailModel");
     // Fixtures contain no credentials and never read a saved profile. Production
     // retains Chromium's real Keychain-backed encryption and security defaults.
+    // Measuring where pages draw (Debug `peekshot`): software compositing keeps Chromium's pixels in Ikago's own window,
+    // which it can capture without Screen Recording; GPU-composited pages live in another process's layers.
+    if (getenv("IKAGO_TEST_MODE") && getenv("IKAGO_CEF_SOFTWARE_COMPOSITING")) {
+      command->AppendSwitch("disable-gpu");
+      command->AppendSwitch("disable-gpu-compositing");
+    }
     if (fixture_) {
       command->AppendSwitch("use-mock-keychain");
       command->AppendSwitch("use-fake-device-for-media-stream");
@@ -41,6 +47,7 @@ class Application final : public CefApp, public CefBrowserProcessHandler {
   CefRefPtr<CefClient> GetDefaultClient() override { return IKCEFMakeToolClient(); }
   void OnContextInitialized() override {
     ready = true;
+    IKCEFApplyColorScheme();
     auto callback = callback_;
     callback_ = nil;
     dispatch_async(dispatch_get_main_queue(), ^{ if (running && callback) callback(); });

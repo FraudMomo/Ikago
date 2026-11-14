@@ -7,6 +7,9 @@ NS_SWIFT_UI_ACTOR
 + (BOOL)prepareProfile:(NSString *)profile root:(NSURL *)root ephemeral:(BOOL)ephemeral
                  error:(NSError **)error;
 + (void)flushProfile:(NSString *)profile completion:(void (^)(BOOL))completion;
+/// Light (1), dark (2) or the system's (0) color mode for every Space's pages and Chromium's own service pages:
+/// what `prefers-color-scheme` reports and how form controls and scrollbars draw. Remembered for Spaces prepared later.
++ (void)setColorScheme:(NSInteger)scheme;
 + (BOOL)forgetEphemeralProfile:(NSString *)profile;
 + (void)setCookie:(NSHTTPCookie *)cookie sameSite:(NSInteger)sameSite profile:(NSString *)profile
        completion:(void (^)(NSError *_Nullable))completion;

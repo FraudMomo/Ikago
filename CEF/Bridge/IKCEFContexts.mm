@@ -14,6 +14,8 @@ struct Context {
   std::string root;
 };
 std::map<std::string, Context> contexts;
+/// Ikago's light/dark mode; pages follow it, not macOS (`setColorScheme:`).
+cef_color_variant_t colorScheme = CEF_COLOR_VARIANT_SYSTEM;
 class SetCookie final : public CefSetCookieCallback {
  public:
   explicit SetCookie(void (^completion)(NSError *)) : completion_([completion copy]) {}
@@ -93,6 +95,10 @@ std::vector<CefRefPtr<CefRequestContext>> IKCEFContextsSnapshot() {
   return result;
 }
 void IKCEFClearContexts(void) { IKCEFSecurityReset(); contexts.clear(); }
+void IKCEFApplyColorScheme(void) {
+  if (colorScheme == CEF_COLOR_VARIANT_SYSTEM) return;
+  if (auto global = CefRequestContext::GetGlobalContext()) global->SetChromeColorScheme(colorScheme, 0);
+}
 
 @implementation IKCEFContexts
 + (BOOL)prepareProfile:(NSString *)profile root:(NSURL *)root ephemeral:(BOOL)ephemeral
@@ -128,8 +134,19 @@ void IKCEFClearContexts(void) { IKCEFSecurityReset(); contexts.clear(); }
     if (error) *error = IKCEFError(@"CEF could not create this Space's request context.");
     return NO;
   }
+  if (colorScheme != CEF_COLOR_VARIANT_SYSTEM) context->SetChromeColorScheme(colorScheme, 0);
   contexts.emplace(key, Context{context, bool(ephemeral), rootPath});
   return YES;
+}
++ (void)setColorScheme:(NSInteger)scheme {
+  NSParameterAssert(NSThread.isMainThread);
+  auto variant = scheme == 2 ? CEF_COLOR_VARIANT_DARK : scheme == 1 ? CEF_COLOR_VARIANT_LIGHT : CEF_COLOR_VARIANT_SYSTEM;
+  if (variant == colorScheme) return;
+  colorScheme = variant;
+  // Before Chromium is up there is nothing to change yet; contexts made later take the stored value.
+  if (!IKCEFRuntime.ready) return;
+  for (const auto& [_, context] : contexts) context.value->SetChromeColorScheme(variant, 0);
+  if (auto global = CefRequestContext::GetGlobalContext()) global->SetChromeColorScheme(variant, 0);
 }
 + (void)flushProfile:(NSString *)profile completion:(void (^)(BOOL))completion {
   auto context = IKCEFContext(profile);
