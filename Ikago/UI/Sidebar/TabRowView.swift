@@ -9,13 +9,17 @@ struct FaviconView: View {
     @State private var cachedImage: NSImage?
     @State private var displayedSite: String
     @Environment(\.privateBrowsing) private var privateBrowsing
+    /// Icons follow the mode they're drawn in: a site's dark icon, and SVG icons' own dark styles.
+    @Environment(\.colorScheme) private var colorScheme
     var size: CGFloat = 16
 
     init(tab: TabItem, size: CGFloat = 16) {
         symbol = InternalPage(url: tab.url)?.symbol
         url = tab.faviconURL ?? Self.fallback(for: tab.url)
         pageURL = tab.url
-        _cachedImage = State(initialValue: FaviconCache.shared.cachedImage(pageURL: tab.url, iconURL: url))
+        // An extension's page (Momentum's new tab) shows its extension's icon.
+        _cachedImage = State(initialValue: ExtensionPageIcon.image(for: tab.url)
+            ?? FaviconCache.shared.cachedImage(pageURL: tab.url, iconURL: url))
         _displayedSite = State(initialValue: FaviconCache.siteKey(tab.url))
         self.size = size
     }
@@ -42,23 +46,26 @@ struct FaviconView: View {
                 Image(systemName: symbol).resizable().scaledToFit().fontWeight(.medium).foregroundStyle(.secondary)
             } else {
                 if let cachedImage {
+                    // Only bitmaps are rounded: clipping a symbol this way made some (clock, arrow.down.circle) vanish.
                     Image(nsImage: cachedImage).resizable().interpolation(.high)
+                        .clipShape(RoundedRectangle(cornerRadius: size * 0.22, style: .continuous))
                 } else {
                     Image(systemName: "globe").resizable().scaledToFit().foregroundStyle(.secondary)
                 }
             }
         }
-        .task(id: pageURL + "|" + (url?.absoluteString ?? "")) {
+        .task(id: pageURL + "|" + (url?.absoluteString ?? "") + "|\(colorScheme == .dark)") {
+            let dark = colorScheme == .dark
             let site = FaviconCache.siteKey(pageURL)
-            let saved = FaviconCache.shared.cachedImage(pageURL: pageURL, iconURL: url)
+            if let own = ExtensionPageIcon.image(for: pageURL) { cachedImage = own; displayedSite = site; return }
+            let saved = FaviconCache.shared.cachedImage(pageURL: pageURL, iconURL: url, dark: dark)
             if site != displayedSite { cachedImage = saved; displayedSite = site }
             else if let saved { cachedImage = saved }
-            if let url, let image = await FaviconCache.shared.image(pageURL: pageURL, iconURL: url, persist: !privateBrowsing), !Task.isCancelled {
+            if let url, let image = await FaviconCache.shared.image(pageURL: pageURL, iconURL: url, persist: !privateBrowsing, dark: dark), !Task.isCancelled {
                 cachedImage = image
             }
         }
         .frame(width: size, height: size)
-        .clipShape(RoundedRectangle(cornerRadius: size * 0.22, style: .continuous))
     }
 }
 
@@ -109,12 +116,12 @@ struct TabRowView: View {
         .padding(.horizontal, 10)
         .frame(height: 34)
         .background {
-            TabSelectionHighlight(shape: RoundedRectangle(cornerRadius: 10, style: .continuous), active: isActive,
+            TabSelectionHighlight(shape: RoundedRectangle(cornerRadius: Radius.row, style: .continuous), active: isActive,
                                   color: colors.selected, selection: selection, id: "active-tab")
             if !isActive && isInSplit {
-                RoundedRectangle(cornerRadius: 10, style: .continuous).fill(colors.selected.opacity(0.45))
+                RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(colors.selected.opacity(0.45))
             } else if !isActive && hovering {
-                RoundedRectangle(cornerRadius: 10, style: .continuous).fill(colors.hover)
+                RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(colors.hover)
             }
         }
         .contentShape(Rectangle())

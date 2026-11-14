@@ -10,6 +10,8 @@ struct TabReorderDropDelegate: DropDelegate {
     let accepts: @MainActor (String) -> Bool
     let sourceID: String?
     let perform: @MainActor (String, Bool) -> Void
+    /// The window's state, so a tab dragged from another window is brought here first.
+    var into: BrowserState? = nil
 
     func validateDrop(info: DropInfo) -> Bool {
         info.hasItemsConforming(to: [.ikagoTab]) && (sourceID.map(accepts) ?? true)
@@ -27,7 +29,7 @@ struct TabReorderDropDelegate: DropDelegate {
         defer { preview = nil }
         guard let provider = info.itemProviders(for: [.ikagoTab]).first else { return false }
         let after = isAfter(info.location)
-        TabDrag.load(provider) { id in
+        TabDrag.load(provider, into: into, reversed: after) { id in
             guard accepts(id) else { return }
             perform(id, after)
         }

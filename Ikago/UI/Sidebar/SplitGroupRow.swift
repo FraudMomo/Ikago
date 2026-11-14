@@ -1,17 +1,14 @@
 import SwiftUI
 
-/// A tab, or a split group shown as one item, in sidebar/top-bar order.
+/// A tab, or a split group shown as one item, in sidebar order.
 enum TabListItem: Identifiable {
     case tab(TabItem)
     case group([TabItem])
-    /// Top bar only: a folder's chip (and how many tabs it holds), placed before its tabs.
-    case folder(TabFolder, Int)
 
     var id: String {
         switch self {
         case .tab(let tab): tab.id
         case .group(let tabs): "split:" + tabs.map(\.id).joined(separator: ",")
-        case .folder(let folder, _): "folder:" + folder.id
         }
     }
 
@@ -19,7 +16,6 @@ enum TabListItem: Identifiable {
         switch self {
         case .tab(let tab): tab.id == id
         case .group(let tabs): tabs.contains { $0.id == id }
-        case .folder: false
         }
     }
 }
@@ -83,10 +79,10 @@ struct SplitGroupRow: View {
         .padding(.horizontal, 4)
         .frame(height: 34)
         .background {
-            TabSelectionHighlight(shape: RoundedRectangle(cornerRadius: 10, style: .continuous), active: shown,
+            TabSelectionHighlight(shape: RoundedRectangle(cornerRadius: Radius.row, style: .continuous), active: shown,
                                   color: colors.selected, selection: selection, id: "active-tab")
             if !shown {
-                RoundedRectangle(cornerRadius: 10, style: .continuous).fill(hovering ? colors.hover.opacity(1.6) : colors.hover)
+                RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(hovering ? colors.hover.opacity(1.6) : colors.hover)
             }
         }
         .contentShape(Rectangle())
@@ -100,7 +96,7 @@ struct SplitGroupRow: View {
     }
 }
 
-/// One tab inside a split group (sidebar row or top-bar capsule).
+/// One tab inside a split group (sidebar row or top-row tab).
 struct SplitChip: View {
     let tab: TabItem
     let focused: Bool
@@ -119,7 +115,7 @@ struct SplitChip: View {
         }
         .padding(.horizontal, 7)
         .frame(maxWidth: compact && !focused ? 30 : .infinity, minHeight: 26)
-        .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(focused ? colors.hover.opacity(1.6) : .clear))
+        .background(RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(focused ? colors.hover.opacity(1.6) : .clear))
         .overlay(alignment: .bottom) { PageLoadProgress(tab: tab, colors: colors).padding(.horizontal, 7) }
         .contentShape(Rectangle())
         .help(tab.displayTitle)

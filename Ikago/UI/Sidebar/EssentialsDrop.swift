@@ -7,7 +7,7 @@ extension View {
         onDrop(of: [.ikagoTab], isTargeted: nil) { providers, point in
             guard let provider = providers.first else { return false }
             chrome.endTabDrag()
-            TabDrag.load(provider) { id in if state.tab(id) != nil { perform(id, point) } }
+            TabDrag.load(provider, into: state) { id in if state.tab(id) != nil { perform(id, point) } }
             return true
         }
     }

@@ -15,7 +15,7 @@ extension View {
         onDrop(of: [.ikagoBookmark, .ikagoTab], isTargeted: nil) { providers in
             guard let provider = providers.first else { return false }
             if provider.hasItemConformingToTypeIdentifier(UTType.ikagoTab.identifier) {
-                TabDrag.load(provider) { id in
+                TabDrag.load(provider, into: nil) { id in
                     chrome?.endTabDrag()
                     guard let tab = state.tab(id), AddressResolver.isWebURL(tab.url) else { return }
                     state.addBookmark(tab)

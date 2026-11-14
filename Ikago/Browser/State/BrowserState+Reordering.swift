@@ -24,7 +24,7 @@ extension BrowserState {
         }
         for member in moving {
             move(member, before: boundary, pinned: target.pinned, folderID: target.folderID)
-            if let tab = tab(member), tab.pinned, tabLayout == .vertical {
+            if let tab = tab(member), tab.pinned {
                 tab.pinAsRow = target.pinAsRow
                 tab.pinAfterFolderID = target.pinAfterFolderID
             }
@@ -62,6 +62,6 @@ extension BrowserState {
         let folderIDs = Set(spaceFolders.map(\.id))
         let anchors = Dictionary(grouping: rows) { tab in tab.pinAfterFolderID.flatMap { folderIDs.contains($0) ? $0 : nil } ?? "" }
         let grid = presentsSidebarPinGrid ? sidebarGridPinnedTabs : []
-        return grid + (anchors[""] ?? []) + spaceFolders.flatMap { tabs(in: $0) + (anchors[$0.id] ?? []) } + looseTabs
+        return grid + (anchors[""] ?? []) + orderedSpaceFolders.flatMap { tabs(in: $0) + (anchors[$0.id] ?? []) } + looseTabs
     }
 }

@@ -19,7 +19,7 @@ enum PinAssistantChecks {
             if let size { browser.window?.setContentSize(size) }
         }
         browser.dismissCommandPalette()
-        state.tabLayout = .vertical; state.sidebarVisible = true; state.useGlass = false
+        state.sidebarVisible = true; state.useGlass = false
         let pin = state.newTab(url: InternalPage.history.url)!
         let peer = state.newTab(url: InternalPage.bookmarks.url)!
         state.togglePin(pin.id)
@@ -60,27 +60,26 @@ enum PinAssistantChecks {
               "starting a drag with an empty grid does not shift the list")
         browser.chrome.endTabDrag(); await settle()
 
-        state.chromeLayout.remove(.assistant, fromTopBar: true)
-        state.chromeLayout.remove(.assistant, fromTopBar: false)
+        state.chromeLayout.remove(.assistant)
         state.browserPreferences.pageIntelligence = false
         browser.togglePageAssistant()
         check(!browser.chrome.showPageAssistant && !state.visibleChromeItems(state.chromeLayout.sidebarTop).contains(.assistant),
               "disabled page assistance cannot open and has no toolbar slot")
         state.browserPreferences.pageIntelligence = true
         browser.togglePageAssistant(); await settle()
-        check(state.chromeLayout.contains(.assistant, inTopBar: true) && state.chromeLayout.contains(.assistant, inTopBar: false), "enabling assistance automatically adds both toolbar controls")
+        check(state.chromeLayout.contains(.assistant), "enabling assistance automatically adds its toolbar control")
         check(browser.chrome.showPageAssistant && state.visibleChromeItems(state.chromeLayout.sidebarTop).contains(.assistant),
               "enabling assistance restores its customized placement")
         state.chromeLayout.place(.assistant, in: .sidebarBottom)
         restored.apply(state.snapshot())
         check(restored.chromeLayout.sidebarBottom.contains(.assistant) && !restored.chromeLayout.sidebarTop.contains(.assistant), "assistant toolbar placement survives restore")
-        state.chromeLayout.remove(.assistant, fromTopBar: false)
+        state.chromeLayout.remove(.assistant)
         restored.apply(state.snapshot())
-        check(!restored.chromeLayout.contains(.assistant, inTopBar: false), "an explicitly removed assistant stays removed on restore")
+        check(!restored.chromeLayout.contains(.assistant), "an explicitly removed assistant stays removed on restore")
         var legacy = state.snapshot(); legacy.browser?.assistantToolbarInitialized = nil
-        legacy.chrome?.remove(.assistant, fromTopBar: true)
+        legacy.chrome?.remove(.assistant)
         restored.apply(legacy)
-        check(restored.chromeLayout.contains(.assistant, inTopBar: true) && restored.chromeLayout.contains(.assistant, inTopBar: false), "existing enabled profiles receive the assistant once")
+        check(restored.chromeLayout.contains(.assistant), "existing enabled profiles receive the assistant once")
         state.browserPreferences.pageIntelligence = false; await settle()
         check(!browser.chrome.showPageAssistant, "disabling assistance closes an already-open panel")
         state.browserPreferences.pageIntelligence = true
@@ -109,7 +108,7 @@ enum PinAssistantChecks {
         let folder = state.createFolder(named: "Creative projects")
         browser.customizeFolder(folder.id); await settle()
         if let frame = LayoutChecks.frames["group-appearance-editor"] {
-            check(abs(frame.width - 340) < 1 && frame.height < 560, "group editor stays compact with no oversized menu")
+            check(abs(frame.width - 352) < 1 && frame.height < 560, "group editor stays compact with no oversized menu")
         } else { check(false, "group editor has a rendered frame") }
         _ = click("group-editor-icon-star.fill"); await settle()
         _ = click("group-editor-color-blue"); await settle()

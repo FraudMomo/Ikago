@@ -23,8 +23,9 @@ extension BrowserState {
         get { browserPreferences.newTabPosition.flatMap(NewTabPosition.init(rawValue:)) ?? .bottom }
         set { browserPreferences.newTabPosition = newValue.rawValue }
     }
-    var effectiveNewTabPosition: NewTabPosition { tabLayout.usesTopTabs ? .bottom : newTabPosition }
-    var effectiveLinkTabPosition: LinkTabPosition { tabLayout.usesTopTabs ? .afterCurrent : linkTabPosition }
+    /// Tabs across the top always open on the right, after the others; the setting orders the sidebar's list.
+    var effectiveNewTabPosition: NewTabPosition { usesTabsLayout ? .bottom : newTabPosition }
+    var effectiveLinkTabPosition: LinkTabPosition { linkTabPosition }
 
     var linkTabPosition: LinkTabPosition {
         get { browserPreferences.linkTabPosition.flatMap(LinkTabPosition.init(rawValue:)) ?? .afterCurrent }
@@ -37,12 +38,14 @@ extension BrowserState {
     func newTabFromLink(url: String, opener: TabItem, select: Bool) -> TabItem? {
         switch effectiveLinkTabPosition {
         case .newTabPosition:
-            return newTab(url: url, select: select, in: opener.spaceID)
+            return remembering(opener, newTab(url: url, select: select, in: opener.spaceID))
         case .beforeCurrent, .afterCurrent:
             if opener.pinned {
+                // Tabs across the top: a pin isn't in the row, so its links open where new tabs do, on the right.
+                if usesTabsLayout { return remembering(opener, newTab(url: url, select: select, in: opener.spaceID)) }
                 // Unpinned links cannot enter the pinned grid; place them at the start of loose tabs.
                 let first = tabs.first { $0.spaceID == opener.spaceID && !$0.pinned && $0.folderID == nil }
-                return newTab(url: url, select: select, before: first?.id, in: opener.spaceID)
+                return remembering(opener, newTab(url: url, select: select, before: first?.id, in: opener.spaceID))
             }
             let result = newTab(url: url, select: select,
                                 after: effectiveLinkTabPosition == .afterCurrent ? opener.id : nil,
@@ -51,7 +54,12 @@ extension BrowserState {
             if select, let folder = opener.folderID, let index = folders.firstIndex(where: { $0.id == folder }) {
                 folders[index].isOpen = true
             }
-            return result
+            return remembering(opener, result)
         }
+    }
+
+    private func remembering(_ opener: TabItem, _ tab: TabItem?) -> TabItem? {
+        tab?.openerID = opener.id
+        return tab
     }
 }

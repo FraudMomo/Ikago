@@ -13,15 +13,13 @@ enum MiddleClickChecks {
         }
         let state = browser.state
         let originalTabs = Set(state.tabs.map(\.id)), originalActive = state.activeTabID
-        let originalLayout = state.tabLayout, originalRounded = state.barRounded
         let originalNew = state.newTabPosition, originalLinks = state.linkTabPosition
         defer {
             for tab in state.tabs where !originalTabs.contains(tab.id) { state.closeTab(tab.id, removingPin: true) }
-            state.tabLayout = originalLayout; state.barRounded = originalRounded
             state.newTabPosition = originalNew; state.linkTabPosition = originalLinks
             if let originalActive { state.select(originalActive) }
         }
-        browser.palette.onDismiss(); state.tabLayout = .horizontal; state.barRounded = false
+        browser.palette.onDismiss()
         NSApp.activate(); browser.window?.makeKeyAndOrderFront(nil)
         browser.open(base + "/links.html", inNewTab: true)
         for _ in 0..<250 {
@@ -29,8 +27,7 @@ enum MiddleClickChecks {
             try? await Task.sleep(for: .milliseconds(20))
         }
         guard let opener = state.activeTab, let page = browser.activeController?.page else { check(false, "fixture loaded"); return }
-        for layout in [TabLayout.vertical, .horizontal] {
-            state.tabLayout = layout
+        for layout in ["sidebar"] {
             try? await Task.sleep(for: .milliseconds(300))
             for policy in LinkTabPosition.allCases {
                 state.linkTabPosition = policy; state.newTabPosition = .top

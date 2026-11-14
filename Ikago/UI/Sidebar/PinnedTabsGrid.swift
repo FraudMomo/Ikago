@@ -19,7 +19,7 @@ struct PinnedTabsGrid: View {
         LazyVGrid(columns: columns, spacing: 8) {
                 ForEach(state.sidebarGridPinnedTabs) { tab in
                     let active = tab.id == state.activeTabID
-                    Button { if NSEvent.modifierFlags.contains(.shift) { commands?.peekTab(tab.id); return }; withAnimation(.ikago) { state.select(tab.id) }; onSelection?() } label: {
+                    Button { TabClick.handle(tab, state: state, chrome: chrome, commands: commands) { withAnimation(.ikago) { state.select(tab.id) }; onSelection?() } } label: {
                         FaviconView(tab: tab, size: 18)
                             .frame(maxWidth: .infinity)
                             .frame(height: 42)
@@ -32,12 +32,14 @@ struct PinnedTabsGrid: View {
                             .padding(2)
                     }
                     .background {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(hoveredID == tab.id ? colors.hover.opacity(2) : colors.hover)
+                        RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                            .fill(hoveredID == tab.id ? colors.hover.opacity(2) : colors.glass ? .clear : colors.hover)
                             .animation(reduceMotion ? nil : .easeOut(duration: hoveredID == tab.id ? 0.1 : 0.2), value: hoveredID == tab.id)
-                        TabSelectionHighlight(shape: RoundedRectangle(cornerRadius: 12, style: .continuous), active: active,
+                        TabSelectionHighlight(shape: RoundedRectangle(cornerRadius: Radius.card, style: .continuous), active: active,
                                               color: colors.selected, selection: selection, id: "pinned-active")
                     }
+                    // Glass tiles with Liquid Glass on, like every other control in the sidebar.
+                    .glassControl(RoundedRectangle(cornerRadius: Radius.card, style: .continuous), colors, reacts: false)
                     .onHover { inside in
                         guard !scrolling else { return }
                         if inside { hoveredID = tab.id }
@@ -67,6 +69,11 @@ struct TabContextMenu: View {
     weak var commands: BrowserCommands?
 
     var body: some View {
+        let selection = commands?.tabSelection(including: tab.id) ?? [tab.id]
+        if selection.count > 1 { SelectedTabsMenu(ids: selection, state: state, commands: commands) } else { single }
+    }
+
+    @ViewBuilder private var single: some View {
         Button(tab.pinned ? "Unpin Tab" : "Pin Tab") { withAnimation(.ikagoQuick) { state.togglePin(tab.id) } }
         Button(tab.isMuted ? "Unmute Tab" : "Mute Tab") { commands?.toggleMute(tab.id) }
         if let group = state.splitGroup(of: tab.id) {
@@ -80,12 +87,15 @@ struct TabContextMenu: View {
             NSPasteboard.general.setString(tab.url, forType: .string)
         }
         Button("Duplicate Tab") { state.newTab(url: tab.url, after: tab.id) }
+        if !state.isPrivate {
+            Button("Move to New Window") { commands?.moveToNewWindow(tab.id) }.disabled(state.tabs.count < 2)
+        }
         if AddressResolver.isWebURL(tab.url) {
             Button("Open in Private Window") { commands?.openInPrivateWindow(tab.url) }
         }
         if !tab.pinned {
             Menu("Move to Group") {
-                ForEach(state.spaceFolders.filter { $0.id != tab.folderID }) { folder in
+                ForEach(state.orderedSpaceFolders.filter { $0.id != tab.folderID }) { folder in
                     Button(folder.name) { state.moveToFolder(tab.id, folderID: folder.id) }
                 }
                 Button("New Group…") { commands?.newFolder(with: tab.id) }
@@ -106,5 +116,26 @@ struct TabContextMenu: View {
             Button("Unload Tab") { commands?.unloadTab(tab.id) }
         }
         Button(tab.pinned ? "Unload Pinned Tab — Keep Pin" : "Close Tab") { commands?.closeTab(tab.id) }
+    }
+}
+
+/// The menu for several selected tabs (`TabClick`): everything acts on all of them.
+private struct SelectedTabsMenu: View {
+    let ids: [String]
+    let state: BrowserState
+    weak var commands: BrowserCommands?
+
+    var body: some View {
+        Button("Move \(ids.count) Tabs to New Window") { commands?.moveTabsToNewWindow(ids) }
+            .disabled(state.isPrivate || ids.count >= state.tabs.count)
+        Button("New Group with \(ids.count) Tabs…") { commands?.newFolder(withTabs: ids) }
+        Menu("Move \(ids.count) Tabs to Group") {
+            ForEach(state.orderedSpaceFolders) { folder in
+                Button(folder.name) { withAnimation(.ikago) { commands?.moveTabs(ids, toFolder: folder.id) } }
+            }
+            Button("Remove from Group") { withAnimation(.ikago) { commands?.moveTabs(ids, toFolder: nil) } }
+        }
+        Divider()
+        Button("Close \(ids.count) Tabs") { withAnimation(.ikago) { commands?.closeTabs(ids) } }
     }
 }

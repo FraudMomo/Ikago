@@ -9,16 +9,20 @@ extension BrowserState {
             rememberSelection(previous, in: tab.spaceID)
         }
         if tab.spaceID != activeSpaceID { enterSpace(tab.spaceID) }
+        // Like Chrome, choosing any other tab ends every "back to the opener on close" link but the chosen tab's own.
+        for other in tabs where other.openerID != nil && other.id != id { other.openerID = nil }
         reopenFolderIfClosed(containing: id)
         activeTabID = id
         rememberSelection(id, in: tab.spaceID)
         scheduleSave()
     }
 
-    func closeTab(_ id: String, removingPin: Bool = false) {
+    /// `detaching`: the tab is moving to another window (`detachTab`), so it is neither kept as a closed pin nor listed
+    /// under recently closed.
+    func closeTab(_ id: String, removingPin: Bool = false, detaching: Bool = false) {
         guard !isFrozen, let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         let tab = tabs[index]
-        if tab.pinned && !removingPin {
+        if tab.pinned && !removingPin && !detaching {
             removeFromSplits([id])
             if activeTabID == id { selectCloseFallback(for: tab, excluding: [id]) }
             tab.isHibernating = true
@@ -29,13 +33,19 @@ extension BrowserState {
         let position = order.firstIndex { $0.id == id } ?? 0
         let neighbours = order.filter { $0.id != id }
         let partner = splitGroup(of: id)?.first { $0 != id }
+        let previous = tabs[..<index].last { $0.spaceID == tab.spaceID }?.id
         tabs.remove(at: index)
-        if AddressResolver.isPageURL(tab.url) || ExtensionURL.isExtension(tab.url) || Self.isReopenableInternalPage(tab.url) {
-            closed = Array(([tab.saved] + closed).prefix(Session.maxClosed))
+        if !detaching, AddressResolver.isPageURL(tab.url) || ExtensionURL.isExtension(tab.url) || Self.isReopenableInternalPage(tab.url) {
+            var saved = tab.saved
+            saved.after = previous
+            closed = Array(([saved] + closed).prefix(Session.maxClosed))
         }
         removeFromSplits([id])
         if activeTabID == id {
-            let fallback = recentFallback(for: tab, excluding: [id]) ?? partner
+            // Chrome's choice: back to the tab that opened this one (if the person stayed on it), then its split partner,
+            // then the tab to the right, then the one to the left.
+            let opener = tab.openerID.flatMap { self.tab($0) }.flatMap { $0.spaceID == tab.spaceID ? $0.id : nil }
+            let fallback = opener ?? partner
                 ?? (neighbours.isEmpty ? nil : neighbours[min(position, neighbours.count - 1)].id)
             if let fallback { select(fallback) } else { activeTabID = nil }
         }

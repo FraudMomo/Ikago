@@ -11,18 +11,33 @@ final class ChromeModel {
     var showNewSpace = false
     var spaceSubmitRequest = 0
     var showNotes = false
+    /// Clear Browsing Data (`ClearDataSheet`), over the window.
+    var showClearData = false
+    /// The site card (`SiteInfoOverlay`) and where its button was clicked, in the shell's coordinates.
+    var showSiteInfo = false
+    var siteInfoAnchor = CGPoint(x: 300, y: 40)
+    /// Tabs picked together with Shift- or ⌘-click (`TabClick`); empty when one tab is simply open.
+    var selectedTabIDs: Set<String> = []
+    /// Where the next Shift-click range starts: the tab last clicked.
+    @ObservationIgnored var selectionAnchor: String?
     var bookmarkToEdit: Bookmark?
     var hoverCandidateID: String?
     var hoverImage: NSImage?
     var hoverTabID: String?
     var hoverTabAnchor = CGRect.zero
     var previewTabID: String?
+    /// Peek growing into its tab: the card moves to `peekTarget` (the page's place, shell coordinates) before the
+    /// same live page becomes the tab.
+    var peekExpanding = false
+    var peekTarget = CGRect.zero
     var showPageAssistant = false
     var showPalette = false
     var showFind = false
     var showDownloads = false
-    var showTabOverview = false
-    /// Top Bar layout: the active tab is the address field.
+    /// A live two-finger swipe between Spaces in the sidebar (`SidebarSpaceSwipe`).
+    let spaceSwipe = SpaceSwipe()
+
+    /// The sidebar's address field is being edited in place (Integrated style).
     var inlineAddress = false
     /// The tab whose address is being edited; switching to another tab ends editing.
     var editingTabID: String?
@@ -33,16 +48,21 @@ final class ChromeModel {
     /// The Downloads button's frame in the shell's coordinates when it sits in a separately hosted part of the window
     /// (the sidebar, `IsolatedHost`), where the shell can't read its anchor.
     var downloadsButtonFrame: CGRect?
-    /// The top bar's address field, in the shell's coordinates, for the suggestions popup (see `downloadsButtonFrame`).
+    /// Sidebar + Tabs: the address field's frame in the shell's coordinates, for the suggestions under it.
     var addressFieldFrame: CGRect?
     @ObservationIgnored private var peekHide: Task<Void, Never>?
+    /// Watches the pointer while a tab's hover card is up (`BrowserWindowController.showTabHover`).
+    @ObservationIgnored var hoverWatch: Task<Void, Never>?
     @ObservationIgnored private var dragWatch: Task<Void, Never>?
+    /// A tab drag ended with no drop in this window: the tab and where the pointer let go, on screen. The window tears
+    /// the tab off into a new window when that is outside every Ikago window (`BrowserWindows.tearOff`).
+    @ObservationIgnored var onTabDragEnded: ((String, NSPoint) -> Void)?
 
     /// Whether `tabID`'s address is being edited in place. Checked per tab, so a tab switched
     /// to mid-edit never shows the field (with the old tab's text) for even a frame.
     func isEditingAddress(of tabID: String?) -> Bool { inlineAddress && editingTabID == tabID }
 
-    /// The pointer is over the revealed sidebar or top bar.
+    /// The pointer is over the revealed sidebar.
     @ObservationIgnored var peekHovered = false
     /// Something in the revealed chrome is in use (typing an address, the downloads list, a tab drag): it stays.
     var holdsPeek: Bool { inlineAddress || showDownloads || draggingTabID != nil }
@@ -52,7 +72,7 @@ final class ChromeModel {
         peeking = true
     }
 
-    /// Hide the peeked sidebar or top bar shortly after the pointer leaves it, unless it is in use.
+    /// Hide the peeked sidebar shortly after the pointer leaves it, unless it is in use.
     func endPeek(after delay: Duration = .milliseconds(350)) {
         peekHide?.cancel()
         peekHide = Task { [weak self] in
@@ -65,14 +85,19 @@ final class ChromeModel {
     /// Starts a tab drag. SwiftUI reports no drag end, so watch the mouse button instead.
     func beginTabDrag(_ id: String) {
         draggingTabID = id
+        // Dragging one selected tab carries the others.
+        TabDrag.companions = selectedTabIDs.count > 1 && selectedTabIDs.contains(id) ? Array(selectedTabIDs.subtracting([id])) : []
         dragWatch?.cancel()
         dragWatch = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(200))
+                try? await Task.sleep(for: .milliseconds(60))
                 if NSEvent.pressedMouseButtons & 1 == 0 {
-                    // Keep drop targets alive until AppKit has delivered the mouse-up drop.
+                    let released = NSEvent.mouseLocation
+                    // Keep drop targets alive until AppKit has delivered the mouse-up drop (a drop here cancels this).
                     try? await Task.sleep(for: .milliseconds(250))
-                    if !Task.isCancelled { self?.draggingTabID = nil }
+                    guard !Task.isCancelled, let self else { return }
+                    self.draggingTabID = nil
+                    self.onTabDragEnded?(id, released)
                     return
                 }
             }

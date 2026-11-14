@@ -18,6 +18,11 @@ final class TabItem: Identifiable {
 
     // Live state, except the unloaded marker and favicon URL saved below.
     var shouldStartInBackground = false
+    /// The tab whose link opened this one, until the person selects some other tab (Chrome's opener): closing this tab
+    /// then goes back to it. Not saved.
+    @ObservationIgnored var openerID: String?
+    /// Back history to restore when the page next starts, and kept current while it runs (`TabHistory`).
+    @ObservationIgnored var history: TabHistory?
     var faviconURL: URL?
     /// The page's <meta name="theme-color"> (WebKit's `themeColor`), used to tint the top bar.
     var themeColor: NSColor?
@@ -69,7 +74,7 @@ final class TabItem: Identifiable {
     }
 
     var saved: SavedTab {
-        SavedTab(id: id, url: url, title: title, pinned: pinned, space: spaceID.uuidString, folder: folderID, favicon: faviconURL?.absoluteString, unloaded: isHibernating, pinAsRow: pinAsRow, pinAfterFolderID: pinAfterFolderID)
+        SavedTab(id: id, url: url, title: title, pinned: pinned, space: spaceID.uuidString, folder: folderID, favicon: faviconURL?.absoluteString, unloaded: isHibernating, pinAsRow: pinAsRow, pinAfterFolderID: pinAfterFolderID, history: history?.isEmpty == false ? history : nil)
     }
 }
 
@@ -86,6 +91,9 @@ struct SavedTab: Codable, Equatable {
     var unloaded: Bool? = nil
     var pinAsRow: Bool? = nil
     var pinAfterFolderID: String? = nil
+    /// Closed tabs only: the tab it followed in its Space, so ⌘⇧T puts it back in its place.
+    var after: String? = nil
+    var history: TabHistory? = nil
 }
 
 struct Visit: Codable, Equatable {

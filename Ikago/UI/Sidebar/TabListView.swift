@@ -6,14 +6,34 @@ import UniformTypeIdentifiers
 /// and the sidebar can take it.
 struct TabDrag: Codable, Transferable {
     let id: String
+    /// The other selected tabs travelling with the dragged one (`TabClick`), set when the drag starts.
+    @MainActor static var companions: [String] = []
     static var transferRepresentation: some TransferRepresentation { CodableRepresentation(contentType: .ikagoTab) }
 
-    /// Read the actual payload; drag UI state may end before asynchronous delivery finishes.
-    static func load(_ provider: NSItemProvider, perform: @escaping @MainActor (String) -> Void) {
+    /// Read the actual payload; drag UI state may end before asynchronous delivery finishes. A tab from another window
+    /// is brought into `state`'s window first (`BrowserWindows.bring`), so the drop then places it like its own tabs.
+    /// `reversed`: placed one by one after the same row, the last tab goes in first so they keep their order.
+    static func load(_ provider: NSItemProvider, into state: BrowserState?, reversed: Bool = false,
+                     perform: @escaping @MainActor (String) -> Void) {
         provider.loadDataRepresentation(forTypeIdentifier: UTType.ikagoTab.identifier) { data, _ in
             guard let data, let tab = try? JSONDecoder().decode(TabDrag.self, from: data) else { return }
-            Task { @MainActor in perform(tab.id) }
+            Task { @MainActor in
+                let ids = travelling(with: tab.id)
+                for id in reversed ? ids.reversed() : ids {
+                    if let state { BrowserWindows.bring(id, into: state) }
+                    perform(id)
+                }
+            }
         }
+    }
+
+    /// The dragged tab and the selected tabs travelling with it, in their sidebar order; the drop takes them all.
+    @MainActor static func travelling(with id: String) -> [String] {
+        let order = BrowserWindows.owner(of: id)?.state.navigationOrder.map(\.id) ?? []
+        let others = companions.filter { $0 != id }
+            .sorted { (order.firstIndex(of: $0) ?? .max) < (order.firstIndex(of: $1) ?? .max) }
+        companions = []
+        return [id] + others
     }
 
     /// Item provider carrying only this type (no text or file fallbacks a web view would grab).
@@ -48,37 +68,31 @@ struct TabListView: View {
         let groups = SidebarGroups(state.spaceTabs)
         let folders = state.spaceFolders
         let activeID = state.activeTabID
-        let activeFolderID = state.activeTab?.folderID
         var seen = Set(state.presentsSidebarPinGrid ? state.sidebarGridPinnedTabs.map(\.id) : [])
         let rowPins = groups.pinned.filter { !state.presentsSidebarPinGrid || $0.pinAsRow || state.splitGroup(of: $0.id) != nil }
         let folderIDs = Set(folders.map(\.id))
         let anchors = Dictionary(grouping: rowPins) { tab in tab.pinAfterFolderID.flatMap { folderIDs.contains($0) ? $0 : nil } ?? "" }
         let pinnedItems = state.listItems(anchors[""] ?? [], seen: &seen)
-        let folderItems = folders.map { (folder: $0, count: groups.tabs(in: $0.id).count,
-            items: state.listItems(groups.tabs(in: $0.id), seen: &seen), pins: state.listItems(anchors[$0.id] ?? [], seen: &seen)) }
-        let looseItems = state.listItems(groups.loose, seen: &seen)
-        let visibleItems = pinnedItems + folderItems.flatMap { ($0.folder.isOpen ? $0.items : []) + $0.pins } + looseItems
+        let folderItems = GroupEntry.tree(state: state, groups: groups, anchors: anchors, activeID: activeID, seen: &seen)
+        // With tabs above the page, ungrouped tabs live there; the sidebar keeps pins and groups.
+        let looseItems = state.showsSidebarTopTabs ? [] : state.listItems(groups.loose, seen: &seen)
+        let visibleItems = pinnedItems + folderItems.flatMap(\.visibleItems) + looseItems
         let activeIsListed = visibleItems.contains { $0.containsTab(activeID) }
-        let order = pinnedItems.map(\.id) + folderItems.flatMap { [$0.folder.id] + $0.items.map(\.id) + $0.pins.map(\.id) } + looseItems.map(\.id)
+        let order = pinnedItems.map(\.id) + folderItems.flatMap(\.order) + looseItems.map(\.id)
         return GeometryReader { geometry in
             SidebarScrollView(chrome: chrome) {
                 VStack(spacing: 2) {
                     AnimatedListItems(items: pinnedItems) { item in itemView(item) }
-                    SidebarPinBoundary(state: state, chrome: chrome, afterFolderID: nil)
-                    ForEach(folderItems, id: \.folder.id) { entry in
-                        SidebarFolderSection(folder: entry.folder, state: state, chrome: chrome,
-                                             colors: colors, selection: selection, showSelection: !activeIsListed,
-                                             count: entry.count, containsActiveTab: activeFolderID == entry.folder.id, commands: commands) {
-                            AnimatedListItems(items: entry.items) { item in itemView(item) }
-                        }
-                        AnimatedListItems(items: entry.pins) { item in itemView(item) }
-                        SidebarPinBoundary(state: state, chrome: chrome, afterFolderID: entry.folder.id)
+                    // Pinned rows and groups are different kinds: a short hairline between them, no heading.
+                    if !pinnedItems.isEmpty && !folderItems.isEmpty {
+                        Rectangle().fill(colors.separator).frame(height: 1)
+                            .padding(.horizontal, 12).padding(.vertical, 3)
+                            .transition(.opacity)
                     }
-                    if state.chromeLayout.sidebarShowsNewTab {
-                        // Horizontal line
-                        Divider().padding(.vertical, 6).containerRelativeFrame(.horizontal) { size, axis in
-                            size * 0.9
-                        }
+                    SidebarPinBoundary(state: state, chrome: chrome, afterFolderID: nil)
+                    ForEach(folderItems) { entry in branch(entry, showSelection: !activeIsListed) }
+                    if state.chromeLayout.sidebarShowsNewTab && !state.showsSidebarTopTabs {
+                        Rectangle().fill(colors.separator).frame(height: 1).padding(.horizontal, 10).padding(.vertical, 6)
                         NewTabRow(colors: colors) { commands?.newTab() }
                     }
                     AnimatedListItems(items: looseItems) { item in itemView(item) }
@@ -90,11 +104,33 @@ struct TabListView: View {
                 // and animating the whole list on every selection slid rows and the content height while scrolling.
                 .animation(reduceMotion ? nil : .ikagoQuick, value: order)
                 // Groups being added, removed or reordered; opening one animates from its own section.
-                .animation(reduceMotion ? nil : .ikagoQuick, value: folders.map(\.id))
+                .animation(reduceMotion ? nil : .ikagoQuick, value: folders.map { $0.id + ($0.parentID ?? "") })
                 .animation(reduceMotion ? nil : .ikagoQuick, value: state.splits)
             }
             .frame(maxHeight: .infinity)
         }.recordLayout("sidebar-tab-list")
+    }
+
+    /// A group whose tabs are all closed or asleep (and none of them is on screen).
+    static func isSleeping(_ tabs: [TabItem], activeID: String?) -> Bool {
+        !tabs.isEmpty && tabs.allSatisfy { $0.isUnloaded && $0.id != activeID }
+    }
+
+    /// A group with the groups inside it, then its tabs. One stack per group, so its empty pin list and drop line add
+    /// no list spacing: groups sit closer together than rows, like bookmarks in a book. Recursive, hence `AnyView`.
+    private func branch(_ entry: GroupEntry, showSelection: Bool) -> AnyView {
+        AnyView(VStack(spacing: 0) {
+            SidebarFolderSection(folder: entry.folder, state: state, chrome: chrome,
+                                 colors: colors, selection: selection, showSelection: showSelection,
+                                 count: entry.count, containsActiveTab: entry.containsActive,
+                                 sleeping: entry.sleeping, depth: entry.depth, commands: commands) {
+                ForEach(entry.children) { child in branch(child, showSelection: showSelection) }
+                AnimatedListItems(items: entry.items) { item in itemView(item) }
+            }
+            VStack(spacing: 2) { AnimatedListItems(items: entry.pins) { item in itemView(item) } }
+                .padding(.top, entry.pins.isEmpty ? 0 : 2)
+            SidebarPinBoundary(state: state, chrome: chrome, afterFolderID: entry.folder.id)
+        })
     }
 
     @ViewBuilder private func itemView(_ item: TabListItem) -> some View {
@@ -103,22 +139,29 @@ struct TabListView: View {
         case .group(let tabs):
             SplitGroupRow(tabs: tabs, state: state, chrome: chrome, colors: colors, selection: selection, commands: commands)
                 .transition(.scale(scale: 0.95).combined(with: .opacity))
-        case .folder: EmptyView()  // the sidebar draws folders itself
         }
     }
 
     private func row(_ tab: TabItem) -> some View {
         TabRowView(tab: tab, isActive: tab.id == state.activeTabID, isInSplit: false,
                    colors: colors, selection: selection, commands: commands)
-            .onTapGesture { if NSEvent.modifierFlags.contains(.shift) { commands?.peekTab(tab.id); return }; withAnimation(reduceMotion ? nil : .ikago) { state.select(tab.id) }; onSelection?() }
+            .tabSelectionTint(chrome.selectedTabIDs.contains(tab.id), colors: colors)
+            .onTapGesture {
+                TabClick.handle(tab, state: state, chrome: chrome, commands: commands) {
+                    withAnimation(reduceMotion ? nil : .ikago) { state.select(tab.id) }
+                    onSelection?()
+                }
+            }
             .contextMenu { TabContextMenu(tab: tab, state: state, commands: commands) }
             .onMiddleClick { withAnimation(reduceMotion ? nil : .ikago) { commands?.closeTab(tab.id) } }
             .onDrag {
                 chrome.beginTabDrag(tab.id)
                 return TabDrag.provider(tab.id)
             } preview: {
-                TabDragPreview(tab: tab, colors: colors)
+                TabDragPreview(tab: tab, colors: colors, count: chrome.selectedTabIDs.contains(tab.id) ? chrome.selectedTabIDs.count : 1)
             }
+            .travellingWithDrag(chrome.draggingTabID != nil && chrome.draggingTabID != tab.id && chrome.selectedTabIDs.contains(tab.id)
+                                && chrome.selectedTabIDs.contains(chrome.draggingTabID ?? ""))
             .tabDropTarget(tab, axis: .vertical, state: state, chrome: chrome)
             .recordLayout("sidebar-tab-\(tab.id)")
             .transition(.asymmetric(insertion: .move(edge: .top).combined(with: .opacity),
@@ -196,19 +239,48 @@ private struct AnimatedListItems<Content: View>: View {
     }
 }
 
+/// What follows the pointer while dragging tabs: the tab, and with several selected, a stack of cards behind it and a
+/// badge with how many are moving.
 struct TabDragPreview: View {
     let tab: TabItem
     let colors: Palette
+    var count = 1
 
     var body: some View {
+        let card = colors.isDark ? Color(white: 0.2) : .white
+        let shape = RoundedRectangle(cornerRadius: Radius.row, style: .continuous)
         HStack(spacing: 8) {
             FaviconView(tab: tab)
             Text(tab.displayTitle).lineLimit(1).font(.system(size: 13, weight: .medium))
         }
-        .padding(.horizontal, 12).frame(maxWidth: 180).frame(height: 30)
-        // Plain fill: drag previews are rendered offscreen, where Liquid Glass can't draw.
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(colors.isDark ? Color(white: 0.2) : .white))
-        .opacity(0.75)
+        .padding(.horizontal, 12).frame(width: 190, height: 32, alignment: .leading)
+        // Plain fills: drag previews are rendered offscreen, where Liquid Glass can't draw.
+        .background(shape.fill(card).overlay(shape.strokeBorder(Color.black.opacity(0.08), lineWidth: 0.5)))
+        .background {
+            ForEach(Array((1..<min(count, 3)).reversed()), id: \.self) { depth in
+                shape.fill(card.opacity(0.85)).overlay(shape.strokeBorder(Color.black.opacity(0.08), lineWidth: 0.5))
+                    .offset(x: CGFloat(depth) * 4, y: CGFloat(depth) * 4)
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            if count > 1 {
+                Text("\(count)").font(.system(size: 11, weight: .bold).monospacedDigit()).foregroundStyle(.white)
+                    .padding(.horizontal, 6).frame(minWidth: 20, minHeight: 20)
+                    .background(Capsule().fill(colors.accent))
+                    .offset(x: 8, y: -8)
+            }
+        }
+        .padding(10)
+        .opacity(0.9)
+    }
+}
+
+extension View {
+    /// A selected tab travelling with the one being dragged: it fades and tucks in, as if stacked under the pointer.
+    func travellingWithDrag(_ travelling: Bool) -> some View {
+        opacity(travelling ? 0.35 : 1)
+            .scaleEffect(travelling ? 0.96 : 1)
+            .animation(.ikago, value: travelling)
     }
 }
 
@@ -228,7 +300,7 @@ private struct NewTabRow: View {
             .foregroundStyle(colors.secondary)
             .padding(.horizontal, 10)
             .frame(height: 32)
-            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(hovering ? colors.hover : .clear))
+            .background(RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(hovering ? colors.hover : .clear))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

@@ -31,14 +31,14 @@ private struct TabDropTarget: ViewModifier {
                 sourceID: chrome.draggingTabID, perform: { id, after in
                     withAnimation(animation) { _ = state.reorderTab(id, relativeTo: tab.id, after: after) }
                     chrome.endTabDrag()
-                }))
+                }, into: state))
             .overlay(alignment: alignment) {
                 if insertionAfter != nil { TabInsertionIndicator(horizontal: axis == .horizontal) }
             }
             .onChange(of: chrome.draggingTabID) { _, id in if id == nil { insertionAfter = nil } }
     }
 
-    private var animation: Animation? { state.tabLayout == .vertical && !reduceMotion ? .ikagoQuick : nil }
+    private var animation: Animation? { reduceMotion ? nil : .ikagoQuick }
     private var isSource: Bool {
         guard let id = chrome.draggingTabID else { return false }
         return id == tab.id || state.splitGroup(of: tab.id)?.contains(id) == true
@@ -63,7 +63,7 @@ private struct TabListEndDrop: ViewModifier {
                 sourceID: chrome.draggingTabID, perform: { id, _ in
                     withAnimation(reduceMotion ? nil : .ikagoQuick) { _ = state.moveTabToListEnd(id) }
                     chrome.endTabDrag()
-                }))
+                }, into: state))
             .overlay(alignment: .top) {
                 if insertionAfter != nil { TabInsertionIndicator(horizontal: false) }
             }

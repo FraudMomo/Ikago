@@ -43,8 +43,8 @@ enum TabReorderingChecks {
         let foreignIndex = state.tabs.firstIndex { $0.id == foreign.id }
         state.reorderTab(a.id, relativeTo: b.id, after: true)
         check(state.tabs.firstIndex { $0.id == foreign.id } == foreignIndex, "other Spaces retain their positions")
-        for layout in TabLayout.allCases {
-            state.tabLayout = layout; state.sidebarVisible = true
+        for layout in ["sidebar", "tabs"] {
+            state.browserPreferences.sidebarTopTabs = layout == "tabs" ? true : nil; state.sidebarVisible = true
             try? await Task.sleep(for: .milliseconds(350))
             // Reuse the same source identity repeatedly, as SwiftUI does after a row moves.
             for iteration in 0..<6 {
@@ -52,7 +52,7 @@ enum TabReorderingChecks {
                 browser.chrome.beginTabDrag(a.id)
                 let after = iteration.isMultiple(of: 2)
                 let accepted = await withCheckedContinuation { continuation in
-                    TabDrag.load(provider) { id in
+                    TabDrag.load(provider, into: nil) { id in
                         continuation.resume(returning: state.reorderTab(id, relativeTo: b.id, after: after))
                     }
                 }
@@ -63,7 +63,7 @@ enum TabReorderingChecks {
                       "repeated drag places the tab on the requested side")
                 try? await Task.sleep(for: .milliseconds(150))
                 if let root = browser.window?.contentView {
-                    let key = layout == .vertical ? "sidebar-tab-\(a.id)" : "regular-tab-\(a.id)"
+                    let key = layout == "sidebar" ? "sidebar-tab-\(a.id)" : "top-tab-\(a.id)"
                     if let frame = LayoutChecks.frames[key] {
                         let point = NSPoint(x: frame.midX, y: root.isFlipped ? frame.midY : root.bounds.height - frame.midY)
                         let hit = root.hitTest(root.convert(point, to: root.superview))

@@ -35,9 +35,8 @@ enum SidebarInteractionChecks {
         func regions(in view: NSView) -> [AddressRegionView] {
             (view as? AddressRegionView).map { [$0] } ?? view.subviews.flatMap { regions(in: $0) }
         }
-        for layout in TabLayout.allCases {
-            state.tabLayout = layout
-            for style in layout == .vertical ? AddressStyle.allCases : [.integrated] {
+        for layout in ["sidebar"] {
+            for style in AddressStyle.allCases {
                 state.addressStyle = style
                 browser.showCommandPalette(newTab: false)
                 browser.palette.userEdited("sidebar interaction")
@@ -58,7 +57,6 @@ enum SidebarInteractionChecks {
                 try? await Task.sleep(for: .milliseconds(200))
             }
         }
-        state.tabLayout = .vertical
         for visible in [true, false] {
             state.sidebarVisible = visible
             for margin in [2.0, 8.0, 24.0] {
@@ -77,6 +75,22 @@ enum SidebarInteractionChecks {
                 }
             }
         }
+        // Sidebar + Tabs: the strip above the tabs moves the window; the tabs themselves stay tabs.
+        state.browserPreferences.sidebarTopTabs = true
+        state.frameInset = 8
+        window.setContentSize(NSSize(width: 1100, height: 750))
+        try? await Task.sleep(for: .milliseconds(500))
+        func hit(_ x: CGFloat, _ y: CGFloat) -> NSView? {
+            root.hitTest(root.convert(NSPoint(x: x, y: root.isFlipped ? y : root.bounds.height - y), to: root.superview))
+        }
+        let tabTop = SidebarTopTabs.height(state) - SidebarTopTabs.tabHeight
+        for y in stride(from: 1, to: tabTop, by: 3) {
+            let blocked = stride(from: 4, to: root.bounds.width - 4, by: 12).filter { !(hit($0, y) is WindowDragArea.DragView) }
+            check(blocked.isEmpty, "\(Int(y)) pt from the top moves the window across the tab row (blocked at x=\(blocked.map { "\(Int($0)):\(hit($0, y).map { String(describing: type(of: $0)) } ?? "nil")" }))")
+        }
+        let tabY = SidebarTopTabs.height(state) - SidebarTopTabs.tabHeight / 2
+        check(stride(from: 4, to: root.bounds.width - 4, by: 12).contains { !(hit($0, tabY) is WindowDragArea.DragView) },
+              "the tabs themselves are not window drags")
         print("IKTEST sidebarinteractionchecks \(failures == 0 ? "PASS" : "FAIL") failures=\(failures)")
     }
 }
