@@ -13,7 +13,7 @@ enum NewProfileChecks {
 
         state.applyNewProfileDefaults()
         let prefs = state.browserPreferences
-        check(state.tabLayout == .vertical && state.frameInset == 2 && state.sidebarGap == 3 && !state.useGlass
+        check(state.frameInset == 2 && state.sidebarGap == 3 && !state.useGlass
               && prefs.translucentSidebar == true && prefs.sidebarCompact == nil, "new profiles start with the docked sidebar look")
         check(state.groupLabelStyle == .colorPill && !state.showsGroupTabCounts && state.tabHighlightStyle == .none
               && prefs.instantTabSwitching == true, "new profiles use color pills, no counts and instant switching")

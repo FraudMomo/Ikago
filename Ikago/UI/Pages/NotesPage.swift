@@ -21,7 +21,7 @@ struct NotesPage: View {
                     TextEditor(text: Binding(get: { store.text }, set: store.update))
                         .font(.system(size: 14)).scrollContentBackground(.hidden).padding(12)
                         .frame(minHeight: 360, maxHeight: .infinity)
-                        .background(RoundedRectangle(cornerRadius: 12).fill(Color.primary.opacity(0.045)))
+                        .background(RoundedRectangle(cornerRadius: Radius.card).fill(Color.primary.opacity(0.045)))
                         .disabled(store.error != nil)
                     if let error = store.error {
                         HStack {

@@ -15,7 +15,7 @@ enum InteractionRefinementChecks {
         defer {
             browser.closePeek(); browser.chrome.textPrompt?.finish(nil)
             browser.chrome.showNotes = false; browser.chrome.showPageAssistant = false
-            state.barCondensed = false; state.apply(saved)
+            state.apply(saved)
         }
         browser.dismissCommandPalette()
         let count = state.tabs.count
@@ -40,10 +40,6 @@ enum InteractionRefinementChecks {
         check(browser.peekContent == nil, "closing peek releases its transient controller")
         let lazy = TabItem(url: "https://unopened.invalid", spaceID: state.activeSpaceID)
         check(lazy.isUnloaded, "never-started pages share unloaded presentation with hibernated pages")
-        state.tabLayout = .horizontal; state.barAtBottom = true
-        state.browserPreferences.collapseBarOnScroll = true
-        state.barCondensed = true; await settle()
-        check(state.barFloating && state.topBarHeaderHeight == 52, "bottom navigation floats with space around the compact ribbon")
         print("IKTEST refinementchecks \(failures == 0 ? "PASS" : "FAIL") failures=\(failures)")
     }
 }

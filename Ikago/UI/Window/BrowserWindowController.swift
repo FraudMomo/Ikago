@@ -1,8 +1,9 @@
 import AppKit
+import IKCEFBridge
 import SwiftUI
 import WebKit
 /// The main browser window: a tinted translucent backdrop with the SwiftUI shell on top
-/// (sidebar or island bar, the content card, overlays). Owns commands, permission sheets
+/// (the sidebar, the content card, overlays). Owns commands, permission sheets
 /// and the traffic lights.
 @MainActor
 final class BrowserWindowController: NSWindowController, NSWindowDelegate {
@@ -17,7 +18,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
     private var permissionQueue: [(tab: TabController, request: PermissionRequest)] = []
     private var permissionSheet: NSWindow?
     private var pageWindowGrab: PageWindowGrab?
-    private var appearanceObservation: NSKeyValueObservation?
+    private var systemAppearance: SystemAppearance?
     /// Ikago's own traffic lights while the window is full screen.
     lazy var fullScreenControls = FullScreenWindowControls(window: window!)
     /// Ikago's full screen: the windowed frame and autosave name to go back to, and the band above the bars.
@@ -38,7 +39,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
         window.backgroundColor = .clear
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
-        // Only `WindowDragArea` moves the window: tabs and the island must never start a window drag.
+        // Only `WindowDragArea` moves the window: tabs must never start a window drag.
         window.isMovable = false
         window.titlebarSeparatorStyle = .none
         window.minSize = NSSize(width: 420, height: 320)
@@ -47,14 +48,21 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
         }
         if state.isPrivate { window.title = "Private" }  // Window menu and Mission Control
         // An empty toolbar makes the titlebar tall enough to centre the traffic lights on
-        // the sidebar's top row and the island bar.
+        // the sidebar's top row.
         let toolbar = NSToolbar(identifier: "Ikago")
         window.toolbar = toolbar
         window.toolbarStyle = .unified
         super.init(window: window)
         window.protectsAddressFocus = { [weak self] in self?.isEditingAddress == true && self?.state.isFrozen == false }
+        window.typeAhead = { [weak self] characters in
+            guard let self else { return false }
+            // An untouched field's text (the page address on ⌘L) is replaced, as typing over a selection would.
+            self.palette.userEdited((self.palette.edited ? self.palette.query : "") + characters)
+            return true
+        }
         window.dismissAddress = { [weak self] in self?.dismissCommandPalette() }
         content.host = self
+        chrome.onTabDragEnded = { [weak self] id, point in self?.tabDraggedOut(id, at: point) }
         content.shouldFocusPage = { [weak self] in self?.isEditingAddress != true }
         background.frame = NSRect(origin: .zero, size: window.contentLayoutRect.size)
         window.contentView = background
@@ -73,12 +81,14 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
         configureOverlays()
         content.start()
         pageWindowGrab = PageWindowGrab(content: content.view, state: state)
-        if !state.isPrivate { ExtensionManager.shared.browser = self }
+        if !state.isPrivate {
+            ExtensionManager.shared.browser = self
+            // Spaces, settings, history and bookmarks are shared by every regular window (`BrowserState+Windows`).
+            observeState { [weak self] in self?.state.readShared() } onChange: { [weak self] in self?.state.shareChanges() }
+        }
         ExtensionManager.shared.windowOpened(self)
-        appearanceObservation = NSApp.observe(\.effectiveAppearance, options: [.initial, .new]) { [weak self] app, _ in
-            MainActor.assumeIsolated {
-                self?.state.systemIsDark = app.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            }
+        systemAppearance = SystemAppearance { [weak self] dark in
+            if self?.state.systemIsDark != dark { self?.state.systemIsDark = dark }
         }
         // Switching tabs ends address editing (the field would show the old tab's address).
         observeState { [weak self] in _ = self?.state.activeTabID } onChange: { [weak self] in
@@ -87,13 +97,14 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
         }
         observeState { [weak self] in
             guard let self else { return }
-            _ = (state.palette.nsTint, state.isDark, state.tabLayout, state.sidebarVisible, chrome.peeking, state.isImmersive, state.developerTools, state.browserPreferences.translucentSidebar,
-                 state.browserPreferences.sidebarOnRight, state.browserPreferences.sidebarLightsFollow, state.browserPreferences.barAtBottom, state.browserPreferences.sidebarCompact, state.browserPreferences.fullScreenUnderNotch, state.frameInset)
+            _ = (state.palette.nsTint, state.isDark, state.sidebarVisible, chrome.peeking, state.isImmersive, state.developerTools, state.browserPreferences.translucentSidebar,
+                 state.browserPreferences.sidebarOnRight, state.browserPreferences.sidebarLightsFollow, state.browserPreferences.sidebarCompact, state.browserPreferences.fullScreenUnderNotch, state.frameInset,
+                 state.browserPreferences.sidebarTopTabs, state.useGlass, state.colorMode)
         } onChange: { [weak self] in self?.applyChrome() }
-        // Bar size changes (a slider drag fires many) only move the traffic lights; everything
+        // Sidebar width changes (a drag fires many) only move the traffic lights; everything
         // else in applyChrome is far heavier.
         observeState {
-            _ = (state.barHeight, state.barGap, state.barRounded, state.barShownHeight)
+            _ = state.sidebarWidth
         } onChange: { [weak self] in
             self?.positionTrafficLights()
         }
@@ -110,13 +121,21 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
     private func applyChrome() {
         guard let window else { return }
         let colors = state.palette
-        background.apply(colors, translucentSidebar: state.tabLayout == .vertical && state.browserPreferences.translucentSidebar == true)
+        background.apply(colors, translucentSidebar: state.browserPreferences.translucentSidebar == true)
         if WebProfiles.developerTools != state.developerTools {
             WebProfiles.developerTools = state.developerTools
             for controller in content.controllers.values { controller.page?.setDeveloperTools(state.developerTools) }
         }
         let appearance = NSAppearance(named: colors.isDark ? .darkAqua : .aqua)
         if window.appearance != appearance { window.appearance = appearance }
+        // Light or dark changed: open pages pick their icon for the new mode once (sites may offer one per mode).
+        // Chromium pages follow Ikago's mode, not macOS's (WebKit pages follow the window's appearance already).
+        // App-wide, so regular windows decide: a private window (always dark) must not darken every window's pages.
+        if !state.isPrivate { ChromiumAppearance.apply(dark: state.colorMode == .system ? nil : state.colorMode == .dark) }
+        if FaviconCache.shared.dark != colors.isDark {
+            FaviconCache.shared.dark = colors.isDark
+            for controller in content.controllers.values { controller.page?.refreshFavicon() }
+        }
         if let window = browserWindow, window.isIkagoFullScreen {
             window.fullScreenTopBand = fullScreenBandHeight(on: window.screen)
             layoutFullScreenBand()
@@ -143,6 +162,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
             withAnimation(.ikago) { self?.state.select(id) }
         }
         palette.onDismiss = { [weak self] in self?.dismissCommandPalette() }
+        palette.onAction = { [weak self] action in action.perform(in: self?.window) }
         find.onSearch = { [weak self] text, forward, _ in
             self?.activeController?.page?.find(text, forward: forward, matchCase: false)
         }
@@ -175,7 +195,6 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
     func openPage(_ page: InternalPage) {
         if page == .notes { chrome.showNotes.toggle(); return }
         chrome.showDownloads = false
-        chrome.showTabOverview = false
         withAnimation(.ikago) {
             if let existing = state.spaceTabs.first(where: { $0.url == page.url }) {
                 state.select(existing.id)
@@ -224,16 +243,6 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
 
     // MARK: NSWindowDelegate
 
-    func windowDidBecomeKey(_ notification: Notification) {
-        applyFullScreenPresentation()
-        positionTrafficLights()
-        ExtensionManager.shared.windowFocused(self)
-    }
-
-    func windowDidResignKey(_ notification: Notification) {
-        applyFullScreenPresentation()
-    }
-
     func windowWillClose(_ notification: Notification) {
         chrome.textPrompt?.finish(nil)
         closePeek()
@@ -251,6 +260,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
             WebProfiles.forget(state.privateProfileID)
             (NSApp.delegate as? AppDelegate)?.privateWindowClosed(self)
         }
+        BrowserWindows.closed(self)
     }
 }
 
@@ -271,6 +281,7 @@ extension BrowserWindowController: TabHost {
     }
 
     func tabController(_ tab: TabController, requestsPermission request: PermissionRequest) {
+        if let remembered = state.rememberedDecision(origin: request.origin, kinds: request.kinds) { return request.resolve(remembered) }
         request.onInvalidated = { [weak self, weak tab] in
             if let tab { self?.discardPermissions(for: tab) }
         }

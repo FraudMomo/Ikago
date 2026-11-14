@@ -68,7 +68,12 @@ final class AppDelegate: NSObject, IKCEFApplicationDelegate {
         installInputMonitors()
         let controller = BrowserWindowController(state: state)
         windowController = controller
+        BrowserWindows.primary = controller
         controller.showWindow(nil)
+        // The session's other windows, each with its own tabs.
+        BrowserWindows.restore(state.pendingWindows)
+        state.pendingWindows = []
+        controller.window?.makeKeyAndOrderFront(nil)
         ChromiumUpdates.shared.start(window: controller.window)
         if BrowserRuntime.runs(.webkit) {
             ExtensionManager.shared.startUpdates()
@@ -101,10 +106,6 @@ final class AppDelegate: NSObject, IKCEFApplicationDelegate {
             guard let controller = event.window?.windowController as? BrowserWindowController else { return event }
             if event.keyCode == 53, controller.chrome.showDownloads {
                 controller.chrome.showDownloads = false
-                return nil
-            }
-            if event.keyCode == 53, controller.chrome.showTabOverview {
-                controller.chrome.showTabOverview = false
                 return nil
             }
             return ShortcutRouter.intercept(event) ? nil : event
@@ -150,9 +151,9 @@ final class AppDelegate: NSObject, IKCEFApplicationDelegate {
 
     private func openExternalURLs(_ urls: [String]) {
         guard !urls.isEmpty else { return }
-        if let state, windowController != nil {
-            urls.forEach { state.newTab(url: $0) }
-            windowController?.window?.makeKeyAndOrderFront(nil)
+        if state != nil, windowController != nil, let front = BrowserWindows.frontmost {
+            urls.forEach { front.state.newTab(url: $0) }
+            front.window?.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
         } else {
             pendingURLs.append(contentsOf: urls)
@@ -184,7 +185,7 @@ final class AppDelegate: NSObject, IKCEFApplicationDelegate {
             EngineCookieSync.exportIfSwitching(state: self.state) {
                 WebProfiles.flushCookies {
                     CEFSessions.flush {
-                        for controller in [self.windowController].compactMap({ $0 }) + self.privateWindows { controller.content.shutdown() }
+                        for controller in [self.windowController].compactMap({ $0 }) + BrowserWindows.others + self.privateWindows { controller.content.shutdown() }
                         ChromiumExtensions.shared.shutDown()
                         IKCEFNativeTools.closeAll()
                         if !WebProfiles.isTestMode && ProtectedStorage.isOnlyInstance { ProtectedStorage.removeTemporaryFiles() }

@@ -1,15 +1,18 @@
 import AppKit
 
 extension BrowserWindowController {
-    /// Collapsed sidebar: no traffic lights over the page until the sidebar peeks in.
-    /// Full screen: only with the revealed sidebar or top bar.
+    /// Collapsed sidebar: no traffic lights over the page until the sidebar peeks in (or the Sidebar + Tabs row holds
+    /// them). Full screen: only with the revealed sidebar.
     var showsTrafficLights: Bool {
-        if state.isImmersive { return chrome.peeking || (state.tabLayout == .vertical && state.sidebarVisible) }
-        return state.tabLayout.usesTopTabs || state.sidebarVisible || chrome.peeking
+        if state.isImmersive { return chrome.peeking || state.sidebarVisible }
+        return state.sidebarVisible || chrome.peeking || state.showsSidebarTopTabs
     }
 
     /// The icon rail stacks the lights in a column, which the titlebar has no room for.
-    private var railLights: Bool { state.showsSidebarRail && (!state.sidebarOnRight || state.sidebarLightsFollow) }
+    /// Not under the Sidebar + Tabs row, which holds the lights itself.
+    private var railLights: Bool {
+        state.showsSidebarRail && !state.showsSidebarTopTabs && (!state.sidebarOnRight || state.sidebarLightsFollow)
+    }
 
     /// The system's buttons in a window; Ikago's own (`FullScreenWindowControls`) in full screen and on the
     /// rail. Convert both axes through the content view: a standard button's titlebar container has its own
@@ -20,14 +23,11 @@ extension BrowserWindowController {
         for kind: NSWindow.ButtonType in [.closeButton, .miniaturizeButton, .zoomButton] {
             window.standardWindowButton(kind)?.isHidden = drawn
         }
-        let topTabs = state.tabLayout.usesTopTabs
-        let followsRight = !topTabs && state.sidebarOnRight && state.sidebarLightsFollow
-        let rightInset = content.bounds.width - CGFloat(state.sidebarWidth) + 19
-
-        let centerFromTop: CGFloat = state.barAtBottom ? 24 : state.barTopInset + state.barShownHeight / 2
-        let firstX: CGFloat = state.barAtBottom ? 19 : state.barFloating ? BrowserState.topBarFloatingMargin + 12 : 11
+        let followsRight = state.sidebarOnRight && state.sidebarLightsFollow
+        // The same distance from the sidebar's leading edge as on the left (19 pt from the window, the sidebar at the inset).
+        let rightInset = content.bounds.width - CGFloat(state.sidebarWidth) + 19 - 2 * CGFloat(state.isImmersive ? 0 : state.frameInset)
         if drawn {
-            fullScreenControls.show()
+            fullScreenControls.show(above: background.shell)
             let band = browserWindow?.fullScreenTopBand ?? 0
             // Full screen: below what the band leaves of the menu bar, so the menu bar never covers them; no margins.
             let lower = state.immersiveChromeTop
@@ -35,8 +35,6 @@ extension BrowserWindowController {
             if railLights {
                 fullScreenControls.place(firstX: state.sidebarOnRight && state.sidebarLightsFollow ? content.bounds.width - inset - (BrowserState.sidebarRailWidth + 14) / 2 : inset + (BrowserState.sidebarRailWidth - 14) / 2,
                                          centerFromTop: max(inset, 8) + 16 + lower, band: band, vertical: true, visible: true)
-            } else if topTabs {
-                fullScreenControls.place(firstX: firstX, centerFromTop: centerFromTop + lower, band: band, visible: showsTrafficLights)
             } else {
                 // The sidebar's top row: docked from the top edge, or peeking inside its margin.
                 let frame = CGFloat(state.frameInset)
@@ -47,19 +45,31 @@ extension BrowserWindowController {
             return
         }
         fullScreenControls.hide()
-        // Sidebar: AppKit's place, set again in case another layout moved them (AppKit never moves them back by
-        // itself). Top bars: centred on the bar.
-        let centerY = content.isFlipped ? content.bounds.minY + centerFromTop : content.bounds.maxY - centerFromTop
+        // Both axes, every time: AppKit never moves the buttons back by itself, so setting only one kept whatever
+        // the other had been left at (the lights jumped between layouts).
+        let center: CGFloat
+        let x: CGFloat
+        if state.showsSidebarTopTabs {
+            // At the start of the tab row, whichever side the rail is on.
+            center = state.sidebarRowCenter; x = 19
+        } else if state.sidebarOnRight && !state.sidebarLightsFollow {
+            // In the window's top-left corner: on the Sidebar + Tabs row, or in their own small capsule.
+            center = state.showsSidebarTopTabs ? state.sidebarRowCenter : 23
+            x = state.showsSidebarTopTabs ? 14 : 21
+        } else if state.sidebarVisible || state.showsSidebarTopTabs {
+            center = state.sidebarRowCenter; x = followsRight ? rightInset : 19
+        } else {
+            // Revealed over the page: inside the floating card's margin.
+            let frame = CGFloat(state.frameInset)
+            center = max(frame, 6) + max(0, 8 - frame) + BrowserState.sidebarRowHeight / 2
+            x = followsRight ? rightInset : max(frame, 6) + 13
+        }
+        let centerY = content.isFlipped ? content.bounds.minY + center : content.bounds.maxY - center
         for (index, kind) in ([.closeButton, .miniaturizeButton, .zoomButton] as [NSWindow.ButtonType]).enumerated() {
             guard let button = window.standardWindowButton(kind), let parent = button.superview else { continue }
-            if topTabs || (state.sidebarOnRight && !state.sidebarLightsFollow) {
-                let point = parent.convert(NSPoint(x: firstX + CGFloat(index) * 23, y: centerY), from: content)
-                let origin = NSPoint(x: point.x, y: point.y - button.frame.height / 2)
-                if button.frame.origin != origin { button.setFrameOrigin(origin) }
-            } else {
-                let x = parent.convert(NSPoint(x: (followsRight ? rightInset : 19) + CGFloat(index) * 23, y: 0), from: content).x
-                if button.frame.origin.x != x { button.setFrameOrigin(NSPoint(x: x, y: button.frame.origin.y)) }
-            }
+            let point = parent.convert(NSPoint(x: x + CGFloat(index) * 23, y: centerY), from: content)
+            let origin = NSPoint(x: point.x.rounded(), y: (point.y - button.frame.height / 2).rounded())
+            if button.frame.origin != origin { button.setFrameOrigin(origin) }
         }
     }
 }

@@ -18,6 +18,7 @@ final class FullScreenWindowControls {
     init(window: NSWindow) { self.window = window }
 
     var isShown: Bool { host != nil }
+    var hostView: NSView? { host }
     var debugFrame: String { host.map { "frame=\($0.frame) hidden=\($0.isHidden) alpha=\($0.alphaValue)" } ?? "none" }
 
     /// Before the window changes: remember where the windowed buttons are.
@@ -30,13 +31,18 @@ final class FullScreenWindowControls {
         measured = (a.minX, top, (b.minX - a.minX) / 2, a.width)
     }
 
-    func show() {
-        guard let window, let content = window.contentView, host == nil else { return }
-        let host = NSHostingView(rootView: FullScreenControlsView(model: model, window: window))
+    /// Just above `shell`, so a page lifted for video fullscreen stays on top. Never relative to the first subview:
+    /// with the frosted window that is the window's material, and the whole shell covered the buttons.
+    func show(above shell: NSView?) {
+        guard let window, let content = window.contentView else { return }
+        let host = self.host ?? NSHostingView(rootView: FullScreenControlsView(model: model, window: window))
         host.sizingOptions = []
         host.safeAreaRegions = []
-        // Just above the shell (the first subview), so a page lifted for video fullscreen stays on top.
-        content.addSubview(host, positioned: .above, relativeTo: content.subviews.first)
+        let anchor = shell?.superview === content ? shell : content.subviews.last { !($0 is NSHostingView<FullScreenControlsView>) }
+        let subviews = content.subviews
+        if let anchor, let at = subviews.firstIndex(of: anchor), subviews.firstIndex(of: host) == at + 1 {} else {
+            content.addSubview(host, positioned: .above, relativeTo: anchor)
+        }
         self.host = host
     }
 

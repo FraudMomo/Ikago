@@ -25,7 +25,7 @@ final class PerformanceOverlay: NSVisualEffectView {
         blendingMode = .withinWindow
         state = .active
         wantsLayer = true
-        layer?.cornerRadius = 7
+        layer?.cornerRadius = Radius.control
         layer?.cornerCurve = .continuous
         layer?.masksToBounds = true
         label.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium)

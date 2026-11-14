@@ -16,12 +16,10 @@ enum FeatureBatchChecks {
         func settle() async { try? await Task.sleep(for: .milliseconds(450)) }
         defer {
             if window.isInFullScreen { window.toggleFullScreen(nil) }
-            state.barCondensed = false
             state.apply(saved)
             window.setFrame(originalFrame, display: true)
         }
         state.tabs = []; state.folders = []; state.splits = []
-        state.tabLayout = .vertical
         let a = state.newTab(url: InternalPage.notes.url)!
         let b = state.newTab(url: InternalPage.performance.url)!
         let child = state.newTabFromLink(url: InternalPage.history.url, opener: b, select: true)!
@@ -53,7 +51,7 @@ enum FeatureBatchChecks {
         check(state.browserPreferences.pageIntelligence != true, "page AI remains opt-in")
         for (label, passed) in NotesPage.storageChecksForTests(state) { check(passed, label) }
 
-        state.tabLayout = .vertical; state.sidebarVisible = true
+        state.sidebarVisible = true
         state.browserPreferences.sidebarCompact = false
         state.sidebarOnRight = true
         state.select(a.id)
@@ -61,21 +59,8 @@ enum FeatureBatchChecks {
         if let frame = LayoutChecks.frames["content"], let shell = LayoutChecks.frames["shell"] {
             check(frame.maxX < shell.maxX - CGFloat(state.sidebarWidth) + 10, "right sidebar reserves space beside content")
         } else { check(false, "right sidebar reports content geometry") }
-        state.tabLayout = .horizontal
-        state.barAtBottom = true
-        state.browserPreferences.collapseBarOnScroll = true
-        await settle()
-        if let header = LayoutChecks.frames["top-header"], let content = LayoutChecks.frames["content"] {
-            check(header.minY >= content.maxY - 2, "bottom toolbar does not obscure content")
-        } else { check(false, "bottom toolbar reports geometry") }
-        state.barCondensed = true
-        await settle()
-        check(LayoutChecks.frames["top-header"].map { abs($0.height - (state.barFloating ? 52 : 36)) < 1 } == true, "reading ribbon has compact native height and floating margins")
-        state.barCondensed = false
-        state.browserPreferences.collapseBarOnScroll = false
-        state.barAtBottom = false
-        for layout in [TabLayout.vertical, .horizontal] {
-            state.tabLayout = layout
+        for topTabs in [false, true] {
+            state.browserPreferences.sidebarTopTabs = topTabs ? true : nil
             for _ in 0..<2 {
                 window.toggleFullScreen(nil); await settle()
                 if let background = window.contentView as? WindowBackgroundView {

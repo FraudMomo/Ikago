@@ -1,11 +1,10 @@
 import AppKit
 
 /// Ikago's own full screen. macOS's slides a separate titlebar strip over the top of the window whenever the
-/// menu bar shows, which covers the sidebar's top row and the top bars. Instead the window grows to cover
+/// menu bar shows, which covers the sidebar's top row. Instead the window grows to cover
 /// the display, the Dock and menu bar hide themselves while it is key, and everything starts below the
 /// camera housing, a black band where the menu bar appears. The page goes edge to edge (`state.isImmersive`):
-/// the sidebar slides in from the left edge and the top bars drop in from the top (`TopBarReveal`), with
-/// Ikago's own traffic lights (`FullScreenWindowControls`) in their windowed place.
+/// the sidebar slides in from the left edge, with Ikago's own traffic lights (`FullScreenWindowControls`) in their windowed place.
 extension BrowserWindowController {
     var browserWindow: BrowserWindow? { window as? BrowserWindow }
 

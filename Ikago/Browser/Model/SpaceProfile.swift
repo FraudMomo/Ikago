@@ -38,11 +38,13 @@ struct TabFolder: Codable, Identifiable, Equatable {
     var isOpen = true
     /// Label color (a `FolderTag` name); nil is plain.
     var tag: String? = nil
-    /// Closed in a top layout ("Close Group"): it takes no strip space and its pages unload,
-    /// until reopened. Optional so older sessions restore; the sidebar still lists it.
+    /// Closed by the retired Top Bar's "Close Group": its pages stay unloaded until reopened (Tab ▸ Reopen Closed
+    /// Group). Optional so older sessions restore; the sidebar still lists it.
     var isClosed: Bool? = nil
     /// The group's icon: an SF Symbol name or an emoji. Nil is a folder in the group's color.
     var icon: String? = nil
+    /// The group this one sits inside (nested groups); nil, or a group that no longer exists, is top level.
+    var parentID: String? = nil
 }
 
 /// Colors a folder can be labeled with, like tags.

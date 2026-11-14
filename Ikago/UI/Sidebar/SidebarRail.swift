@@ -8,7 +8,7 @@ struct SidebarRail: View {
     let state: BrowserState
     weak var commands: BrowserCommands?
     @Namespace private var selection
-    @State private var openGroups: Set<String> = []
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Room for the three traffic lights in a column.
     static let lightsHeight: CGFloat = 78
@@ -16,20 +16,30 @@ struct SidebarRail: View {
     var body: some View {
         let colors = state.palette
         VStack(spacing: 8) {
-            Color.clear.frame(height: state.sidebarOnRight && !state.sidebarLightsFollow ? 10 : Self.lightsHeight)
+            // Under the Sidebar + Tabs row the lights stay in that row, beside the tabs.
+            Color.clear.frame(height: state.showsSidebarTopTabs ? 4 : state.sidebarOnRight && !state.sidebarLightsFollow ? 10 : Self.lightsHeight)
             if !state.pinnedTabs.isEmpty {
                 VStack(spacing: 6) {
                     ForEach(state.pinnedTabs) { tab in tabTile(tab, colors: colors, essential: true) }
                 }
             }
-            tile(symbol: "plus", label: "New Tab", colors: colors) { commands?.newTab() }
-            Capsule().fill(colors.separator).frame(width: 20, height: 1)
+            // Sidebar + Tabs: loose tabs and the + live in the tab row; the rail keeps pins and groups.
+            if !state.showsSidebarTopTabs {
+                tile(symbol: "plus", label: "New Tab", colors: colors) { commands?.newTab() }
+            }
+            if !state.pinnedTabs.isEmpty || !state.showsSidebarTopTabs {
+                Capsule().fill(colors.separator).frame(width: 20, height: 1)
+            }
             SidebarScrollView {
                 VStack(spacing: 4) {
-                    ForEach(state.spaceFolders) { folder in group(folder, colors: colors) }
-                    ForEach(state.looseTabs) { tab in tabTile(tab, colors: colors) }
+                    ForEach(state.childFolders(of: nil)) { folder in group(folder, colors: colors) }
+                    if !state.showsSidebarTopTabs {
+                        ForEach(state.looseTabs) { tab in tabTile(tab, colors: colors) }
+                    }
                 }
                 .padding(.vertical, 2)
+                // The rows live in the scroll view's own host: an animation set out here never reaches them.
+                .animation(reduceMotion ? nil : .ikagoQuick, value: state.childFolders(of: nil).map(\.id))
             }
             .frame(maxHeight: .infinity)
             if state.spaces.count > 1 { spaces(colors) }
@@ -42,68 +52,83 @@ struct SidebarRail: View {
         .background(WindowDragArea())
         .ignoresSafeArea(.container, edges: .top)
         .animation(.ikagoQuick, value: state.activeTabID)
-        .animation(.ikago, value: openGroups)
     }
 
     // MARK: Groups
 
     @ViewBuilder private func group(_ folder: TabFolder, colors: Palette) -> some View {
-        let tabs = state.tabs(in: folder)
-        let open = openGroups.contains(folder.id)
+        let tabs = state.tabs(inSubtree: folder)
+        let open = folder.isOpen
         let tint = folder.tagValue?.color ?? colors.secondary
-        VStack(spacing: 4) {
-            Button {
-                if open { openGroups.remove(folder.id) } else { openGroups.insert(folder.id) }
-            } label: {
+        VStack(spacing: 0) {
+            // The same open state as the full sidebar's group, so switching between them keeps it.
+            Button { state.toggleFolder(folder.id) } label: {
                 FolderIcon(folder: folder, colors: colors, size: 15)
+                .opacity(TabListView.isSleeping(tabs, activeID: state.activeTabID) && !open ? 0.45 : 1)
                 .frame(width: 36, height: 36)
                 .background {
                     // An active tab hidden in a closed group still shows where it is.
                     if !open, tabs.contains(where: { $0.id == state.activeTabID }) {
-                        RoundedRectangle(cornerRadius: 10, style: .continuous).fill(colors.selected)
+                        RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(colors.selected)
                             .matchedGeometryEffect(id: "rail-active", in: selection)
                     }
                 }
                 .overlay(alignment: .bottomTrailing) {
-                    Text("\(tabs.count)")
-                        .font(.system(size: 8, weight: .semibold).monospacedDigit())
-                        .foregroundStyle(colors.secondary)
-                        .padding(3)
+                    // How many tabs it holds, as a small badge that never covers the icon (Settings ▸ Show tab counts).
+                    if state.showsGroupTabCounts { badge(tabs.count, colors: colors, open: open) }
                 }
-                .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
             }
             .buttonStyle(RailButtonStyle(colors: colors))
-            if open {
+            .help("\(folder.name) · \(tabs.count) \(tabs.count == 1 ? "tab" : "tabs")")
+            // Opens and closes like the full sidebar's groups: the rows' measured height grows on the same spring and
+            // the clip reveals them, so the tiles below move with it.
+            RailDisclosure(isOpen: open) {
                 VStack(spacing: 4) {
                     ForEach(tabs) { tab in tabTile(tab, colors: colors) }
                 }
-                .padding(.vertical, 3)
-                .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(tint.opacity(0.12)))
-                .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
+                .padding(.top, 4).padding(.bottom, 3)
             }
         }
+        // The open group's tint sits behind the tile and its tabs; it never takes clicks (it used to cover the tile, so
+        // a group opened but couldn't be closed).
+        .background(RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(tint.opacity(0.12))
+            .opacity(open ? 1 : 0).allowsHitTesting(false))
+        .animation(reduceMotion ? nil : .groupDisclosure, value: open)
+    }
+
+    private func badge(_ count: Int, colors: Palette, open: Bool) -> some View {
+        Text("\(count)")
+            .font(.system(size: 8.5, weight: .bold).monospacedDigit())
+            .foregroundStyle(colors.secondary)
+            .padding(.horizontal, 3.5).frame(minWidth: 13, minHeight: 13)
+            .background(Capsule().fill(colors.text.opacity(0.08)))
+            .offset(x: 1, y: 1)
+            .opacity(open ? 0 : 1)
     }
 
     // MARK: Tiles
 
     private func tabTile(_ tab: TabItem, colors: Palette, essential: Bool = false) -> some View {
         let active = tab.id == state.activeTabID
-        return Button { if NSEvent.modifierFlags.contains(.shift) { commands?.peekTab(tab.id) } else { state.select(tab.id) } } label: {
+        return Button { if NSEvent.modifierFlags.contains(.option) { commands?.peekTab(tab.id) } else { state.select(tab.id) } } label: {
             FaviconView(tab: tab, size: essential ? 18 : 16)
                 .opacity(tab.isUnloaded && !active ? 0.55 : 1)
                 .frame(width: 36, height: 36)
                 .background {
-                    if essential {
-                        RoundedRectangle(cornerRadius: 10, style: .continuous).fill(colors.text.opacity(0.06))
+                    if essential && !colors.glass {
+                        RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(colors.text.opacity(0.06))
                     }
                 }
+                // Essentials are glass tiles with Liquid Glass on, like the sidebar's pinned grid.
+                .glassControl(RoundedRectangle(cornerRadius: Radius.row, style: .continuous), colors, active: essential)
                 .background {
                     if active {
-                        RoundedRectangle(cornerRadius: 10, style: .continuous).fill(colors.selected)
+                        RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(colors.selected)
                             .matchedGeometryEffect(id: "rail-active", in: selection)
                     }
                 }
-                .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
         }
         .buttonStyle(RailButtonStyle(colors: colors))
         .overlay(alignment: .bottomTrailing) {
@@ -138,7 +163,8 @@ struct SidebarRail: View {
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(colors.secondary)
                 .frame(width: 36, height: 32)
-                .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
+                .glassControl(RoundedRectangle(cornerRadius: Radius.row, style: .continuous), colors)
         }
         .buttonStyle(RailButtonStyle(colors: colors))
         .help(label)
@@ -153,9 +179,58 @@ private struct RailButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .background(RoundedRectangle(cornerRadius: Radius.row, style: .continuous)
                 .fill(colors.text.opacity(configuration.isPressed ? 0.12 : hovering ? 0.06 : 0)))
             .sidebarHover($hovering)
             .animation(.easeOut(duration: hovering ? 0.1 : 0.2), value: hovering)
+    }
+}
+
+/// A rail group's tiles, opened and closed like the full sidebar's rows (`SidebarFolderSection`): mounted shut first so
+/// their height is known, then only the frame's height animates on `Animation.groupDisclosure` while the clip reveals them.
+private struct RailDisclosure<Content: View>: View {
+    let isOpen: Bool
+    @ViewBuilder let content: Content
+    @State private var open: Bool?
+    @State private var mounted = false
+    @State private var height: CGFloat?
+    @State private var closing: DispatchWorkItem?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        let shown = open ?? isOpen
+        Group {
+            if mounted || shown {
+                content
+                    .fixedSize(horizontal: false, vertical: true)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
+                    .frame(height: shown ? height : 0, alignment: .top)
+                    .clipped()
+                    .opacity(shown ? 1 : 0)
+            }
+        }
+        .onAppear { if open == nil { open = isOpen; mounted = isOpen } }
+        .onChange(of: isOpen) { _, now in set(now) }
+    }
+
+    private func set(_ now: Bool) {
+        closing?.cancel()
+        let animation: Animation? = reduceMotion ? nil : .groupDisclosure
+        if now {
+            if !mounted {
+                mounted = true
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) { open = false }
+                DispatchQueue.main.async { withAnimation(animation) { open = true } }
+            } else {
+                withAnimation(animation) { open = true }
+            }
+        } else {
+            withAnimation(animation) { open = false }
+            let work = DispatchWorkItem { mounted = false }
+            closing = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + (reduceMotion ? 0 : Animation.groupDisclosureDuration * 1.6), execute: work)
+        }
     }
 }

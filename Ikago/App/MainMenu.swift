@@ -17,6 +17,7 @@ enum MainMenu {
         }
         main.addSubmenu("File") {
             $0.item("New Tab", #selector(BrowserWindowController.newTab(_:)), "t")
+            $0.item("New Window", #selector(BrowserWindowController.newWindow(_:)), "n")
             $0.item("New Space…", #selector(BrowserWindowController.newSpaceAction(_:)), "n", [.command, .shift])
             $0.item("New Private Window", #selector(BrowserWindowController.newPrivateWindow(_:)), "n", [.command, .option])
             $0.item("Open Location…", #selector(BrowserWindowController.openLocation(_:)), "l")
@@ -58,11 +59,6 @@ enum MainMenu {
             $0.item("Rotate Split", #selector(BrowserWindowController.toggleSplitOrientation(_:)), "d", [.command, .option])
             $0.item("Close Split View", #selector(BrowserWindowController.unsplitView(_:)))
             $0.separator()
-            $0.addSubmenu("Tab Layout") { menu in
-                for (index, layout) in TabLayout.allCases.enumerated() {
-                    menu.item(layout.name, #selector(BrowserWindowController.selectLayout(_:))).tag = index
-                }
-            }
             $0.addSubmenu("Appearance") { menu in
                 for (index, mode) in ColorMode.allCases.enumerated() {
                     menu.item(mode.name, #selector(BrowserWindowController.selectColorMode(_:))).tag = index
@@ -79,6 +75,7 @@ enum MainMenu {
             $0.item("Forward", #selector(BrowserWindowController.navigateForward(_:)), "]")
             $0.separator()
             $0.item("Show All History", #selector(BrowserWindowController.showHistory(_:)), "y")
+            $0.item("Clear Browsing Data…", #selector(BrowserWindowController.clearBrowsingHistory(_:)), "\u{8}", [.command, .shift])
             $0.item("Downloads", #selector(BrowserWindowController.showDownloads(_:)), "j", [.command, .shift])
             $0.item("Notes", #selector(BrowserWindowController.showNotes(_:)), "j", [.command, .option])
         }
@@ -102,6 +99,7 @@ enum MainMenu {
             $0.separator()
             $0.item("Pin Tab", #selector(BrowserWindowController.togglePinTab(_:)))
             $0.item("Mute Tab", #selector(BrowserWindowController.toggleMuteTab(_:)), "m", [.command, .control])
+            $0.item("Move Tab to New Window", #selector(BrowserWindowController.moveTabToNewWindow(_:)))
             $0.separator()
             for n in 1...9 {
                 $0.item(n == 9 ? "Last Tab" : "Tab \(n)", #selector(BrowserWindowController.selectTabByNumber(_:)), "\(n)").tag = n
@@ -127,6 +125,10 @@ enum ShortcutRouter {
         guard flags.contains(.command) || flags.contains(.control) else { return false }
         let key = event.charactersIgnoringModifiers?.lowercased() ?? ""
         if flags.subtracting([.capsLock, .numericPad, .function]) == .command, pageKeys.contains(key) { return false }
+        // The address field's scopes (⌘1–⌘4) win over Select Tab while it has the keyboard.
+        if flags.subtracting([.capsLock, .numericPad, .function]) == .command, let digit = Int(key),
+           let field = (NSApp.keyWindow?.firstResponder as? NSTextView)?.delegate as? FocusingTextField,
+           field.onCommandDigit?(digit) == true { return true }
         return NSApp.mainMenu?.performKeyEquivalent(with: event) ?? false
     }
 }

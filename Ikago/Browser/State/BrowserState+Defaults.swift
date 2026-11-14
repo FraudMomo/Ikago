@@ -12,7 +12,6 @@ extension BrowserState {
     }
 
     func applyNewProfileDefaults() {
-        tabLayout = .vertical
         sidebarVisible = true
         frameInset = 2
         sidebarGap = 3

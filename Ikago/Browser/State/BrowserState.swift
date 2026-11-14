@@ -10,7 +10,6 @@ final class BrowserState {
     /// `tabs` by ID (the first tab with each ID, like a linear search), rebuilt whenever `tabs` changes.
     @ObservationIgnored private var tabsByID: [String: TabItem] = [:]
     var themeEditingSpaceID: UUID?
-    var barCondensed = false
     var activeTabID: String?
     var closed: [SavedTab] = []
     var history: [Visit] = [] { didSet { knownSitesGeneration &+= 1 } }
@@ -26,7 +25,6 @@ final class BrowserState {
             scheduleSave()
         }
     }
-    var tabLayout: TabLayout = .vertical { didSet { scheduleSave() } }
     var colorMode: ColorMode = .system { didSet { scheduleSave() } }
     /// macOS's own appearance, kept current by the window controller.
     var systemIsDark = false
@@ -39,23 +37,12 @@ final class BrowserState {
     /// Space between the sidebar and the page (the resize handle lives in it).
     var sidebarGap: Double = BrowserState.defaultSidebarGap { didSet { scheduleSave() } }
     static let defaultSidebarGap: Double = 6
-    /// Top Bar layout: island height and outline width (Settings ▸ Appearance).
-    var barHeight: Double = BrowserState.defaultBarHeight { didSet { scheduleSave() } }
-    var barBorder: Double = 0 { didSet { scheduleSave() } }
-    static let defaultBarHeight: Double = 28
-    /// Space between the island's title row and the page (Top Bar layout).
-    var barGap: Double = BrowserState.defaultBarGap { didSet { scheduleSave() } }
-    static let defaultBarGap: Double = 6
-    /// Top bar is a rounded panel like the page, instead of tinting the whole window frame.
-    var barRounded = false { didSet { scheduleSave() } }
     static let defaultSidebarWidth: Double = 260
     var searchShowsHistory = true { didSet { scheduleSave() } }
     var addressStyle: AddressStyle = .integrated { didSet { scheduleSave() } }
-    /// Top bar takes the page's theme color (Settings ▸ Appearance).
-    var tintBarWithPage = true { didSet { scheduleSave() } }
     /// Inspect Element and ⌥⌘I.
     var developerTools = true { didSet { scheduleSave() } }
-    /// Which controls the top bar and sidebar show, in order (Settings ▸ Customize).
+    /// Which controls the sidebar shows, in order (Settings ▸ Customize).
     var chromeLayout = ChromeLayout() { didSet { scheduleSave() } }
     var newTabMode: NewTabMode = .commandBar { didSet { scheduleSave() } }
     var focusAddressBarOnNewTab = false { didSet { scheduleSave() } }
@@ -64,7 +51,7 @@ final class BrowserState {
     var newTabExtensionID: String? { didSet { scheduleSave() } }
     var searchEngine: SearchEngine = .duckduckgo { didSet { scheduleSave() } }
     var sidebarVisible = true { didSet { scheduleSave() } }
-    /// Full screen: the page goes edge to edge and the sidebar or top bars slide in from their edge on demand.
+    /// Full screen: the page goes edge to edge and the sidebar slides in from its edge on demand.
     /// Not saved; the window sets it.
     var isImmersive = false
     /// Full screen: how far revealed bars start below the top, so the menu bar never covers them.
@@ -87,7 +74,20 @@ final class BrowserState {
     /// A new profile shows the welcome page once its window opens.
     @ObservationIgnored var pendingWelcome = false
     var settingsCategory: SettingsCategory = .general
+    /// The sub-page shown in each Settings category (`SettingsSubpage`), for this window's session.
+    var settingsSubpage: [SettingsCategory: String] = [:]
+    /// A Settings section to scroll to and outline once Settings shows it (the address field's setting actions).
+    var pendingSettingsSection: String?
     @ObservationIgnored let importer = BrowserImportModel()
+    /// Another regular window's state: the first window's (`primary`) saves the session, this one's tabs included, and
+    /// both share Spaces, settings, history and bookmarks (`BrowserState+Windows`). Nil for the first window.
+    @ObservationIgnored weak var primary: BrowserState?
+    /// On the first window's state: the other regular windows' states, saved in `Session.windows`.
+    @ObservationIgnored var windowStates: [BrowserState] = []
+    /// The window's frame on screen, saved for windows after the first (the first uses AppKit's autosave).
+    @ObservationIgnored var windowFrame: CGRect?
+    /// Windows a restored session had beyond the first; the app opens them after the first window.
+    @ObservationIgnored var pendingWindows: [WindowSession] = []
 
     @ObservationIgnored let store: SessionStore
     /// The session last handed to the store, so an unchanged scheduled save is skipped.
@@ -161,6 +161,10 @@ final class BrowserState {
         let folder = folderID.flatMap { id in folders.first { $0.id == id && $0.spaceID == spaceID }?.id }
         let tab = TabItem(url: url, spaceID: spaceID, folderID: folder)
         tab.shouldStartInBackground = browserPreferences.loadBackgroundTabs ?? true
+        // Tabs across the top: placing beside a pinned tab would put the new one at the row's far left (pins come
+        // first in `tabs`), so it opens on the right like any new tab.
+        let besidePin = usesTabsLayout && [target, anchor].contains { id in id.flatMap { self.tab($0) }?.pinned == true }
+        let target = besidePin ? nil : target, anchor = besidePin ? nil : anchor
         if let target, let index = tabs.firstIndex(where: { $0.id == target && $0.spaceID == spaceID }) {
             tabs.insert(tab, at: index)
         } else if let anchor, let index = tabs.firstIndex(where: { $0.id == anchor && $0.spaceID == spaceID }) {
@@ -170,7 +174,12 @@ final class BrowserState {
             let index = effectiveNewTabPosition == .top ? matching.first : matching.last.map { $0 + 1 }
             tabs.insert(tab, at: index ?? tabs.endIndex)
         }
-        if select { self.select(tab.id) }
+        if select {
+            // Chrome remembers the tab you were on as a new tab's opener: closing it straight away goes back there.
+            let previous = activeTabID.flatMap { self.tab($0) }.flatMap { $0.spaceID == spaceID ? $0.id : nil }
+            self.select(tab.id)
+            tab.openerID = previous
+        }
         scheduleSave()
         return tab
     }
@@ -197,11 +206,23 @@ final class BrowserState {
         }
         guard tabs.count < Session.maxTabs else { return }
         closed.removeFirst()
-        // Fresh identity, preserved page and pin state (legacy behaviour).
-        let tab = TabItem(url: InternalPage(url: last.url)?.url ?? last.url, title: last.title, pinned: last.pinned, spaceID: activeSpaceID)
+        // Like Chrome: back in its Space, its group and its place, selected. A fresh identity; the page and pin state are kept.
+        let space = last.space.flatMap(UUID.init(uuidString:)).flatMap { id in spaces.first { $0.id == id }?.id } ?? activeSpaceID
+        let folder = last.folder.flatMap { id in folders.first { $0.id == id && $0.spaceID == space }?.id }
+        let tab = TabItem(url: InternalPage(url: last.url)?.url ?? last.url, title: last.title, pinned: last.pinned, spaceID: space,
+                          folderID: last.pinned ? nil : folder)
         tab.faviconURL = last.favicon.flatMap(URL.init(string:))
-        tabs.append(tab)
-        activeTabID = tab.id
+        tab.history = last.history
+        tab.pinAsRow = last.pinAsRow ?? false
+        if let anchor = last.after, let index = tabs.firstIndex(where: { $0.id == anchor && $0.spaceID == space }) {
+            tabs.insert(tab, at: index + 1)
+        } else if last.after == nil, let index = tabs.firstIndex(where: { $0.spaceID == space }) {
+            tabs.insert(tab, at: index)  // it was its Space's first tab
+        } else {
+            tabs.append(tab)  // its neighbour has closed too
+        }
+        tabs = tabs.filter(\.pinned) + tabs.filter { !$0.pinned }
+        select(tab.id)
         scheduleSave()
     }
 

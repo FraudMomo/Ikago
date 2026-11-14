@@ -16,23 +16,23 @@ extension BrowserWindowController: BrowserCommands, NSMenuItemValidation {
 
     var downloadsPresented: Bool { chrome.showDownloads }
     func toggleDownloads() {
-        chrome.showTabOverview = false
         withAnimation(.ikagoQuick) { chrome.showDownloads.toggle() }
     }
     func toggleSidebar() {
         chrome.showDownloads = false
         chrome.peeking = false
-        if state.tabLayout.usesTopTabs {
-            withAnimation(.ikago) { chrome.showTabOverview.toggle() }
-        } else {
-            withAnimation(.ikago) { state.sidebarVisible.toggle() }
-        }
+        withAnimation(.ikago) { state.sidebarVisible.toggle() }
     }
 
     func closeTab(_ id: String) {
         if findPanel(isFor: id) { closeFindBar() }
         state.closeTab(id)
         if state.tab(id)?.pinned == true { content.controller(for: id)?.hibernate() }
+        // As in Chrome, a window closes with its last tab while another window is open (the first window then takes
+        // over another one's tabs, `BrowserWindows.handOver`).
+        if state.tabs.isEmpty, state.primary != nil || (BrowserWindows.primary === self && !BrowserWindows.others.isEmpty) {
+            window?.performClose(nil)
+        }
     }
 
     func unloadTab(_ id: String) {
@@ -40,16 +40,11 @@ extension BrowserWindowController: BrowserCommands, NSMenuItemValidation {
         content.controller(for: released)?.hibernate()
     }
 
-    /// Top layouts: the group leaves the strip and its pages unload; it stays reopenable.
-    func closeGroup(_ id: String) {
-        for member in state.closeFolder(id) { content.controller(for: member)?.hibernate() }
-    }
-
     func unloadGroup(_ id: String) {
         for member in state.unloadFolder(id) { content.controller(for: member)?.hibernate() }
     }
 
-    /// Tab ▸ Reopen Closed Group, and the new-tab button's menu.
+    /// Tab ▸ Reopen Closed Group.
     @objc func reopenGroup(_ sender: NSMenuItem) {
         guard let id = sender.representedObject as? String else { return }
         state.reopenFolder(id)
@@ -79,7 +74,6 @@ extension BrowserWindowController: BrowserCommands, NSMenuItemValidation {
     func openBookmark(_ bookmark: Bookmark, forceNewTab: Bool = false) {
         dismissCommandPalette()
         chrome.showDownloads = false
-        chrome.showTabOverview = false
         withAnimation(.ikago) { _ = state.openBookmark(bookmark, forceNewTab: forceNewTab) }
         window?.makeKeyAndOrderFront(nil)
     }
@@ -159,11 +153,13 @@ extension BrowserWindowController: BrowserCommands, NSMenuItemValidation {
     @objc func navigateForward(_ sender: Any?) { goForward() }
     @objc func toggleIkagoSidebar(_ sender: Any?) { toggleSidebar() }
     func cycleSidebar() {
-        guard state.tabLayout == .vertical else { return toggleSidebar() }
         chrome.showDownloads = false
         chrome.peeking = false
         withAnimation(.ikago) {
-            if !state.sidebarVisible {
+            // Sidebar + Tabs has no full sidebar: the button shows and hides the rail.
+            if state.usesTabsLayout {
+                state.sidebarVisible.toggle()
+            } else if !state.sidebarVisible {
                 state.browserPreferences.sidebarCompact = nil
                 state.sidebarVisible = true
             } else if state.showsSidebarRail {
@@ -176,9 +172,9 @@ extension BrowserWindowController: BrowserCommands, NSMenuItemValidation {
 
     /// Sidebar layout: the full sidebar or its rail of icons. A hidden sidebar comes back in the chosen form.
     @objc func toggleCompactSidebar(_ sender: Any?) {
-        guard state.tabLayout == .vertical else { return }
         chrome.peeking = false
         let compact = state.showsSidebarRail
+        if state.usesTabsLayout { return toggleSidebar() }
         withAnimation(.ikago) {
             state.browserPreferences.sidebarCompact = compact ? nil : true
             state.sidebarVisible = true
@@ -202,8 +198,8 @@ extension BrowserWindowController: BrowserCommands, NSMenuItemValidation {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(url, forType: .string)
     }
-    @objc func zoomInPage(_ sender: Any?) { adjustZoom(+0.5) }
-    @objc func zoomOutPage(_ sender: Any?) { adjustZoom(-0.5) }
+    @objc func zoomInPage(_ sender: Any?) { adjustZoom(+1) }
+    @objc func zoomOutPage(_ sender: Any?) { adjustZoom(-1) }
     @objc func resetPageZoom(_ sender: Any?) { activeController?.page?.zoomLevel = 0 }
     @objc func showDownloads(_ sender: Any?) { toggleDownloads() }
     @objc func toggleDevTools(_ sender: Any?) {
@@ -215,16 +211,14 @@ extension BrowserWindowController: BrowserCommands, NSMenuItemValidation {
     @objc func showHistory(_ sender: Any?) { openPage(.history) }
     @objc func showNotes(_ sender: Any?) { openPage(.notes) }
     @objc func showIkagoSettings(_ sender: Any?) { showSettings() }
-    @objc func selectLayout(_ sender: NSMenuItem) {
-        if let layout = TabLayout.allCases[safe: sender.tag] { withAnimation(.ikago) { state.tabLayout = layout } }
-    }
     @objc func selectColorMode(_ sender: NSMenuItem) {
         if let mode = ColorMode.allCases[safe: sender.tag] { withAnimation(.ikago) { state.colorMode = mode } }
     }
 
-    private func adjustZoom(_ delta: Double) {
+    /// One 10 % step (`PageZoom`).
+    private func adjustZoom(_ direction: Int) {
         guard let page = activeController?.page else { return }
-        page.zoomLevel = min(5, max(-5, page.zoomLevel + delta))
+        page.zoomPercent = PageZoom.stepped(page.zoomPercent, by: direction)
     }
 
     // MARK: Validation
@@ -247,13 +241,14 @@ extension BrowserWindowController: BrowserCommands, NSMenuItemValidation {
         case #selector(stopLoadingPage(_:)): return tab?.isLoading == true
         case #selector(navigateForward(_:)): return tab?.canGoForward == true
         case #selector(reopenClosedTab(_:)): return !state.closed.isEmpty
+        case #selector(moveTabToNewWindow(_:)): return state.activeTabID.map { BrowserWindows.canMoveOut($0, from: self) } == true
         case #selector(unsplitView(_:)), #selector(toggleSplitOrientation(_:)): return state.visibleTabIDs.count > 1
         case #selector(splitView(_:)): return tab != nil && state.visibleTabIDs.count < 4
         case #selector(toggleCompactSidebar(_:)):
             item.title = state.showsSidebarRail ? "Expand Sidebar" : "Compact Sidebar"
-            return state.tabLayout == .vertical
+            return !state.usesTabsLayout
         case #selector(toggleIkagoSidebar(_:)):
-            item.title = state.tabLayout.usesTopTabs ? (chrome.showTabOverview ? "Hide Tab Sidebar" : "Show Tab Sidebar") : (state.sidebarVisible ? "Hide Sidebar" : "Show Sidebar")
+            item.title = state.sidebarVisible ? "Hide Sidebar" : "Show Sidebar"
             return true
         case #selector(togglePinTab(_:)):
             item.title = tab?.pinned == true ? "Unpin Tab" : "Pin Tab"
@@ -264,9 +259,6 @@ extension BrowserWindowController: BrowserCommands, NSMenuItemValidation {
         case #selector(toggleDevTools(_:)):
             item.state = activeController?.page?.isInspectorVisible == true ? .on : .off
             return state.developerTools && activeController?.page != nil
-        case #selector(selectLayout(_:)):
-            item.state = TabLayout.allCases[safe: item.tag] == state.tabLayout ? .on : .off
-            return true
         case #selector(selectColorMode(_:)):
             item.state = ColorMode.allCases[safe: item.tag] == state.colorMode ? .on : .off
             return true

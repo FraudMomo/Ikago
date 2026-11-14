@@ -9,14 +9,12 @@ protocol BrowserCommands: AnyObject {
     func showCommandPalette(newTab: Bool)
     func newTab()
     func toggleSidebar()
-    /// The sidebar button: Full → Icons → Hidden → Full (top layouts: the tab sidebar).
+    /// The sidebar button: Full → Icons → Hidden → Full.
     func cycleSidebar()
     func toggleDownloads()
     var downloadsPresented: Bool { get }
     func closeTab(_ id: String)
     func unloadTab(_ id: String)
-    /// Closes a tab group in a top layout: no strip space, pages unloaded, reopenable.
-    func closeGroup(_ id: String)
     func unloadGroup(_ id: String)
     func toggleMute(_ id: String)
     func pictureInPicture(_ id: String)
@@ -31,6 +29,8 @@ protocol BrowserCommands: AnyObject {
     func showTabHover(_ id: String, anchor: CGRect)
     func hideTabHover(_ id: String)
     var peekContent: NSView? { get }
+    /// The page shown in the Shift-click preview.
+    var peekTab: TabItem? { get }
     func peekLink(_ url: String)
     func focusPeek()
     func closePeek()
@@ -39,6 +39,16 @@ protocol BrowserCommands: AnyObject {
     func previewImage(_ id: String) async -> NSImage?
     func performanceTabs() -> [TabPerformanceEntry]
     func openInPrivateWindow(_ url: String)
+    /// Clear Browsing Data (`ClearDataSheet`).
+    func showClearData()
+    /// The tab, with its page, in a new window (`BrowserWindows`).
+    func moveToNewWindow(_ id: String)
+    /// The selected tabs when `id` is one of several (`TabClick`), else just `id`; and what their menu does with them.
+    func tabSelection(including id: String) -> [String]
+    func moveTabsToNewWindow(_ ids: [String])
+    func closeTabs(_ ids: [String])
+    func moveTabs(_ ids: [String], toFolder folderID: String?)
+    func newFolder(withTabs ids: [String])
     func openInNewTab(_ url: String)
     func openDroppedFiles(_ urls: [URL])
     func openBookmark(_ bookmark: Bookmark, forceNewTab: Bool)

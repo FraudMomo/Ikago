@@ -3,8 +3,6 @@ import Foundation
 struct BrowserPreferences: Codable, Equatable {
     var sidebarOnRight: Bool? = nil
     var sidebarLightsFollow: Bool? = nil
-    var barAtBottom: Bool? = nil
-    var collapseBarOnScroll: Bool? = nil
     var pageIntelligence: Bool? = nil
     var assistantToolbarInitialized: Bool? = nil
     var browserEngine: String? = nil
@@ -24,6 +22,24 @@ struct BrowserPreferences: Codable, Equatable {
     var translucentSidebar: Bool? = nil
     /// The shown sidebar is a rail of icons (`SidebarRail`) instead of the full list. Unset: full.
     var sidebarCompact: Bool? = nil
+    /// Sidebar groups as tinted cards or as a plain folder tree (`SidebarGroupStyle`). Unset: cards.
+    var sidebarGroupStyle: SidebarGroupStyle? = nil
+    /// The Sidebar layout shows ungrouped tabs as tabs above the page instead of sidebar rows. Unset: off.
+    var sidebarTopTabs: Bool? = nil
+    /// A Space header and rows for the assistant, bookmarks and history at the top of the sidebar. Unset: off.
+    var sidebarShortcuts: Bool? = nil
+    /// The small card shown after resting on a tab, and whether it carries a page thumbnail. Unset: both on.
+    var tabHoverPreviews: Bool? = nil
+    var tabPreviewThumbnails: Bool? = nil
+    /// When links open in Peek (`LinkPeek`). Unset: Shift-click only.
+    var linkPeek: LinkPeek? = nil
+    /// With Automatic: links to other sites from pinned tabs (unset: on), from search results (unset: on), and every
+    /// link that would open a new tab (unset: off).
+    var peekPinnedLinks: Bool? = nil
+    var peekSearchResults: Bool? = nil
+    var peekNewTabLinks: Bool? = nil
+    /// Each site's camera and microphone choice (`SitePermissions`), by host. Unset: ask.
+    var sitePermissions: [String: SitePermissions]? = nil
     /// Full screen uses the whole display, around the camera housing, instead of starting below it. Unset: off.
     var fullScreenUnderNotch: Bool? = nil
     /// On by default. Sessions from before that default get it once (`httpsDefaultApplied`), after which
@@ -62,16 +78,8 @@ struct BrowserPreferences: Codable, Equatable {
     var tabHighlightStyle: String? = nil
     var groupLabelStyle: String? = nil
     var showGroupTabCounts: Bool? = nil
-    var showTopBarEssentials: Bool? = nil
-    var showTopBarPins: Bool? = nil
     var showBookmarksBar: Bool? = nil
     var sidebarBookmarksExpanded: Bool? = nil
-    var topTabStyle: String? = nil
-    var topBarShowPageColor: Bool? = nil
-    var topBarAlwaysShowTabBar: Bool? = nil
-    /// Top Bar toolbar (Separate) or single tab row (Compact) height, and the Separate tab bar's.
-    var topToolbarHeight: Double? = nil
-    var topTabBarHeight: Double? = nil
     var newTabPosition: String? = nil
     var linkTabPosition: String? = nil
 
