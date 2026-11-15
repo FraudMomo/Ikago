@@ -33,7 +33,7 @@ extension SettingsCategory {
         case .search:
             return [page("Search & Address", "Search & Address Bar"), page("Suggestions", "Suggestions")]
         case .extensions:
-            return [page("Installed", "Extensions", "Installed"), page("Get & Update", "Add Extensions", "Extension Updates")]
+            return [page("Installed", "Extensions", "Installed", "Safari Extensions"), page("Get & Update", "Add Extensions", "Extension Updates")]
         case .security:
             return [page("Protection", "Status", "Secure Connections", "Website Safety", "Tracking Protection"),
                     page("Permissions", "Downloads", "Notifications"),

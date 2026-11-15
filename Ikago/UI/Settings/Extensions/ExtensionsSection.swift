@@ -4,10 +4,9 @@ import UniformTypeIdentifiers
 import WebKit
 
 /// Settings page section: installed extensions, enable/disable, options, removal, and
-/// installing from the Chrome Web Store, a file or folder, or a Safari extension.
+/// installing from the Chrome Web Store or a file or folder. Safari extensions are in `SafariExtensionsSection`.
 struct ExtensionsSection: View {
     weak var commands: BrowserCommands?
-    @State private var foundSafariExtensions: [URL] = []
     private var manager: ExtensionManager { .shared }
 
     var body: some View {
@@ -32,18 +31,12 @@ struct ExtensionsSection: View {
                 Button("Review Updates") { Task { await manager.checkForUpdates(force: true, reviewPermissions: true) } }
             }.disabled(manager.checkingUpdates).padding(.vertical, 14)
             PageDivider()
-            if manager.records.isEmpty {
+            if webRecords.isEmpty {
                 PageRow(title: "No extensions yet", subtitle: "Open one in the Chrome Web Store and click “Add to Ikago”.") { EmptyView() }
                 PageDivider()
             }
-            ForEach(manager.records) { record in
+            ForEach(webRecords) { record in
                 ExtensionRow(record: record, context: manager.contexts[record.id], commands: commands)
-                PageDivider()
-            }
-            ForEach(safariExtensions, id: \.self) { appex in
-                PageRow(title: appName(appex), subtitle: "Safari extension on this Mac") {
-                    Button("Add") { commands?.installSafariExtension(at: appex) }
-                }
                 PageDivider()
             }
             HStack(spacing: 10) {
@@ -53,19 +46,10 @@ struct ExtensionsSection: View {
             }
             .padding(.vertical, 14)
         }
-        .onAppear { foundSafariExtensions = ExtensionManager.safariExtensionsOnThisMac() }
     }
 
-    /// Scanned when the section appears; ones already added are hidden.
-    private var safariExtensions: [URL] {
-        let added = Set(manager.records.compactMap(\.appexPath))
-        return foundSafariExtensions.filter { !added.contains($0.path) }
-    }
-
-    private func appName(_ appex: URL) -> String {
-        appex.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .deletingPathExtension().lastPathComponent
-    }
+    /// Safari extensions have their own section (`SafariExtensionsSection`).
+    private var webRecords: [ExtensionManager.Record] { manager.records.filter { $0.appexPath == nil } }
 
     private func chooseLocalPackage() {
         let panel = NSOpenPanel()

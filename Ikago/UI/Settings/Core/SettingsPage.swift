@@ -201,7 +201,14 @@ struct SettingsPage: View {
             } else {
                 ExtensionsSection(commands: commands)
             }
-            if BrowserRuntime.runs(.chromium) {
+            // Safari extensions run on WebKit pages, which every launch can open (per-site engines included).
+            if BrowserRuntime.runs(.webkit) { SafariExtensionsSection(commands: commands) }
+            if BrowserRuntime.engine == .chromium {
+                // WebKit's own Web Store extensions, only if any were added before Chromium became the default.
+                if BrowserRuntime.runs(.webkit), ExtensionManager.shared.records.contains(where: { $0.appexPath == nil }) {
+                    ExtensionsSection(commands: commands)
+                }
+            } else if BrowserRuntime.runs(.chromium) {
                 CEFExtensionsSection(state: state, commands: commands)
             }
             if BrowserRuntime.runs(.webkit) { ExtensionUpdatesSection() }

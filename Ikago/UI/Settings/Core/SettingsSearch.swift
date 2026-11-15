@@ -93,6 +93,7 @@ enum SettingsSearch {
 
         .init(title: "Installed extensions", category: .extensions, section: "Extensions", keywords: "add remove web store"),
         .init(title: "Extension updates", category: .extensions, section: "Extension Updates", keywords: "automatic"),
+        .init(title: "Safari extensions", category: .extensions, section: "Safari Extensions", keywords: "app store mac apps webkit"),
 
         .init(title: "Always require HTTPS", category: .security, section: "Secure Connections", keywords: "http insecure"),
         .init(title: "Allow HTTP for these sites", category: .security, section: "Secure Connections", keywords: "localhost exceptions"),
