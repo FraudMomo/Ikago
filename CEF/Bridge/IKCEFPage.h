@@ -50,6 +50,9 @@ NS_SWIFT_UI_ACTOR
 - (void)findText:(NSString *)text forward:(BOOL)forward matchCase:(BOOL)matchCase;
 - (void)clearFind;
 - (void)printPage NS_SWIFT_NAME(printPage());
+/// Writes the whole page as a PDF to `path` (Chromium's own paginated print, with backgrounds). `completion` runs on
+/// the main thread; NO when the page isn't ready or Chromium couldn't write the file.
+- (void)savePDFToPath:(NSString *)path completion:(void (^)(BOOL ok))completion NS_SWIFT_NAME(savePDF(to:completion:));
 /// Leaves element fullscreen, as if the page had asked (Escape, or the window left full screen).
 - (void)exitFullscreen;
 /// Fits the page to its view again after a big, animated size change (full screen): Chromium can keep drawing the

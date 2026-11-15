@@ -79,3 +79,21 @@ extension CEFWebTab {
         return result
     }
 }
+
+// MARK: - Saving
+extension CEFWebTab {
+    /// MHTML from DevTools' snapshot, or the whole page as a PDF from Chromium's own print.
+    func savePage(as format: PageSaveFormat, to url: URL) async throws {
+        switch format {
+        case .archive:
+            let result = try await devTools("Page.captureSnapshot", ["format": "mhtml"], generation: documentGeneration)
+            guard let text = result["data"] as? String, let data = text.data(using: .utf8) else { throw PageSaveError.failed }
+            try data.write(to: url, options: .atomic)
+        case .pdf:
+            let ok: Bool = await withCheckedContinuation { continuation in
+                page.savePDF(to: url.path) { continuation.resume(returning: $0) }
+            }
+            guard ok else { throw PageSaveError.failed }
+        }
+    }
+}

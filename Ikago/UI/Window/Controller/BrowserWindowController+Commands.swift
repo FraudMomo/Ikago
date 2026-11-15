@@ -188,6 +188,11 @@ extension BrowserWindowController: BrowserCommands, NSMenuItemValidation {
     @objc func findNextMatch(_ sender: Any?) { find.search(forward: true, next: true) }
     @objc func findPreviousMatch(_ sender: Any?) { find.search(forward: false, next: true) }
     @objc func printCurrentPage(_ sender: Any?) { activeController?.page?.printPage() }
+    @objc func toggleReader(_ sender: Any?) { activeController?.toggleReader() }
+    @objc func savePageAs(_ sender: Any?) {
+        guard let page = activeController?.page, let tab = state.activeTab else { return }
+        PageSaver.save(page, title: tab.title, in: window)
+    }
     @objc func nextTab(_ sender: Any?) { state.selectAdjacent(1) }
     @objc func previousTab(_ sender: Any?) { state.selectAdjacent(-1) }
     /// Cmd+1…8 select by position, Cmd+9 selects the last tab (Chrome convention).
@@ -267,7 +272,7 @@ extension BrowserWindowController: BrowserCommands, NSMenuItemValidation {
             item.state = ColorMode.allCases[safe: item.tag] == state.colorMode ? .on : .off
             return true
         case #selector(reloadPage(_:)), #selector(hardReloadPage(_:)), #selector(findInPage(_:)),
-             #selector(findNextMatch(_:)), #selector(findPreviousMatch(_:)), #selector(printCurrentPage(_:)),
+             #selector(findNextMatch(_:)), #selector(findPreviousMatch(_:)), #selector(printCurrentPage(_:)), #selector(savePageAs(_:)),
              #selector(copyPageAddress(_:)), #selector(zoomInPage(_:)), #selector(zoomOutPage(_:)),
              #selector(resetPageZoom(_:)):
             return activeController?.isStarted == true

@@ -3,6 +3,20 @@
 #include "include/cef_parser.h"
 #include <os/log.h>
 
+namespace {
+class PDFCallback : public CefPdfPrintCallback {
+ public:
+  explicit PDFCallback(void (^completion)(BOOL)) : completion_([completion copy]) {}
+  void OnPdfPrintFinished(const CefString&, bool ok) override {
+    void (^completion)(BOOL) = completion_;
+    dispatch_async(dispatch_get_main_queue(), ^{ completion(ok); });
+  }
+ private:
+  void (^completion_)(BOOL);
+  IMPLEMENT_REFCOUNTING(PDFCallback);
+};
+}
+
 @implementation IKCEFPage
 @synthesize topInset = _topInset;
 - (void)setTopInset:(CGFloat)inset {
@@ -132,6 +146,13 @@
   if (self.ready) _browser->GetHost()->StopFinding(true);
 }
 - (void)printPage { if (self.ready) _browser->GetHost()->Print(); }
+- (void)savePDFToPath:(NSString *)path completion:(void (^)(BOOL))completion {
+  if (!self.ready) return completion(NO);
+  CefPdfPrintSettings settings;
+  settings.print_background = true;
+  settings.generate_tagged_pdf = true;
+  _browser->GetHost()->PrintToPDF(path.UTF8String, settings, new PDFCallback(completion));
+}
 - (void)exitFullscreen { if (self.ready) _browser->GetHost()->ExitFullscreen(true); }
 - (void)refitPage {
   if (!self.ready) return;

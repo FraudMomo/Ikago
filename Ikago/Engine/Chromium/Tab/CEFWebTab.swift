@@ -208,6 +208,7 @@ final class CEFWebTab: WebTab {
             else if action == "search" { delegate?.webTab(self, perform: .search(text)) }
             else if action == "video" { delegate?.webTab(self, perform: .pictureInPicture(text)) }
             else if action == "translate" { delegate?.webTab(self, perform: .translate) }
+            else if action == "save" { delegate?.webTab(self, perform: .savePage) }
         case "title": delegate?.webTab(self, didChangeTitle: text)
         case "status": delegate?.webTab(self, didHoverLink: text.isEmpty ? nil : text)
         case "fullscreen":

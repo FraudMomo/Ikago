@@ -17,7 +17,8 @@ extension FileDropWebView {
                 item.title = "Search in Ikago"
             }
         }
-        addPageItem("Translate Page with Google…", to: menu) { [weak self] in self?.pageAction(.translate) }
+        addPageItem("Translate Page", to: menu) { [weak self] in self?.pageAction(.translate) }
+        addPageItem("Save Page As…", to: menu, separated: false) { [weak self] in self?.pageAction(.savePage) }
         let point = convert(event.locationInWindow, from: nil)
         let y = isFlipped ? point.y : bounds.height - point.y
         let script = """

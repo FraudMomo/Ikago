@@ -2,7 +2,7 @@ import AppKit
 
 /// Browser-owned actions invoked by a real native context-menu click.
 enum PageContextAction {
-    case peek(String), privateLink(String), search(String), translate, pictureInPicture(String)
+    case peek(String), privateLink(String), search(String), translate, savePage, pictureInPicture(String)
 }
 
 extension TabController {
@@ -24,11 +24,8 @@ extension TabController {
         case .search(let text):
             guard let state = browserState, !text.isEmpty else { return }
             (host as? BrowserCommands)?.openInNewTab(state.searchEngine.searchURL(String(text.prefix(4096))))
-        case .translate:
-            guard let url = URL(string: page.currentURL), ["http", "https"].contains(url.scheme ?? "") else { return }
-            var components = URLComponents(string: "https://translate.google.com/translate")!
-            components.queryItems = [.init(name: "sl", value: "auto"), .init(name: "tl", value: Locale.current.language.languageCode?.identifier ?? "en"), .init(name: "u", value: url.absoluteString)]
-            if let address = components.url?.absoluteString { (host as? BrowserCommands)?.openInNewTab(address) }
+        case .translate: (host as? BrowserWindowController)?.translatePage(nil)
+        case .savePage: (host as? BrowserWindowController)?.savePageAs(nil)
         case .pictureInPicture:
             // The page's own Picture in Picture (WebKit's, or Ikago's panel on Chromium), which plays streams too.
             (host as? BrowserCommands)?.pictureInPicture(tab.id)

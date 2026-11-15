@@ -39,6 +39,10 @@ protocol WebTab: AnyObject {
     func evaluate(_ script: String) async throws -> Any?
     func callAsync(_ body: String) async throws -> Any?
     func printPage()
+    /// Tells the page's Notification shim (permission, or a notification's show, click and close).
+    func sendNotificationMessage(_ message: [String: Any])
+    /// Writes the page to `url` as a web archive or PDF (File ▸ Save Page As…).
+    func savePage(as format: PageSaveFormat, to url: URL) async throws
     /// Looks up the page's icon again for Ikago's current light or dark mode (`FaviconScript`).
     func refreshFavicon()
     func setDeveloperTools(_ enabled: Bool)
