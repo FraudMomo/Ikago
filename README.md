@@ -55,7 +55,7 @@ Use `--flavor debug` for the WebKit test driver or `--flavor checks` for the Chr
 Release builds exclude test code. Test fixtures use disposable storage.
 
 - [Contributing](CONTRIBUTING.md) — development commands, tests and contribution guidelines.
-- [Architecture](AGENTS.md) — project structure, engine boundaries and design rules.
+- [Architecture](AGENTS.md) — project structure, engine boundaries and design rules; area details in [docs/agents](docs/agents).
 - [Security](SECURITY.md) — security model and vulnerability reporting.
 
 ## Privacy

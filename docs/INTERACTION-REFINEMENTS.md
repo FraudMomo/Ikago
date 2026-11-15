@@ -19,5 +19,5 @@
   a full-height side panel; on-device processing remains opt-in with an enable switch in the panel itself.
 - Unstarted pages and hibernated pages share the dimmed/sleep presentation; live parked pages remain distinct.
 
-The WebKit native PiP selector is private SPI, checked at runtime and documented in AGENTS.md. Chromium cannot natively
+The WebKit native PiP selector is private SPI, checked at runtime and documented in docs/agents/private-spi.md. Chromium cannot natively
 reopen every page-managed or protected stream without an engine-owned window, which Ikago deliberately forbids.
