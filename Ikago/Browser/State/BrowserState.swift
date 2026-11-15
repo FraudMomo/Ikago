@@ -97,6 +97,8 @@ final class BrowserState {
     @ObservationIgnored var isFrozen = false
     /// A private window: nothing is saved (session, history), pages use in-memory storage.
     @ObservationIgnored private(set) var isPrivate = false
+    /// This window is a web app's (`WebApps`): one page, no sidebar or tabs, and never part of the saved session.
+    var webApp: WebApp?
     let privateProfileID = "Private-" + UUID().uuidString
 
     init(store: SessionStore = .standard) {

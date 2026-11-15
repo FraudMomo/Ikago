@@ -40,10 +40,12 @@ Read these rules before changing code, and the topic file for the area you touch
 ```text
 Ikago/
 ├── App/         main.swift, AppDelegate, MainMenu (all shortcuts + ShortcutRouter), AppIdentity, ProtectedStorage
-├── Browser/     No views. State/ (BrowserState and its extensions), Model/ (tabs, Spaces, preferences, sessions),
-│                Address/ (omnibox engine, input, suggestions), Downloads/, Favicons/
-├── Engine/      Shared/ (WebTab protocol, BrowserEngine, permissions), WebKit/ (WebTab, profiles, security,
-│                Apple Passwords), Chromium/ (CEFWebTab, sessions, hidden services, DevTools dock, window guard)
+├── Browser/     No views. State/ (BrowserState and its extensions by topic), Model/ (Storage/, Tabs/, Preferences/),
+│                Address/ (omnibox engine, input, suggestions), Downloads/, Favicons/, Passwords/, Notifications/,
+│                Reader/, Translation/, WebApps/, Continuity/
+├── Engine/      Shared/ (BrowserEngine; Page/, Media/, Passwords/, Safety/), WebKit/ (WebTab, profiles, security;
+│                Passwords/, Monitors/), Chromium/ (Tab/, Passwords/, Video/, DevTools/, Cookies/, Runtime/,
+│                MediaTranslation/)
 ├── Extensions/  WebKit/ (WKWebExtension manager, tab bridge, Web Store), Chromium/ (hidden manager, popups)
 ├── Import/      Browser data import
 ├── UI/          Window/ (Controller/ holds BrowserWindowController and its extensions), Content/ (tab panes, Reader/),
@@ -97,6 +99,7 @@ this file) when a rule there changes.
 | Several windows, history, back history, import, Settings page structure | `docs/agents/windows-and-history.md` |
 | Peek, multi-tab selection, notes, page assistance, page menus | `docs/agents/peek-notes-assistant.md` |
 | Chromium/CEF: media translation, per-site engines, appearance, DevTools, extensions | `docs/agents/chromium.md` |
+| Notifications, Reader, translation, Save Page As, web apps | `docs/agents/page-tools.md` |
 | Private WebKit SPI in use (list every new use here) | `docs/agents/private-spi.md` |
 
 Rules that bite everywhere:

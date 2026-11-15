@@ -63,6 +63,14 @@
 			<key>CFBundleURLSchemes</key>
 			<array><string>http</string><string>https</string></array>
 		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>Web Apps</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>CFBundleURLSchemes</key>
+			<array><string>ikago-app</string></array>
+		</dict>
 	</array>
 	<key>LSFileQuarantineEnabled</key>
 	<true/>

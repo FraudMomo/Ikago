@@ -4,6 +4,7 @@ extension BrowserWindowController {
     /// Collapsed sidebar: no traffic lights over the page until the sidebar peeks in (or the Sidebar + Tabs row holds
     /// them). Full screen: only with the revealed sidebar.
     var showsTrafficLights: Bool {
+        if state.webApp != nil { return !state.isImmersive }
         if state.isImmersive { return chrome.peeking || state.sidebarVisible }
         return state.sidebarVisible || chrome.peeking || state.showsSidebarTopTabs
     }
@@ -11,7 +12,7 @@ extension BrowserWindowController {
     /// The icon rail stacks the lights in a column, which the titlebar has no room for.
     /// Not under the Sidebar + Tabs row, which holds the lights itself.
     private var railLights: Bool {
-        state.showsSidebarRail && !state.showsSidebarTopTabs && (!state.sidebarOnRight || state.sidebarLightsFollow)
+        state.webApp == nil && state.showsSidebarRail && !state.showsSidebarTopTabs && (!state.sidebarOnRight || state.sidebarLightsFollow)
     }
 
     /// The system's buttons in a window; Ikago's own (`FullScreenWindowControls`) in full screen and on the
@@ -49,7 +50,9 @@ extension BrowserWindowController {
         // the other had been left at (the lights jumped between layouts).
         let center: CGFloat
         let x: CGFloat
-        if state.showsSidebarTopTabs {
+        if state.webApp != nil {
+            center = 19; x = 19 + CGFloat(state.frameInset)
+        } else if state.showsSidebarTopTabs {
             // At the start of the tab row, whichever side the rail is on.
             center = state.sidebarRowCenter; x = 19
         } else if state.sidebarOnRight && !state.sidebarLightsFollow {

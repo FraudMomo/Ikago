@@ -8,6 +8,9 @@ final class AppDelegate: NSObject, IKCEFApplicationDelegate {
     private var state: BrowserState!
     private var windowController: BrowserWindowController?
     private var pendingURLs: [String] = []
+    /// Pages continued from another device before the session loaded; kept only if Handoff is on.
+    private var pendingHandoff: [String] = []
+    private var pendingWebApps: [String] = []
     private var keyMonitor: Any?
     private var mouseButtonMonitor: Any?
     private var privateWindows: [BrowserWindowController] = []
@@ -91,6 +94,8 @@ final class AppDelegate: NSObject, IKCEFApplicationDelegate {
         }
         pendingURLs.forEach { state.newTab(url: $0) }
         pendingURLs.removeAll()
+        pendingWebApps.forEach { WebApps.open($0) }
+        pendingWebApps.removeAll()
         #if DEBUG
         TestDriver.runIfRequested(controller: controller)
         #endif
@@ -150,6 +155,11 @@ final class AppDelegate: NSObject, IKCEFApplicationDelegate {
     // Finder sends document-open events, not kAEGetURL. Queue both kinds until startup
     // has finished preparing WebKit and extensions, including a cold launch from a file.
     func application(_ application: NSApplication, open urls: [URL]) {
+        // A web app's launcher (`WebAppLauncher`): ikago-app://<id>.
+        let apps = urls.filter { $0.scheme == WebApp.scheme }.compactMap(\.host)
+        if !apps.isEmpty {
+            if state != nil, windowController != nil { apps.forEach { WebApps.open($0) } } else { pendingWebApps += apps }
+        }
         openExternalURLs(urls.map(\.absoluteString).filter { AddressResolver.isPageURL($0) })
     }
 

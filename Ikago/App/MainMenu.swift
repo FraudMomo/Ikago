@@ -26,6 +26,8 @@ enum MainMenu {
             $0.item("Close Tab", #selector(BrowserWindowController.closeCurrentTab(_:)), "w")
             $0.item("Close Window", #selector(NSWindow.performClose(_:)), "w", [.command, .shift])
             $0.separator()
+            $0.item("Add to Applications…", #selector(BrowserWindowController.installWebApp(_:)))
+            $0.item("Save Page As…", #selector(BrowserWindowController.savePageAs(_:)), "s")
             $0.item("Print…", #selector(BrowserWindowController.printCurrentPage(_:)), "p")
         }
         main.addSubmenu("Edit") {

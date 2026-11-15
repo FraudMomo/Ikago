@@ -296,6 +296,9 @@ extension BrowserWindowController: TabHost {
     /// A link the page asked to open in a new tab. Pages may only send people to web pages and extension pages:
     /// never Ikago's own pages, scripts or data documents, and local files only from a local file.
     func tabController(_ tab: TabController, openInNewTab url: String, background: Bool) {
+        guard AddressResolver.isWebURL(url) || ExtensionURL.isExtension(url)
+                || (AddressResolver.isLocalFileURL(url) && AddressResolver.isLocalFileURL(tab.tab.url)) else { return }
+        if opensOutsideWebApp(url) { return }
         state.newTabFromLink(url: url, opener: tab.tab, select: !background)
     }
 

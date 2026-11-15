@@ -63,7 +63,7 @@ extension BrowserState {
         if let activeTabID { remembered[activeSpaceID.uuidString] = activeTabID }
         session.lastActiveTab = remembered.filter { savedIDs.contains($0.value) }
         session.folders = folders
-        if primary == nil, !windowStates.isEmpty { session.windows = windowStates.filter { !$0.isFrozen }.map { $0.windowSnapshot() } }
+        if primary == nil, !windowStates.isEmpty { session.windows = windowStates.filter { !$0.isFrozen && $0.webApp == nil }.map { $0.windowSnapshot() } }
         return session
     }
 

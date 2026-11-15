@@ -23,6 +23,7 @@ extension BrowserWindowController: BrowserCommands, NSMenuItemValidation {
         withAnimation(.ikagoQuick) { chrome.showDevices.toggle() }
     }
     func toggleSidebar() {
+        guard state.webApp == nil else { return }
         chrome.showDownloads = false
         chrome.peeking = false
         withAnimation(.ikago) { state.sidebarVisible.toggle() }
@@ -147,6 +148,7 @@ extension BrowserWindowController: BrowserCommands, NSMenuItemValidation {
     @objc func newTab(_ sender: Any?) { newTab() }
     @objc func openLocation(_ sender: Any?) { showCommandPalette(newTab: false) }
     @objc func closeCurrentTab(_ sender: Any?) {
+        if state.webApp != nil { return window?.performClose(sender) ?? () }
         if let id = state.activeTabID { closeTab(id) } else { window?.performClose(sender) }
     }
     @objc func reopenClosedTab(_ sender: Any?) { state.reopenClosedTab() }
@@ -235,6 +237,14 @@ extension BrowserWindowController: BrowserCommands, NSMenuItemValidation {
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
         let tab = state.activeTab
         switch item.action {
+        case #selector(toggleReader(_:)):
+            item.title = activeController?.isReading == true ? "Hide Reader" : "Show Reader"
+            return activeController?.isStarted == true && AddressResolver.isWebURL(activeController?.page?.currentURL ?? "")
+        case #selector(installWebApp(_:)):
+            return state.webApp == nil && !state.isPrivate && AddressResolver.isWebURL(activeController?.page?.currentURL ?? "")
+        case #selector(translatePage(_:)):
+            item.title = activeController?.translation != nil ? "Show Original" : "Translate Page"
+            return activeController?.isStarted == true && AddressResolver.isWebURL(activeController?.page?.currentURL ?? "")
         case #selector(askThisPage(_:)): return state.browserPreferences.pageIntelligence == true
         case #selector(togglePerformanceStats(_:)):
             item.state = showsPerformanceStats ? .on : .off

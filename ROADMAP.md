@@ -77,7 +77,19 @@ still draws every part of the interface.
 - Export to Apple Passwords with only the logins it doesn't have yet, so nothing is added twice
 - Tabs and Tab Groups from Safari on your iPhone, iPad and other Macs, and Handoff of the current page both ways
 
-## Phase 7: Extension compatibility 🗓
+## Phase 7: Everyday browsing 🚧
+
+Features people expect from a daily browser.
+
+- ✅ Website notifications, with a permission per site
+- ✅ Reader mode that strips a page to its article
+- ✅ Whole-page translation on the device with Apple's Translation framework
+- Address and payment card autofill
+- ✅ Web apps: open a site in its own window, with a launcher for the Dock
+- ✅ Save a page as a web archive or PDF
+- Syncing Spaces, bookmarks and settings between your own Macs through iCloud
+
+## Phase 8: Extension compatibility 🗓
 
 Broader support for unmodified extensions through shared browser capabilities, never
 per-extension patches.

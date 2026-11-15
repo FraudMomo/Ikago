@@ -8,6 +8,16 @@ struct BrowserPreferences: Codable, Equatable {
     var browserEngine: String? = nil
     /// X's H.264 video on Chromium is translated to AV1 so X's own player plays it (`MediaTranslation`). Unset: on.
     var chromiumVideoTranslation: Bool? = nil
+    /// Settings ▸ Notifications: pages may ask to send notifications (`WebNotifications`). Unset: on.
+    var websiteNotifications: Bool? = nil
+    /// Reader mode's look (`ReaderStyle`): "serif" or "sans", the text size in points, and "auto", "light", "sepia" or "dark".
+    var readerFont: String? = nil
+    /// Sites installed as apps (`WebApps`).
+    var webApps: [WebApp]? = nil
+    /// The language pages translate into (`PageTranslation.target`). Unset: the Mac's language.
+    var translationLanguage: String? = nil
+    var readerSize: Int? = nil
+    var readerTheme: String? = nil
     /// The person's own sites → engine raw value (`SiteEngines`). Hosts cover their subdomains.
     var siteEngines: [String: String]? = nil
     /// Ready-made lists (`SiteEngineList.id`) → engine raw value. A list without an entry follows the default engine.

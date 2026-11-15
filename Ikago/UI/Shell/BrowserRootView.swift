@@ -19,11 +19,11 @@ struct BrowserRootView: View {
     var body: some View {
         let colors = state.palette
         ZStack(alignment: .topLeading) {
-            sidebarLayout
-            if !docksSidebar {
+            if state.webApp != nil { webAppLayout } else { sidebarLayout }
+            if !docksSidebar && state.webApp == nil {
                 SidebarPeek(state: state, chrome: chrome, palette: palette, commands: commands)
             }
-            if state.sidebarOnRight && !state.sidebarLightsFollow && !state.showsSidebarTopTabs && !state.isImmersive {
+            if state.webApp == nil, state.sidebarOnRight && !state.sidebarLightsFollow && !state.showsSidebarTopTabs && !state.isImmersive {
                 Capsule().fill(.regularMaterial).frame(width: 86, height: 32).padding(.leading, 8).padding(.top, 7).allowsHitTesting(false)
             }
             overlays

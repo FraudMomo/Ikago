@@ -42,6 +42,13 @@ enum SettingsSearch {
         .init(title: "Engine by site", category: .general, section: "Engine by Site", keywords: "webkit chromium rules"),
         .init(title: "Add a site", category: .general, section: "Your Sites", keywords: "engine rule"),
         .init(title: "Default browser", category: .general, section: "Default Browser"),
+        .init(title: "Tabs from other devices", category: .general, section: "Other Devices", keywords: "iphone ipad safari icloud tab groups sync"),
+        .init(title: "Save passwords", category: .passwords, section: "AutoFill", keywords: "offer save update login"),
+        .init(title: "Export to Apple Passwords", category: .passwords, section: "Export to Apple Passwords", keywords: "icloud keychain sync csv"),
+        .init(title: "Website notifications", category: .security, section: "Notifications", keywords: "alerts push permission sites banner"),
+        .init(title: "Translate pages into", category: .general, section: "Translation", keywords: "language translate page on device"),
+        .init(title: "Web apps", category: .general, section: "Web Apps", keywords: "install site application dock launchpad window"),
+        .init(title: "Handoff", category: .general, section: "Other Devices", keywords: "iphone continuity continue sync"),
 
         .init(title: "Layout", category: .appearance, section: "Layout", keywords: "sidebar tabs top row chrome attached"),
         .init(title: "Window border", category: .appearance, section: "Window and Sidebar", keywords: "inset margin"),

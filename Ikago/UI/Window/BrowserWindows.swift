@@ -18,7 +18,7 @@ enum BrowserWindows {
     /// The regular window in front, for links from other apps and new windows.
     static var frontmost: BrowserWindowController? {
         NSApp.orderedWindows.lazy.compactMap { $0.windowController as? BrowserWindowController }
-            .first { !$0.state.isPrivate && !$0.state.isFrozen } ?? primary
+            .first { !$0.state.isPrivate && !$0.state.isFrozen && $0.state.webApp == nil } ?? primary
     }
 
     static func owner(of tabID: String) -> BrowserWindowController? { all.first { $0.state.tab(tabID) != nil } }
@@ -44,6 +44,24 @@ enum BrowserWindows {
         state.windowFrame = controller.window?.frame
         primary.state.scheduleSave()
         if show { controller.showWindow(nil) }
+        return controller
+    }
+
+    /// A web app's window (`WebApps`): this app's page alone, on the Space it was installed from.
+    @discardableResult
+    static func open(webApp app: WebApp) -> BrowserWindowController? {
+        guard let primary, !primary.state.isFrozen, others.count < WindowSession.maxWindows else { return nil }
+        let state = BrowserState(windowOf: primary.state)
+        if state.spaces.contains(where: { $0.id == app.spaceID }) { state.activeSpaceID = app.spaceID }
+        state.webApp = app
+        state.sidebarVisible = false
+        let controller = BrowserWindowController(state: state)
+        others.append(controller)
+        primary.state.windowStates = others.map(\.state)
+        controller.window?.setContentSize(NSSize(width: 1100, height: 760))
+        controller.window?.center()
+        controller.window?.title = app.name
+        _ = state.newTab(url: app.url)
         return controller
     }
 
@@ -124,7 +142,7 @@ enum BrowserWindows {
     /// goes, so the window the person closed is the one that disappears while the first window's state keeps saving.
     /// Returns false when there is no other window (the first window then closes as before).
     static func handOver(closing primary: BrowserWindowController) -> Bool {
-        guard primary === self.primary, let other = others.last, let window = other.window else { return false }
+        guard primary === self.primary, let other = others.last(where: { $0.state.webApp == nil }), let window = other.window else { return false }
         for tab in other.state.tabs {
             guard let released = other.content.release(tab.id) else { continue }
             if released.page != nil { primary.content.adopt(tab, page: released.page, popup: released.popup) }
@@ -143,7 +161,7 @@ enum BrowserWindows {
         others.remove(at: index)
         guard let primary else { return }
         primary.state.windowStates = others.map(\.state)
-        if handedOver.remove(ObjectIdentifier(controller)) == nil {
+        if handedOver.remove(ObjectIdentifier(controller)) == nil, controller.state.webApp == nil {
             let saved = controller.state.tabs.filter { AddressResolver.isPageURL($0.url) }.map(\.saved) + controller.state.closed
             primary.state.closed = Array((saved + primary.state.closed).prefix(Session.maxClosed))
         }
