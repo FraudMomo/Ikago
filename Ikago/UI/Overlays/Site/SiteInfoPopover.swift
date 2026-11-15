@@ -129,7 +129,7 @@ private struct SiteInfoCard: View {
                                 .frame(maxWidth: .infinity, minHeight: 40)
                         }
                         ForEach(manager.loaded, id: \.uniqueIdentifier) { context in
-                            ExtensionRow(context: context, url: url, revision: manager.revision) {
+                            SiteExtensionRow(context: context, url: url, revision: manager.revision, action: {
                                 dismiss()
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                                     context.performAction(for: commands?.activeExtensionTab)

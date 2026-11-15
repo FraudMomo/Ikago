@@ -68,6 +68,15 @@ private struct ExtensionRow: View {
     @State private var expanded = false
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            row
+            if expanded, let descriptor = ExtensionManager.shared.accessDescriptors.first(where: { $0.key == record.id }) {
+                ExtensionAccessDetails(ext: descriptor).transition(.opacity)
+            }
+        }
+    }
+
+    private var row: some View {
         let ext = context?.webExtension
         return HStack(spacing: 12) {
             ExtensionDetailsButton(expanded: $expanded).padding(.trailing, -6)

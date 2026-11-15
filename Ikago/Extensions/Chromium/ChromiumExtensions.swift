@@ -20,6 +20,12 @@ final class ChromiumExtensions {
         var popup: String?
         /// The page it puts on new tabs (`chrome_url_overrides.newtab`), relative to its root.
         var newTabPage: String?
+        /// Chromium's site access ("ON_ALL_SITES", "ON_SPECIFIC_SITES", "ON_CLICK") and the sites granted, when the
+        /// extension reads websites at all; its permissions in Chrome's words; the sites its manifest asks for.
+        var hostAccess: String? = nil
+        var grantedHosts: [String] = []
+        var abilities: [String] = []
+        var patterns: [String] = []
     }
 
     private(set) var items: [Item] = []
@@ -46,6 +52,10 @@ final class ChromiumExtensions {
 
     /// Installs an unpacked extension folder. Ikago chose the folder, so Chromium shows no picker.
     func install(folder: URL, profile: String) async {
+        let before = Set(items.map(\.id))
+        defer {
+            for item in items where !before.contains(item.id) { ExtensionAccess.shared.startAsking(Self.accessKey(item)) }
+        }
         await perform(profile) { tool in
             try await tool.run("chrome.developerPrivate.updateProfileConfiguration({inDeveloperMode: true})")
             IKCEFNativeTools.setNextFolderSelection(folder.path)
@@ -83,6 +93,7 @@ final class ChromiumExtensions {
             try FileManager.default.createDirectory(at: Self.storeFolder, withIntermediateDirectories: true)
             try? FileManager.default.removeItem(at: destination)
             try FileManager.default.moveItem(at: unpacked, to: destination)
+            if !items.contains(where: { Self.storeID(of: $0) == id }) { ExtensionAccess.shared.startAsking(id) }
             await install(folder: destination, profile: profile)
             if issue == nil { ExtensionSync.added(id) }
         } catch {
@@ -124,6 +135,8 @@ final class ChromiumExtensions {
             try await work(tool)
             issue = nil
             try await reload(tool, profile: profile)
+            // Chromium keeps its own site access; line it up with the person's choices (`ExtensionAccess`).
+            if try await reconcileAccess(tool) { try await reload(tool, profile: profile) }
         } catch {
             issue = error.localizedDescription
         }
@@ -146,7 +159,10 @@ final class ChromiumExtensions {
           return items.map(item => {
             const runtime = item.permissions && item.permissions.runtimeHostPermissions;
             return {id: item.id, name: item.name, version: item.version, summary: item.description,
-                    enabled: item.state === 'ENABLED', path: item.prettifiedPath || null, icon: item.iconUrl};
+                    enabled: item.state === 'ENABLED', path: item.prettifiedPath || null, icon: item.iconUrl,
+                    hostAccess: runtime ? runtime.hostAccess : null,
+                    hosts: runtime ? runtime.hosts.filter(host => host.granted).map(host => host.host) : [],
+                    abilities: ((item.permissions && item.permissions.simplePermissions) || []).map(p => p.message)};
           });
         })()
         """)
@@ -166,7 +182,20 @@ final class ChromiumExtensions {
            let data = Data(base64Encoded: String(encoded[encoded.index(after: comma)...])) { icon = NSImage(data: data) }
         return Item(id: id, name: name, version: value["version"] as? String ?? "", summary: value["summary"] as? String ?? "",
                     enabled: value["enabled"] as? Bool ?? false, path: path, icon: icon, popup: path.flatMap(popup(inFolder:)),
-                    newTabPage: path.flatMap(newTabPage(inFolder:)))
+                    newTabPage: path.flatMap(newTabPage(inFolder:)), hostAccess: value["hostAccess"] as? String,
+                    grantedHosts: value["hosts"] as? [String] ?? [], abilities: value["abilities"] as? [String] ?? [],
+                    patterns: path.map(sitePatterns(inFolder:)) ?? [])
+    }
+
+    /// The sites its manifest asks to read: host permissions (MV3, or MV2 permissions) and content script matches.
+    private static func sitePatterns(inFolder path: String) -> [String] {
+        let manifest = URL(fileURLWithPath: (path as NSString).expandingTildeInPath).appending(path: "manifest.json")
+        guard let data = try? Data(contentsOf: manifest),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [] }
+        var patterns = (object["host_permissions"] as? [String] ?? [])
+            + (object["permissions"] as? [Any] ?? []).compactMap { $0 as? String }.filter { $0.contains("://") || $0 == "<all_urls>" }
+        for script in object["content_scripts"] as? [[String: Any]] ?? [] { patterns += script["matches"] as? [String] ?? [] }
+        return Array(Set(patterns)).sorted()
     }
 
     private static func newTabPage(inFolder path: String) -> String? {

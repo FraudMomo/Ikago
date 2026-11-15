@@ -31,6 +31,14 @@ final class ChromeModel {
     var peekExpanding = false
     var peekTarget = CGRect.zero
     var showPageAssistant = false
+    /// Saved logins under the focused sign-in field (`PasswordSuggestionsPresenter`).
+    var passwordSuggestions: PasswordSuggestions?
+    /// "Save password?" after a sign-in (`PasswordSavePresenter`).
+    var passwordSave: PasswordSaveOffer?
+    /// The page translation in progress or just done (`TranslationCard`, run by `TranslationHost`).
+    var translationJob: TranslationJob?
+    /// Extensions asking to read the page's website, on the first visit (`ExtensionAccessCard`).
+    var extensionAccessOffer: ExtensionAccessOffer?
     var showPalette = false
     var showFind = false
     var showDownloads = false

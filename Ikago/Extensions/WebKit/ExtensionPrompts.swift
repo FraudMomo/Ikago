@@ -16,6 +16,9 @@ enum ExtensionPrompts {
         alert.informativeText = abilities.isEmpty
             ? "It doesn't request any special permissions."
             : "It can:\n" + abilities.map { "• \($0)" }.joined(separator: "\n")
+        if !ext.requestedPermissionMatchPatterns.isEmpty || !ext.allRequestedMatchPatterns.isEmpty {
+            alert.informativeText += "\n\nIt asks before it runs on each website. You can let it run on every website in Settings ▸ Extensions."
+        }
         let warnings = ExtensionCompatibility.warnings(manifest: ext.manifest)
         if webKitNotes, !warnings.isEmpty { alert.informativeText += "\n\nLimited support:\n" + warnings.joined(separator: "\n") }
         alert.icon = ext.icon(for: CGSize(width: 64, height: 64))

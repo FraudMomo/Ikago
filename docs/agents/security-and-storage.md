@@ -97,6 +97,20 @@
   password changes) are included. Checks: `passwordsavechecks` (WebKit) and `CEFPasswordChecks` (Chromium).
 - Safari bundle native messages use WebKit's default delivery; do not override the messaging
   delegate with a blanket unsupported response. Chrome native messaging is still unavailable.
+- Extension website access (`ExtensionAccess`, one store for both engines, keyed by Web Store ID when there is one): an
+  extension runs on every website, or asks on each, where the choice is Always Allow, Allow for One Day or Don't Allow
+  (registrable domain, subdomains included; `ExtensionAccess.pattern(for:)` keeps IPs and one-word hosts exact). Ones
+  installed before this keep running everywhere; new installs ask (`startAsking`). WebKit applies it with
+  `setPermissionStatus` (one day uses WebKit's expiry; every grant is reset first so "Ask Next Time" takes effect);
+  Chromium with `developerPrivate` site access (ON_ALL_SITES / ON_SPECIFIC_SITES + host grants), lined up after every read
+  of a Space's extensions. The first visit to a matching website shows `ExtensionAccessCard`; the site card and Settings
+  change it. Checks: `extensionaccesschecks` (WebKit), `CEF_EXTENSION_ACCESS_OK` (Chromium).
+- Safari extensions are found, never added on their own: `SafariExtensionScanner` watches /Applications and ~/Applications
+  (and rescans one folder down, and when Ikago becomes active); Settings ▸ Extensions ▸ Safari Extensions lists each with a
+  switch, and the first switch-on asks for its permissions and adds it. They run on WebKit pages whichever engine is the
+  default (`WebProfiles` always attaches the controller). Detection never depends on Safari having it turned on. Safari
+  app extensions (`com.apple.Safari.extension`, native code Safari hosts) and content blockers are listed as "Safari only":
+  WebKit can't run them. Check: `safariscanchecks`.
 - Preserve WebKit’s native extension resource origins. Use `resourceURL`/`canonicalURL` to
   resolve Chrome-style navigation and persist stable package IDs; extension-tab APIs must
   expose resource URLs consistent with `runtime.getURL`.

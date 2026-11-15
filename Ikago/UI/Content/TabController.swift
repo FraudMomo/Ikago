@@ -259,6 +259,7 @@ final class TabController: NSObject, WebTabDelegate {
         translation = nil
         upgradedURL = nil
         state?.recordVisit(tabID: tab.id, url: url)
+        ExtensionAccessPresenter.shared.pageCommitted(url, engine: tab.engine ?? BrowserRuntime.engine, in: self)
     }
     func webTab(_ page: WebTab, didChangeProgress progress: Double) {
         if tab.progress != progress { tab.progress = progress }

@@ -92,6 +92,7 @@ enum SettingsSearch {
         .init(title: "Suggestions", category: .search, section: "Suggestions", keywords: "history switch to tab autocomplete"),
 
         .init(title: "Installed extensions", category: .extensions, section: "Extensions", keywords: "add remove web store"),
+        .init(title: "Extension website access", category: .extensions, section: "Installed", keywords: "permissions allow every website ask privacy site access"),
         .init(title: "Extension updates", category: .extensions, section: "Extension Updates", keywords: "automatic"),
         .init(title: "Safari extensions", category: .extensions, section: "Safari Extensions", keywords: "app store mac apps webkit"),
 

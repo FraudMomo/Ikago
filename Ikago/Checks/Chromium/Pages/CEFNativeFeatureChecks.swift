@@ -78,6 +78,7 @@ enum CEFNativeFeatureChecks {
         if reading { try await waitForValue(browser, "document.documentElement.dataset.ikagoExtensionStorage === 'persisted'") }
         try await CEFExtensionLifecycleChecks.run(manager: manager, browser: browser, directory: extensionDirectory)
         try await CEFExtensionAPIChecks.run(browser, profile: profile, url: url)
+        if !reading { try await CEFExtensionAccessChecks.run(manager: manager, browser: browser) }
         IKCEFNativeTools.closeAll()
         print("CEF_NATIVE_FEATURES_OK tracker-toggle cookie-policy DevTools extension-install content-script")
     }

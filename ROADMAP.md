@@ -94,6 +94,9 @@ Features people expect from a daily browser.
 Broader support for unmodified extensions through shared browser capabilities, never
 per-extension patches.
 
+- ✅ Website access for each extension on both engines: every website, or ask on each with Always Allow, Allow for
+  One Day or Don't Allow, from a first-visit card, the site card and Settings
+- ✅ Safari web extensions found in installed apps as soon as they arrive, each with a switch
 - A published capability matrix: implemented, partial and unavailable APIs
 - Runtime update events, offscreen documents and consistent extension resource origins
 - Native messaging between extensions and their companion Mac apps

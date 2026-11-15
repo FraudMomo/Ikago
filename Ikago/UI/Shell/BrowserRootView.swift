@@ -73,6 +73,41 @@ struct BrowserRootView: View {
                 }
                 .transition(.opacity.combined(with: .scale(scale: 0.92)).combined(with: .offset(y: 16)))
             }
+            TranslationHost(chrome: chrome)
+            // Cards that come and go at the top right, stacked: save password, translation, extension access.
+            VStack(alignment: .trailing, spacing: 10) {
+                if let offer = chrome.passwordSave {
+                    PasswordSaveCard(offer: offer, colors: state.palette).id(offer.id)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+                if let job = chrome.translationJob {
+                    TranslationCard(job: job, colors: state.palette,
+                                    remember: { (commands as? BrowserWindowController)?.rememberTranslationTarget($0) },
+                                    showOriginal: { (commands as? BrowserWindowController)?.showOriginal() },
+                                    close: { (commands as? BrowserWindowController)?.closeTranslation() })
+                        .id(job.id)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+                if let offer = chrome.extensionAccessOffer {
+                    ExtensionAccessCard(offer: offer, colors: state.palette,
+                                        reload: { (commands as? BrowserWindowController)?.activeController?.page?.reload() },
+                                        close: { ExtensionAccessPresenter.shared.notNow(offer, in: chrome) })
+                        .id(offer.id)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+            .padding(.top, 56).padding(.trailing, 16)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+            if let suggestions = chrome.passwordSuggestions {
+                GeometryReader { geometry in
+                    let frame = suggestions.frame(in: geometry.size)
+                    PasswordSuggestionsView(suggestions: suggestions, colors: state.palette)
+                        .frame(width: frame.width, height: frame.height)
+                        .offset(x: frame.minX, y: frame.minY)
+                }
+                .id(suggestions.id)
+                .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
+            }
             if chrome.showPageAssistant && state.browserPreferences.pageIntelligence == true {
                 PageAssistantView(state: state, chrome: chrome, commands: commands)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)

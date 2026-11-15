@@ -79,6 +79,7 @@ final class ExtensionManager: NSObject {
     /// scripts reach the first page load.
     func loadInstalled() async {
         readUpdatePreferences()
+        observeAccess()
         records = Self.readRecords()
         for record in records.sorted(by: { !ExtensionSync.defaults.contains($0.id) && ExtensionSync.defaults.contains($1.id) }) where record.enabled {
             if ExtensionSync.defaults.contains(record.id),
@@ -116,7 +117,7 @@ final class ExtensionManager: NSObject {
         }
         record.resourceOrigin = context.baseURL.absoluteString
         context.isInspectable = WebProfiles.developerTools
-        Self.grantRequested(context)
+        Self.applyAccess(context, key: record.id)
         try controller(for: "Default").load(context)
         contexts[record.id] = context
         failures[record.id] = nil
@@ -151,6 +152,7 @@ final class ExtensionManager: NSObject {
         do {
             if hadTarget { try FileManager.default.moveItem(at: target, to: backup) }
             try FileManager.default.moveItem(at: folder, to: target)
+            if oldRecord == nil { ExtensionAccess.shared.startAsking(id) }
             var record = oldRecord ?? Record(id: id, fromWebStore: fromWebStore)
             record.fromWebStore = fromWebStore
             if record.enabled { record = try await load(record) }
@@ -184,6 +186,7 @@ final class ExtensionManager: NSObject {
         if let existing = contexts[id] { try? existing.webExtensionController?.unload(existing) }
         let origin = records.first { $0.id == id }?.resourceOrigin
         records.removeAll { $0.id == id }
+        if !records.contains(where: { $0.id == id }) { ExtensionAccess.shared.startAsking(id) }
         let record = Record(id: id, resourceOrigin: origin, appexPath: appex.path)
         records.append(record)
         saveRecords()
@@ -211,6 +214,7 @@ final class ExtensionManager: NSObject {
         records.removeAll { $0.id == id }
         failures[id] = nil
         saveRecords()
+        ExtensionAccess.shared.removed(id)
         // Safari extensions belong to their app; only our own unpacked copies are deleted.
         if !wasTopBar { try? FileManager.default.removeItem(at: Self.directory.appending(path: id, directoryHint: .isDirectory)) }
     }
