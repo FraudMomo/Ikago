@@ -46,10 +46,14 @@ Ikago/
 │                Apple Passwords), Chromium/ (CEFWebTab, sessions, hidden services, DevTools dock, window guard)
 ├── Extensions/  WebKit/ (WKWebExtension manager, tab bridge, Web Store), Chromium/ (hidden manager, popups)
 ├── Import/      Browser data import
-├── UI/          Window/ (controllers), Content/ (tab panes), Shell/ (root view), Toolbar/ (customizable controls),
-│                Tabs/ (Sidebar + Tabs row), Sidebar/, Address/,
-│                Overlays/, Pages/ (ikago:// pages), Settings/, Downloads/, Design/ (Palette, glass buttons, logos)
-├── Checks/      Chromium/ (runtime checks, IKAGO_CHECKS builds), Debug/ (WebKit test driver, DEBUG builds)
+├── UI/          Window/ (Controller/ holds BrowserWindowController and its extensions), Content/ (tab panes, Reader/),
+│                Shell/ (root view), Toolbar/ (customizable controls), Tabs/ (Sidebar + Tabs row),
+│                Sidebar/ (TabList/, Groups/, Bookmarks/, Media/, Spaces/), Address/,
+│                Overlays/ (Site/, Passwords/, Performance/, Assistant/, Peek/), Pages/ (ikago:// pages; Welcome/,
+│                History/, Bookmarks/), Settings/ (Core/, General/, Appearance/, Privacy/, Extensions/), Downloads/,
+│                Design/ (Palette, glass buttons, logos)
+├── Checks/      Chromium/ (runtime checks, IKAGO_CHECKS builds; Runner/ and one folder per area), Debug/ (WebKit test
+│                driver in Driver/ and one folder per area, DEBUG builds)
 └── Resources/   Info.plist, entitlements, Assets.xcassets
 
 CEF/             Objective-C++ bridge, CMake build, pinned SDK (cef-lock.json)
