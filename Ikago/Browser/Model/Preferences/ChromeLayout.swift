@@ -23,6 +23,7 @@ enum ChromeItem: String, Codable, CaseIterable, Identifiable {
         case .notes: "Notes"
         case .assistant: "Page Assistant"
         case .share: "Share"
+        case .devices: "Other Devices"
         }
     }
 

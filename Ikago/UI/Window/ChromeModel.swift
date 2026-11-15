@@ -34,6 +34,16 @@ final class ChromeModel {
     var showPalette = false
     var showFind = false
     var showDownloads = false
+    /// Tabs from the person's other devices (`DevicesDropdown`).
+    var showDevices = false
+    /// Native popovers (an extension's popup) open over this window; counted by `BrowserWindowController`.
+    var nativePopovers = 0
+
+    /// Something floats over the sidebar and the tab row: tabs underneath draw no hover and show no card.
+    var coversTabs: Bool {
+        showSiteInfo || showDevices || showDownloads || showClearData || showNewSpace || showNotes || showPalette
+            || textPrompt != nil || editFolderID != nil || passwordSuggestions != nil || previewTabID != nil || nativePopovers > 0
+    }
     /// A live two-finger swipe between Spaces in the sidebar (`SidebarSpaceSwipe`).
     let spaceSwipe = SpaceSwipe()
 

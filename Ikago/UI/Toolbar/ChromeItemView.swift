@@ -29,6 +29,7 @@ struct ChromeItemView: View {
         case .bookmarks: button(help: "Bookmarks (⌥⌘B)") { commands?.openPage(.bookmarks) }
         case .history: button(help: "History (⌘Y)") { commands?.openPage(.history) }
         case .downloads: DownloadToolbarButton(colors: colors, commands: commands, size: size)
+        case .devices: DevicesToolbarButton(colors: colors, commands: commands, size: size)
         case .settings: button(help: "Settings (⌘,)") { commands?.openPage(.settings) }
         case .assistant:
             if state.browserPreferences.pageIntelligence == true { button(help: "Ask this page") { commands?.togglePageAssistant() } }

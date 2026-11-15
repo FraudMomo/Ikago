@@ -269,6 +269,40 @@ enum TestDriver {
                 try? await Task.sleep(for: .milliseconds(600))
                 print("IKTEST peekshot \(label) \(PeekShot.measure(page.contentView, window: c.window, save: arg.isEmpty ? nil : arg + "/peek-\(label).png"))")
             }
+        case "passwordlist":  // <png>: the login list under a sample field over the current page, captured with the window
+            if let window = c.window, let content = window.contentView {
+                let logins = ["sam@example.com", "work@example.com", "test.account"].map {
+                    PasswordVault.Login(id: UUID(), site: "example.com", title: nil, username: $0, secret: Data(), created: 0)
+                }
+                let field = NSRect(x: content.bounds.midX - 160, y: content.bounds.height - 260, width: 320, height: 36)
+                Task { _ = await PasswordSuggestionsPresenter.shared.present(logins, site: "example.com", anchor: field, in: window) }
+                try? await Task.sleep(for: .milliseconds(400))
+                PasswordSuggestionsPresenter.shared.select(1)
+                try? await Task.sleep(for: .milliseconds(600))
+                print("IKTEST passwordlist \(PeekShot.measure(content, window: window, save: arg))")
+                PasswordSuggestionsPresenter.shared.dismiss()
+            }
+        case "devices":  // [<png>]: reads Safari's synced tabs (counts only), then shows the list and captures the window
+            let model = SafariSyncedTabsModel.shared
+            await model.refresh()
+            let tabs = model.tabs
+            print("IKTEST devices denied=\(model.denied) devices=\(tabs.devices.map { "\($0.kind):\($0.tabs.count)" }) groups=\(tabs.groups.map { "\($0.tabs.count)\($0.profile == nil ? "" : "p")" }) updated=\(tabs.updated.map { "\($0)" } ?? "nil")")
+            if !arg.isEmpty, let window = c.window, let content = window.contentView {
+                state.browserPreferences.safariDeviceTabs = true
+                if !state.chromeLayout.contains(.devices) { state.chromeLayout.place(.devices, in: .sidebarTop) }
+                try? await Task.sleep(for: .milliseconds(300))
+                c.toggleDevices()
+                try? await Task.sleep(for: .milliseconds(1200))
+                print("IKTEST devicesshot \(PeekShot.measure(content, window: window, save: arg))")
+            }
+        case "savecard":  // <png>: the "Save password?" card over the current page, captured with the window
+            if let window = c.window, let content = window.contentView {
+                PasswordSavePresenter.shared.offer(site: "appstoreconnect.apple.com", username: "sam@example.com",
+                                                   password: "sample", update: false, in: c)
+                try? await Task.sleep(for: .milliseconds(900))
+                print("IKTEST savecard \(PeekShot.measure(content, window: window, save: arg))")
+                PasswordSavePresenter.shared.dismiss()
+            }
         case "railhit":  // what receives a click on each of the rail's drawn traffic lights
             if let host = c.fullScreenControls.hostView, let frame = c.window?.contentView?.superview {
                 for i in 0..<3 {

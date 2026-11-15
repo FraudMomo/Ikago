@@ -44,3 +44,13 @@
   never mark blocked/partial imports complete. SQLite failures must retain their actual cause. Read source profiles through SQLite read-only
   handles, never log or persist decryption keys, and read browsing records only after Import. Report unsupported/encrypted formats instead of silently claiming
   a complete import.
+- Import sources: Chrome (Beta, Canary), Edge, Brave, Arc, Dia, Vivaldi, Chromium, Opera and Opera GX (profile in the data
+  folder itself), Comet; Firefox, Zen, LibreWolf, Waterfox, Floorp; Safari and Safari Technology Preview. Add a browser in
+  `BrowserProfileDiscovery` (path, cookie key, `bundleIDs`). Lists show the installed app's own icon (`BrowserLogo`),
+  never bundled artwork. The welcome page has layout and optional import steps; About → Developer reopens the welcome page.
+- Other Devices (Settings ▸ General, both off by default). Tabs: `SafariSyncedTabs` reads Safari's own synced copies
+  (`CloudTabs.db` for each device's open tabs, `SafariTabs.db` for Tab Groups and profiles) read-only, shown in the Devices
+  control's dropdown with Safari's last write time. Safari (and possibly its background agents; unconfirmed) writes those files,
+  so the list re-reads only when a file's date changes, and a device's own date is a day (Safari stores no time). Nothing goes back to Safari, since iCloud Tabs has no API. Debug builds
+  read `IKAGO_SAFARI_FOLDER` instead (the `devices` test action). Handoff: `HandoffAdvertiser` offers the key window's
+  http(s) page as `NSUserActivityTypeBrowsingWeb` (never private windows) and opens continued pages in a new tab.

@@ -62,6 +62,8 @@ final class AppDelegate: NSObject, IKCEFApplicationDelegate {
     }
 
     private func openBrowserWindow() {
+        if state.browserPreferences.handoff == true { pendingURLs += pendingHandoff }
+        pendingHandoff = []
         if state.tabs.isEmpty, pendingURLs.isEmpty {
             state.newTab(url: state.pendingWelcome ? InternalPage.welcome.url : "https://duckduckgo.com")
         }
@@ -70,6 +72,7 @@ final class AppDelegate: NSObject, IKCEFApplicationDelegate {
         windowController = controller
         BrowserWindows.primary = controller
         controller.showWindow(nil)
+        HandoffAdvertiser.shared.start()
         // The session's other windows, each with its own tabs.
         BrowserWindows.restore(state.pendingWindows)
         state.pendingWindows = []
@@ -147,6 +150,28 @@ final class AppDelegate: NSObject, IKCEFApplicationDelegate {
     // has finished preparing WebKit and extensions, including a cold launch from a file.
     func application(_ application: NSApplication, open urls: [URL]) {
         openExternalURLs(urls.map(\.absoluteString).filter { AddressResolver.isPageURL($0) })
+    }
+
+    func application(_ application: NSApplication, willContinueUserActivityWithType userActivityType: String) -> Bool {
+        // Before the session loads its settings, accept and decide once they're known.
+        userActivityType == NSUserActivityTypeBrowsingWeb && (state == nil || state.browserPreferences.handoff == true)
+    }
+
+    /// A page continued from another device (Handoff), when turned on in Settings.
+    func application(_ application: NSApplication, continue userActivity: NSUserActivity,
+                     restorationHandler: @escaping ([any NSUserActivityRestoring]) -> Void) -> Bool {
+        NSLog("Ikago Handoff: continuing %@ (session loaded: %d)", userActivity.activityType, state != nil ? 1 : 0)
+        guard let url = HandoffAdvertiser.webURL(of: userActivity) else {
+            NSLog("Ikago Handoff: no web page in activity %@", userActivity.activityType)
+            return false
+        }
+        guard state != nil, windowController != nil else {
+            pendingHandoff.append(url)
+            return true
+        }
+        guard state.browserPreferences.handoff == true else { return false }
+        openExternalURLs([url])
+        return true
     }
 
     private func openExternalURLs(_ urls: [String]) {

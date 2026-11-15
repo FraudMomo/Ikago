@@ -101,9 +101,10 @@ struct BrowserRootView: View {
                 DownloadFeedbackOverlay(toolbar: toolbar, page: anchors.page.map { geometry[$0] },
                                         colors: state.palette, content: content)
                 if chrome.showDownloads { DownloadsDropdownOverlay(state: state, chrome: chrome, anchor: toolbar, commands: commands) }
+                if chrome.showDevices { DevicesDropdownOverlay(state: state, chrome: chrome, anchor: anchors.devices.map { geometry[$0] }) }
             }
         }
-        .onChange(of: state.activeTabID) { _, _ in chrome.showDownloads = false }
+        .onChange(of: state.activeTabID) { _, _ in chrome.showDownloads = false; chrome.showDevices = false }
         .onChange(of: docksSidebar) { _, docked in
             guard !docked else { return sidebarMounted = true }
             Task { @MainActor in
@@ -112,6 +113,7 @@ struct BrowserRootView: View {
             }
         }
         .animation(reduceMotion ? nil : .ikagoQuick, value: chrome.showDownloads)
+        .animation(reduceMotion ? nil : .ikagoQuick, value: chrome.showDevices)
         // The floating address bar and the sidebar's suggestions ease in and out; typing is never delayed by it.
         .animation(reduceMotion ? nil : .ikago, value: chrome.showPalette)
         .animation(reduceMotion ? nil : .ikago, value: showsSidebarSuggestions)

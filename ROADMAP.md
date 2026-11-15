@@ -69,12 +69,13 @@ still draws every part of the interface.
 
 ---
 
-## Phase 6: Passwords and identity 🚧
+## Phase 6: Passwords and continuity ✅
 
-- Save and update logins from sign-in forms
-- Import through Apple's Credential Exchange
-- Passkeys, which depend on Apple's browser passkey entitlement
-- Manual end-to-end verification of Touch ID and real sign-in flows
+- Saved logins listed under the sign-in field as you click or tab into it, on both engines, with Touch ID for every fill
+- Offers to save new logins and update changed ones after you sign in, never for a password the site rejected
+- Sign-in frames on the same site, such as Apple's sign-in inside App Store Connect
+- Export to Apple Passwords with only the logins it doesn't have yet, so nothing is added twice
+- Tabs and Tab Groups from Safari on your iPhone, iPad and other Macs, and Handoff of the current page both ways
 
 ## Phase 7: Extension compatibility 🗓
 

@@ -13,6 +13,8 @@ protocol BrowserCommands: AnyObject {
     func cycleSidebar()
     func toggleDownloads()
     var downloadsPresented: Bool { get }
+    func toggleDevices()
+    var devicesPresented: Bool { get }
     func closeTab(_ id: String)
     func unloadTab(_ id: String)
     func unloadGroup(_ id: String)

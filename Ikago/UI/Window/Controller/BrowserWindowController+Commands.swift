@@ -18,6 +18,10 @@ extension BrowserWindowController: BrowserCommands, NSMenuItemValidation {
     func toggleDownloads() {
         withAnimation(.ikagoQuick) { chrome.showDownloads.toggle() }
     }
+    var devicesPresented: Bool { chrome.showDevices }
+    func toggleDevices() {
+        withAnimation(.ikagoQuick) { chrome.showDevices.toggle() }
+    }
     func toggleSidebar() {
         chrome.showDownloads = false
         chrome.peeking = false

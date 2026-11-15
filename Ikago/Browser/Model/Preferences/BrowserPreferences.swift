@@ -61,6 +61,17 @@ struct BrowserPreferences: Codable, Equatable {
     /// "ikago" fills from Ikago's own vault, "apple" from Apple Passwords (WebKit only). Unset: Ikago's
     /// vault once something was imported into it, otherwise Apple Passwords. Chromium always uses the vault.
     var passwordSource: String? = nil
+    /// Ikago Passwords opens the list of logins when a sign-in field is clicked or tabbed into; off, the key
+    /// in the field opens it. Unset: on.
+    var passwordSuggestOnFocus: Bool? = nil
+    /// Offers to save or update a login after signing in (Ikago Passwords). Unset: on.
+    var passwordOfferSave: Bool? = nil
+    /// Registrable domains the person chose "Never for This Site" for.
+    var passwordNeverSave: [String]? = nil
+    /// Shows Safari's tabs and Tab Groups from the person's other devices (Devices control). Unset: off.
+    var safariDeviceTabs: Bool? = nil
+    /// Handoff of the current page to and from nearby devices. Unset: off.
+    var handoff: Bool? = nil
     /// HTTPS-only mode still lets localhost/loopback use HTTP (development servers).
     var httpsAllowLocal: Bool? = nil
     /// Extra hosts that may use HTTP, comma- or space-separated (subdomains included).
