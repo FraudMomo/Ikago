@@ -3,6 +3,7 @@ import Foundation
 import LocalAuthentication
 import Security
 
+// MARK: - PasswordVault
 /// Ikago's own password store, separate from Apple Passwords and readable only by Ikago.
 ///
 /// Every password is encrypted to a Secure Enclave key that only works after Touch ID (or your Mac
@@ -23,6 +24,13 @@ final class PasswordVault {
         var secret: Data
         var created: Double
         var lastUsed: Double?
+        /// `SealedStorage.fingerprint` of site, username and password; nil for logins from before it existed until
+        /// they're filled once.
+        var fingerprint: Data?
+        /// Saved from a sign-in form in Ikago (not imported), so it may be missing from Apple Passwords.
+        var savedHere: Bool?
+        /// When it was last exported for Apple Passwords; a changed password clears it.
+        var exported: Double?
     }
 
     struct Failure: LocalizedError {
@@ -89,7 +97,7 @@ final class PasswordVault {
         for (index, login) in logins.enumerated() { byDomain[PublicSuffix.registrableDomain(login.site), default: []].append(index) }
     }
 
-    private func requireReadable() throws {
+    func requireReadable() throws {
         loadIfNeeded(force: true)
         if let loadIssue { throw Failure(errorDescription: loadIssue) }
     }
@@ -117,6 +125,7 @@ final class PasswordVault {
 
     struct NewLogin: Equatable, Sendable {
         var url: String, title: String?, username: String, password: String
+        var savedHere = false
     }
 
     /// Adds logins, replacing any with the same site and username. Returns how many were stored.
@@ -130,9 +139,15 @@ final class PasswordVault {
             let site = Self.site(URL(string: entry.url)?.host ?? entry.url)
             guard !site.isEmpty, !entry.password.isEmpty else { continue }
             let secret = try Self.encrypt(entry.password, to: publicKey, site: site, username: entry.username)
+            let print = try? SealedStorage.fingerprint(Self.fingerprintText(site: site, username: entry.username, password: entry.password))
+            let previous = updated.first { $0.site == site && $0.username == entry.username }
             updated.removeAll { $0.site == site && $0.username == entry.username }
-            updated.append(Login(id: UUID(), site: site, title: entry.title, username: entry.username, secret: secret,
-                                 created: Date().timeIntervalSince1970))
+            var login = Login(id: UUID(), site: site, title: entry.title ?? previous?.title, username: entry.username, secret: secret,
+                              created: Date().timeIntervalSince1970, lastUsed: previous?.lastUsed, fingerprint: print)
+            login.savedHere = entry.savedHere || previous?.savedHere == true ? true : nil
+            // Unchanged passwords stay exported; a new or changed one is new to Apple Passwords.
+            login.exported = previous?.fingerprint != nil && previous?.fingerprint == print ? previous?.exported : nil
+            updated.append(login)
             count += 1
         }
         try save(updated)
@@ -153,7 +168,8 @@ final class PasswordVault {
         loadIssue = nil
     }
 
-    private func save(_ updated: [Login]) throws {
+    /// Writes the vault (sealed, with a backup of the previous file) and publishes the new list.
+    func save(_ updated: [Login]) throws {
         guard let key else { throw Failure(errorDescription: "The password vault has no key.") }
         let data = try SealedStorage.seal(JSONEncoder().encode(File(key: key, logins: updated)))
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
@@ -191,9 +207,31 @@ final class PasswordVault {
         if let index = logins.firstIndex(where: { $0.id == login.id }) {
             var updated = logins
             updated[index].lastUsed = Date().timeIntervalSince1970
+            // Older logins learn their fingerprint the first time they're filled.
+            if updated[index].fingerprint == nil {
+                updated[index].fingerprint = try? SealedStorage.fingerprint(
+                    Self.fingerprintText(site: current.site, username: current.username, password: password))
+            }
             try? save(updated)
         }
         return password
+    }
+
+    /// Several passwords after one Touch ID (or Mac password), for exporting. Never cached.
+    func passwords(for chosen: [Login], reason: String) async throws -> [(Login, String)] {
+        loadIfNeeded(force: true)
+        guard let key else { throw Failure(errorDescription: "The password vault has no key.") }
+        if usesTestKey {
+            let privateKey = try P256.KeyAgreement.PrivateKey(rawRepresentation: key)
+            return try chosen.map { ($0, try Self.decrypt($0, with: privateKey)) }
+        }
+        let context = LAContext()
+        do { try await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason) } catch {
+            throw Failure(errorDescription: nil)
+        }
+        defer { context.invalidate() }
+        let enclaveKey = try SecureEnclave.P256.KeyAgreement.PrivateKey(dataRepresentation: key, authenticationContext: context)
+        return try chosen.map { ($0, try Self.decrypt($0, with: enclaveKey)) }
     }
 
     // MARK: Keys and encryption
@@ -258,5 +296,50 @@ final class PasswordVault {
         var host = host.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: ". "))
         if host.hasPrefix("www.") { host.removeFirst(4) }
         return host
+    }
+}
+
+// MARK: - Saving
+/// Saving logins from sign-in forms and handing new ones to Apple Passwords. A login's fingerprint
+/// (`SealedStorage.fingerprint` of site, username and password) tells a resubmitted password from a changed one
+/// without decrypting anything, and `savedHere`/`exported` keep each export to the logins Apple doesn't have yet.
+extension PasswordVault {
+    /// What a submitted sign-in means for the vault.
+    enum Submission: Equatable {
+        case new, same, changed(Login)
+    }
+
+    nonisolated static func fingerprintText(site: String, username: String, password: String) -> String {
+        site + "\n" + username + "\n" + password
+    }
+
+    /// Compares a sign-in the person just submitted with what's saved, without decrypting anything. A login saved for
+    /// the same account on a related host (google.com for accounts.google.com) counts as that login.
+    func submission(host: String, username: String, password: String) -> Submission {
+        loadIfNeeded()
+        let site = Self.site(host)
+        func same(_ login: Login) -> Bool {
+            guard let stored = login.fingerprint else { return false }
+            return (try? SealedStorage.fingerprint(Self.fingerprintText(site: login.site, username: username, password: password))) == stored
+        }
+        if let existing = logins.first(where: { $0.site == site && $0.username == username }) {
+            return same(existing) ? .same : .changed(existing)
+        }
+        let related = matches(for: host).filter { $0.username == username }
+        if related.contains(where: same) { return .same }
+        return related.first.map { .changed($0) } ?? .new
+    }
+
+    /// Logins saved in Ikago that Apple Passwords hasn't been given yet.
+    var unexported: [Login] { loadIfNeeded(); return logins.filter { $0.savedHere == true && $0.exported == nil } }
+
+    func markExported(_ ids: Set<UUID>) throws {
+        try requireReadable()
+        let now = Date().timeIntervalSince1970
+        try save(logins.map { login in
+            var login = login
+            if ids.contains(login.id) { login.exported = now }
+            return login
+        })
     }
 }

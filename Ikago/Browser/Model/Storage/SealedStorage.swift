@@ -35,6 +35,13 @@ enum SealedStorage {
         return try AES.GCM.open(AES.GCM.SealedBox(combined: data.dropFirst(magic.count)), using: key())
     }
 
+    /// A keyed fingerprint (HMAC-SHA256 under a key derived from the local data key), so Ikago can tell whether a
+    /// submitted password is one it already has without decrypting anything. It lives only inside sealed files.
+    static func fingerprint(_ text: String) throws -> Data {
+        let derived = HKDF<SHA256>.deriveKey(inputKeyMaterial: try key(), info: Data("ikago-password-fingerprint-v1".utf8), outputByteCount: 32)
+        return Data(HMAC<SHA256>.authenticationCode(for: Data(text.utf8), using: derived))
+    }
+
     /// Checked once at launch, so a locked Keychain can be retried instead of looking like lost data.
     static func prepare() throws { _ = try key() }
 

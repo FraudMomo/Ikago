@@ -19,10 +19,14 @@ enum PasswordAutoFillChecks {
             try? PasswordVault.shared.deleteAll()
             state.browserPreferences.passwordSource = nil
             state.browserPreferences.passwordAutoFill = nil
+            state.browserPreferences.passwordSuggestOnFocus = nil
             BrowserSecurity.shared.apply(state.browserPreferences)
             for tab in state.tabs where !originalTabs.contains(tab.id) { state.closeTab(tab.id, removingPin: true) }
             if let originalActive { state.select(originalActive) }
         }
+        // These check the key itself; checks pick the first login without a list, so focus suggestions would fill on any click.
+        state.browserPreferences.passwordSuggestOnFocus = false
+        BrowserSecurity.shared.apply(state.browserPreferences)
         check(BrowserPreferences().passwordAutoFill ?? true, "filling from Apple Passwords defaults on")
         check(SystemPasswordPanel.isAvailable, "AppKit's Edit ▸ AutoFill ▸ Passwords… item is present")
         NSApp.activate(); browser.window?.makeKeyAndOrderFront(nil)

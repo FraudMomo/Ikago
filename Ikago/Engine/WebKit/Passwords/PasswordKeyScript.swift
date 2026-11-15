@@ -1,20 +1,22 @@
-/// The key button Ikago shows in sign-in fields. It runs in an isolated world, never
-/// the page's: WebKit's `.defaultClient` world in every frame, or on Chromium the "ikago-passwords" world
-/// of the main frame. Native code decides whether a frame may show it, and only a trusted click asks
+/// The key button Ikago shows in sign-in fields, and the watcher that notices a sign-in worth saving. It runs in an
+/// isolated world, never the page's: WebKit's `.defaultClient` world in every frame, or on Chromium the
+/// "ikago-passwords" world of the main frame and same-site frames (a sign-in iframe such as Apple's). Native code decides whether a frame may show it, and only a trusted click asks
 /// native code to fill: Apple's panel, or a login from Ikago's vault after Touch ID, which native code
 /// passes to `fill`. The DOM is built without innerHTML so pages that require Trusted Types keep working.
 enum PasswordKeyScript {
     /// WebKit: replies come back through the message handler's promise.
-    static let source = make(transport: "const post = message => window.webkit.messageHandlers.\(PasswordAutoFill.handlerName).postMessage(message)",
-                             mainFrameOnly: false)
+    static let source = make(transport: """
+        let keyAllowed = true
+        const post = message => window.webkit.messageHandlers.\(PasswordAutoFill.handlerName).postMessage(message)
+        """)
 
-    /// Chromium: injected only where the vault has a login, so the key may always show. The script never
-    /// sends anything: native code sees the real click and asks `hit` whether it landed on the key.
-    static let chromium = make(transport: "const post = message => Promise.resolve(message.type === 'query')", mainFrameOnly: true)
+    /// Chromium: native code says whether the key may show (`setKeyAllowed`). The script never sends anything:
+    /// native code sees real clicks and keys and then asks the script (`hit`, `focusRect`, `poll`).
+    static let chromium = make(transport: "let keyAllowed = false\nconst post = message => Promise.resolve(message.type === 'query' ? keyAllowed : false)")
 
     private static func make(transport: String) -> String { """
         (() => {
-          if (window.__ikagoPasswordKey\(mainFrameOnly ? " || window !== window.top" : "")) return
+          if (window.__ikagoPasswordKey) return
           \(transport)
           const handler = { postMessage: post }
           const largest = 22, smallest = 12, inset = 3, minimumWidth = 80
@@ -22,6 +24,13 @@ enum PasswordKeyScript {
           const userPattern = /user|login|e-?mail|account|identifier/i
           let field = null, requested = null, requests = 0, lastInput = 0, keyClickedAt = 0
 
+          const rectOf = el => { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, width: r.width, height: r.height } }
+          // Asks native code to list logins under the field (WebKit); Chromium reads `focusRect` instead.
+          const suggest = () => {
+            if (!field) return
+            requested = field
+            Promise.resolve(handler.postMessage({ type: 'suggest', rect: rectOf(field) })).catch(() => {})
+          }
           const typeOf = el => (el.getAttribute('type') || '').toLowerCase()
           const tokens = el => (el.getAttribute('autocomplete') || '').toLowerCase().split(/\\s+/)
           const visible = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 }
@@ -146,6 +155,55 @@ enum PasswordKeyScript {
             return true
           }
 
+          // Saving: a sign-in is a filled password sent by a form submit, Return, or a button. It's confirmed once the
+          // password field goes away or the page moves on (a rejected password leaves the field), then offered.
+          let lastUser = '', pending = null, watch = null
+          const confirm = () => {
+            if (!pending || pending.confirmed) return
+            pending.confirmed = true
+            clearInterval(watch)
+            Promise.resolve(handler.postMessage({ type: 'save', username: pending.username, password: pending.password,
+                                                  leaving: pending.leaving })).catch(() => {})
+          }
+          const capture = from => {
+            const scope = (from && from.closest && from.closest('form')) || document
+            const passwords = [...scope.querySelectorAll('input[type=password i]')].filter(el => el.value && !el.disabled)
+            if (!passwords.length) return
+            // Sign-up and change forms repeat the new password; the last field holds it.
+            const pass = passwords[passwords.length - 1]
+            const before = textFields(scope).filter(el => el.value && (el.compareDocumentPosition(pass) & Node.DOCUMENT_POSITION_FOLLOWING))
+            const named = before.filter(isLoginField).pop() || before.pop()
+            const username = (named ? named.value : lastUser).trim()
+            if (pending && !pending.confirmed && pending.password === pass.value && pending.username === username) return
+            pending = { username, password: pass.value, field: pass, href: location.href, at: Date.now(), confirmed: false, leaving: false }
+            clearInterval(watch)
+            watch = setInterval(() => {
+              if (!pending || Date.now() - pending.at > 20000) return clearInterval(watch)
+              const f = pending.field
+              if (!f.isConnected || !visible(f) || location.href !== pending.href) confirm()
+            }, 400)
+          }
+          document.addEventListener('submit', event => capture(event.target), true)
+          document.addEventListener('keydown', event => {
+            if (!event.isTrusted || event.key !== 'Enter') return
+            const target = event.composedPath()[0]
+            if (target instanceof HTMLInputElement) capture(target)
+          }, true)
+          document.addEventListener('click', event => {
+            if (!event.isTrusted) return
+            const target = event.composedPath()[0]
+            const control = target && target.closest && target.closest('button, input[type=submit i], input[type=image i], [role=button]')
+            if (control && !host.contains(control)) capture(control)
+          }, true)
+          // Two-step sign-ins ask for the username first, so remember it.
+          document.addEventListener('input', event => {
+            const target = event.composedPath()[0]
+            if (event.isTrusted && target instanceof HTMLInputElement && typeOf(target) !== 'password' && isLoginField(target)) lastUser = target.value
+          }, true)
+          addEventListener('pagehide', () => {
+            if (pending && !pending.confirmed && Date.now() - pending.at < 20000) { pending.leaving = true; confirm() }
+          })
+
           window.__ikagoPasswordKey = {
             state: () => {
               const r = host.getBoundingClientRect()
@@ -159,8 +217,30 @@ enum PasswordKeyScript {
               const r = host.getBoundingClientRect()
               if (x < r.left || x > r.right || y < r.top || y > r.bottom) return false
               requested = field
-              return true
+              return rectOf(field)
             },
+            // The focused sign-in field after a real click or Tab (Chromium), so native code can list logins under it.
+            focusRect: () => {
+              if (!field || document.activeElement !== field || host.style.getPropertyValue('display') !== 'block') return null
+              requested = field
+              return rectOf(field)
+            },
+            setKeyAllowed: allowed => { keyAllowed = !!allowed; if (!allowed) hide() },
+            // Chromium: whether the key was clicked since native code last asked, as the field's rect in this frame.
+            poll: () => {
+              const result = {}
+              if (field && Date.now() - keyClickedAt < 1500) { keyClickedAt = 0; requested = field; result.key = rectOf(field) }
+              return result
+            },
+            // Chromium: the sign-in waiting to be saved, confirmed or not; a confirmed one is handed over only once.
+            saveState: () => {
+              if (!pending || Date.now() - pending.at > 20000) return null
+              const state = { username: pending.username, password: pending.password, confirmed: pending.confirmed }
+              if (pending.confirmed) pending = null
+              return state
+            },
+            // A new page that still asks for a password means the sign-in didn't go through.
+            hasPasswordField: () => [...document.querySelectorAll('input[type=password i]')].some(visible),
             fill
           }
         })()

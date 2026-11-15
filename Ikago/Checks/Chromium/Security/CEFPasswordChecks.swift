@@ -47,8 +47,9 @@ enum CEFPasswordChecks {
         print("CEF_PASSWORDS_STAGE loaded")
         try await click("document.getElementById('pass')")
         try await Task.sleep(for: .milliseconds(600))
-        guard !tab.hasPasswordKey, try await page("document.querySelector('ikago-password-key') === null") as? Bool == true
-        else { throw CEFError.script("The password key was injected for a site with no saved login.") }
+        // The sign-in watcher may be there (saving), but the key never shows without a saved login.
+        guard try await !keyVisible(), try await page("typeof window.__ikagoPasswordKey === 'undefined'") as? Bool == true
+        else { throw CEFError.script("The password key showed for a site with no saved login, or the page can see its script.") }
         print("CEF_PASSWORDS_STAGE no-key")
         _ = try vault.add([.init(url: url, title: nil, username: "cef-user", password: "cef pass 'quoted' \"too\"")])
         try await load()
@@ -74,7 +75,7 @@ enum CEFPasswordChecks {
         guard try await page("document.getElementById('user').value") as? String == "cef-user" else {
             throw CEFError.script("The username wasn't filled.")
         }
-        print("CEF_PASSWORDS_OK no-login-no-script script-hidden page-click-no-fill real-click-fills")
+        print("CEF_PASSWORDS_OK no-login-no-key script-hidden page-click-no-fill real-click-fills")
     }
 
     private static func wait(_ predicate: @MainActor () async -> Bool) async throws {

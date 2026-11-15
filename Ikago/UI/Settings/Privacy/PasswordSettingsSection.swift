@@ -23,6 +23,26 @@ struct PasswordSettingsSection: View {
                                                        set: { state.browserPreferences.passwordAutoFill = $0 }))
                     .labelsHidden().toggleStyle(.switch)
             }
+            if source == .ikago && state.browserPreferences.passwordAutoFill ?? true {
+                PageDivider()
+                PageRow(title: "Offer to save passwords", subtitle: "After you sign in, save new logins and update changed ones") {
+                    Toggle("Offer to save passwords", isOn: Binding(get: { state.browserPreferences.passwordOfferSave ?? true },
+                                                                    set: { state.browserPreferences.passwordOfferSave = $0 }))
+                        .labelsHidden().toggleStyle(.switch)
+                }
+                if let never = state.browserPreferences.passwordNeverSave, !never.isEmpty {
+                    PageDivider()
+                    PageRow(title: "Never saved for", subtitle: never.sorted().joined(separator: ", ")) {
+                        Button("Clear") { state.browserPreferences.passwordNeverSave = nil }
+                    }
+                }
+                PageDivider()
+                PageRow(title: "Suggest logins automatically", subtitle: "Show saved logins when you click a sign-in field. Off: click the key first") {
+                    Toggle("Suggest logins automatically", isOn: Binding(get: { state.browserPreferences.passwordSuggestOnFocus ?? true },
+                                                                         set: { state.browserPreferences.passwordSuggestOnFocus = $0 }))
+                        .labelsHidden().toggleStyle(.switch)
+                }
+            }
             if webKit {
                 PageDivider()
                 PageRow(title: "Fill from", subtitle: "Chromium always uses Ikago Passwords") {
@@ -41,6 +61,7 @@ struct PasswordSettingsSection: View {
                 Button("Import…") { importFile() }.buttonStyle(SettingsButtonStyle(prominent: true))
             }
         }
+        PasswordExportSection()
         PageSection(title: "Saved in Ikago", footer: "Encrypted on this Mac. Every fill needs Touch ID or your Mac password.") {
             if let issue = vault.loadIssue {
                 Text(issue).font(.system(size: 13)).foregroundStyle(.secondary)

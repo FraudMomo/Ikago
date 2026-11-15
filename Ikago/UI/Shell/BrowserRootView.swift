@@ -89,6 +89,8 @@ struct BrowserRootView: View {
         .animation(reduceMotion ? nil : .ikago, value: chrome.editFolderID)
         .animation(reduceMotion ? nil : .ikago, value: chrome.showNewSpace)
         .animation(reduceMotion ? nil : .ikago, value: chrome.showPageAssistant)
+        .animation(reduceMotion ? nil : .ikagoQuick, value: chrome.passwordSuggestions?.id)
+        .animation(reduceMotion ? nil : .ikago, value: chrome.passwordSave?.id)
         .environment(\.tabHighlightStyle, state.tabHighlightStyle)
         .environment(\.chromeModel, chrome)
         .recordLayout("shell")

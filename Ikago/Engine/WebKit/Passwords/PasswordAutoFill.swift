@@ -37,20 +37,38 @@ final class PasswordAutoFill: NSObject, WKScriptMessageHandlerWithReply {
         case "query": replyHandler(vault ? PasswordChooser.offers(for: webView.url) : true, nil)
         case "fill" where vault:
             replyHandler(true, nil)
-            fillFromVault(webView, frame: message.frameInfo)
+            fillFromVault(webView, frame: message.frameInfo, field: Self.fieldRect(body["rect"], frame: message.frameInfo, in: webView))
+        case "save" where vault:
+            replyHandler(true, nil)
+            saved(body, frame: message.frameInfo, in: webView)
+        case "suggest" where vault:
+            replyHandler(true, nil)
+            // Subframe rects aren't in the web view's coordinates, so only the main frame lists by itself.
+            guard PasswordChooser.suggestsOnFocus, message.frameInfo.isMainFrame,
+                  let field = Self.fieldRect(body["rect"], frame: message.frameInfo, in: webView) else { return }
+            fillFromVault(webView, frame: message.frameInfo, field: field)
         case "fill": replyHandler(open(for: webView), nil)
         default: replyHandler(false, nil)
         }
     }
 
     /// The key's frame gets the login, if it is still showing the page the key was clicked on.
-    private func fillFromVault(_ webView: WKWebView, frame: WKFrameInfo) {
+    /// A field's CSS rect in the main frame, in the web view's coordinates.
+    static func fieldRect(_ value: Any?, frame: WKFrameInfo, in webView: WKWebView) -> NSRect? {
+        guard frame.isMainFrame, let rect = value as? [String: Any], let x = rect["x"] as? Double, let y = rect["y"] as? Double,
+              let width = rect["width"] as? Double, let height = rect["height"] as? Double else { return nil }
+        let scale = webView.pageZoom * webView.magnification
+        let top = webView.isFlipped ? y * scale : webView.bounds.height - (y + height) * scale
+        return NSRect(x: x * scale, y: top, width: width * scale, height: height * scale)
+    }
+
+    private func fillFromVault(_ webView: WKWebView, frame: WKFrameInfo, field: NSRect? = nil) {
         guard let url = webView.url, isFocused(webView) else { return }
         Task { @MainActor in
-            guard let login = await PasswordChooser.choose(for: url, in: webView), webView.url == url,
+            guard let login = await PasswordChooser.choose(for: url, in: webView, field: field), webView.url == url,
                   Self.mayFill(frame, in: webView) else { return }
             _ = try? await webView.callAsyncJavaScript("return window.__ikagoPasswordKey.fill(username, password, origin)",
-                arguments: ["username": login.username, "password": login.password, "origin": PasswordChooser.origin(of: url)],
+                arguments: ["username": login.username, "password": login.password, "origin": Self.origin(of: frame, page: url)],
                 in: frame, contentWorld: .defaultClient)
             #if DEBUG
             if WebProfiles.isTestMode { print("IKTEST passwords vault filled") }
@@ -63,15 +81,48 @@ final class PasswordAutoFill: NSObject, WKScriptMessageHandlerWithReply {
         return responder === webView || responder.isDescendant(of: webView)
     }
 
-    /// The main frame of a web page, or a frame with the same origin. Cross-origin frames
-    /// (ads, embeds) never get the key.
+    /// A sign-in the key script confirmed. One that left the page waits for the next page: if it asks for a password
+    /// again, the sign-in didn't go through and nothing is offered.
+    private func saved(_ body: [String: Any], frame: WKFrameInfo, in webView: WKWebView) {
+        guard PasswordSaving.isEnabled, Self.mayFill(frame, in: webView), let password = body["password"] as? String else { return }
+        let username = body["username"] as? String ?? ""
+        let host = frame.securityOrigin.host, pageURL = webView.url
+        Task { @MainActor [weak webView] in
+            if body["leaving"] as? Bool == true {
+                try? await Task.sleep(for: .seconds(2))
+                guard let webView else { return }
+                let again = try? await webView.callAsyncJavaScript(
+                    "return window.__ikagoPasswordKey ? window.__ikagoPasswordKey.hasPasswordField() : false",
+                    in: nil, contentWorld: .defaultClient)
+                if again as? Bool == true { return }
+            }
+            guard let webView else { return }
+            PasswordSaving.submitted(username: username, password: password, host: host, pageURL: pageURL, isPrivate: false, in: webView)
+        }
+    }
+
+    /// The frame's origin as its `location.origin` reads, so `fill` accepts a sign-in iframe on the same site.
+    static func origin(of frame: WKFrameInfo, page url: URL) -> String {
+        if frame.isMainFrame { return PasswordChooser.origin(of: url) }
+        let origin = frame.securityOrigin
+        var components = URLComponents()
+        components.scheme = origin.protocol
+        components.host = origin.host
+        if origin.port != 0 { components.port = origin.port }
+        return components.url.map(PasswordChooser.origin(of:)) ?? ""
+    }
+
+    /// The main frame of a web page, a frame with the same origin, or an HTTPS frame on the same site (a sign-in iframe
+    /// such as idmsa.apple.com on appstoreconnect.apple.com). Other sites' frames (ads, embeds) never get the key.
     static func mayFill(_ frame: WKFrameInfo, in webView: WKWebView) -> Bool {
         guard let url = webView.url, let scheme = url.scheme?.lowercased(), scheme == "https" || scheme == "http" else { return false }
         if frame.isMainFrame { return true }
         let origin = frame.securityOrigin
         let defaultPort = scheme == "https" ? 443 : 80
-        return origin.protocol.lowercased() == scheme && origin.host.lowercased() == url.host?.lowercased()
-            && (origin.port == 0 ? defaultPort : origin.port) == (url.port ?? defaultPort)
+        if origin.protocol.lowercased() == scheme && origin.host.lowercased() == url.host?.lowercased()
+            && (origin.port == 0 ? defaultPort : origin.port) == (url.port ?? defaultPort) { return true }
+        guard scheme == "https", origin.protocol.lowercased() == "https", let host = url.host, !origin.host.isEmpty else { return false }
+        return PublicSuffix.registrableDomain(PasswordVault.site(origin.host)) == PublicSuffix.registrableDomain(PasswordVault.site(host))
     }
 
     /// Opens Apple's panel at the page's focused field, only while this page has the keyboard.

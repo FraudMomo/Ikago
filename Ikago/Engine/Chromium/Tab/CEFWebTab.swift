@@ -239,7 +239,7 @@ final class CEFWebTab: WebTab {
         case "find": delegate?.webTab(self, didFind: payload["found"] as? Bool ?? false)
         case "closed": delegate?.webTabDidClose(self)
         case "crash":
-            passwordKeyState.context = nil; passwordKeyState.injectedGeneration = -1
+            passwordKeyState.context = nil; passwordKeyState.injectedGeneration = -1; passwordKeyState.frames = [:]
             delegate?.webTab(self, didFailLoad: "The Chromium page process stopped. Reload to try again.", url: currentURL)
         default: break
         }
