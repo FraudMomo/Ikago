@@ -19,7 +19,21 @@ enum BrowserProfileDiscovery {
         let browser: String
         let path: String
         let key: ChromiumCookieCrypto.Browser
+        /// Opera keeps its profile in the data folder itself rather than in `Default`.
+        var rootProfile = false
     }
+
+    /// Bundle identifiers of every browser Ikago imports from; also used to show each browser's own icon.
+    static let bundleIDs: [String: String] = [
+        "Google Chrome": "com.google.Chrome", "Chrome Beta": "com.google.Chrome.beta",
+        "Chrome Canary": "com.google.Chrome.canary", "Microsoft Edge": "com.microsoft.edgemac",
+        "Brave": "com.brave.Browser", "Arc": "company.thebrowser.Browser", "Dia": "company.thebrowser.dia",
+        "Vivaldi": "com.vivaldi.Vivaldi", "Chromium": "org.chromium.Chromium", "Opera": "com.operasoftware.Opera",
+        "Opera GX": "com.operasoftware.OperaGX", "Comet": "ai.perplexity.comet",
+        "Firefox": "org.mozilla.firefox", "Zen": "app.zen-browser.zen", "LibreWolf": "org.mozilla.librewolf",
+        "Waterfox": "net.waterfox.waterfox", "Floorp": "one.ablaze.floorp",
+        "Safari": "com.apple.Safari", "Safari Technology Preview": "com.apple.SafariTechnologyPreview"
+    ]
 
     static func discover(home: URL, installedBrowsers: Set<String> = []) -> [DetectedBrowserProfile] {
         let support = home.appending(path: "Library/Application Support")
@@ -30,6 +44,10 @@ enum BrowserProfileDiscovery {
             .init(browser: "Microsoft Edge", path: "Microsoft Edge", key: .edge),
             .init(browser: "Brave", path: "BraveSoftware/Brave-Browser", key: .brave),
             .init(browser: "Arc", path: "Arc/User Data", key: .arc),
+            .init(browser: "Dia", path: "Dia/User Data", key: .dia),
+            .init(browser: "Opera", path: "com.operasoftware.Opera", key: .opera, rootProfile: true),
+            .init(browser: "Opera GX", path: "com.operasoftware.OperaGX", key: .opera, rootProfile: true),
+            .init(browser: "Comet", path: "Comet", key: .comet),
             .init(browser: "Vivaldi", path: "Vivaldi", key: .vivaldi),
             .init(browser: "Chromium", path: "Chromium", key: .chromium)
         ]
@@ -44,20 +62,25 @@ enum BrowserProfileDiscovery {
             for child in children(root) where child.lastPathComponent == "Default" || child.lastPathComponent.hasPrefix("Profile ") {
                 folders.insert(child.lastPathComponent)
             }
-            if folders.isEmpty && installedBrowsers.contains(source.browser) { folders.insert("Default") }
+            if source.rootProfile && (hasProfileData(root, kind: .chromium) || installedBrowsers.contains(source.browser)) {
+                folders = [""]
+            } else if folders.isEmpty && installedBrowsers.contains(source.browser) { folders.insert("Default") }
             for folder in folders.sorted() {
-                let directory = root.appending(path: folder)
-                let name = cache[folder]?["name"] as? String ?? (folder == "Default" ? "Default profile" : folder)
+                let directory = folder.isEmpty ? root : root.appending(path: folder)
+                let name = cache[folder]?["name"] as? String ?? (folder == "Default" || folder.isEmpty ? "Default profile" : folder)
                 found.append(.init(browser: source.browser, name: String(name.prefix(128)), directory: directory,
-                                   kind: .chromium, cookieKey: source.key, preferred: folder == recent))
+                                   kind: .chromium, cookieKey: source.key, preferred: folder == recent || folder.isEmpty))
             }
         }
-        for (browser, path) in [("Firefox", "Firefox"), ("Zen", "zen"), ("Zen", "Zen")] {
+        for (browser, path) in [("Firefox", "Firefox"), ("Zen", "zen"), ("Zen", "Zen"),
+                                ("LibreWolf", "librewolf"), ("Waterfox", "Waterfox"), ("Floorp", "Floorp")] {
             found += firefox(browser: browser, root: support.appending(path: path))
         }
-        let safari = home.appending(path: "Library/Safari")
-        if FileManager.default.fileExists(atPath: safari.path) {
-            found.append(.init(browser: "Safari", name: "Bookmarks and history", directory: safari, kind: .safari, cookieKey: nil, preferred: true))
+        for (browser, folder) in [("Safari", "Safari"), ("Safari Technology Preview", "SafariTechnologyPreview")] {
+            let safari = home.appending(path: "Library/\(folder)")
+            if FileManager.default.fileExists(atPath: safari.path) {
+                found.append(.init(browser: browser, name: "Bookmarks and history", directory: safari, kind: .safari, cookieKey: nil, preferred: true))
+            }
         }
         var seen = Set<String>()
         return found.filter { seen.insert($0.id).inserted }.sorted {
@@ -69,10 +92,9 @@ enum BrowserProfileDiscovery {
 
     /// Installed apps remain selectable when macOS withholds profile metadata until access is allowed.
     @MainActor static func installedBrowsers() -> Set<String> {
-        let apps = ["Google Chrome": "com.google.Chrome", "Chrome Beta": "com.google.Chrome.beta",
-                    "Chrome Canary": "com.google.Chrome.canary", "Microsoft Edge": "com.microsoft.edgemac",
-                    "Brave": "com.brave.Browser", "Arc": "company.thebrowser.Browser",
-                    "Vivaldi": "com.vivaldi.Vivaldi", "Chromium": "org.chromium.Chromium"]
+        let chromium = ["Google Chrome", "Chrome Beta", "Chrome Canary", "Microsoft Edge", "Brave", "Arc", "Dia",
+                        "Vivaldi", "Chromium", "Opera", "Opera GX", "Comet"]
+        let apps = bundleIDs.filter { chromium.contains($0.key) }
         return Set(apps.compactMap { name, bundle in
             NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle) == nil ? nil : name
         })

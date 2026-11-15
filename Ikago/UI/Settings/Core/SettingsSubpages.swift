@@ -37,7 +37,7 @@ extension SettingsCategory {
                     page("Permissions", "Downloads"),
                     page("Website Data", "Browsing Data")]
         case .passwords:
-            return [page("AutoFill", "AutoFill"), page("Saved", "Saved in Ikago", "Import from Apple Passwords")]
+            return [page("AutoFill", "AutoFill"), page("Saved", "Saved in Ikago", "Import from Apple Passwords", "Export to Apple Passwords")]
         case .about:
             return [page("Overview", "Ikago"), page("Developer", "Developer")]
         case .history, .imports:

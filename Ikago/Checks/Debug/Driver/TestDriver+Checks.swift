@@ -47,6 +47,9 @@ extension TestDriver {
         case "importdemo":
             do { try OneClickImportChecks.fixture(home: SessionStore.testDirectory.appending(path: "ImportSources")) } catch { print("IKTEST importdemo FAIL \(error)") }
             await state.importer.refresh()
+        case "importfixture":  // sample browser profiles for screenshots of the import lists
+            try? OneClickImportChecks.fixture(home: SessionStore.testDirectory.appending(path: "ImportSources"))
+            await state.importer.refresh()
         case "importaccessdemo":
             do {
                 let home = SessionStore.testDirectory.appending(path: "ImportSources")

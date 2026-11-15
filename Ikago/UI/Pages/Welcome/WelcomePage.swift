@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// First-launch setup in a tab (ikago://welcome): engine, the default extension, search engine, then the first tab.
+/// First-launch setup in a tab (ikago://welcome): engine, layout, importing from another browser, the default extension, search engine, then the first tab.
 /// Every choice is an ordinary setting, so it can be changed later in Settings.
 struct WelcomePage: View {
     @Bindable var state: BrowserState
@@ -42,6 +42,8 @@ struct WelcomePage: View {
         switch step {
         case .welcome: WelcomeIntro()
         case .engine: WelcomeEngineStep(state: state)
+        case .layout: WelcomeLayoutStep(state: state)
+        case .importing: WelcomeImportStep(state: state)
         case .extensions: WelcomeExtensionsStep(state: state)
         case .search: WelcomeSearchStep(state: state)
         }
@@ -92,5 +94,5 @@ struct WelcomePage: View {
 }
 
 enum WelcomeStep: CaseIterable {
-    case welcome, engine, extensions, search
+    case welcome, engine, layout, importing, extensions, search
 }

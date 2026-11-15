@@ -117,6 +117,10 @@ struct AboutSettingsSection: View {
             PageRow(title: "Developer tools", subtitle: "Inspect Element and ⌥⌘I") {
                 Toggle("Developer tools", isOn: $state.developerTools).labelsHidden().toggleStyle(.switch)
             }
+            PageDivider()
+            PageRow(title: "Welcome tour", subtitle: "Go through the first-launch setup again: engine, layout, import, extensions and search") {
+                Button("Show Welcome") { state.newTab(url: InternalPage.welcome.url) }
+            }
         }
     }
 }

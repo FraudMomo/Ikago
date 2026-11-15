@@ -18,7 +18,8 @@ A complete everyday browser on Apple's WebKit, written in Swift 6 with AppKit an
 - Split view with up to four panes as columns, rows or a grid, built by dragging tabs onto the page
 - Tab groups, pinned essentials, a bookmarks bar, and nested bookmark folders
 - Address field with ranked suggestions from history, bookmarks, open tabs and search
-- Built-in History, Downloads, Bookmarks and searchable Settings pages, plus a first-launch welcome
+- Built-in History, Downloads, Bookmarks and searchable Settings pages
+- A first-launch welcome: engine, layout, importing from another browser, extensions and search, which can be shown again from Settings
 - Atomic session save and restore with a backup, plus optional tab hibernation
 - Full screen with a hiding sidebar and top bar, and a media player in the sidebar
 - Liquid Glass design that respects Reduce Motion and Reduce Transparency
@@ -59,7 +60,8 @@ still draws every part of the interface.
 
 ## Phase 5: Import ✅
 
-- Finds installed browser profiles automatically and imports with one click
+- Finds installed browser profiles automatically and imports with one click: Chrome, Edge, Brave, Arc, Dia,
+  Vivaldi, Opera, Comet, Chromium, Firefox, Zen, LibreWolf, Waterfox, Floorp and Safari, each shown with its own icon
 - Bookmarks, history, open tabs, tab groups and website logins where the source format allows
 - Exported files: bookmark HTML/JSON/plist, session files, and cookie exports
 - Password import from a CSV export, after which the export file is overwritten and deleted
@@ -105,6 +107,12 @@ visibly.
 - App Sandbox review, opt-in crash reporting and a privacy policy
 - Private vulnerability reporting and an independent security review
 - Accessibility, keyboard and visual regression passes across both layouts
+
+## Later
+
+- Passkeys, which depend on Apple's browser passkey entitlement
+- iCloud passwords extension
+- Importing passwords through Apple's Credential Exchange
 
 ---
 

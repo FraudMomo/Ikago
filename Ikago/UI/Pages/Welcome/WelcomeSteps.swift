@@ -50,7 +50,7 @@ struct WelcomeIntro: View {
     var body: some View {
         VStack(spacing: 18) {
             Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 112, height: 112)
-            StepHeading(title: "Welcome to Ikago", subtitle: "A calm, native browser for your Mac. Three quick choices and you’re ready.")
+            StepHeading(title: "Welcome to Ikago", subtitle: "A calm, native browser for your Mac. A few quick choices and you’re ready.")
         }
     }
 }
@@ -75,6 +75,21 @@ struct WelcomeEngineStep: View {
 
     private func detail(_ engine: BrowserEngine) -> String {
         engine == .webkit ? "Built into macOS · Apple Passwords and protected video" : "Open source · widest site compatibility"
+    }
+}
+
+struct WelcomeLayoutStep: View {
+    let state: BrowserState
+
+    var body: some View {
+        VStack(spacing: 22) {
+            StepHeading(title: "Choose a layout", subtitle: "Every tab in the sidebar, or tabs above the page. Change it any time in Settings.")
+            HStack(spacing: 14) {
+                ForEach(LayoutChoice.allCases) { choice in
+                    LayoutCard(choice: choice, selected: choice.isSelected(in: state), colors: state.palette) { choice.apply(to: state) }
+                }
+            }
+        }
     }
 }
 

@@ -21,16 +21,10 @@ struct BrowserImportSection: View {
             }
             ForEach(Array(model.profiles.enumerated()), id: \.element.id) { index, profile in
                 if index > 0 { PageDivider() }
-                PageRow(title: profile.title, subtitle: profile.subtitle) {
-                    HStack(spacing: 10) {
-                        if model.importingID == profile.id { ProgressView().controlSize(.small) }
-                        Button(model.completed.contains(profile.id) ? "Imported" : model.importingID == profile.id ? "Importing…" : "Import") {
-                            showDetails = false
-                            Task { await model.importProfile(profile, into: state) }
-                        }
-                        .buttonStyle(SettingsButtonStyle(prominent: true))
-                        .disabled(model.importingID != nil || model.completed.contains(profile.id))
-                        .accessibilityLabel("Import from \(profile.browser), \(profile.name)")
+                HStack(spacing: 12) {
+                    BrowserLogo(browser: profile.browser)
+                    PageRow(title: profile.title, subtitle: profile.subtitle) {
+                        BrowserImportButton(state: state, profile: profile) { showDetails = false }
                     }
                 }
             }
@@ -74,5 +68,27 @@ struct BrowserImportSection: View {
         guard panel.runModal() == .OK, let url = panel.url else { return }
         showDetails = false
         Task { await model.importFile(url, into: state) }
+    }
+}
+
+/// Imports one detected profile; shared by Settings and the welcome page.
+struct BrowserImportButton: View {
+    let state: BrowserState
+    let profile: DetectedBrowserProfile
+    var prominent = true
+    var willImport: () -> Void = {}
+    private var model: BrowserImportModel { state.importer }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            if model.importingID == profile.id { ProgressView().controlSize(.small) }
+            Button(model.completed.contains(profile.id) ? "Imported" : model.importingID == profile.id ? "Importing…" : "Import") {
+                willImport()
+                Task { await model.importProfile(profile, into: state) }
+            }
+            .buttonStyle(SettingsButtonStyle(prominent: prominent))
+            .disabled(model.importingID != nil || model.completed.contains(profile.id))
+            .accessibilityLabel("Import from \(profile.browser), \(profile.name)")
+        }
     }
 }

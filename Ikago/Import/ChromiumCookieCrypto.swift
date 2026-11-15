@@ -7,7 +7,8 @@ import CryptoKit
 /// Chromium's macOS v10 scheme. Keychain access occurs only after an explicit import choice.
 enum ChromiumCookieCrypto {
     enum Browser: String, CaseIterable, Identifiable, Sendable {
-        case chrome = "Chrome", edge = "Microsoft Edge", brave = "Brave", chromium = "Chromium", vivaldi = "Vivaldi", arc = "Arc"
+        case chrome = "Chrome", edge = "Microsoft Edge", brave = "Brave", chromium = "Chromium", vivaldi = "Vivaldi", arc = "Arc",
+             dia = "Dia", opera = "Opera", comet = "Comet"
         var id: String { rawValue }
         var service: String { rawValue + " Safe Storage" }
     }

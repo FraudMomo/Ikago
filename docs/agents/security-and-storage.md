@@ -74,12 +74,27 @@
   (ECIES, AES-GCM bound to site and username) to a Secure Enclave key that needs Touch ID or the Mac password for every single fill;
   sites and usernames are sealed. Matching is the registrable domain from the bundled Public Suffix List (`PublicSuffix`, `public_suffix_list.dat`): exact host first, then parents/children, then other subdomains; subdomains of a public suffix (github.io) are separate sites. The menu lists every match.
   `PasswordKeyScript` shows the key in password and username fields in an isolated world; only a trusted click asks native code, which
-  picks a login in a native menu (`PasswordChooser`) and passes it to the script's `fill` as call arguments, never script text. WebKit:
-  `.defaultClient` world and message handler, main frame or same-origin frames. Chromium: the "ikago-passwords" world of the top
-  document only, injected per document and only on sites with a saved login. The page never messages Ikago: a passive mouse-down
-  monitor sees the real click and asks the script's `hit(x, y)`. Never enable DevTools' Runtime domain on pages (pages can detect
-  it and it streams every console message). Saving new passwords isn't built yet. Debug tests count panel
-  requests and pick the first login instead of showing a menu.
+  picks a login (`PasswordChooser`) and passes it to the script's `fill` as call arguments, never script text. WebKit:
+  `.defaultClient` world and message handler; main frame, same-origin frames, and HTTPS frames on the same registrable domain (a
+  sign-in iframe such as idmsa.apple.com in appstoreconnect.apple.com); `fill` gets the frame's own origin. Chromium: the
+  "ikago-passwords" world of the top document and its same-site HTTPS frames (`scanPasswordFrames`, re-run after loads and
+  clicks since sign-in iframes arrive late), on sites with a saved login or, while saving is on, any HTTPS site; the key shows
+  only with a saved login (`setKeyAllowed`). The page never messages Ikago: passive monitors see real clicks and keys, then ask
+  the script (`hit(x, y)` on the top document, `poll`/`focusRect`/`saveState` in frames). Never enable DevTools' Runtime domain
+  on pages (pages can detect it and it streams every console message). The logins list is Ikago's own card in the window's
+  SwiftUI tree (`PasswordSuggestions`, shown through `ChromeModel`), the same on both engines: it opens under the field after
+  the person's own click or Tab (`passwordSuggestOnFocus`, unset: on; a page focusing a field by itself opens nothing) or from
+  the key, and a local monitor reads arrows, Return and Escape while the page keeps the keyboard. Choosing a login still asks
+  Touch ID. Fields in child frames without a known offset list at the pointer. Debug tests pick the first login instead of a list.
+- Saving logins (`PasswordSaving`, `passwordOfferSave`, unset: on; Ikago Passwords only; never in private windows, asked of the
+  window): the script captures a filled password on submit, Return or a button, and confirms the sign-in only when the password
+  field goes away or the page moves on to one without a password field, so a rejected password is never offered. The card
+  (`PasswordSaveCard`) offers Save, Not Now or Never for This Site (`passwordNeverSave`, registrable domains). A login's
+  `fingerprint` (HMAC under a key derived from the local data key, inside the sealed vault) recognizes a resubmitted password
+  without Touch ID; older logins learn it on their first fill. Export to Apple Passwords: Apple has no API for adding passwords,
+  so `PasswordExportSection` writes the Passwords app's CSV (one Touch ID for all), the person imports it (File ▸ Import
+  Passwords…), and Ikago erases the file; only logins saved here (`savedHere`) and not yet exported (`exported`, cleared when the
+  password changes) are included. Checks: `passwordsavechecks` (WebKit) and `CEFPasswordChecks` (Chromium).
 - Safari bundle native messages use WebKit's default delivery; do not override the messaging
   delegate with a blanket unsupported response. Chrome native messaging is still unavailable.
 - Preserve WebKit’s native extension resource origins. Use `resourceURL`/`canonicalURL` to
