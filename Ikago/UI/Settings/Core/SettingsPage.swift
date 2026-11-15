@@ -208,6 +208,7 @@ struct SettingsPage: View {
             PageSection(title: "Status") { SecurityDashboard(state: state) }
             SecuritySettingsSection(state: state)
             TrackingProtectionSection(state: state)
+            NotificationSettingsSection(state: state)
             PrivacySettingsSection(state: state, commands: commands)
         case .passwords:
             PasswordSettingsSection(state: state)

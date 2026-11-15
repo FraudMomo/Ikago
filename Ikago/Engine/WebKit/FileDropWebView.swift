@@ -7,6 +7,7 @@ final class FileDropWebView: WKWebView {
     var pageAction: (PageContextAction) -> Void = { _ in }
     var menuActions: [PageMenuAction] = []
     var onFiles: ([URL]) -> Void = { _ in }
+    var onNotification: (String) -> Void = { _ in }
 
     override func willOpenMenu(_ menu: NSMenu, with event: NSEvent) {
         super.willOpenMenu(menu, with: event)

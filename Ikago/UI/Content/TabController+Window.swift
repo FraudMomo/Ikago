@@ -26,6 +26,10 @@ extension TabController {
     func webTab(_ page: WebTab, requestsPermission request: PermissionRequest) {
         if let host { host.tabController(self, requestsPermission: request) } else { request.resolve(.deny) }
     }
+    func webTab(_ page: WebTab, notification json: String) {
+        guard page === self.page else { return }
+        WebNotifications.shared.receive(json, from: self)
+    }
     func webTab(_ page: WebTab, didFind found: Bool) {
         host?.tabController(self, didFind: found)
     }

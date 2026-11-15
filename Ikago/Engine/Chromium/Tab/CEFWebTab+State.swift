@@ -61,6 +61,11 @@ extension CEFWebTab {
                     _ = try await devTools("Runtime.evaluate", ["expression": CEFPageStateScript.source,
                         "contextId": context, "returnByValue": true], generation: generation)
                     stateScriptInstalls += 1
+                    // The notification shim goes into the page's own world once the listener that hears it exists. (Not a
+                    // document-start script: registering one makes Back through a restored tab's history stall.)
+                    if index == 0, wantsNotificationShim {
+                        _ = try? await devTools("Runtime.evaluate", ["expression": NotificationShim.chromium, "userGesture": false], generation: generation)
+                    }
                 } catch { pageStateContexts.remove(context) }
             }
             guard !Task.isCancelled, documentGeneration == generation else { return }
@@ -92,5 +97,23 @@ extension CEFWebTab {
             lastPolledThemeColor = color
             delegate?.webTab(self, didChangeThemeColor: color)
         }
+    }
+}
+
+extension CEFWebTab {
+    /// Hands a message to the shim in the page's own world (no context: the top frame's main world).
+    func sendNotificationMessage(_ message: [String: Any]) {
+        guard let script = NotificationShim.replyScript(message), !isTornDown else { return }
+        let generation = documentGeneration
+        Task { @MainActor in
+            _ = try? await devTools("Runtime.evaluate", ["expression": script, "userGesture": false], generation: generation)
+        }
+    }
+}
+
+extension CEFWebTab {
+    /// Pages may ask for notifications, except in private windows and when Settings turned them off.
+    var wantsNotificationShim: Bool {
+        !profileID.hasPrefix("Private-") && BrowserSecurity.shared.preferences.websiteNotifications != false
     }
 }

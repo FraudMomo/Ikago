@@ -35,7 +35,7 @@ extension SettingsCategory {
             return [page("Installed", "Extensions", "Installed"), page("Get & Update", "Add Extensions", "Extension Updates")]
         case .security:
             return [page("Protection", "Status", "Secure Connections", "Website Safety", "Tracking Protection"),
-                    page("Permissions", "Downloads"),
+                    page("Permissions", "Downloads", "Notifications"),
                     page("Website Data", "Browsing Data")]
         case .passwords:
             return [page("AutoFill", "AutoFill"), page("Saved", "Saved in Ikago", "Import from Apple Passwords", "Export to Apple Passwords")]

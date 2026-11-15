@@ -49,9 +49,12 @@ protocol WebTabDelegate: AnyObject {
     /// The pointer moved onto a link (its address), or off links (nil). For the status bar.
     func webTab(_ page: WebTab, perform action: PageContextAction)
     func webTab(_ page: WebTab, didHoverLink url: String?)
+    /// A page's Notification message (`NotificationShim`), as JSON.
+    func webTab(_ page: WebTab, notification json: String)
 }
 
 
 extension WebTabDelegate {
     func webTab(_ page: WebTab, perform action: PageContextAction) {}
+    func webTab(_ page: WebTab, notification json: String) {}
 }

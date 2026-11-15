@@ -64,6 +64,21 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
         }
         window.dismissAddress = { [weak self] in self?.dismissCommandPalette() }
         content.host = self
+        // An extension's popup is a native popover over this window; while one is open the tabs beneath it stay quiet.
+        var shownPopovers = Set<ObjectIdentifier>()
+        for name in [NSPopover.willShowNotification, NSPopover.didCloseNotification] {
+            popoverObservers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
+                let popover = (note.object as? NSPopover).map(ObjectIdentifier.init)
+                MainActor.assumeIsolated {
+                    guard let self, let popover else { return }
+                    if name == NSPopover.willShowNotification {
+                        guard self.window?.isKeyWindow == true else { return }
+                        shownPopovers.insert(popover)
+                    } else { shownPopovers.remove(popover) }
+                    self.chrome.nativePopovers = shownPopovers.count
+                }
+            })
+        }
         chrome.onTabDragEnded = { [weak self] id, point in self?.tabDraggedOut(id, at: point) }
         content.shouldFocusPage = { [weak self] in self?.isEditingAddress != true }
         background.frame = NSRect(origin: .zero, size: window.contentLayoutRect.size)

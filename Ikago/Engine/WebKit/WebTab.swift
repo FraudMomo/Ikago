@@ -41,6 +41,10 @@ final class WebKitTab: NSObject, WebTab {
             guard let self else { return }
             self.delegate?.webTab(self, didDropFiles: urls)
         }
+        view.onNotification = { [weak self] json in
+            guard let self else { return }
+            self.delegate?.webTab(self, notification: json)
+        }
         view.pageAction = { [weak self] action in
             guard let self else { return }
             self.delegate?.webTab(self, perform: action)

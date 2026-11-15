@@ -9,6 +9,7 @@ final class PermissionRequest {
         let rawValue: Int
         static let camera = Kinds(rawValue: 1 << 0)
         static let microphone = Kinds(rawValue: 1 << 1)
+        static let notifications = Kinds(rawValue: 1 << 2)
     }
 
     enum Decision { case allow, deny }

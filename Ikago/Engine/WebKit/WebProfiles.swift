@@ -39,6 +39,7 @@ enum WebProfiles {
         LinkHoverMonitor.shared.install(in: config.userContentController)
         WebStoreBridge.shared.install(in: config.userContentController)
         PasswordAutoFill.shared.install(in: config.userContentController)
+        WebNotificationBridge.shared.install(in: config.userContentController)
         config.preferences.isElementFullscreenEnabled = true
         config.preferences.isFraudulentWebsiteWarningEnabled = BrowserSecurity.shared.preferences.fraudulentWebsiteWarning ?? true
         // WebKit's own popup blocker: window.open() needs a user gesture.

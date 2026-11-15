@@ -32,6 +32,7 @@ struct PermissionPromptSheet: View {
     }
 
     private var description: String {
+        if request.kinds.contains(.notifications) { return "send you notifications" }
         switch (request.kinds.contains(.camera), request.kinds.contains(.microphone)) {
         case (true, true): return "use your camera and microphone"
         case (true, false): return "use your camera"
@@ -39,5 +40,7 @@ struct PermissionPromptSheet: View {
         }
     }
 
-    private var symbol: String { request.kinds.contains(.camera) ? "video.fill" : "mic.fill" }
+    private var symbol: String {
+        request.kinds.contains(.notifications) ? "bell.badge.fill" : request.kinds.contains(.camera) ? "video.fill" : "mic.fill"
+    }
 }

@@ -17,6 +17,8 @@ struct SiteSettingsCard: View {
                 permissionRow(.camera, title: "Camera", symbol: "video.fill", tint: .blue, inUse: tab.cameraActive)
                 SiteCardDivider()
                 permissionRow(.microphone, title: "Microphone", symbol: "mic.fill", tint: .orange, inUse: tab.microphoneActive)
+                SiteCardDivider()
+                permissionRow(.notifications, title: "Notifications", symbol: "bell.fill", tint: .red, inUse: false)
                 if !state.isPrivate, BrowserState.siteForRule(tab.url) != nil {
                     SiteCardDivider()
                     SiteEngineRow(state: state, tab: tab, commands: commands)
