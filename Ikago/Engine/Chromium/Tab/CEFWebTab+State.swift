@@ -78,8 +78,18 @@ extension CEFWebTab {
     func receivePageState(_ payload: [AnyHashable: Any]) {
         guard let context = payload["executionContextId"] as? Int, pageStateContexts.contains(context),
               let json = payload["payload"] as? String, let data = json.data(using: .utf8), data.count <= 65536,
-              let state = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-              let media = state["media"] as? [String: Any] else { return }
+              let state = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return }
+        if let peek = ShiftClickPeek.url(state["peek"]) {
+            if delegate?.webTab(self, peeks: peek, trigger: .shiftClick) != true {
+                delegate?.webTab(self, openInNewTab: peek.absoluteString, background: false)
+            }
+            return
+        }
+        if let notification = state["notify"] as? String {
+            if context == pageStateRoot { delegate?.webTab(self, notification: notification) }
+            return
+        }
+        guard let media = state["media"] as? [String: Any] else { return }
         pageFrameReports[context] = media
         // A page started Chromium's own Picture in Picture, whose window Ikago never shows: float it in Ikago's panel.
         if let pip = state["pip"] as? Int, pip > (pagePictureInPictureCounts[context] ?? 0) {

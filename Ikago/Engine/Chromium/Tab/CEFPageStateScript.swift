@@ -33,6 +33,11 @@ enum CEFPageStateScript {
       };
       if (document.head) observeHead();
       else document.addEventListener('DOMContentLoaded', observeHead, {once: true});
+      // The page's Notification shim (page world) raises this event; relay it through the binding.
+      window.addEventListener('\(NotificationShim.event)', event => {
+        try { window.__ikagoStateChanged(JSON.stringify({notify: String(event.detail)})); } catch (error) {}
+      }, true);
+      \(ShiftClickPeek.listener(post: "href => window.__ikagoStateChanged(JSON.stringify({peek: href}))"))
       window.__ikagoPageState = true;
       report();
     })();

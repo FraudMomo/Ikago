@@ -1,7 +1,7 @@
 import WebKit
 
-/// Reports the link under the pointer for the status bar, through a small script in the isolated `.defaultClient`
-/// world of every frame. Public API only: WebKit's own hover callback is private.
+/// Reports the link under the pointer for the status bar, and Shift-clicked links for Peek (`ShiftClickPeek`), through
+/// a small script in the isolated `.defaultClient` world of every frame. Public API only: WebKit's own hover callback is private.
 @MainActor
 final class LinkHoverMonitor: NSObject, WKScriptMessageHandler {
     static let shared = LinkHoverMonitor()
@@ -24,6 +24,7 @@ final class LinkHoverMonitor: NSObject, WKScriptMessageHandler {
           document.addEventListener('mouseout', event => { if (!event.relatedTarget) report('') },
                                     { capture: true, passive: true })
           window.addEventListener('pagehide', () => report(''))
+          \(ShiftClickPeek.listener(post: "href => window.webkit.messageHandlers.\(handlerName).postMessage({peek: href})"))
         })()
         """
 
@@ -38,8 +39,15 @@ final class LinkHoverMonitor: NSObject, WKScriptMessageHandler {
     func register(_ page: WebKitTab) { pages.setObject(page, forKey: page.webView) }
 
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard let webView = message.webView, let page = pages.object(forKey: webView),
-              let href = message.body as? String else { return }
+        guard let webView = message.webView, let page = pages.object(forKey: webView) else { return }
+        if let peek = message.body as? [String: Any] {
+            guard let url = ShiftClickPeek.url(peek["peek"]) else { return }
+            if page.delegate?.webTab(page, peeks: url, trigger: .shiftClick) != true {
+                page.delegate?.webTab(page, openInNewTab: url.absoluteString, background: false)
+            }
+            return
+        }
+        guard let href = message.body as? String else { return }
         page.delegate?.webTab(page, didHoverLink: href.isEmpty ? nil : href)
     }
 }
