@@ -109,6 +109,7 @@ enum CEFSmoke {
             try await CEFLinkClickChecks.run(browser: browser)
             if !CommandLine.arguments.contains("--cef-smoke-read") {
                 try await CEFPasswordChecks.run(url: url, window: window)
+                try await CEFPageToolChecks.run(url: url, window: window)
                 try await CEFCookieIsolationChecks.run(url: url, window: window)
                 window.contentView = browser
                 try await CEFHiddenServiceChecks.run(url: url)

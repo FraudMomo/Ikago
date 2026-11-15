@@ -115,6 +115,7 @@ private struct SiteInfoCard: View {
         VStack(alignment: .leading, spacing: 12) {
             if let tab { siteHeader(tab, colors: colors) }
             if let tab, AddressResolver.isWebURL(tab.url) {
+                SitePageActions(state: state, commands: commands, dismiss: dismiss)
                 SiteSettingsCard(state: state, tab: tab, commands: commands)
             }
             VStack(alignment: .leading, spacing: 6) {
