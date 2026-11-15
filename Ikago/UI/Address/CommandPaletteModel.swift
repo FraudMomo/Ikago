@@ -166,7 +166,7 @@ final class CommandPaletteModel {
 
     func switchToTab(_ suggestion: Suggestion) { if let id = suggestion.tabID { onSwitch(id) } }
 
-    /// Shift+Delete or × on a history row forgets that page, as in Chrome.
+    /// Shift+Delete or × on a history row forgets that page.
     @discardableResult func remove(_ suggestion: Suggestion) -> Bool {
         guard let url = suggestion.removableURL else { return false }
         let key = OmniboxURL.key(url)

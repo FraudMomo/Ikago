@@ -68,12 +68,14 @@ text and international formatting remain available; `CEFLocaleChecks` verifies m
 
 ## 3. Style
 
-1. Files under 300 lines; small single-purpose SwiftUI views and AppKit controllers.
+1. One feature, one place: related files share a nested folder, and small related pieces share a file instead of
+   one tiny file each. Aim for files under about 300 lines; up to about 450 is fine when splitting would scatter one
+   feature. Small single-purpose SwiftUI views and AppKit controllers.
 2. State: `@MainActor @Observable` classes (`BrowserState`), no Combine where `@Observable` works.
 3. Keep feature parity: atomic session save/restore with backup, fail-closed permissions,
    per-Space colors, shortcuts Cmd+T, Cmd+W, Cmd+Shift+T, Cmd+L, Cmd+F, Cmd+P.
 4. Verify with the Debug test driver (`IKAGO_TEST_MODE=1 IKAGO_TEST_ACTIONS=…`, see
-   `App/TestDriver.swift`); it uses in-memory website data and a temporary session folder.
+   `Checks/Debug/Driver/TestDriver.swift`); it uses in-memory website data and a temporary session folder.
 
 ## 4. Topic rules (read the one you need)
 

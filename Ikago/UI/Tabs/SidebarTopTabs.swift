@@ -68,7 +68,7 @@ struct SidebarTopTabs: View {
                 }
                 .onChange(of: items.count) { old, new in if new > old { heldWidth = nil } }
                 // Only as tall as the tabs: a scroll view takes every click in its frame, and the strip above the tabs
-                // belongs to the window (drag to move, double-click to zoom), as in Chrome and Safari.
+                // belongs to the window (drag to move, double-click to zoom).
                 .frame(width: min(natural, available), height: Self.tabHeight)
                 .frame(height: rowHeight, alignment: .bottom)
                 .recordLayout("sidebar-top-tabs")
@@ -167,6 +167,7 @@ private struct AttachedTab<Label: View>: View {
     let onHover: (Bool) -> Void
     @ViewBuilder let label: (Bool) -> Label
     @State private var hovering = false
+    @Environment(\.chromeModel) private var chrome
 
     var body: some View {
         label(hovering)
@@ -188,7 +189,11 @@ private struct AttachedTab<Label: View>: View {
             // Revealing the active tab includes its flares and the edge fade beside it, so it never looks cut off.
             .background(ActiveTabScrollAnchor(active: active).padding(.horizontal, -26))
             .recordLayout("active-tab", enabled: active)
-            .onHover { hovering = $0; onHover($0) }
+            .onHover { inside in
+                guard !inside || chrome?.coversTabs != true else { return }
+                hovering = inside; onHover(inside)
+            }
+            .onChange(of: chrome?.coversTabs == true) { _, now in if now, hovering { hovering = false; onHover(false) } }
             .animation(.easeOut(duration: hovering ? 0.1 : 0.2), value: hovering)
     }
 }
@@ -211,7 +216,7 @@ private struct AttachedTabLabel: View {
             Text(tab.displayTitle).font(.system(size: 12.5, weight: active ? .medium : .regular)).lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
             TabMediaIndicators(tab: tab, colors: colors, commands: commands)
-            // Resting tabs give the close button's room to their titles, as Chrome does.
+            // Resting tabs give the close button's room to their titles.
             if active || hovering {
                 Button(action: close) {
                     Image(systemName: "xmark").font(.system(size: 9, weight: .semibold))

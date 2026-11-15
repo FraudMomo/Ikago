@@ -90,6 +90,7 @@ struct BrowserRootView: View {
         .animation(reduceMotion ? nil : .ikago, value: chrome.showNewSpace)
         .animation(reduceMotion ? nil : .ikago, value: chrome.showPageAssistant)
         .environment(\.tabHighlightStyle, state.tabHighlightStyle)
+        .environment(\.chromeModel, chrome)
         .recordLayout("shell")
         .overlayPreferenceValue(DownloadsAnchorKey.self) { anchors in
             // The sidebar's Downloads button reports its frame from the sidebar's own host.

@@ -1,5 +1,7 @@
+import Foundation
 import WebKit
 
+// MARK: - Privacy
 /// Clearing browsing data (Settings ▸ Privacy, and "clear when quitting").
 extension BrowserState {
     var clearsDataOnQuit: Bool { browserPreferences.clearDataOnQuit == true && !isPrivate }

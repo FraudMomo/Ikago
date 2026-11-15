@@ -1,5 +1,7 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
+// MARK: - Essentials
 struct SidebarEssentials: View {
     let state: BrowserState
     let chrome: ChromeModel
@@ -60,5 +62,18 @@ struct EmptyEssentialsDropZone: View {
                 withAnimation(reduceMotion ? nil : .ikagoQuick) { state.movePin(id, intoGrid: true) }
             }
             .accessibilityLabel("Add tab to grid")
+    }
+}
+
+// MARK: - Essentials drop
+extension View {
+    /// Only live tabs can be moved into tab lists, pins or splits.
+    func openTabDrop(state: BrowserState, chrome: ChromeModel, perform: @escaping @MainActor @Sendable (String, CGPoint) -> Void) -> some View {
+        onDrop(of: [.ikagoTab], isTargeted: nil) { providers, point in
+            guard let provider = providers.first else { return false }
+            chrome.endTabDrag()
+            TabDrag.load(provider, into: state) { id in if state.tab(id) != nil { perform(id, point) } }
+            return true
+        }
     }
 }

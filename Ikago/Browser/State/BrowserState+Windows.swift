@@ -1,6 +1,6 @@
 import Foundation
 
-/// Several regular windows, as in Chrome: each window's state has its own tabs, groups and split views; Spaces,
+/// Several regular windows: each window's state has its own tabs, groups and split views; Spaces,
 /// settings, history and bookmarks are one set, copied between the windows' states whenever any of them changes it
 /// (`shareChanges`). The first window's state (`primary`) saves the session with the others in `Session.windows`.
 extension BrowserState {

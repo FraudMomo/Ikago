@@ -23,7 +23,7 @@ extension TabController: WKWebExtensionTab {
     func size(for context: WKWebExtensionContext) -> CGSize { hostView.bounds.size }
     func zoomFactor(for context: WKWebExtensionContext) -> Double { Double((page as? WebKitTab)?.webView.pageZoom ?? 1) }
 
-    /// Clicking the page grants "activeTab"-style access, as in Chrome.
+    /// Clicking the page grants "activeTab" access.
     func shouldGrantPermissionsOnUserGesture(for context: WKWebExtensionContext) -> Bool { true }
 
     func loadURL(_ url: URL, for context: WKWebExtensionContext, completionHandler: @escaping ((any Error)?) -> Void) {

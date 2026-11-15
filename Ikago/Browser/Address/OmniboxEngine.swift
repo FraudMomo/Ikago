@@ -129,7 +129,7 @@ struct OmniboxEngine {
         }
         /// Pages typed, visited repeatedly or bookmarked inline-autocomplete all the way (as in Chromium).
         var inlineable: Bool { typed > 0 || visits >= 3 || bookmarked }
-        /// Any site you've been to or have open completes to its host, as Safari's top hit does ("tel" → telnyx.com).
+        /// Any site you've been to or have open completes to its host ("tel" → telnyx.com).
         var hostInlineable: Bool { inlineable || visits >= 1 || tabID != nil }
     }
 
@@ -180,7 +180,7 @@ struct OmniboxEngine {
         guard let (target, best) = hosts.max(by: { $0.value.score < $1.value.score }).map({ ($0.key, $0.value.page) }) else {
             return (matches, nil)
         }
-        // Completing within the host lands on the host root, as Chrome does for "git" → github.com.
+        // Completing within the host lands on the host root ("git" → github.com).
         let isHost = !target.contains("/")
         let destination = isHost ? (OmniboxURL.root(best.url) ?? best.url) : best.url
         var top = match(for: best, url: destination, title: isHost ? (pages[target]?.title ?? target) : best.title)

@@ -28,6 +28,7 @@ final class ChromiumExtensions {
     var issue: String?
     @ObservationIgnored private var manager: (profile: String, tool: HiddenChromiumPage)?
     @ObservationIgnored private var idleClose: Task<Void, Never>?
+    @ObservationIgnored var accessObserved = false
 
     /// Keeps store installs, because unpacked extensions load from where they are.
     static var storeFolder: URL { AppIdentity.dataDirectory.appending(path: "Chromium Extensions", directoryHint: .isDirectory) }
@@ -114,7 +115,7 @@ final class ChromiumExtensions {
         manager = nil
     }
 
-    private func perform(_ profile: String, _ work: (HiddenChromiumPage) async throws -> Void) async {
+    func perform(_ profile: String, _ work: (HiddenChromiumPage) async throws -> Void) async {
         idleClose?.cancel()
         busy = true
         defer { busy = false; scheduleIdleClose() }
@@ -143,6 +144,7 @@ final class ChromiumExtensions {
         (async () => {
           const items = await chrome.developerPrivate.getExtensionsInfo({includeDisabled: true, includeTerminated: true});
           return items.map(item => {
+            const runtime = item.permissions && item.permissions.runtimeHostPermissions;
             return {id: item.id, name: item.name, version: item.version, summary: item.description,
                     enabled: item.state === 'ENABLED', path: item.prettifiedPath || null, icon: item.iconUrl};
           });

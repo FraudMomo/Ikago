@@ -59,7 +59,7 @@
 - Closing the active tab follows Chrome: back to its opener (`TabItem.openerID`, set for link tabs and forgotten once
   another tab is chosen), then its split partner, then the tab to the right, then the left. ⌘⇧T reopens a tab in its
   Space, group and place (`SavedTab.after`) and selects it. Closing a top tab with the mouse keeps the others' width until
-  the pointer leaves the row, as Chrome does. In Sidebar + Tabs, tabs opened from a pin open on the right.
+  the pointer leaves the row. In Sidebar + Tabs, tabs opened from a pin open on the right.
 - The sidebar's top row and bottom bar each have a left, centre and right place (`ChromeZone`, `ChromeLayout.topLeading`,
   `topCenter`, `sidebarTop` = right; `bottomLeading`, `sidebarBottom` = centre, `bottomTrailing`), filled by dragging in
   Settings ▸ Sidebar & Toolbar ▸ Customize; the centre stays centred, and left/centre top groups start after the traffic
@@ -74,7 +74,7 @@
   unlike AppKit's index (middle = 2); middle-click opens in the background, Shift selects it.
 - Newly opened background tabs load by default (configurable in Tabs & Memory), without selecting
   them. Restored session tabs and unloaded pins remain lazy; never preload a restored session.
-- Closed tab groups (`TabFolder.isClosed`, `BrowserState+ClosedGroups`) came from the retired Top Bar's Close Group. Their
+- Closed tab groups (`TabFolder.isClosed`, `BrowserState+Groups`) came from the retired Top Bar's Close Group. Their
   pages stay unloaded until reopened from Tab ▸ Reopen Closed Group or by selecting one of their tabs; the sidebar lists
   them, and `navigationOrder` is the sidebar's order.
 - Bookmarks show in an optional upward-expanding drawer at the bottom of the sidebar. ⇧⌘B and Settings ▸ Sidebar &

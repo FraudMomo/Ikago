@@ -139,7 +139,7 @@ enum CRXVerifier {
             }
             return index + length <= der.count ? length : nil
         }
-        // Strict like Chrome: the outer length must cover exactly the whole key.
+        // Strict: the outer length must cover exactly the whole key.
         guard let outer = header(0x30), index + outer == der.count, let algorithm = header(0x30) else { return nil }
         index += algorithm
         guard let bits = header(0x03), bits > 1, der[index] == 0 else { return nil }

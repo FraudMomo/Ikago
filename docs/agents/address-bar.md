@@ -8,7 +8,7 @@
   letter after a short debounce), and history/bookmark/open-tab pages ≤ 1199 from
   topicality × frecency (Visit `visits`/`typed`, Chromium recency buckets). One row per page,
   at most `OmniboxEngine.maxResults`. Any page visited, open or bookmarked inline-autocompletes to
-  its host root while the input is within the host (Safari's top hit); past the host only pages typed, visited ≥ 3
+  its host root while the input is within the host; past the host only pages typed, visited ≥ 3
   times or bookmarked complete. Inline completion follows
   forward typing only (`userEdited`), never deletion or programmatic text. ↑/↓ preview a row's
   `fill` as `temporaryText` without replacing the typed query and never wrap; hover only highlights.

@@ -86,7 +86,7 @@ enum BrowserWindows {
         window.showWindow(nil)
     }
 
-    /// A tab dragged out of every Ikago window: a new window with the tab under the pointer, as in Chrome. Dragging a
+    /// A tab dragged out of every Ikago window: a new window with the tab under the pointer. Dragging a
     /// window's only tab out moves the window there instead.
     static func tearOff(_ id: String, from source: BrowserWindowController, at point: NSPoint, with companions: [String] = []) {
         guard !source.state.isPrivate, !source.state.isFrozen, source.state.tab(id) != nil, let current = source.window else { return }

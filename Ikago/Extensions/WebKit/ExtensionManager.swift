@@ -127,13 +127,6 @@ final class ExtensionManager: NSObject {
         return record
     }
 
-    /// The user approved everything the manifest requests when installing.
-    private static func grantRequested(_ context: WKWebExtensionContext) {
-        let ext = context.webExtension
-        for permission in ext.requestedPermissions { context.setPermissionStatus(.grantedExplicitly, for: permission) }
-        for pattern in ext.requestedPermissionMatchPatterns { context.setPermissionStatus(.grantedExplicitly, for: pattern) }
-    }
-
     // MARK: Install / enable / remove
 
     /// Installs the unpacked extension at `folder` (moved into place) after the user approves.
@@ -195,25 +188,6 @@ final class ExtensionManager: NSObject {
         records.append(record)
         saveRecords()
         try await load(record)
-    }
-
-    /// Safari web extensions bundled in apps under /Applications and ~/Applications.
-    nonisolated static func safariExtensionsOnThisMac() -> [URL] {
-        let fm = FileManager.default
-        let roots = [URL(fileURLWithPath: "/Applications"), fm.homeDirectoryForCurrentUser.appending(path: "Applications")]
-        var found: [URL] = []
-        for root in roots {
-            for app in (try? fm.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? [] where app.pathExtension == "app" {
-                let plugIns = app.appending(path: "Contents/PlugIns")
-                for appex in (try? fm.contentsOfDirectory(at: plugIns, includingPropertiesForKeys: nil)) ?? []
-                where appex.pathExtension == "appex" {
-                    let info = NSDictionary(contentsOf: appex.appending(path: "Contents/Info.plist"))
-                    let point = (info?["NSExtension"] as? [String: Any])?["NSExtensionPointIdentifier"] as? String
-                    if point == "com.apple.Safari.web-extension" { found.append(appex) }
-                }
-            }
-        }
-        return found
     }
 
     func setEnabled(_ id: String, _ enabled: Bool) async {

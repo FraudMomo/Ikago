@@ -13,15 +13,17 @@ extension WebKitTab: WKNavigationDelegate {
         // WKNavigationAction uses a button mask: middle is 4 (NSEvent uses index 2).
         // Auxiliary navigation can also be .other instead of .linkActivated.
         let flags = action.modifierFlags
-        if action.navigationType == .linkActivated, flags.contains(.shift), !flags.contains(.command), action.buttonNumber != 4 {
-            // Peek, or with Peek off a new tab in front, as Shift-click does in other browsers.
+        let opensAsTab = AddressResolver.isPageURL(url.absoluteString) || ["chrome-extension", "webkit-extension"].contains(scheme)
+        // Other addresses (app links, scripts, data documents) keep the ordinary rules below, Shift or not.
+        if opensAsTab, action.navigationType == .linkActivated, flags.contains(.shift), !flags.contains(.command), action.buttonNumber != 4 {
+            // Peek, or with Peek off a new tab in front.
             if delegate?.webTab(self, peeks: url, trigger: .shiftClick) != true {
                 delegate?.webTab(self, openInNewTab: url.absoluteString, background: false)
             }
             return (.cancel, preferences)
         }
         let newTabGesture = action.buttonNumber == 4 || (action.navigationType == .linkActivated && flags.contains(.command))
-        if newTabGesture, AddressResolver.isPageURL(url.absoluteString) || ["chrome-extension", "webkit-extension"].contains(scheme) {
+        if newTabGesture, opensAsTab {
             delegate?.webTab(self, openInNewTab: url.absoluteString, background: !flags.contains(.shift))
             return (.cancel, preferences)
         }

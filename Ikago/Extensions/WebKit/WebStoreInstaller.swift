@@ -57,6 +57,13 @@ enum WebStoreInstaller {
               FileManager.default.fileExists(atPath: folder.appending(path: "manifest.json").path) else {
             throw ExtensionManager.error("The extension package couldn't be unpacked")
         }
+        // Chrome never unpacks links. A link kept here could point outside the package, and the extension could then
+        // read whatever it points to (files in your home folder) as one of its own resources.
+        let keys: [URLResourceKey] = [.isSymbolicLinkKey]
+        let items = FileManager.default.enumerator(at: folder, includingPropertiesForKeys: keys, options: [])?.allObjects as? [URL] ?? []
+        for item in items where (try? item.resourceValues(forKeys: Set(keys)))?.isSymbolicLink == true {
+            try FileManager.default.removeItem(at: item)
+        }
         // Chrome-only signing metadata; WebKit doesn't use it.
         try? FileManager.default.removeItem(at: folder.appending(path: "_metadata"))
         succeeded = true

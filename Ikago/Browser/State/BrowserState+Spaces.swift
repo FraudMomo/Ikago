@@ -1,5 +1,6 @@
 import Foundation
 
+// MARK: - Spaces
 /// Spaces: each has its own tabs, folders, colors and remembered active tab.
 extension BrowserState {
     /// Shows `id`'s tabs and selects the tab it had last.

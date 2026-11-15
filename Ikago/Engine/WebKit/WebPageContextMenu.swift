@@ -48,8 +48,8 @@ extension FileDropWebView {
         }
     }
 
-    private func addPageItem(_ title: String, to menu: NSMenu, perform: @escaping () -> Void) {
-        if menu.items.last?.isSeparatorItem != true { menu.addItem(.separator()) }
+    private func addPageItem(_ title: String, to menu: NSMenu, separated: Bool = true, perform: @escaping () -> Void) {
+        if separated, menu.items.last?.isSeparatorItem != true { menu.addItem(.separator()) }
         let target = PageMenuAction(perform)
         menuActions.append(target)
         let item = NSMenuItem(title: title, action: #selector(PageMenuAction.invoke(_:)), keyEquivalent: "")

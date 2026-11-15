@@ -5,6 +5,8 @@ struct DownloadAnchors {
     var page: Anchor<CGRect>?
     /// Sidebar + Tabs: the address field above the page, which its suggestions hang from.
     var address: Anchor<CGRect>?
+    /// The Devices control, which the other-devices list hangs from.
+    var devices: Anchor<CGRect>?
 }
 
 struct DownloadsAnchorKey: PreferenceKey {
@@ -14,6 +16,7 @@ struct DownloadsAnchorKey: PreferenceKey {
         value.toolbar = next.toolbar ?? value.toolbar
         value.page = next.page ?? value.page
         value.address = next.address ?? value.address
+        value.devices = next.devices ?? value.devices
     }
 }
 

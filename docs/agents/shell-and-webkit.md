@@ -44,7 +44,7 @@
 10. **Tab drags use the `app.ikago.tab` type (`TabDrag`),** never plain text: web views
     ignore it, so `WebTabContainerView` can take a dropped tab for split view.
 11. **Split view is `splits: [[String]]`** (groups of 2–4, a tab in at most one). Use the
-    helpers in `BrowserState+Split` (`splitGroup(of:)`, `separate`, `removeFromSplits`) and
+    helpers in `BrowserState+Layout` (`splitGroup(of:)`, `separate`, `removeFromSplits`) and
     `listItems` to show a group as one item. `state.splitLayout` (`SplitLayout`: columns, rows,
     grid) arranges them; a grid nests `NSSplitView`s in `WebTabContainerView`. Drops use
     `SplitDropOverlay` (four edge triangles with a preview).

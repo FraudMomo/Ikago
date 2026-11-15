@@ -86,7 +86,7 @@ per-extension patches.
   badges, context menus, side panels and commands
 - A permission sheet for Web Store installs on Chromium
 
-## Phase 8: Agent access 🗓
+## Phase 9: Agent access 🗓
 
 Let AI agents browse with Ikago through a built-in Model Context Protocol server, safely and
 visibly.
@@ -97,7 +97,7 @@ visibly.
 - Driven tabs are always marked, with a Stop button and an activity log
 - An optional agent Space with its own website data, so personal sign-ins stay opt-in
 
-## Phase 9: Distribution 🗓
+## Phase 10: Distribution 🗓
 
 - Developer ID signing and notarization
 - App updates through a signed update feed

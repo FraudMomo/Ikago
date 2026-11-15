@@ -4,7 +4,7 @@
   two-finger swipe with an arrow at the page's edge, only where the page's own history ends and a parked page of the
   other engine waits, and navigates on release past 110 pt. It never swallows events. CEF reports no unconsumed scroll,
   so Chromium offers no swipe within its own history (a sideways pan in maps or carousels must not go Back).
-- Several regular windows, as in Chrome (`BrowserWindows`, `BrowserState+Windows`): each window has its own `BrowserState`
+- Several regular windows (`BrowserWindows`, `BrowserState+Windows`): each window has its own `BrowserState`
   with its own tabs, groups, splits and recently closed; Spaces, settings, history and bookmarks are shared, copied between
   the windows' states when any changes them (`readShared`/`shareChanges`, each field only when it differs). The first
   window's state (`BrowserWindows.primary`) owns the session and saves the others in `Session.windows` (`WindowSession`:
