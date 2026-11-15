@@ -1,5 +1,7 @@
 import AppKit
+import IKCEFBridge
 import SwiftUI
+import WebKit
 
 /// How far the Space's list follows a two-finger swipe, in points. Its own observable, so a swipe redraws only the view
 /// that moves (`SpaceSwipeContent`), never the sidebar around it.
@@ -55,6 +57,8 @@ final class SidebarSpaceSwipeView: NSView {
     private var settled = false
     private var distance: CGFloat = 0
     private var lastDelta: CGFloat = 0
+    /// The current gesture began over this sidebar; every other gesture (a page's own sideways swipe) is left alone.
+    private var tracking = false
 
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
@@ -76,14 +80,14 @@ final class SidebarSpaceSwipeView: NSView {
         guard let window, event.window === window else { return event }
         if event.phase.contains(.began) {
             // A new gesture starts only over the sidebar; one already claimed keeps going wherever the pointer drifts.
-            guard bounds.contains(convert(event.locationInWindow, from: nil)) else { return event }
             horizontal = false
             settled = false
             distance = 0
             lastDelta = 0
+            tracking = startsHere(event)
         }
         // Mice and plain wheels have no phases: leave them to the list.
-        guard event.hasPreciseScrollingDeltas else { return event }
+        guard tracking, event.hasPreciseScrollingDeltas else { return event }
 
         if !horizontal {
             guard event.phase != [], !settled else { return event }
@@ -106,6 +110,18 @@ final class SidebarSpaceSwipeView: NSView {
             horizontal = false
         }
         return nil
+    }
+
+    /// Over this sidebar while it is on screen, and not over a page drawn above it (a hidden sidebar's page, a peek).
+    private func startsHere(_ event: NSEvent) -> Bool {
+        guard !isHiddenOrHasHiddenAncestor, alphaValue > 0, let window,
+              bounds.contains(convert(event.locationInWindow, from: nil)) else { return false }
+        var view = window.contentView?.superview?.hitTest(event.locationInWindow) ?? window.contentView?.hitTest(event.locationInWindow)
+        while let current = view {
+            if current is WKWebView || current is IKCEFPage { return false }
+            view = current.superview
+        }
+        return true
     }
 
     private var width: CGFloat { max(120, bounds.width) }
