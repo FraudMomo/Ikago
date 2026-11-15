@@ -80,7 +80,7 @@ struct BrowserRootView: View {
             }
         }
         .onChange(of: state.browserPreferences.pageIntelligence) { _, enabled in if enabled != true { chrome.showPageAssistant = false } }
-        .onChange(of: state.activeTabID) { _, _ in if !chrome.peekExpanding { commands?.closePeek() }; chrome.hoverTabID = nil; chrome.showClearData = false; chrome.showSiteInfo = false }
+        .onChange(of: state.activeTabID) { _, _ in if !chrome.peekExpanding { commands?.closePeek() }; chrome.hoverTabID = nil; chrome.showClearData = false; chrome.showSiteInfo = false; chrome.translationJob = nil; chrome.extensionAccessOffer = nil; PasswordSuggestionsPresenter.shared.dismiss() }
         .onChange(of: chrome.inlineAddress) { _, editing in if editing { chrome.hoverTabID = nil } }
         .animation(reduceMotion ? nil : .ikago, value: chrome.showNotes)
         .animation(reduceMotion ? nil : .ikago, value: chrome.showClearData)

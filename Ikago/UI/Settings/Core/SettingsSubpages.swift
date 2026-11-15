@@ -14,7 +14,8 @@ extension SettingsCategory {
         func page(_ title: String, _ sections: String...) -> SettingsSubpage { SettingsSubpage(title: title, sections: Set(sections)) }
         switch self {
         case .general:
-            return [page("Browser", "Browser Engine", "Default Browser", "Apple Intelligence"),
+            return [page("Browser", "Browser Engine", "Default Browser", "Translation", "Apple Intelligence"),
+                    page("Web Apps", "Web Apps"),
                     page("Engine by Site", "Engine by Site", "Your Sites"),
                     page("Other Devices", "Other Devices"),
                     page("Advanced", "Advanced")]

@@ -37,6 +37,10 @@ final class TabController: NSObject, WebTabDelegate {
     /// The hovered link's address (`LinkStatusView`), created on the first hover.
     var linkStatus: LinkStatusView?
     var errorView: NSView?
+    /// Reader mode over this page (`ReaderOverlay`).
+    var reader: ReaderOverlay?
+    /// The page's translation, while it is shown translated (`PageTranslation`).
+    var translation: PageTranslation?
     /// A Ikago page (Settings, History, Downloads) shown instead of a web view.
     private var internalView: NSView?
     /// The address that failed, kept while the error page shows.
@@ -251,6 +255,8 @@ final class TabController: NSObject, WebTabDelegate {
     }
     func webTab(_ page: WebTab, didCommit url: String) {
         showLinkStatus(nil)
+        closeReader()
+        translation = nil
         upgradedURL = nil
         state?.recordVisit(tabID: tab.id, url: url)
     }
