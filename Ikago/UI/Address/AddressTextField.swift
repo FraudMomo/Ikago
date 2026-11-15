@@ -47,6 +47,10 @@ struct AddressTextField: NSViewRepresentable {
         field.onCommandDigit = onCommandDigit
         let coordinator = context.coordinator
         field.selectsAllOnFocus = { [weak coordinator] in coordinator?.parent.selectsAllOnFocus ?? true }
+        field.typedLength = { [weak coordinator] in
+            guard let parent = coordinator?.parent, parent.temporary == nil, !parent.completion.isEmpty else { return nil }
+            return (parent.text as NSString).length
+        }
         return field
     }
 
@@ -106,6 +110,20 @@ final class FocusingTextField: NSTextField {
     /// ⌘ + a digit while editing: the field's scopes win over the menu's "select tab" (`ShortcutRouter`).
     var onCommandDigit: ((Int) -> Bool)?
     var selectsAllOnFocus: () -> Bool = { true }
+    /// While an inline completion shows: how much of the text was typed (the rest is the selected completion).
+    var typedLength: () -> Int? = { nil }
+
+    /// The caret after what was typed, with any inline completion selected so the next letter replaces it.
+    func placeCaretAfterTyping() {
+        guard let editor = currentEditor() else { return }
+        let length = (editor.string as NSString).length
+        if let typed = typedLength(), typed < length {
+            editor.selectedRange = NSRange(location: typed, length: length - typed)
+        } else {
+            editor.selectedRange = NSRange(location: length, length: 0)
+        }
+    }
+
     override func becomeFirstResponder() -> Bool {
         let accepted = super.becomeFirstResponder()
         if accepted, let editor = currentEditor() as? NSTextView {
@@ -121,11 +139,11 @@ final class FocusingTextField: NSTextField {
         guard let window else { return }
         DispatchQueue.main.async { [weak self] in
             guard let self, self.window === window else { return }
+            // Moving to a new parent in the same window (the suggestion list appearing) runs this again: a field already
+            // being typed in keeps its caret and selected completion.
+            if let editor = self.currentEditor(), window.firstResponder === editor { return }
             window.makeFirstResponder(self)
-            if self.selectsAllOnFocus() { self.currentEditor()?.selectAll(nil) }
-            else if let editor = self.currentEditor() {
-                editor.selectedRange = NSRange(location: (editor.string as NSString).length, length: 0)
-            }
+            if self.selectsAllOnFocus() { self.currentEditor()?.selectAll(nil) } else { self.placeCaretAfterTyping() }
         }
     }
 }

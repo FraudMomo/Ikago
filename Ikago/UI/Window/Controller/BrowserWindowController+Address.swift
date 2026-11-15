@@ -49,10 +49,7 @@ extension BrowserWindowController {
             if let editor = field.currentEditor(), window.firstResponder === editor { return }
             window.makeFirstResponder(field)
             // Never over letters already typed: the next keystroke would replace them.
-            if selectAll && !self.palette.edited { field.currentEditor()?.selectAll(nil) }
-            else if let editor = field.currentEditor() as? NSTextView {
-                editor.setSelectedRange(NSRange(location: editor.string.utf16.count, length: 0))
-            }
+            if selectAll && !self.palette.edited { field.currentEditor()?.selectAll(nil) } else { field.placeCaretAfterTyping() }
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { focus(true) }
         // Removing an outgoing SwiftUI field can end the shared AppKit field editor.
