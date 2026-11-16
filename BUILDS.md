@@ -5,6 +5,10 @@ What changed in each release of Ikago, newest first. Add changes under **Unrelea
 
 ## Unreleased
 
+- **Updates:** updates now install after downloading; before, macOS stopped the installer and showed "Update Error!".
+  Copies from before 0.4.1 can't update themselves: download 0.4.1 once from GitHub, and later updates install by
+  themselves. Release notes in the update card keep each change on one line.
+
 ## 0.4.0 — 2026-11-16
 
 - **Passwords:** the key and the login list now show reliably: in fields inside web components, in fields a page

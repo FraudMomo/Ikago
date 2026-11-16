@@ -28,6 +28,7 @@ final class AppUpdates: NSObject, NSMenuItemValidation {
 
     func start() {
         guard Self.isAvailable, updater == nil else { return }
+        Self.releaseSparkleFolder()
         let updater = SPUUpdater(hostBundle: .main, applicationBundle: .main, userDriver: driver, delegate: nil)
         do { try updater.start() } catch {
             NSLog("Ikago updates could not start: %@", error.localizedDescription)
@@ -60,7 +61,27 @@ final class AppUpdates: NSObject, NSMenuItemValidation {
         refresh(updater)
     }
 
-    @objc func checkForUpdates(_ sender: Any?) { updater?.checkForUpdates() }
+    @objc func checkForUpdates(_ sender: Any?) {
+        Self.releaseSparkleFolder()
+        updater?.checkForUpdates()
+    }
+
+    /// Ikago quarantines what it creates (`LSFileQuarantineEnabled`, so downloads are checked by Gatekeeper), and that
+    /// includes Sparkle's folder in Ikago's caches. Sparkle's installer runs as its own process and may not create its
+    /// working folder inside a quarantined one ("Operation not permitted"), so the update would download and then fail.
+    /// The folders lose the flag before each check and install; the update itself is verified by its signatures.
+    static func releaseSparkleFolder() {
+        guard let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
+        let app = caches.appending(path: AppIdentity.bundleID, directoryHint: .isDirectory)
+        let sparkle = app.appending(path: "org.sparkle-project.Sparkle", directoryHint: .isDirectory)
+        var folders = [app, sparkle]
+        if let inside = FileManager.default.enumerator(at: sparkle, includingPropertiesForKeys: [.isDirectoryKey]) {
+            for case let url as URL in inside where (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
+                folders.append(url)
+            }
+        }
+        for folder in folders { removexattr(folder.path, "com.apple.quarantine", 0) }
+    }
 
     nonisolated func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         MainActor.assumeIsolated { canCheck }

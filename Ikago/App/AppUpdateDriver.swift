@@ -115,6 +115,7 @@ final class AppUpdateDriver: NSObject, SPUUserDriver {
     }
 
     func showUpdateFound(with appcastItem: SUAppcastItem, state: SPUUserUpdateState, reply: @escaping (SPUUserUpdateChoice) -> Void) {
+        AppUpdates.releaseSparkleFolder()
         let summary = UpdateSummary(appcastItem)
         prompt.summary = summary
         prompt.cancel = nil
@@ -139,6 +140,7 @@ final class AppUpdateDriver: NSObject, SPUUserDriver {
     }
 
     func showDownloadInitiated(cancellation: @escaping () -> Void) {
+        AppUpdates.releaseSparkleFolder()
         prompt.cancel = cancellation
         (expected, received) = (0, 0)
         prompt.phase = .downloading(prompt.summary, fraction: nil)
@@ -156,6 +158,7 @@ final class AppUpdateDriver: NSObject, SPUUserDriver {
     func showExtractionReceivedProgress(_ progress: Double) {}
 
     func showReady(toInstallAndRelaunch reply: @escaping (SPUUserUpdateChoice) -> Void) {
+        AppUpdates.releaseSparkleFolder()  // the installer is about to create its folder there
         prompt.cancel = nil
         if prompt.installChosen { return reply(.install) }  // the person already chose Update and Relaunch
         prompt.relaunch = reply
