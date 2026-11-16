@@ -21,33 +21,54 @@ enum PasswordKeyScript {
           const handler = { postMessage: post }
           const largest = 22, smallest = 12, inset = 3, minimumWidth = 80
           const textTypes = new Set(['', 'text', 'email', 'tel'])
-          const userPattern = /user|login|e-?mail|account|identifier/i
-          let field = null, requested = null, requests = 0, lastInput = 0, keyClickedAt = 0
+          const userPattern = /user|log-?in|e-?mail|account|identifier|sign-?in|phone|handle/i
+          let field = null, requested = null, requests = 0, lastInput = -Infinity, lastClick = false, keyClickedAt = 0
+
+          // The focused element, inside open shadow roots too (web components keep their inputs there).
+          const deepActive = () => {
+            let el = document.activeElement
+            while (el && el.shadowRoot && el.shadowRoot.activeElement) el = el.shadowRoot.activeElement
+            return el
+          }
+          // Walks up through shadow roots, so a field in a component inside a modal dialog still finds the dialog.
+          const parentOf = el => el.parentElement || (el.getRootNode && el.getRootNode().host) || null
+          // A modal dialog or open popover sits in the top layer, above any z-index; the key joins it there.
+          const inTopLayer = el => {
+            for (let node = el; node; node = parentOf(node)) {
+              try { if (node.matches(':modal, :popover-open')) return true } catch { return false }
+            }
+            return false
+          }
 
           const rectOf = el => { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, width: r.width, height: r.height } }
           // Asks native code to list logins under the field (WebKit); Chromium reads `focusRect` instead.
           const suggest = () => {
             if (!field) return
             requested = field
-            Promise.resolve(handler.postMessage({ type: 'suggest', rect: rectOf(field) })).catch(() => {})
+            // A click puts the pointer on the field, so a frame without a known offset can list there; Tab can't.
+            const click = performance.now() - lastInput < 600 && lastClick
+            Promise.resolve(handler.postMessage({ type: 'suggest', rect: rectOf(field), click })).catch(() => {})
           }
           const typeOf = el => (el.getAttribute('type') || '').toLowerCase()
+          const scopeOf = el => el.form || (el.closest && el.closest('form, dialog, [role=dialog]')) || el.getRootNode() || document
           const tokens = el => (el.getAttribute('autocomplete') || '').toLowerCase().split(/\\s+/)
           const visible = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 }
           const textFields = scope => [...scope.querySelectorAll('input')]
             .filter(el => textTypes.has(typeOf(el)) && visible(el))
-          // Passwords, annotated usernames, and username-like fields in a password form or a
-          // one-field "enter your email" step.
+          // Passwords, annotated usernames, and username-like fields (by name, label or placeholder) in a password form
+          // or a short "enter your email" step.
           const isLoginField = el => {
             if (!(el instanceof HTMLInputElement) || el.disabled || el.readOnly) return false
             const type = typeOf(el)
             if (type === 'password') return true
             if (!textTypes.has(type)) return false
             if (tokens(el).some(t => t === 'username' || t === 'webauthn')) return true
-            const identity = [el.name, el.id, el.getAttribute('autocomplete') || '', type === 'email' ? 'email' : ''].join(' ')
+            const identity = [el.name, el.id, el.getAttribute('autocomplete'), el.getAttribute('placeholder'),
+                              el.getAttribute('aria-label'), type === 'email' ? 'email' : ''].join(' ')
             if (!userPattern.test(identity)) return false
-            const scope = el.form || document
-            return !!scope.querySelector('input[type=password i]') || textFields(scope).length === 1
+            const scope = scopeOf(el)
+            if (scope.querySelector('input[type=password i]')) return true
+            return el.form ? textFields(scope).length <= 2 : textFields(scope).length === 1
           }
 
           const host = document.createElement('ikago-password-key')
@@ -79,14 +100,27 @@ enum PasswordKeyScript {
 
           const set = (name, value) => host.style.setProperty(name, value, 'important')
           for (const [name, value] of [['position', 'fixed'], ['z-index', '2147483647'], ['margin', '0'], ['padding', '0'],
-                                       ['border', '0'], ['display', 'none']]) set(name, value)
+                                       ['border', '0'], ['inset', 'auto'], ['overflow', 'visible'], ['background', 'transparent'],
+                                       ['display', 'none']]) set(name, value)
+          const popovers = typeof host.showPopover === 'function'
+          if (popovers) host.setAttribute('popover', 'manual')
+          // Shown again on top of the field's dialog, or taken out of the top layer when the field isn't in one.
+          const raise = () => {
+            if (!popovers) return
+            const wanted = inTopLayer(field)
+            try {
+              if (host.matches(':popover-open')) host.hidePopover()
+              if (wanted) host.showPopover()
+            } catch {}
+          }
 
           const place = () => {
-            if (!field || !field.isConnected || document.activeElement !== field) return hide()
+            if (!field || !field.isConnected || deepActive() !== field) return hide()
             const r = field.getBoundingClientRect()
             // Fits inside the field: up to 22 pt, never under 12 pt.
             const size = Math.min(largest, r.height - 2 * inset)
-            if (r.width < minimumWidth || size < smallest) return hide()
+            // Too small for now (a dialog still growing in): out of sight, but still this field's key.
+            if (r.width < minimumWidth || size < smallest) return conceal()
             set('width', size + 'px')
             set('height', size + 'px')
             set('left', (r.right - size - inset) + 'px')
@@ -94,26 +128,48 @@ enum PasswordKeyScript {
             if (!host.isConnected) document.documentElement.append(host)
             set('display', 'block')
           }
-          const hide = () => { field = null; set('display', 'none') }
+          const conceal = () => set('display', 'none')
+          const hide = () => {
+            field = null
+            conceal()
+            if (popovers && host.matches(':popover-open')) try { host.hidePopover() } catch {}
+          }
 
-          document.addEventListener('focusin', async event => {
-            const target = event.composedPath()[0]
-            if (!isLoginField(target)) return hide()
+          // Shows the key in a focused sign-in field. A field the page makes writable on focus is looked at again.
+          const attach = async target => {
+            if (!isLoginField(target)) {
+              if (target instanceof HTMLInputElement && target.readOnly && !target.disabled) {
+                setTimeout(() => { if (deepActive() === target && !target.readOnly) attach(target) }, 250)
+              }
+              return hide()
+            }
             const request = ++requests
-            const allowed = await handler.postMessage({ type: 'query' }).catch(() => false)
-            if (!allowed || request !== requests || document.activeElement !== target) return
+            const allowed = await Promise.resolve(handler.postMessage({ type: 'query' })).catch(() => false)
+            if (!allowed || request !== requests || deepActive() !== target) return
             field = target
             place()
+            raise()
             if (performance.now() - lastInput < 600) suggest()
-          }, true)
-          // Only the person's own click or Tab opens the list; a page focusing a field by itself doesn't.
+            // A field focused while its dialog animates in moves and grows; measure again as it settles.
+            for (const delay of [120, 350, 800]) setTimeout(() => { if (field === target) { place(); raise() } }, delay)
+          }
+          document.addEventListener('focusin', event => attach(event.composedPath()[0]), true)
+          // Only the person's own click or Tab opens the list; a page focusing a field by itself doesn't. A click in a
+          // field that was focused before this script ran (autofocus) shows the key then.
           document.addEventListener('mousedown', event => {
             if (!event.isTrusted) return
             lastInput = performance.now()
-            if (field && event.composedPath()[0] === field) setTimeout(suggest)
+            lastClick = true
+            const target = event.composedPath()[0], known = !!field && target === field
+            setTimeout(() => {
+              if (known) { place(); raise(); return suggest() }
+              if (target !== field && deepActive() === target) attach(target)
+            })
           }, true)
-          document.addEventListener('keydown', event => { if (event.isTrusted && event.key === 'Tab') lastInput = performance.now() }, true)
-          document.addEventListener('focusout', () => setTimeout(() => { if (document.activeElement !== field) hide() }), true)
+          document.addEventListener('keydown', event => {
+            if (event.isTrusted && event.key === 'Tab') { lastInput = performance.now(); lastClick = false }
+          }, true)
+          document.addEventListener('focusout', () => setTimeout(() => { if (deepActive() !== field) hide() }), true)
           addEventListener('scroll', () => field && place(), { capture: true, passive: true })
           addEventListener('resize', () => field && place(), { passive: true })
 
@@ -208,6 +264,7 @@ enum PasswordKeyScript {
             state: () => {
               const r = host.getBoundingClientRect()
               return { visible: host.style.getPropertyValue('display') === 'block', field: field ? field.id : null,
+                       covered: !!field && inTopLayer(field) && !(popovers && host.matches(':popover-open')),
                        x: r.x + r.width / 2, y: r.y + r.height / 2 }
             },
             click: () => button.click(),
@@ -221,7 +278,7 @@ enum PasswordKeyScript {
             },
             // The focused sign-in field after a real click or Tab (Chromium), so native code can list logins under it.
             focusRect: () => {
-              if (!field || document.activeElement !== field || host.style.getPropertyValue('display') !== 'block') return null
+              if (!field || deepActive() !== field || host.style.getPropertyValue('display') !== 'block') return null
               requested = field
               return rectOf(field)
             },
@@ -243,6 +300,9 @@ enum PasswordKeyScript {
             hasPasswordField: () => [...document.querySelectorAll('input[type=password i]')].some(visible),
             fill
           }
+          // A field focused before this script ran (autofocus) gets the key right away.
+          const focused = deepActive()
+          if (focused instanceof HTMLInputElement) attach(focused)
         })()
         """
     }

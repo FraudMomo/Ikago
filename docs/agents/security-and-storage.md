@@ -73,7 +73,10 @@
   imported from a Passwords app or Chrome CSV export that is then overwritten and deleted (`PasswordImport`). Each password is encrypted
   (ECIES, AES-GCM bound to site and username) to a Secure Enclave key that needs Touch ID or the Mac password for every single fill;
   sites and usernames are sealed. Matching is the registrable domain from the bundled Public Suffix List (`PublicSuffix`, `public_suffix_list.dat`): exact host first, then parents/children, then other subdomains; subdomains of a public suffix (github.io) are separate sites. The menu lists every match.
-  `PasswordKeyScript` shows the key in password and username fields in an isolated world; only a trusted click asks native code, which
+  `PasswordKeyScript` shows the key in password and username fields (by name, autocomplete, placeholder or label) in an
+  isolated world, including fields in open shadow roots, a field focused before the script ran (autofocus; also picked up
+  on the next click), and fields in a modal dialog or popover (the key joins the top layer as a manual popover). A field
+  too small for the key (a dialog still growing in) keeps it hidden and is measured again as it settles, never dropped; only a trusted click asks native code, which
   picks a login (`PasswordChooser`) and passes it to the script's `fill` as call arguments, never script text. WebKit:
   `.defaultClient` world and message handler; main frame, same-origin frames, and HTTPS frames on the same registrable domain (a
   sign-in iframe such as idmsa.apple.com in appstoreconnect.apple.com); `fill` gets the frame's own origin. Chromium: the

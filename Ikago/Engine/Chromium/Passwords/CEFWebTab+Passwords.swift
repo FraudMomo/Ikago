@@ -134,13 +134,17 @@ extension CEFWebTab {
         guard hasPasswordKey, let context = passwordKeyState.context else { return }
         let generation = documentGeneration
         Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(60))  // focus and the key settle first
-            guard generation == documentGeneration,
-                  let result = try? await devTools("Runtime.callFunctionOn", [
+            // Focus and the key settle first; a busy page takes longer to handle the click, so look a few times.
+            for delay in [60, 140, 300] {
+                try? await Task.sleep(for: .milliseconds(delay))
+                guard generation == documentGeneration else { return }
+                let result = try? await devTools("Runtime.callFunctionOn", [
                     "functionDeclaration": "function () { return window.__ikagoPasswordKey.focusRect() }",
-                    "executionContextId": context, "returnByValue": true], generation: generation),
-                  let rect = (result["result"] as? [String: Any])?["value"] as? [String: Any] else { return }
-            await fillFromVault(field: fieldRect(rect), generation: generation)
+                    "executionContextId": context, "returnByValue": true], generation: generation)
+                if let rect = (result?["result"] as? [String: Any])?["value"] as? [String: Any] {
+                    return await fillFromVault(field: fieldRect(rect), generation: generation)
+                }
+            }
         }
     }
 

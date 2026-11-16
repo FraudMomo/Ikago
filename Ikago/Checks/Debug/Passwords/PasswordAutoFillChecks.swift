@@ -39,7 +39,8 @@ enum PasswordAutoFillChecks {
         page.focus()
 
         func key(after id: String) async -> [String: Any] {
-            let rect = (try? await page.callAsync("const r = document.getElementById('\(id)').getBoundingClientRect(); return {x: r.x + 20, y: r.y + r.height / 2}")) as? [String: Double]
+            let find = "(document.getElementById('\(id)') || document.getElementById('component').shadowRoot.getElementById('\(id)'))"
+            let rect = (try? await page.callAsync("const r = \(find).getBoundingClientRect(); return {x: r.x + 20, y: r.y + r.height / 2}")) as? [String: Double]
             if let x = rect?["x"], let y = rect?["y"] { click(x: x, y: y, page: page) }
             try? await Task.sleep(for: .milliseconds(300))
             return (try? await page.callAsync("return window.__ikagoPasswordKey.state()")) as? [String: Any] ?? [:]
@@ -51,6 +52,19 @@ enum PasswordAutoFillChecks {
         for id in ["search", "newsletter-name"] {
             check(await key(after: id)["visible"] as? Bool == false, "no key in the \(id) field")
         }
+        for id in ["contact", "shadow-password"] {
+            let shown = await key(after: id)
+            check(shown["visible"] as? Bool == true && shown["field"] as? String == id, "key shows in the \(id) field")
+        }
+        // A field focused while it's still growing in (an opening dialog) gets the key once it's big enough.
+        _ = try? await page.callAsync("setTimeout(() => document.getElementById('growing').style.width = '220px', 60); return true")
+        let grown = await key(after: "growing")
+        check(grown["visible"] as? Bool == true && grown["field"] as? String == "growing", "key shows once a growing field is big enough")
+        _ = try? await page.callAsync("document.getElementById('modal').showModal(); return true")
+        let modal = await key(after: "modal-password")
+        check(modal["visible"] as? Bool == true && modal["covered"] as? Bool == false, "the key shows above a modal dialog \(modal)")
+        _ = try? await page.callAsync("document.getElementById('modal').close(); return true")
+        check(await key(after: "password")["covered"] as? Bool == false, "the key leaves the top layer after the dialog closes")
 
         let shown = await key(after: "password"), before = autofill.testRequests
         _ = try? await page.callAsync("window.__ikagoPasswordKey.click(); return true")

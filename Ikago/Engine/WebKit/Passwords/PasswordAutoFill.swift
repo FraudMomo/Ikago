@@ -43,10 +43,15 @@ final class PasswordAutoFill: NSObject, WKScriptMessageHandlerWithReply {
             saved(body, frame: message.frameInfo, in: webView)
         case "suggest" where vault:
             replyHandler(true, nil)
-            // Subframe rects aren't in the web view's coordinates, so only the main frame lists by itself.
-            guard PasswordChooser.suggestsOnFocus, message.frameInfo.isMainFrame,
-                  let field = Self.fieldRect(body["rect"], frame: message.frameInfo, in: webView) else { return }
-            fillFromVault(webView, frame: message.frameInfo, field: field)
+            // Subframe rects aren't in the web view's coordinates: a sign-in frame lists at the pointer after a click
+            // in its field, and not after Tab, when the pointer may be anywhere.
+            guard PasswordChooser.suggestsOnFocus else { return }
+            if message.frameInfo.isMainFrame {
+                guard let field = Self.fieldRect(body["rect"], frame: message.frameInfo, in: webView) else { return }
+                fillFromVault(webView, frame: message.frameInfo, field: field)
+            } else if body["click"] as? Bool == true {
+                fillFromVault(webView, frame: message.frameInfo)
+            }
         case "fill": replyHandler(open(for: webView), nil)
         default: replyHandler(false, nil)
         }

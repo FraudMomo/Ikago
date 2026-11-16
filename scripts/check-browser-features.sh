@@ -31,6 +31,16 @@ cat > "$work/fixtures/login.html" <<'HTML'
 <form id="step"><input id="identifier" type="email" name="identifier"></form>
 <form id="news"><input id="newsletter-name" name="name"><input id="newsletter-email" type="email" name="email"></form>
 <input id="search" type="search" name="user-search">
+<form id="placeholder-step"><input id="contact" placeholder="Email or phone"><button type="button">Next</button></form>
+<input id="growing" type="password" style="display:block;margin:12px;width:30px">
+<div id="component"></div>
+<dialog id="modal"><form><input id="modal-password" type="password"></form></dialog>
+<script>
+const shadow = document.getElementById('component').attachShadow({ mode: 'open' })
+const inner = document.createElement('input')
+inner.id = 'shadow-password'; inner.type = 'password'; inner.style = 'display:block;margin:12px;width:220px'
+shadow.append(inner)
+</script>
 HTML
 for fixture in middle-target middle-blank popup.html; do
     print '<!doctype html><title>Target fixture</title><h1>Target</h1>' > "$work/fixtures/$fixture"
