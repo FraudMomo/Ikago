@@ -82,7 +82,8 @@ final class AppDelegate: NSObject, IKCEFApplicationDelegate {
         state.pendingWindows = []
         controller.window?.makeKeyAndOrderFront(nil)
         // A downloaded copy updates through Sparkle; a build made on this Mac rebuilds Chromium itself.
-        if AppUpdates.isAvailable { AppUpdates.shared.start() } else { ChromiumUpdates.shared.start(window: controller.window) }
+        // Ikago Test is rebuilt by hand and never updates.
+        if AppUpdates.isAvailable { AppUpdates.shared.start() } else if !AppIdentity.isTestBuild { ChromiumUpdates.shared.start(window: controller.window) }
         if BrowserRuntime.runs(.webkit) {
             ExtensionManager.shared.startUpdates()
             ExtensionSync.seedDefaults()

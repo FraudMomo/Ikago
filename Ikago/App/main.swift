@@ -36,6 +36,23 @@ if CommandLine.arguments.contains("--cef-smoke") {
     }
 }
 
+/// Ikago and Ikago Test share one set of data, so a second copy never opens it while another is running.
+@MainActor func ensureOnlyCopy() {
+    guard !WebProfiles.isTestMode else { return }
+    let me = ProcessInfo.processInfo.processIdentifier
+    guard let other = NSRunningApplication.runningApplications(withBundleIdentifier: AppIdentity.bundleID)
+        .first(where: { $0.processIdentifier != me && !$0.isTerminated }) else { return }
+    let name = other.localizedName ?? "Ikago"
+    let alert = NSAlert()
+    alert.messageText = "\(name) is already open"
+    alert.informativeText = "Ikago and Ikago Test use the same tabs, history and passwords, so only one can be open at a time. Quit \(name), then open this one again."
+    alert.addButton(withTitle: "Show \(name)")
+    alert.addButton(withTitle: "Quit")
+    if alert.runModal() == .alertFirstButtonReturn { other.activate() }
+    exit(0)
+}
+
+ensureOnlyCopy()
 openProtectedStorage()
 unlockLocalData()
 let delegate = AppDelegate()

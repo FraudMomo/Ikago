@@ -17,6 +17,10 @@ RELEASE = json.loads((ROOT/'scripts/release.json').read_text())
 VERSION, BUILD = RELEASE['version'], str(RELEASE['build'])
 # Release builds made by scripts/release.py: signed for notarization and updated through Sparkle.
 DISTRIBUTION = os.environ.get('IKAGO_DISTRIBUTION') == '1'
+# A copy for trying changes next to the installed Ikago (`install_test.sh`): its own name, the same app ID and data.
+TEST_BUILD = os.environ.get('IKAGO_TEST_BUILD') == '1'
+if DISTRIBUTION and TEST_BUILD:
+    raise SystemExit('A test build is never a release.')
 HELPERS = ['', ' (Alerts)', ' (GPU)', ' (Plugin)', ' (Renderer)']
 
 
@@ -151,6 +155,9 @@ def main():
     info.update(CFBundleExecutable='Ikago', CFBundleIdentifier=BUNDLE_ID, CFBundleName='Ikago', CFBundleDisplayName='Ikago',
                 CFBundlePackageType='APPL', CFBundleShortVersionString=VERSION, CFBundleVersion=BUILD,
                 NSPrincipalClass='IKCEFApplication', LSMinimumSystemVersion='26.0')
+    if TEST_BUILD:
+        # Build 0 so Launch Services prefers the installed Ikago for links and the default browser.
+        info.update(CFBundleName='Ikago Test', CFBundleDisplayName='Ikago Test', CFBundleVersion='0', IkagoTestBuild=True)
     if DISTRIBUTION:
         # Sparkle: the signed feed, the key updates must be signed with, a daily check, and no system profiling.
         info.update(SUFeedURL=RELEASE['feed'], SUPublicEDKey=RELEASE['updatePublicKey'], SUEnableAutomaticChecks=True,

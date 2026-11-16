@@ -4,6 +4,12 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 # The auto updater passes a build it has already tested, and only runs while Ikago is closed.
+# A copy downloaded from GitHub Releases updates itself; replacing it with a local build would end that.
+if [[ -z "${IKAGO_REPLACE_RELEASE:-}" ]] && /usr/libexec/PlistBuddy -c 'Print :SUFeedURL' /Applications/Ikago.app/Contents/Info.plist >/dev/null 2>&1; then
+    print -u2 'The installed Ikago is a downloaded release. To try a build beside it, run scripts/install_test.sh.'
+    print -u2 'To replace it anyway, run again with IKAGO_REPLACE_RELEASE=1.'
+    exit 1
+fi
 if [[ -n "${IKAGO_INSTALL_SOURCE:-}" ]]; then
     built="$IKAGO_INSTALL_SOURCE"
 else
