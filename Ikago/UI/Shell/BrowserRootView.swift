@@ -12,6 +12,7 @@ struct BrowserRootView: View {
     let content: NSView
     weak var commands: BrowserCommands?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.appearsActive) private var appearsActive
     /// The docked sidebar stays mounted while it slides out, then leaves the tree.
     @State private var sidebarMounted = true
     var sidebarMountedForPlacement: Bool { sidebarMounted }
@@ -74,8 +75,13 @@ struct BrowserRootView: View {
                 .transition(.opacity.combined(with: .scale(scale: 0.92)).combined(with: .offset(y: 16)))
             }
             TranslationHost(chrome: chrome)
-            // Cards that come and go at the top right, stacked: save password, translation, extension access.
+            // Cards that come and go at the top right, stacked: an update, save password, translation, extension access.
             VStack(alignment: .trailing, spacing: 10) {
+                // The update card shows in the frontmost window only.
+                if appearsActive, let phase = AppUpdates.shared.prompt.phase {
+                    UpdateCard(prompt: AppUpdates.shared.prompt, phase: phase, colors: state.palette)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
                 if let offer = chrome.passwordSave {
                     PasswordSaveCard(offer: offer, colors: state.palette).id(offer.id)
                         .transition(.opacity.combined(with: .move(edge: .top)))

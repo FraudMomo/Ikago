@@ -159,9 +159,11 @@ def main():
         # Build 0 so Launch Services prefers the installed Ikago for links and the default browser.
         info.update(CFBundleName='Ikago Test', CFBundleDisplayName='Ikago Test', CFBundleVersion='0', IkagoTestBuild=True)
     if DISTRIBUTION:
-        # Sparkle: the signed feed, the key updates must be signed with, a daily check, and no system profiling.
+        # Sparkle: the feed, the key updates and the feed must be signed with, a daily check, and no system profiling.
         info.update(SUFeedURL=RELEASE['feed'], SUPublicEDKey=RELEASE['updatePublicKey'], SUEnableAutomaticChecks=True,
-                    SUScheduledCheckInterval=86400, SUAllowsAutomaticUpdates=True, SUEnableSystemProfiling=False)
+                    SUScheduledCheckInterval=86400, SUAllowsAutomaticUpdates=True, SUEnableSystemProfiling=False,
+                    # Only a feed signed with the update key is believed, and a download is verified before it opens.
+                    SURequireSignedFeed=True, SUVerifyUpdateBeforeExtraction=True)
     (contents/'Info.plist').write_bytes(plistlib.dumps(info))
 
     if flavor == 'release':

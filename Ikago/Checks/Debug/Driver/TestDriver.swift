@@ -152,6 +152,14 @@ enum TestDriver {
         case "permission":  // answer the visible permission sheet: allow | deny
             c.finishPermission(arg == "allow" ? .allow : .deny)
         case "snapshot": snapshot(c.window, to: arg)
+        case "updatecard":  // security | features | off: a sample update card in the frontmost window
+            let notes = arg == "security" ? ["**Chromium 157.0.8123.45:** the latest security and stability fixes from the Chromium project."]
+                : ["**Passwords:** the key and the login list now show reliably in sign-in dialogs and web components.",
+                   "**Moving the window:** a drop-down header at the top of the page, with its own settings."]
+            let summary = UpdateSummary(version: arg == "security" ? "0.3.1" : "0.4.0", security: arg == "security",
+                                        chromium: arg == "security" ? "157.0.8123.45" : nil, notes: notes)
+            AppUpdates.shared.prompt.phase = arg == "off" ? nil : .found(summary, downloaded: false)
+            NSApp.activate(); c.window?.makeKeyAndOrderFront(nil)
         case "windowshot":  // <png>: the window as it appears on screen, glass and pages included
             if let window = c.window, let content = window.contentView { _ = PeekShot.measure(content, window: window, save: arg) }
         case "grabheader":  // <png>: drops the page-edge header at the page's middle and captures the window
