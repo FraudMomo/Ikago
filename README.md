@@ -27,8 +27,13 @@ Built with **Swift 6, AppKit and SwiftUI**, using **Chromium (CEF)** or **Appleâ
 - **Privacy:** isolated Space storage, tracker blocking, HTTPS by default and private windows.
 - **Your data:** encrypted history and sessions, a password vault with Touch ID, and browser imports.
 
-Still a work in progress, with no stable release. Password saving, passkeys and device sync
+Still a work in progress. Passkeys, address and card autofill, and syncing Spaces between Macs
 are unfinished; protected video (DRM) requires WebKit. See the [roadmap](ROADMAP.md).
+
+## Download
+
+Get the latest DMG from [Releases](https://github.com/FraudMomo/Ikago/releases/latest). It needs
+**macOS 26+** on **Apple Silicon**, is signed and notarized by Apple, and updates itself.
 
 ## Build and install
 
