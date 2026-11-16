@@ -6,6 +6,7 @@ build/
 out/
 .cef/
 .svtav1/
+.sparkle/
 DerivedData/
 
 # Xcode
