@@ -111,8 +111,9 @@ struct AboutSettingsSection: View {
             PageDivider()
             PageRow(title: "Chromium", subtitle: "Version \(CEFVersion.chromium)") { EmptyView() }
             PageDivider()
-            ChromiumUpdateRow()
+            if AppUpdates.isAvailable { AppUpdateRows() } else { ChromiumUpdateRow() }
         }
+        AcknowledgementsSection(state: state)
         PageSection(title: "Developer") {
             PageRow(title: "Developer tools", subtitle: "Inspect Element and ⌥⌘I") {
                 Toggle("Developer tools", isOn: $state.developerTools).labelsHidden().toggleStyle(.switch)

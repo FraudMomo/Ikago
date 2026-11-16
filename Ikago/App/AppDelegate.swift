@@ -81,7 +81,8 @@ final class AppDelegate: NSObject, IKCEFApplicationDelegate {
         BrowserWindows.restore(state.pendingWindows)
         state.pendingWindows = []
         controller.window?.makeKeyAndOrderFront(nil)
-        ChromiumUpdates.shared.start(window: controller.window)
+        // A downloaded copy updates through Sparkle; a build made on this Mac rebuilds Chromium itself.
+        if AppUpdates.isAvailable { AppUpdates.shared.start() } else { ChromiumUpdates.shared.start(window: controller.window) }
         if BrowserRuntime.runs(.webkit) {
             ExtensionManager.shared.startUpdates()
             ExtensionSync.seedDefaults()

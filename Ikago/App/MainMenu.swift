@@ -7,6 +7,9 @@ enum MainMenu {
         let main = NSMenu()
         main.addSubmenu("Ikago") {
             $0.item("About Ikago", #selector(NSApplication.orderFrontStandardAboutPanel(_:)))
+            if AppUpdates.isAvailable {
+                $0.item("Check for Updates…", #selector(AppUpdates.checkForUpdates(_:))).target = AppUpdates.shared
+            }
             $0.separator()
             $0.item("Settings…", #selector(BrowserWindowController.showIkagoSettings(_:)), ",")
             $0.separator()
