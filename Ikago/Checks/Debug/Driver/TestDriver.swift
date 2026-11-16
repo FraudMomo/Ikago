@@ -152,6 +152,8 @@ enum TestDriver {
         case "permission":  // answer the visible permission sheet: allow | deny
             c.finishPermission(arg == "allow" ? .allow : .deny)
         case "snapshot": snapshot(c.window, to: arg)
+        case "windowshot":  // <png>: the window as it appears on screen, glass and pages included
+            if let window = c.window, let content = window.contentView { _ = PeekShot.measure(content, window: window, save: arg) }
         case "grabheader":  // <png>: drops the page-edge header at the page's middle and captures the window
             state.browserPreferences.pageGrab = .header
             c.pageWindowGrab?.header.show(in: c.content.view, at: c.content.view.bounds.midX)

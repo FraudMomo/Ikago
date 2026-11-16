@@ -17,8 +17,9 @@ extension BrowserState {
     var sidebarRowCenter: CGFloat { sidebarRowTop + Self.sidebarRowHeight / 2 }
     /// The docked sidebar is part of the window's own surface (no card of its own), so only the page is a rounded card.
     /// Liquid Glass keeps its glass panel, except with the frosted sidebar: then the window itself is the frosted surface
-    /// (`WindowBackgroundView`), and a card of its own would stack a second, flatter layer on it.
-    var sidebarJoinsWindow: Bool { !useGlass || frostedChrome }
+    /// (`WindowBackgroundView`), and a card of its own would stack a second, flatter layer on it. In Sidebar + Tabs the
+    /// rail is part of the window like the tab row beside it; only its controls are glass.
+    var sidebarJoinsWindow: Bool { !useGlass || frostedChrome || usesTabsLayout }
     /// Settings ▸ Appearance ▸ translucent sidebar, unless macOS's Reduce Transparency is on: the window is frosted, and
     /// in Sidebar + Tabs the active tab and the address bar are one lighter, see-through sheet over it.
     var frostedChrome: Bool {
@@ -26,7 +27,11 @@ extension BrowserState {
     }
     /// The active tab and address bar's fill: the page's color, see-through when the window is frosted, so tab and bar
     /// read as one lighter sheet of the frost that settles into the solid page below.
-    var tabSheetColor: Color { frostedChrome ? palette.pageBackground.opacity(palette.isDark ? 0.42 : 0.62) : palette.pageBackground }
+    /// In dark mode over the frost a darker veil all but vanished into it, so the sheet lightens the frost instead.
+    var tabSheetColor: Color {
+        guard frostedChrome else { return palette.tabSheet }
+        return palette.isDark ? Color.white.opacity(0.12) : palette.tabSheet.opacity(0.62)
+    }
     var sidebarGroupStyle: SidebarGroupStyle { browserPreferences.sidebarGroupStyle ?? .cards }
     /// The sidebar's three states: full, a rail of icons, or hidden (`sidebarVisible`).
     var showsSidebarRail: Bool { sidebarVisible && (browserPreferences.sidebarCompact == true || usesTabsLayout) }

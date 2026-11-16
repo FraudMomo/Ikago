@@ -10,7 +10,7 @@
    layer (`WindowBackgroundView`: vibrant `.sidebar` blur under a light Space wash), and docked sidebars, the rail and
    the tab row draw no material of their own (`sidebarJoinsWindow`), since stacked blurs read flat and grey; floating
    sidebars (the peek) use `surface(..., translucentSidebar:)`. Honor Reduce Transparency and preserve readable Space tint. Never call `glassEffect` directly. Glass can't
-   render offscreen, so drag previews use plain fills. Related icon controls share one reactive capsule (`GlassControlGroup`); a lone control uses
+   render offscreen, so drag previews use plain fills. Related icon controls share one reactive capsule (`GlassControlGroup`); controls inside it attach no glass effect at all (an identity effect could return as a circle per control); a lone control uses
    `glassControl`, which adds nothing inside a group. Don't merge separate glass circles in a container: they melt together with visible necks.
    Don't switch styles with an `if` around large subtrees: `glassButtons` is one style that decides inside, because
    an `if` at the root rebuilds the window on change and overflowed the stack when a page inserted a button.
@@ -30,7 +30,7 @@
    Sidebar + Tabs (`browserPreferences.sidebarTopTabs`, `state.usesTabsLayout`, `state.showsSidebarTopTabs`): `SidebarTopTabs` (its own
    `IsolatedHost`) shows the Space's ungrouped tabs above the page as arched, attached tabs (`AttachedTabShape`), and
    `TabsToolbar` (its own host) is the top of the page card: navigation left, the centred address field, other controls right;
-   the page's top corners are square under it (`WebTabContainerView.squareTop`). The address bar is 36 pt with no rule under it; the active tab and the bar share `tabSheetColor` (the page color, see-through when frosted), so tab and bar read as one lighter sheet that settles into the solid page. There is no full sidebar in this layout:
+   the page's top corners are square under it (`WebTabContainerView.squareTop`). The address bar is 36 pt with no rule under it; the active tab and the bar share `tabSheetColor` (`Palette.tabSheet`: the page color, or a raised 0x2C2C2E in dark mode when the Space color is near-black so the active tab still shows; when frosted, a see-through page color in light mode and a 12% white veil in dark mode, which a darker veil all but vanished into), so tab and bar read as one lighter sheet that settles into the solid page. There is no full sidebar in this layout:
    the sidebar is a rail of pins and groups below the tab row, or hidden (its peek is the rail). New tabs open on the right
    (`effectiveNewTabPosition`); the address frame reaches the shell through `ChromeModel.addressFieldFrame`. There is one `ContentHost`, so turning the row on or off never moves the page.
    Switching layouts goes through `LayoutSwitch.set`: the new layout is built in one frame with animations disabled and
@@ -43,7 +43,7 @@
    groups sit inside the top-level group's card as plain, indented headers, listed before the group's own tabs; counts, sleep
    and the active tab cover the subtree; deleting a group moves its tabs and groups up a level; moves into a group's own
    subtree are refused (`nestedgroupchecks`). The rail shows top-level groups only, and the Color pill label fills the header like a book's bookmark: a light wash of the group's color, a solid 3 pt spine on the leading edge, `Radius.control` corners; a group whose tabs are all closed or asleep fades to half until hovered (rail tiles too); closed groups stack 4 pt apart, and a hairline separates pinned rows from groups. With glass off the
-   docked sidebar joins the window (`sidebarJoinsWindow`): it draws no card, so sidebar and tab row are one surface and only the
+   docked sidebar joins the window (`sidebarJoinsWindow`; always for the Sidebar + Tabs rail, whose controls alone are glass): it draws no card, so sidebar and tab row are one surface and only the
    page is rounded. The traffic lights, the sidebar's top row and the tab row share one centre (`sidebarRowCenter`);
    `positionTrafficLights` sets both axes in every layout. Top-row controls that don't fit beside the lights move to a second
    row (`SidebarView.topRowCapacity`), never under them. An optional Space header and shortcut rows (`SidebarShortcuts`,

@@ -59,8 +59,15 @@ private struct GlassControl<S: Shape>: ViewModifier {
     let reacts: Bool
     @Environment(\.inGlassGroup) private var inGroup
 
-    func body(content: Content) -> some View {
-        content.glassEffect(active && colors.glass && !inGroup ? .regular.interactive(reacts) : .identity, in: shape)
+    // Inside a group no glass effect is attached at all: even an identity effect under the group's interactive glass
+    // could come back as a separate circle of glass around each control after a hover or redraw. The environment value
+    // is fixed for a given place in the tree, so this branch never swaps a control's identity.
+    @ViewBuilder func body(content: Content) -> some View {
+        if inGroup {
+            content
+        } else {
+            content.glassEffect(active && colors.glass ? .regular.interactive(reacts) : .identity, in: shape)
+        }
     }
 }
 

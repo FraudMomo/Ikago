@@ -24,6 +24,9 @@ struct Palette: Equatable {
     let nsAccent: NSColor
     /// Behind web pages before they paint.
     let pageBackground: Color
+    /// The active tab in Sidebar + Tabs and the address bar under it. In dark mode a darker Space color has the page's
+    /// own dark gray as its sheet; a near-black one gets a raised gray instead, or the active tab would barely show.
+    let tabSheet: Color
 
     init(colors: SpaceColors, isDark: Bool, glass: Bool = true) {
         self.isDark = isDark
@@ -43,6 +46,14 @@ struct Palette: Equatable {
         nsAccent = .controlAccentColor
         accent = Color(nsColor: .controlAccentColor)
         pageBackground = isDark ? Color(hex: 0x1C1C1E) : .white
+        tabSheet = Self.tabSheet(over: rgb, isDark: isDark, page: pageBackground)
+    }
+
+    /// 0x1C1C1E has a luminance of about 0.11: a window color within reach of it needs the raised 0x2C2C2E.
+    private static func tabSheet(over window: NSColor, isDark: Bool, page: Color) -> Color {
+        guard isDark else { return page }
+        let luminance = 0.2126 * window.redComponent + 0.7152 * window.greenComponent + 0.0722 * window.blueComponent
+        return luminance > 0.17 ? page : Color(hex: 0x2C2C2E)
     }
 }
 
@@ -67,6 +78,7 @@ extension Palette {
         accent = base.accent
         nsAccent = base.nsAccent
         pageBackground = base.pageBackground
+        tabSheet = base.tabSheet
     }
 }
 
