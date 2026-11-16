@@ -32,6 +32,7 @@ __pycache__/
 .env.*
 google-api-key
 *.p12
+*.p8
 *.pem
 *.key
 *.cer

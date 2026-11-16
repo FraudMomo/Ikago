@@ -59,8 +59,8 @@ Ikago/
 └── Resources/   Info.plist, entitlements, Assets.xcassets
 
 CEF/             Objective-C++ bridge, CMake build, pinned SDK (cef-lock.json)
-scripts/         build.py, package_app.py, install.sh, release.py, fetch_cef.py, fetch_sparkle.py, check_cef_update.py,
-                 run_chromium_checks.py
+scripts/         build.py, package_app.py, install.sh, install_test.sh, release.py, release_chromium.py,
+                 chromium_lock.py, fetch_cef.py, fetch_sparkle.py, check_cef_update.py, run_chromium_checks.py
 ```
 
 Build with `python3 scripts/build.py` (`--flavor release|checks|debug`). `Checks/` is left out of release

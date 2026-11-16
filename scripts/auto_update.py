@@ -12,16 +12,17 @@ import fcntl
 import hashlib
 import json
 import os
+import plistlib
 from pathlib import Path
 import re
 import shutil
 import subprocess
 import sys
 import time
-import urllib.parse
-import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT/'scripts'))
+from chromium_lock import apply_version, download, latest_release, new_lock, version_key  # noqa: E402
 LABEL = 'app.ikago.updater'
 UPDATES = Path.home()/'Library/Application Support/Ikago/Updates'
 WORK = Path.home()/'Library/Caches/Ikago/Updater'
@@ -52,17 +53,8 @@ def write_status(**fields):
     return status
 
 
-def version_key(entry):
-    """Chromium version first, then CEF's own build, since CEF can ship fixes on the same Chromium."""
-    cef = re.match(r'[\d.]+', entry['cef_version']).group(0)
-    return tuple(int(part) for part in entry['chromium_version'].split('.')), tuple(int(part) for part in cef.split('.'))
 
 
-def latest_release(lock):
-    with urllib.request.urlopen(lock['index'], timeout=60) as response:
-        index = json.load(response)
-    versions = [v for v in index[lock['platform']]['versions'] if v.get('channel') == lock['channel']]
-    return max(versions, key=version_key)
 
 
 def is_running():
@@ -74,38 +66,10 @@ def on_battery():
     return 'Battery Power' in result.stdout
 
 
-def download(lock, destination):
-    """Verifies the size and SHA-1 the index publishes, and records a SHA-256 for the lock."""
-    url = 'https://cef-builds.spotifycdn.com/' + urllib.parse.quote(lock['archive'])
-    sha1, sha256, size = hashlib.sha1(), hashlib.sha256(), 0
-    with urllib.request.urlopen(url, timeout=120) as source, destination.open('wb') as output:
-        while chunk := source.read(1024*1024):
-            size += len(chunk)
-            if size > lock['size']:
-                raise RuntimeError('The CEF download is larger than published.')
-            sha1.update(chunk)
-            sha256.update(chunk)
-            output.write(chunk)
-    if size != lock['size'] or sha1.hexdigest() != lock['sha1']:
-        raise RuntimeError('The CEF download failed verification.')
-    lock['sha256'] = sha256.hexdigest()
 
 
-def new_lock(lock, release):
-    file = next(f for f in release['files'] if f['type'] == lock.get('distribution', 'minimal'))
-    return lock | {'cef_version': release['cef_version'], 'cef_commit': release.get('cef_commit', ''),
-                   'chromium_version': release['chromium_version'], 'archive': file['name'],
-                   'size': file['size'], 'sha1': file['sha1'], 'sha256': ''}
 
 
-def apply_version(root, lock):
-    """The two source files that name the pinned release."""
-    (root/'CEF/cef-lock.json').write_text(json.dumps(lock, indent=2) + '\n')
-    swift = root/'Ikago/Engine/Shared/BrowserEngine.swift'
-    text, count = re.subn(r'(static let chromium = ")[\d.]+(")', rf'\g<1>{lock["chromium_version"]}\g<2>', swift.read_text())
-    if count != 1:
-        raise RuntimeError('Could not find the Chromium version constant.')
-    swift.write_text(text)
 
 
 def run(command, cwd, stage, timeout):
@@ -180,8 +144,20 @@ def signing_team(app):
     return team
 
 
+def is_downloaded_release(app):
+    """A copy from GitHub Releases updates itself through Sparkle; this updater must never replace it."""
+    try:
+        return 'SUFeedURL' in plistlib.loads((Path(app)/'Contents/Info.plist').read_bytes())
+    except (OSError, plistlib.InvalidFileException):
+        return False
+
+
 def install_staged():
     if not STAGED.exists():
+        return
+    if is_downloaded_release(Path(INSTALLED).parents[2]):
+        log('The installed Ikago is a downloaded release, which updates itself; nothing to install.')
+        shutil.rmtree(STAGED, ignore_errors=True)
         return
     if is_running():
         log('Staged update waits for Ikago to quit.')
@@ -268,21 +244,34 @@ def install_agent():
     print(f'Automatic Chromium updates are on ({plist}).')
 
 
+def remove_agent():
+    plist = Path.home()/'Library/LaunchAgents'/f'{LABEL}.plist'
+    subprocess.run(['launchctl', 'bootout', f'gui/{os.getuid()}/{LABEL}'], capture_output=True)
+    plist.unlink(missing_ok=True)
+    shutil.rmtree(STAGED, ignore_errors=True)
+    print('Automatic Chromium rebuilds are off.')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--install-agent', action='store_true', help='Turn on the hourly background job.')
+    parser.add_argument('--remove-agent', action='store_true', help='Turn off the background job.')
     parser.add_argument('--force', action='store_true', help='Check now, whatever the schedule or power source.')
     parser.add_argument('--pretend-pinned', metavar='CHROMIUM', help='Test the pipeline by acting as if this older version were pinned.')
     parser.add_argument('--no-install', action='store_true', help='Build and test, but stage and install nothing.')
     args = parser.parse_args()
     if args.install_agent:
         return install_agent()
+    if args.remove_agent:
+        return remove_agent()
     UPDATES.mkdir(parents=True, exist_ok=True)
     with (UPDATES/'.lock').open('w') as lock_file:
         try:
             fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             return log('Another update run is in progress.')
+        if is_downloaded_release(Path(INSTALLED).parents[2]):
+            return log('The installed Ikago is a downloaded release, which updates itself. Turn this job off with --remove-agent.')
         if DISABLED.exists() and not args.force:
             return write_status(state='disabled', message='Automatic updates are off.')
         if not args.no_install:

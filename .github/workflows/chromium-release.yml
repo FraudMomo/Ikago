@@ -1,0 +1,119 @@
+# Ships each new stable Chromium to everyone, without anyone's help: a daily look at the CEF index, and when the last
+# release's Chromium is behind, a patch release built from that release's tag (scripts/release_chromium.py).
+#
+# Security: the signing certificate, the notarization key and the update key are secrets of the "release" environment,
+# which only the main branch may use; pull requests (forks included) never run this workflow. The only action is
+# GitHub's own checkout, pinned to a commit. Every key is written to the runner's temporary folder and removed at the end.
+name: Chromium release
+
+on:
+  schedule:
+    - cron: '23 6 * * *'
+  workflow_dispatch:
+    inputs:
+      trial:
+        description: Build, test, notarize and sign, but publish nothing
+        type: boolean
+        default: true
+
+permissions: {}
+
+concurrency:
+  group: chromium-release
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      needed: ${{ steps.check.outputs.needed }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: check
+        run: python3 scripts/release_chromium.py --check
+
+  release:
+    needs: check
+    if: needs.check.outputs.needed == 'true' || (github.event_name == 'workflow_dispatch' && inputs.trial)
+    runs-on: macos-26
+    timeout-minutes: 240
+    environment: release
+    permissions:
+      contents: write
+      issues: write
+    env:
+      TRIAL: ${{ github.event_name == 'workflow_dispatch' && inputs.trial }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Tools
+        run: brew install ninja
+
+      - name: Signing keychain
+        env:
+          CERTIFICATE: ${{ secrets.DEVELOPER_ID_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+        run: |
+          set -euo pipefail
+          keychain="$RUNNER_TEMP/ikago-signing.keychain-db"
+          password="$(uuidgen)"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          printf '%s' "$CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/developer-id.p12"
+          security import "$RUNNER_TEMP/developer-id.p12" -k "$keychain" -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/developer-id.p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain" > /dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          security find-identity -v -p codesigning "$keychain" | grep -q 'Developer ID Application'
+
+      - name: Release keys
+        env:
+          NOTARY_KEY: ${{ secrets.NOTARY_API_KEY }}
+          UPDATE_KEY: ${{ secrets.SPARKLE_UPDATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s' "$NOTARY_KEY" > "$RUNNER_TEMP/notary.p8"
+          printf '%s' "$UPDATE_KEY" > "$RUNNER_TEMP/update.key"
+
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IKAGO_NOTARY_KEY: ${{ runner.temp }}/notary.p8
+          IKAGO_NOTARY_KEY_ID: ${{ secrets.NOTARY_API_KEY_ID }}
+          IKAGO_NOTARY_ISSUER: ${{ secrets.NOTARY_API_ISSUER }}
+          IKAGO_UPDATE_KEY_FILE: ${{ runner.temp }}/update.key
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if [[ "$TRIAL" == true ]]; then
+            python3 scripts/release_chromium.py --trial
+          else
+            python3 scripts/release_chromium.py
+          fi
+
+      - name: Report a failed release
+        if: failure() && env.TRIAL != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title='Automatic Chromium release failed'
+          if [[ -z "$(gh issue list --state open --search "$title in:title" --json number --jq '.[].number')" ]]; then
+            gh issue create --title "$title" --body "A new stable Chromium is out, but the automatic release stopped before publishing: $RUN_URL. Installed copies keep the previous release until this is fixed. Feature releases also wait (release.py refuses an outdated Chromium)."
+          fi
+
+      - name: Remove keys
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP/notary.p8" "$RUNNER_TEMP/update.key" "$RUNNER_TEMP/developer-id.p12"
+          security delete-keychain "$RUNNER_TEMP/ikago-signing.keychain-db" 2>/dev/null || true
