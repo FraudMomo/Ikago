@@ -36,11 +36,16 @@
   moves the window, and behind the page card and the whole layout, so the window margins do too (the hidden sidebar's
   hover edge is one). The tab row's scroll view is only as tall as the tabs, so the strip above them moves the window
   (`sidebarinteractionchecks` hit-tests it). Never cover bars with a drag overlay plus exclusion rects.
-- In every layout a still press-and-hold (0.12 s) within 10 pt of the page's top edge (web pages and
-  `pageSurface`-marked internal, error and empty pages) becomes a
-  window drag (`PageWindowGrab`, a passive local event monitor; no view, inset or overlay). The page
-  receives every press immediately; moving first, double-clicks, modified clicks, split headers and
-  overlays stay with the page. A grab ends the page's press away from it and drops the later mouse-up.
+- In the Sidebar layout the page's top edge (web pages and `pageSurface`-marked internal, error and empty pages) can move
+  the window; Sidebar + Tabs never uses it (its tab row moves the window, and Settings shows the switch off and disabled) (`PageWindowGrab`, Settings ▸ Appearance ▸ Layout ▸ Moving the Window, `PageGrabMode`): Off, Press and Hold
+  (unset), or Drop-Down Header. The edge reaches `pageGrabHeight` points down (unset: 10, 4–32). Press and Hold: a still
+  press (0.12 s) becomes a window drag through a passive local event monitor (no view, inset or overlay); the page
+  receives every press immediately; moving first, modified clicks, split headers and overlays stay with the page, and a
+  grab ends the page's press away from it and drops the later mouse-up. Drop-Down Header: resting the pointer on the
+  edge (0.18 s, from the same monitor's mouse moves) drops `PageGrabHeader`, an AppKit view added above every page in the
+  pages' container (pages never move or resize), under the pointer and clear of the page's corners; it drags the window
+  and leaves 0.45 s after the pointer does. In both styles a double-click on the edge zooms the window
+  (`pageGrabZoom`, unset: on) and the page never sees that second click. Checks: `pagegrabchecks`, `CEFPageGrabChecks`.
 - Split drops use a permanently mounted AppKit SplitDropTarget above WKWebView, with
   preview and acceptance driven by native dragging callbacks. Transparent SwiftUI-only drop
   surfaces can fall through to embedded pages. Decode TabDrag from the live pasteboard

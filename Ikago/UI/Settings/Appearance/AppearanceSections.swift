@@ -86,6 +86,7 @@ struct SpacingSection: View {
                           value: $state.sidebarGap, range: 0...24, defaultValue: BrowserState.defaultSidebarGap)
             }
         }
+        PageGrabSection(state: state)
         PageSection(title: "Full Screen") {
             PageRow(title: "Use the area beside the camera", subtitle: "Otherwise a black band sits below it") {
                 Toggle("Use the area beside the camera", isOn: Binding(

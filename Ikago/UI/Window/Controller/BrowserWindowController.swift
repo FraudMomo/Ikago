@@ -19,7 +19,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
     let background = WindowBackgroundView()
     private var permissionQueue: [(tab: TabController, request: PermissionRequest)] = []
     private var permissionSheet: NSWindow?
-    private var pageWindowGrab: PageWindowGrab?
+    private(set) var pageWindowGrab: PageWindowGrab?
     private var systemAppearance: SystemAppearance?
     /// Ikago's own traffic lights while the window is full screen.
     lazy var fullScreenControls = FullScreenWindowControls(window: window!)

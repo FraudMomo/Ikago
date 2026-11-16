@@ -152,6 +152,11 @@ enum TestDriver {
         case "permission":  // answer the visible permission sheet: allow | deny
             c.finishPermission(arg == "allow" ? .allow : .deny)
         case "snapshot": snapshot(c.window, to: arg)
+        case "grabheader":  // <png>: drops the page-edge header at the page's middle and captures the window
+            state.browserPreferences.pageGrab = .header
+            c.pageWindowGrab?.header.show(in: c.content.view, at: c.content.view.bounds.midX)
+            try? await Task.sleep(for: .milliseconds(500))
+            if let window = c.window, let content = window.contentView { _ = PeekShot.measure(content, window: window, save: arg) }
         case "corners": corners(c, to: arg)
         case "fullscreen":  // toggles window full screen, then reports every window of the app (arg "notch": on a notched screen)
             if arg == "notch", let screen = NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 }), let w = c.window {

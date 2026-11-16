@@ -54,7 +54,7 @@ done
 port="$(cat "$work/port")"
 python3 scripts/build.py --flavor debug --jobs 4 > /dev/null
 IKAGO_TEST_MODE=1 IKAGO_TEST_AUTO_APPROVE=1 IKAGO_TEST_PROFILE="$work/profile" \
-IKAGO_TEST_ACTIONS="open:http://127.0.0.1:$port/;wait:2;new:http://127.0.0.1:$port/?second;wait:2;chromechecks;featurechecks;importchecks;storebridgechecks;downloadchecks:http://127.0.0.1:$port;tabanimationchecks;securitychecks:http://127.0.0.1:$port;privacychecks:http://127.0.0.1:$port;defaultbrowserchecks;autocompletechecks;addresstypingchecks;safariscanchecks;shiftpeekchecks:http://127.0.0.1:$port;extensionaccesschecks:http://127.0.0.1:$port;tabplacementchecks;middleclickchecks:http://127.0.0.1:$port;passwordautofillchecks:http://127.0.0.1:$port;passwordsavechecks:http://127.0.0.1:$port;pagetoolchecks:http://127.0.0.1:$port;newtabfocuschecks:http://127.0.0.1:$port;sizingchecks;quit" \
+IKAGO_TEST_ACTIONS="open:http://127.0.0.1:$port/;wait:2;new:http://127.0.0.1:$port/?second;wait:2;chromechecks;featurechecks;importchecks;storebridgechecks;downloadchecks:http://127.0.0.1:$port;tabanimationchecks;securitychecks:http://127.0.0.1:$port;privacychecks:http://127.0.0.1:$port;defaultbrowserchecks;autocompletechecks;addresstypingchecks;safariscanchecks;shiftpeekchecks:http://127.0.0.1:$port;pagegrabchecks:http://127.0.0.1:$port;extensionaccesschecks:http://127.0.0.1:$port;tabplacementchecks;middleclickchecks:http://127.0.0.1:$port;passwordautofillchecks:http://127.0.0.1:$port;passwordsavechecks:http://127.0.0.1:$port;pagetoolchecks:http://127.0.0.1:$port;newtabfocuschecks:http://127.0.0.1:$port;sizingchecks;quit" \
     "build/debug/Ikago.app/Contents/MacOS/Ikago" > "$work/checks.log" 2>&1
 # Split fixtures exercise native pane controls in a separate window/profile so their
 # temporary tab/session state cannot influence the long-running chrome geometry fixtures.
@@ -106,6 +106,7 @@ if ! grep -q 'pinassistantchecks PASS failures=0' "$work/checks.log" \
     || ! grep -q 'tabplacementchecks PASS failures=0' "$work/checks.log" \
     || ! grep -q 'middleclickchecks PASS failures=0' "$work/checks.log" \
     || ! grep -q 'passwordautofillchecks PASS failures=0' "$work/checks.log" \
+    || ! grep -q 'pagegrabchecks PASS failures=0' "$work/checks.log" \
     || ! grep -q 'passwordsavechecks PASS failures=0' "$work/checks.log" \
     || ! grep -q 'pagetoolchecks PASS failures=0' "$work/checks.log" \
     || ! grep -q 'newtabfocuschecks PASS failures=0' "$work/checks.log" \

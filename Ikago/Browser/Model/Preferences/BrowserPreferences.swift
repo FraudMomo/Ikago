@@ -52,6 +52,12 @@ struct BrowserPreferences: Codable, Equatable {
     var sitePermissions: [String: SitePermissions]? = nil
     /// Full screen uses the whole display, around the camera housing, instead of starting below it. Unset: off.
     var fullScreenUnderNotch: Bool? = nil
+    /// Moving the window from the page's top edge (`PageGrabMode`, `PageWindowGrab`). Unset: press and hold.
+    var pageGrab: PageGrabMode? = nil
+    /// How far down from the page's top the edge reaches, in points (`PageGrabMode.heights`). Unset: 10.
+    var pageGrabHeight: Double? = nil
+    /// Double-clicking the page's top edge or its header zooms the window. Unset: on.
+    var pageGrabZoom: Bool? = nil
     /// On by default. Sessions from before that default get it once (`httpsDefaultApplied`), after which
     /// the setting is the person's own.
     var forceHTTPS: Bool? = true
@@ -158,5 +164,22 @@ extension BrowserState {
               !bookmarks.contains(where: { $0.url == tab.url }) else { return }
         bookmarks.append(Bookmark(url: tab.url, title: String(tab.displayTitle.prefix(512)), favicon: tab.faviconURL?.absoluteString))
         scheduleSave()
+    }
+}
+
+/// How the page's top edge moves the window: not at all, after a brief press and hold, or with a small header that
+/// drops down while the pointer rests there.
+enum PageGrabMode: String, Codable, CaseIterable {
+    case off, hold, header
+
+    static let defaultHeight = 10.0
+    static let heights = 4.0...32.0
+
+    var title: String {
+        switch self {
+        case .off: "Off"
+        case .hold: "Press and Hold"
+        case .header: "Drop-Down Header"
+        }
     }
 }

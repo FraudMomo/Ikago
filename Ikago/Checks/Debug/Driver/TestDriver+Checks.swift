@@ -101,6 +101,7 @@ extension TestDriver {
         case "addresstypingchecks": await AddressTypingChecks.run(c)
         case "safariscanchecks": await SafariExtensionScanChecks.run()
         case "shiftpeekchecks": await ShiftClickPeekChecks.run(c, base: arg)
+        case "pagegrabchecks": await PageGrabChecks.run(c, base: arg)
         case "extensionaccesschecks": await ExtensionAccessChecks.run(c, base: arg)
         case "tabplacementchecks": await TabPlacementChecks.run()
         case "middleclickchecks": await MiddleClickChecks.run(c, base: arg)
