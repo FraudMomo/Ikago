@@ -13,8 +13,18 @@ struct UpdateSummary: Equatable {
         version = item.displayVersionString
         security = item.isCriticalUpdate
         let text = item.itemDescription ?? ""
-        notes = text.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-            .map { $0.hasPrefix("- ") ? String($0.dropFirst(2)) : $0 }
+        // One bullet per "- " line; an indented line continues the bullet above it.
+        var bullets: [String] = []
+        for line in text.split(separator: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard !trimmed.isEmpty else { continue }
+            if line.first?.isWhitespace == true, !trimmed.hasPrefix("- "), let last = bullets.popLast() {
+                bullets.append(last + " " + trimmed)
+            } else {
+                bullets.append(trimmed.hasPrefix("- ") ? String(trimmed.dropFirst(2)) : trimmed)
+            }
+        }
+        notes = bullets
         let fromFeed = item.propertiesDictionary["ikago:chromium"] as? String
         chromium = fromFeed ?? text.firstMatch(of: /Chromium (\d+(?:\.\d+){1,3})/).map { String($0.1) }
     }

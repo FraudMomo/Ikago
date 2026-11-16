@@ -182,6 +182,18 @@ def make_dmg(version):
     return dmg
 
 
+def one_line_bullets(text):
+    """BUILDS.md wraps long bullets; the feed carries each bullet on one line, since the update card in 0.4.0 reads
+    every line as a bullet of its own."""
+    lines = []
+    for line in text.splitlines():
+        if line.strip() and lines and not line.lstrip().startswith('- ') and line.startswith((' ', '\t')):
+            lines[-1] += ' ' + line.strip()
+        else:
+            lines.append(line.rstrip())
+    return '\n'.join(lines)
+
+
 def write_appcast(dmg, version, build, changes, security=False):
     """The feed: this release, its changes as Markdown (Ikago's update card shows them), whether it is a security
     update (Sparkle's critical update), and the Chromium it carries. The whole feed is signed with the update key, and
@@ -205,7 +217,7 @@ def write_appcast(dmg, version, build, changes, security=False):
       <sparkle:version>{build}</sparkle:version>
       <sparkle:shortVersionString>{escape(version)}</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
-      <description sparkle:format="markdown"><![CDATA[{changes.replace("]]>", "]] >")}]]></description>
+      <description sparkle:format="markdown"><![CDATA[{one_line_bullets(changes).replace("]]>", "]] >")}]]></description>
       <ikago:chromium>{escape(chromium_lock.read_lock()["chromium_version"])}</ikago:chromium>{critical}
       <enclosure url={quoteattr(url)} type="application/octet-stream" sparkle:edSignature={quoteattr(signature.group(1))} length="{length.group(1)}"/>
     </item>
