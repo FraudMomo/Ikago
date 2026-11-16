@@ -5,6 +5,8 @@ What changed in each release of Ikago, newest first. Add changes under **Unrelea
 
 ## Unreleased
 
+## 0.4.0 — 2026-11-16
+
 - **Passwords:** the key and the login list now show reliably: in fields inside web components, in fields a page
   focuses as it loads, in sign-in dialogs, in fields found by their placeholder or label ("Email or phone"), and in
   fields that are still animating in. A click in a sign-in frame lists its logins too.
