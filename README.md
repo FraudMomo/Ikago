@@ -46,7 +46,7 @@ open build/Ikago.app
 ```
 
 The first build downloads and verifies the pinned CEF SDK. Chromium itself is never compiled.
-Builds use an Apple Development signing identity when available, otherwise ad hoc signing.
+Builds use a Developer ID or Apple Development signing identity when available, otherwise ad hoc signing.
 
 To build and install into `/Applications`:
 

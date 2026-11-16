@@ -2,7 +2,7 @@
 """Build Ikago: the CEF bridge, the Swift app, then the signed bundle. Never compiles Chromium itself.
 
 Flavors:
-  release  build/Ikago.app          Optimized, no test code. Signed with your Apple Development identity.
+  release  build/Ikago.app          Optimized, no test code. Signed with Developer ID, or Apple Development.
   checks   build/checks/Ikago.app   Adds the Chromium runtime checks (scripts/run_chromium_checks.py).
   debug    build/debug/Ikago.app    Adds the WebKit test driver (scripts/check-browser-features.sh).
 """

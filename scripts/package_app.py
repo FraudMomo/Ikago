@@ -21,8 +21,8 @@ HELPERS = ['', ' (Alerts)', ' (GPU)', ' (Plugin)', ' (Renderer)']
 
 
 def signing_identity(flavor):
-    """IKAGO_SIGN_IDENTITY wins. Distribution needs Developer ID; release uses Apple Development when present;
-    otherwise ad hoc."""
+    """IKAGO_SIGN_IDENTITY wins. Distribution needs Developer ID; release prefers Developer ID, then Apple
+    Development; otherwise ad hoc."""
     if identity := os.environ.get('IKAGO_SIGN_IDENTITY'):
         return identity
     found = subprocess.run(['security', 'find-identity', '-v', '-p', 'codesigning'], capture_output=True, text=True).stdout
@@ -32,6 +32,10 @@ def signing_identity(flavor):
         return 'Developer ID Application'
     if flavor != 'release':
         return '-'
+    # Local builds use the same certificate as published ones when it's here: the Keychain trusts the app by its
+    # signature, so switching between the two would ask for the keychain password each time.
+    if 'Developer ID Application' in found:
+        return 'Developer ID Application'
     return 'Apple Development' if 'Apple Development' in found else '-'
 
 
