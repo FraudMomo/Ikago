@@ -206,6 +206,11 @@ def write_appcast(dmg, version, build, changes, security=False):
     repo, tag = CONFIG['repository'], f'v{version}'
     url = f'https://github.com/{repo}/releases/download/{tag}/{dmg.name}'
     critical = '\n      <sparkle:criticalUpdate></sparkle:criticalUpdate>' if security else ''
+    # Copies before `firstSelfUpdatingBuild` (0.4.1) can't install updates themselves (their Sparkle folder is
+    # quarantined), so they get an information-only update: Sparkle's window links to the release page to download it.
+    oldest = CONFIG.get('firstSelfUpdatingBuild')
+    information_only = (f'\n      <sparkle:informationalUpdate><sparkle:belowVersion>{oldest}</sparkle:belowVersion>'
+                        '</sparkle:informationalUpdate>') if oldest else ''
     appcast = f'''<?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:ikago="https://ikago.app/xml/updates">
   <channel>
@@ -217,6 +222,7 @@ def write_appcast(dmg, version, build, changes, security=False):
       <sparkle:version>{build}</sparkle:version>
       <sparkle:shortVersionString>{escape(version)}</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+      <link>https://github.com/{repo}/releases/tag/{tag}</link>{information_only}
       <description sparkle:format="markdown"><![CDATA[{one_line_bullets(changes).replace("]]>", "]] >")}]]></description>
       <ikago:chromium>{escape(chromium_lock.read_lock()["chromium_version"])}</ikago:chromium>{critical}
       <enclosure url={quoteattr(url)} type="application/octet-stream" sparkle:edSignature={quoteattr(signature.group(1))} length="{length.group(1)}"/>
