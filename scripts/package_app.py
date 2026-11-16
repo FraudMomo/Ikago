@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Assemble and sign Ikago.app: Info.plist, assets, the CEF framework and its helper apps."""
 import hashlib
+import json
 import os
 from pathlib import Path
 import plistlib
@@ -12,29 +13,39 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 BUNDLE_ID = 'app.ikago.browser'
-VERSION = '0.2.0'
-BUILD = '18'
+RELEASE = json.loads((ROOT/'scripts/release.json').read_text())
+VERSION, BUILD = RELEASE['version'], str(RELEASE['build'])
+# Release builds made by scripts/release.py: signed for notarization and updated through Sparkle.
+DISTRIBUTION = os.environ.get('IKAGO_DISTRIBUTION') == '1'
 HELPERS = ['', ' (Alerts)', ' (GPU)', ' (Plugin)', ' (Renderer)']
 
 
 def signing_identity(flavor):
-    """IKAGO_SIGN_IDENTITY wins. Release uses Apple Development when present; otherwise ad hoc."""
+    """IKAGO_SIGN_IDENTITY wins. Distribution needs Developer ID; release uses Apple Development when present;
+    otherwise ad hoc."""
     if identity := os.environ.get('IKAGO_SIGN_IDENTITY'):
         return identity
+    found = subprocess.run(['security', 'find-identity', '-v', '-p', 'codesigning'], capture_output=True, text=True).stdout
+    if DISTRIBUTION:
+        if 'Developer ID Application' not in found:
+            raise SystemExit('A distribution build needs a "Developer ID Application" certificate in your keychain.')
+        return 'Developer ID Application'
     if flavor != 'release':
         return '-'
-    found = subprocess.run(['security', 'find-identity', '-v', '-p', 'codesigning'], capture_output=True, text=True).stdout
     return 'Apple Development' if 'Apple Development' in found else '-'
 
 
 def sign(path, identity, entitlements=None, deep=False):
-    # A locked keychain would wait forever for someone to answer, so this has a time limit.
-    command = ['codesign', '--force', '--timestamp=none', '--sign', identity]
+    # A locked keychain would wait forever for someone to answer, so this has a time limit. Notarization needs
+    # Apple's secure timestamp and the hardened runtime on all code; local builds skip the network timestamp.
+    command = ['codesign', '--force', '--timestamp' if DISTRIBUTION else '--timestamp=none', '--sign', identity]
     if deep:
         command.append('--deep')
+    if identity != '-':
+        command += ['--options', 'runtime']
     if entitlements:
-        command += ['--options', 'runtime', '--entitlements', str(entitlements)]
-    subprocess.run(command + [str(path)], check=True, timeout=120, capture_output=True)
+        command += ['--entitlements', str(entitlements)]
+    subprocess.run(command + [str(path)], check=True, timeout=300 if DISTRIBUTION else 120, capture_output=True)
 
 
 def team_id(identity):
@@ -70,6 +81,12 @@ def sign_bundle(app, framework, identity, entitlements):
         if not library.is_symlink():
             sign(library, identity)
     sign(framework, identity, deep=True)
+    # Sparkle's installer pieces first, then its framework (no --deep: each part gets the hardened runtime).
+    sparkle = app/'Contents/Frameworks/Sparkle.framework'
+    for part in ('Versions/B/Autoupdate', 'Versions/B/Updater.app'):
+        if (sparkle/part).exists():
+            sign(sparkle/part, identity)
+    sign(sparkle, identity)
     restricted = ROOT/('CEF/helper-restricted.entitlements' if identity != '-' else 'CEF/helper-restricted-development.entitlements')
     # Helpers read and write the Chromium profiles, so they need the same group as the app.
     team = team_id(identity)
@@ -101,6 +118,25 @@ def package_cef_locales(framework, source_framework):
     print(f'CEF locale resources: English fallbacks retained; removed {removed / 1024**2:.2f} MiB', flush=True)
 
 
+def package_acknowledgements(folder):
+    """The licenses a distributed build must carry: Chromium's generated credits and every bundled component's."""
+    shutil.rmtree(folder, ignore_errors=True)
+    folder.mkdir(parents=True)
+    files = {
+        'Ikago License.txt': ROOT/'LICENSE',
+        'Third-Party Notices.md': ROOT/'THIRD_PARTY_NOTICES.md',
+        'Chromium Credits.html': ROOT/'.cef/distribution/CREDITS.html',
+        'CEF License.txt': ROOT/'.cef/distribution/LICENSE.txt',
+        'SVT-AV1 License.md': ROOT/'.svtav1/source/LICENSE.md',
+        'SVT-AV1 Patent License.md': ROOT/'.svtav1/source/PATENTS.md',
+        'Sparkle License.txt': ROOT/'.sparkle/Sparkle/LICENSE',
+    }
+    for name, source in files.items():
+        if not source.is_file():
+            raise SystemExit(f'Missing license file for the build: {source}')
+        shutil.copyfile(source, folder/name)
+
+
 def main():
     app, flavor = Path(sys.argv[1]), sys.argv[2]
     contents = app/'Contents'
@@ -111,6 +147,10 @@ def main():
     info.update(CFBundleExecutable='Ikago', CFBundleIdentifier=BUNDLE_ID, CFBundleName='Ikago', CFBundleDisplayName='Ikago',
                 CFBundlePackageType='APPL', CFBundleShortVersionString=VERSION, CFBundleVersion=BUILD,
                 NSPrincipalClass='IKCEFApplication', LSMinimumSystemVersion='26.0')
+    if DISTRIBUTION:
+        # Sparkle: the signed feed, the key updates must be signed with, a daily check, and no system profiling.
+        info.update(SUFeedURL=RELEASE['feed'], SUPublicEDKey=RELEASE['updatePublicKey'], SUEnableAutomaticChecks=True,
+                    SUScheduledCheckInterval=86400, SUAllowsAutomaticUpdates=True, SUEnableSystemProfiling=False)
     (contents/'Info.plist').write_bytes(plistlib.dumps(info))
 
     if flavor == 'release':
@@ -125,6 +165,15 @@ def main():
     # Password matching groups sites by registrable domain (PublicSuffix.swift).
     shutil.copyfile(ROOT/'Ikago/Resources/public_suffix_list.dat', contents/'Resources/public_suffix_list.dat')
     shutil.copyfile(ROOT/'Ikago/Resources/webkit-logo.svg', contents/'Resources/webkit-logo.svg')
+
+    # Sparkle checks for and installs updates. Ikago isn't sandboxed, so its XPC services aren't needed.
+    sparkle = contents/'Frameworks/Sparkle.framework'
+    shutil.rmtree(sparkle, ignore_errors=True)
+    shutil.copytree(ROOT/'.sparkle/Sparkle/Sparkle.framework', sparkle, symlinks=True)
+    shutil.rmtree(sparkle/'Versions/B/XPCServices', ignore_errors=True)
+    if (sparkle/'XPCServices').is_symlink():
+        (sparkle/'XPCServices').unlink()
+    package_acknowledgements(contents/'Resources/Acknowledgements')
 
     framework = contents/'Frameworks/Chromium Embedded Framework.framework'
     source_framework = ROOT/'.cef/distribution/Release/Chromium Embedded Framework.framework'

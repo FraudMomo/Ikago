@@ -17,6 +17,8 @@ following third-party components, each under its own license.
 - **SVT-AV1** ([`CEF/svtav1-lock.json`](CEF/svtav1-lock.json)) is statically linked for media
   translation. It uses the BSD-3-Clause-Clear license with the Alliance for Open Media
   royalty-free patent license.
+- **Sparkle** ([`CEF/sparkle-lock.json`](CEF/sparkle-lock.json)) installs updates in downloaded builds. It is
+  distributed under the MIT License, with the notices for its bundled components in its license file.
 - **Public Suffix List** ([`Ikago/Resources/public_suffix_list.dat`](Ikago/Resources/public_suffix_list.dat))
   is used to match passwords to sites. It is published by the Mozilla Foundation under the
   Mozilla Public License 2.0.
@@ -48,5 +50,5 @@ with Ikago.
 ## Distribution
 
 A distributed build must include Chromium's generated credits and the license notices
-above. Browser extensions that a user installs keep their own licenses and are not
+above. The build copies them into the app (`Contents/Resources/Acknowledgements`), and Settings ▸ About lists them. Browser extensions that a user installs keep their own licenses and are not
 distributed with Ikago.

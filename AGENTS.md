@@ -59,7 +59,8 @@ Ikago/
 └── Resources/   Info.plist, entitlements, Assets.xcassets
 
 CEF/             Objective-C++ bridge, CMake build, pinned SDK (cef-lock.json)
-scripts/         build.py, package_app.py, install.sh, fetch_cef.py, check_cef_update.py, run_chromium_checks.py
+scripts/         build.py, package_app.py, install.sh, release.py, fetch_cef.py, fetch_sparkle.py, check_cef_update.py,
+                 run_chromium_checks.py
 ```
 
 Build with `python3 scripts/build.py` (`--flavor release|checks|debug`). `Checks/` is left out of release
@@ -100,6 +101,7 @@ this file) when a rule there changes.
 | Peek, multi-tab selection, notes, page assistance, page menus | `docs/agents/peek-notes-assistant.md` |
 | Chromium/CEF: media translation, per-site engines, appearance, DevTools, extensions | `docs/agents/chromium.md` |
 | Notifications, Reader, translation, Save Page As, web apps | `docs/agents/page-tools.md` |
+| Releases: Developer ID, notarization, DMG, Sparkle updates, credits | `docs/agents/distribution.md` |
 | Private WebKit SPI in use (list every new use here) | `docs/agents/private-spi.md` |
 
 Rules that bite everywhere:

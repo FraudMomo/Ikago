@@ -34,7 +34,8 @@ def compile_swift(app, flavor, threads):
             '-target', 'arm64-apple-macos26.0', '-I', str(ROOT/'CEF/Bridge'), '-I', str(ROOT/'out/cef'),
             '-L', str(ROOT/'out/cef'), '-lIKCEFBridge', '-L', str(ROOT/'out/cef/libcef_dll_wrapper'), '-lcef_dll_wrapper',
             '-L', str(ROOT/'out/svtav1/install/lib'), '-lSvtAv1Enc', '-lc++', '-Xlinker', '-ObjC', '-framework', 'AppKit', '-framework', 'WebKit', '-framework', 'Security',
-            '-framework', 'CoreAudio', '-framework', 'AVFoundation', '-framework', 'Accelerate', '-o', str(app/'Contents/MacOS/Ikago'), *map(str, sorted(snapshot.rglob('*.swift')))]
+            '-framework', 'CoreAudio', '-framework', 'AVFoundation', '-framework', 'Accelerate',
+            '-F', str(ROOT/'.sparkle/Sparkle'), '-framework', 'Sparkle', '-Xlinker', '-rpath', '-Xlinker', '@executable_path/../Frameworks', '-o', str(app/'Contents/MacOS/Ikago'), *map(str, sorted(snapshot.rglob('*.swift')))]
 
 
 def main():
@@ -82,6 +83,7 @@ def main():
     commands = [
         [sys.executable, str(ROOT/'scripts/fetch_cef.py')],
         [sys.executable, str(ROOT/'scripts/fetch_svtav1.py')],
+        [sys.executable, str(ROOT/'scripts/fetch_sparkle.py')],
         # SVT-AV1: encoder library only, static, for the media translation layer. Not Chromium.
         ['cmake', '-S', str(ROOT/'.svtav1/source'), '-B', str(ROOT/'out/svtav1/build'), '-G', 'Ninja', '-DCMAKE_BUILD_TYPE=Release',
          '-DCMAKE_OSX_ARCHITECTURES=arm64', '-DCMAKE_OSX_DEPLOYMENT_TARGET=26.0', '-DBUILD_SHARED_LIBS=OFF', '-DBUILD_APPS=OFF',

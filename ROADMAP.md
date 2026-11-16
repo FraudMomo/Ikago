@@ -117,9 +117,10 @@ visibly.
 
 ## Phase 10: Distribution 🗓
 
-- Developer ID signing and notarization
-- App updates through a signed update feed
-- Bundled Chromium credits and third-party notices
+- ✅ Developer ID signing, notarization and a DMG from one release command
+- ✅ App and Chromium updates through a signed update feed (Sparkle)
+- ✅ Bundled Chromium credits and third-party notices
+- The first public release
 - App Sandbox review, opt-in crash reporting and a privacy policy
 - Private vulnerability reporting and an independent security review
 - Accessibility, keyboard and visual regression passes across both layouts

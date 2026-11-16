@@ -1,0 +1,9 @@
+{
+  "version": "0.2.0",
+  "build": 18,
+  "repository": "FraudMomo/Ikago",
+  "feed": "https://github.com/FraudMomo/Ikago/releases/latest/download/appcast.xml",
+  "updatePublicKey": "BsRTMloXIKtqhoWhF0BMK+RhykoGKc9/Xo4OEJy79us=",
+  "updateKeyAccount": "app.ikago.browser",
+  "notaryProfile": "ikago-notary"
+}
