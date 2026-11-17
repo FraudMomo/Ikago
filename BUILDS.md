@@ -13,7 +13,9 @@ What changed in each release of Ikago, newest first. Add changes under **Unrelea
 - **Find in page:** a new find bar with Highlight All and a match count. Esc closes it from anywhere and clears every
   highlight, and ⌘F always puts the cursor in it.
 - **Extensions:** an extension asking to read a website shows Ikago's own card instead of a system alert, over the
-  page that asked in split view. "Allow on Every Website" is a proper button.
+  page that asked in split view. "Allow on Every Website" is a proper button. An error an extension reports while
+  running (such as Momentum's "Message to service worker timed out") no longer looks like a failed install, and
+  Restart in Settings ▸ Extensions starts it fresh.
 - **Sidebar:** a slim scroll bar beside the tab list, and Keep pinned tabs and groups in view (Settings ▸ Sidebar).
   Toolbar buttons that don't fit get smaller and then move into a More menu instead of dropping to a second row.
 - **Tabs:** ⇧⌘T brings back several closed tabs in their order and places. A closing tab in the tab row fades out

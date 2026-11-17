@@ -66,7 +66,8 @@ Working list for the next builds. Tick items off as they land; move finished the
 
 ## Extensions
 
-- [ ] **Bug: extension errors that look like update or service worker problems.** Momentum shows
+- [x] **Bug: extension errors that look like update or service worker problems.** Runtime errors no longer show as
+  a failure; Restart reloads the extension. Still to find: why Momentum's worker times out at all. Momentum shows
   "Message to service worker timed out. Reason: Worker version not verified" from its `getVersion` handler.
   Check whether the update check or reinstall leaves the service worker on an old or unverified version.
   Check which engine it happens on and whether a relaunch fixes it. Also check whether the error text shown in
