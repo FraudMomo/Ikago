@@ -7,7 +7,11 @@ import Foundation
 @Observable
 final class TabItem: Identifiable {
     let id: String
-    var url: String
+    var url: String {
+        // A new site's page must not keep the last site's icon: views would fetch it for the new address and the
+        // favicon cache would remember it for that site (wrong icons in suggestions and history).
+        didSet { if faviconURL != nil, FaviconCache.siteKey(url) != FaviconCache.siteKey(oldValue) { faviconURL = nil } }
+    }
     var title: String
     var pinned: Bool
     /// Keep this pin in the sidebar list instead of its favorites grid.
