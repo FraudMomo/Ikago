@@ -96,8 +96,9 @@ struct BrowserRootView: View {
                 }
                 if let offer = chrome.extensionAccessOffer {
                     ExtensionAccessCard(offer: offer, colors: state.palette,
-                                        reload: { (commands as? BrowserWindowController)?.activeController?.page?.reload() },
+                                        reload: { (commands as? BrowserWindowController)?.reloadForExtensionAccess(offer) },
                                         close: { ExtensionAccessPresenter.shared.notNow(offer, in: chrome) })
+                        .padding(.top, offer.paneInset.top).padding(.trailing, offer.paneInset.trailing)
                         .id(offer.id)
                         .transition(.opacity.combined(with: .move(edge: .top)))
                 }

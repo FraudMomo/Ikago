@@ -232,6 +232,11 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
             self.find.totalMatches = count
         }
     }
+    /// After the access card allowed something: reload the tab that asked (in split view, its own pane).
+    func reloadForExtensionAccess(_ offer: ExtensionAccessOffer) {
+        let controller = offer.tabID.flatMap { id in content.controllers[id] } ?? activeController
+        controller?.page?.reload()
+    }
     func closeFindBar() {
         activeController?.page?.clearFindSelection()
         find.matchCount = 0

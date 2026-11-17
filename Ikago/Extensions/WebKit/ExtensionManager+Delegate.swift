@@ -63,12 +63,11 @@ extension ExtensionManager: WKWebExtensionControllerDelegate {
                                 promptForPermissionToAccess urls: Set<URL>,
                                 in tab: (any WKWebExtensionTab)?, for extensionContext: WKWebExtensionContext,
                                 completionHandler: @escaping (Set<URL>, Date?) -> Void) {
-        let hosts = Set(urls.compactMap(\.host)).sorted()
+        // Websites go through Ikago's access card over the asking tab, like a first visit; never a system alert.
         Task {
-            let ok = await ExtensionPrompts.confirmMore(name(extensionContext),
-                                                        abilities: ["Read and change your data on \(hosts.joined(separator: ", "))"],
-                                                        in: browser?.window)
-            completionHandler(ok ? urls : [], nil)
+            var allowed = Set<URL>()
+            for url in urls where await allowsSite(url, tab: tab, context: extensionContext) { allowed.insert(url) }
+            completionHandler(allowed, nil)
         }
     }
 
@@ -76,6 +75,21 @@ extension ExtensionManager: WKWebExtensionControllerDelegate {
                                 promptForPermissionMatchPatterns matchPatterns: Set<WKWebExtension.MatchPattern>,
                                 in tab: (any WKWebExtensionTab)?, for extensionContext: WKWebExtensionContext,
                                 completionHandler: @escaping (Set<WKWebExtension.MatchPattern>, Date?) -> Void) {
+        // One website (or a few): the access card, as for URLs. Broad patterns (every website) keep the alert.
+        let sites = matchPatterns.compactMap { pattern -> URL? in
+            guard !pattern.matchesAllHosts, let host = pattern.host, !host.contains("*") else { return nil }
+            return URL(string: "https://\(host)/")
+        }
+        if sites.count == matchPatterns.count, !sites.isEmpty {
+            Task {
+                var allowed = Set<WKWebExtension.MatchPattern>()
+                for (pattern, url) in zip(matchPatterns, sites) where await allowsSite(url, tab: tab, context: extensionContext) {
+                    allowed.insert(pattern)
+                }
+                completionHandler(allowed, nil)
+            }
+            return
+        }
         let abilities = ExtensionPrompts.describe(permissions: [], patterns: matchPatterns)
         Task {
             let ok = await ExtensionPrompts.confirmMore(name(extensionContext), abilities: abilities, in: browser?.window)
@@ -109,5 +123,22 @@ extension ExtensionManager: WKWebExtensionControllerDelegate {
 
     nonisolated static func error(_ message: String) -> NSError {
         NSError(domain: "Ikago.Extensions", code: 1, userInfo: [NSLocalizedDescriptionKey: message])
+    }
+}
+
+extension ExtensionManager {
+    /// One website for a running extension, decided with `ExtensionAccess` (and its card when still undecided).
+    fileprivate func allowsSite(_ url: URL, tab: (any WKWebExtensionTab)?, context: WKWebExtensionContext) async -> Bool {
+        guard let site = ExtensionAccess.site(url),
+              let key = contexts.first(where: { $0.value === context })?.key,
+              let ext = accessDescriptors.first(where: { $0.key == key }) else { return false }
+        guard let controller = tab as? TabController else {
+            // No tab to show the card on: only what the person already allowed.
+            switch ExtensionAccess.shared.status(key, site: site) {
+            case .everySite, .always, .oneDay: return true
+            case .never, .ask: return false
+            }
+        }
+        return await ExtensionAccessPresenter.shared.request(ext, site: site, in: controller)
     }
 }
