@@ -14,16 +14,27 @@ struct TabsToolbar: View {
         let layout = state.chromeLayout
         let leading = state.visibleChromeItems(layout.toolbarLeading)
         var trailing = state.visibleChromeItems(layout.toolbarTrailing)
-        if (DownloadCenter.shared.showsToolbarButton || chrome.showDownloads) && !layout.contains(.downloads, in: .toolbarLeading) {
+        let nearLeading = state.visibleChromeItems(layout.toolbarNearLeading)
+        let nearTrailing = state.visibleChromeItems(layout.toolbarNearTrailing)
+        if (DownloadCenter.shared.showsToolbarButton || chrome.showDownloads)
+            && !ChromeZone.toolbarRow.contains(where: { layout.contains(.downloads, in: $0) }) {
             trailing.append(.downloads)
         }
-        // Both sides take the same width, so the address stays centred on the page.
-        let side = CGFloat(max(leading.count, trailing.count)) * 30 + (colors.glass ? 8 : 0)
+        // Four places: the window's edges, and either side of the address. Each pair takes the same width on both
+        // sides, so the address stays centred on the page.
+        let pad: CGFloat = colors.glass ? 8 : 0
+        let side = CGFloat(max(leading.count, trailing.count)) * 30 + pad
+        let near = nearLeading.isEmpty && nearTrailing.isEmpty ? 0 : CGFloat(max(nearLeading.count, nearTrailing.count)) * 30 + pad
         return HStack(spacing: 10) {
             controls(leading, colors).frame(width: side, alignment: .leading)
-            TabsAddressField(state: state, chrome: chrome, palette: palette, commands: commands)
-                .frame(maxWidth: 680)
-                .frame(maxWidth: .infinity)
+            HStack(spacing: 8) {
+                if near > 0 { controls(nearLeading, colors).frame(width: near, alignment: .trailing) }
+                TabsAddressField(state: state, chrome: chrome, palette: palette, commands: commands)
+                    .frame(maxWidth: 680)
+                if near > 0 { controls(nearTrailing, colors).frame(width: near, alignment: .leading) }
+            }
+            .frame(maxWidth: 680 + 2 * (near + 8))
+            .frame(maxWidth: .infinity)
             controls(trailing, colors).frame(width: side, alignment: .trailing)
         }
         .padding(.horizontal, 8)
@@ -31,6 +42,7 @@ struct TabsToolbar: View {
         .background(WindowDragArea())
         .environment(\.colorScheme, colors.isDark ? .dark : .light)
         .animation(.ikagoQuick, value: trailing)
+        .animation(.ikagoQuick, value: nearLeading + nearTrailing)
         .recordLayout("tabs-toolbar")
     }
 

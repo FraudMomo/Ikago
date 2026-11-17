@@ -65,30 +65,35 @@ enum ChromeItem: String, Codable, CaseIterable, Identifiable {
 enum ChromeZone: String, Codable, CaseIterable {
     case sidebarTopLeading, sidebarTopCenter, sidebarTop
     case sidebarBottomLeading, sidebarBottom, sidebarBottomTrailing
-    case toolbarLeading, toolbarTrailing
+    /// Sidebar + Tabs: the window's left and right edges, and either side of the address field.
+    case toolbarLeading, toolbarNearLeading, toolbarNearTrailing, toolbarTrailing
     case rail
 
     var allowed: [ChromeItem] { ChromeItem.allCases }
-    var isTop: Bool { [.sidebarTopLeading, .sidebarTopCenter, .sidebarTop, .toolbarLeading, .toolbarTrailing].contains(self) }
+    var isTop: Bool { [.sidebarTopLeading, .sidebarTopCenter, .sidebarTop].contains(self) || Self.toolbarRow.contains(self) }
     var title: String {
         switch self {
-        case .sidebarTopLeading, .sidebarBottomLeading, .toolbarLeading: "Left"
+        case .sidebarTopLeading, .sidebarBottomLeading: "Left"
         case .sidebarTopCenter, .sidebarBottom: "Center"
-        case .sidebarTop, .sidebarBottomTrailing, .toolbarTrailing: "Right"
+        case .sidebarTop, .sidebarBottomTrailing: "Right"
+        case .toolbarLeading: "Left edge"
+        case .toolbarNearLeading: "Left of the address"
+        case .toolbarNearTrailing: "Right of the address"
+        case .toolbarTrailing: "Right edge"
         case .rail: "Icons-only sidebar"
         }
     }
     /// The places an item moves between: placing it in one takes it out of the others in its family only.
     var family: [ChromeZone] {
         switch self {
-        case .toolbarLeading, .toolbarTrailing: Self.toolbarRow
+        case .toolbarLeading, .toolbarNearLeading, .toolbarNearTrailing, .toolbarTrailing: Self.toolbarRow
         case .rail: [.rail]
         default: Self.topRow + Self.bottomRow
         }
     }
     static let topRow: [ChromeZone] = [.sidebarTopLeading, .sidebarTopCenter, .sidebarTop]
     static let bottomRow: [ChromeZone] = [.sidebarBottomLeading, .sidebarBottom, .sidebarBottomTrailing]
-    static let toolbarRow: [ChromeZone] = [.toolbarLeading, .toolbarTrailing]
+    static let toolbarRow: [ChromeZone] = [.toolbarLeading, .toolbarNearLeading, .toolbarNearTrailing, .toolbarTrailing]
 }
 
 /// Which controls show where, in order. Anything not placed is hidden.
@@ -103,6 +108,9 @@ struct ChromeLayout: Codable, Equatable {
     /// Sidebar + Tabs: the toolbar's two sides, the address centred between them.
     var toolbarLeading: [ChromeItem] = Self.navigation
     var toolbarTrailing: [ChromeItem] = []
+    /// Sidebar + Tabs: controls right beside the address field, on its left and right (empty by default).
+    var toolbarNearLeading: [ChromeItem] = []
+    var toolbarNearTrailing: [ChromeItem] = []
     /// The controls at the foot of the icons-only sidebar.
     var rail: [ChromeItem] = [.sidebarToggle]
     var sidebarShowsAddress = true
@@ -136,6 +144,8 @@ struct ChromeLayout: Codable, Equatable {
         let top = topLeading + topCenter + sidebarTop
         toolbarLeading = try items(.toolbarLeading) ?? top.filter(Self.navigation.contains)
         toolbarTrailing = try items(.toolbarTrailing) ?? top.filter { !Self.navigation.contains($0) }
+        toolbarNearLeading = try items(.toolbarNearLeading) ?? []
+        toolbarNearTrailing = try items(.toolbarNearTrailing) ?? []
         rail = try items(.rail) ?? d.rail
         addressShowsReload = try c.decodeIfPresent(Bool.self, forKey: .addressShowsReload) ?? true
         addressShowsSiteInfo = try c.decodeIfPresent(Bool.self, forKey: .addressShowsSiteInfo) ?? true
@@ -152,6 +162,8 @@ struct ChromeLayout: Codable, Equatable {
             case .sidebarBottomTrailing: bottomTrailing
             case .toolbarLeading: toolbarLeading
             case .toolbarTrailing: toolbarTrailing
+            case .toolbarNearLeading: toolbarNearLeading
+            case .toolbarNearTrailing: toolbarNearTrailing
             case .rail: rail
             }
         }
@@ -165,6 +177,8 @@ struct ChromeLayout: Codable, Equatable {
             case .sidebarBottomTrailing: bottomTrailing = newValue
             case .toolbarLeading: toolbarLeading = newValue
             case .toolbarTrailing: toolbarTrailing = newValue
+            case .toolbarNearLeading: toolbarNearLeading = newValue
+            case .toolbarNearTrailing: toolbarNearTrailing = newValue
             case .rail: rail = newValue
             }
         }
@@ -192,7 +206,7 @@ struct ChromeLayout: Codable, Equatable {
     /// Adds a control both layouts should show (the sidebar's top row and the toolbar's right), where it is missing.
     mutating func add(_ item: ChromeItem) {
         if !contains(item, in: .sidebarTop) { place(item, in: .sidebarTop) }
-        if !contains(item, in: .toolbarTrailing) { place(item, in: .toolbarTrailing) }
+        if !ChromeZone.toolbarRow.contains(where: { contains(item, in: $0) }) { place(item, in: .toolbarTrailing) }
     }
 
     func contains(_ item: ChromeItem) -> Bool {

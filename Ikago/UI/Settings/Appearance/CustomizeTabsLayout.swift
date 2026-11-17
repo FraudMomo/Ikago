@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Settings ▸ Customize in Sidebar + Tabs: the tab row, then the toolbar with its left and right places around the
-/// address field, above the page.
+/// Settings ▸ Customize in Sidebar + Tabs: the tab row, then the toolbar with its four places (the window's edges and
+/// either side of the address field), above the page.
 struct TabsMockup: View {
     let state: BrowserState
     let colors: Palette
@@ -18,10 +18,14 @@ struct TabsMockup: View {
             .padding(.horizontal, 8).padding(.bottom, 6)
             HStack(spacing: 8) {
                 ZoneView(zone: .toolbarLeading, state: state, colors: colors)
+                Spacer(minLength: 4)
+                ZoneView(zone: .toolbarNearLeading, state: state, colors: colors)
                 RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(colors.hover.opacity(1.5))
                     .frame(height: 24)
                     .overlay { Text("Address").font(.system(size: 11)).foregroundStyle(colors.secondary) }
-                    .frame(minWidth: 80)
+                    .frame(minWidth: 80, maxWidth: 200)
+                ZoneView(zone: .toolbarNearTrailing, state: state, colors: colors)
+                Spacer(minLength: 4)
                 ZoneView(zone: .toolbarTrailing, state: state, colors: colors)
             }
             .padding(6)
