@@ -48,7 +48,7 @@ final class WebContentViewController: NSViewController {
         surface.frame = root.bounds
         surface.autoresizingMask = [.width, .height]
         root.addSubview(surface)
-        let empty = FileDropHostingView(rootView: EmptyTabView(state: state))
+        let empty = FileDropHostingView(rootView: EmptyTabView(state: state, commands: { [weak self] in self?.host as? BrowserCommands }))
         empty.registerForDraggedTypes([.fileURL])
         empty.onFiles = { [weak self] in (self?.host as? BrowserCommands)?.openDroppedFiles($0) }
         empty.identifier = PageWindowGrab.pageSurface
@@ -258,21 +258,73 @@ func observeState(_ track: @escaping @MainActor () -> Void, onChange: @escaping 
 }
 
 /// No open tabs in this Space.
+/// What a Space shows with no tabs open: Ikago's mark, the Space, and the next steps (a new tab, the last closed tab,
+/// recent sites, History and Bookmarks) instead of an empty page.
 private struct EmptyTabView: View {
     let state: BrowserState
+    let commands: () -> BrowserCommands?
 
     var body: some View {
         let colors = state.palette
-        VStack(spacing: 14) {
-            Text(state.activeSpace.name)
-                .font(.system(size: 22, weight: .semibold))
-                .foregroundStyle(colors.text)
-            Text("Press ⌘T to search or open a site")
-                .font(.system(size: 14))
-                .foregroundStyle(colors.secondary)
+        VStack(spacing: 22) {
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable().interpolation(.high).frame(width: 72, height: 72)
+                .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
+            VStack(spacing: 6) {
+                Text(state.activeSpace.name)
+                    .font(.system(size: 24, weight: .semibold)).foregroundStyle(colors.text)
+                Text("No open tabs in this Space")
+                    .font(.system(size: 13)).foregroundStyle(colors.secondary)
+            }
+            HStack(spacing: 8) {
+                Button { commands()?.newTab() } label: { Label("New Tab", systemImage: "plus") }
+                    .buttonStyle(SettingsButtonStyle(prominent: true))
+                if !state.closed.isEmpty {
+                    Button { withAnimation(.ikago) { state.reopenClosedTab() } } label: {
+                        Label("Reopen Closed Tab", systemImage: "arrow.uturn.backward")
+                    }
+                    .buttonStyle(SettingsButtonStyle())
+                }
+            }
+            .controlSize(.large)
+            let recent = recentSites
+            if !recent.isEmpty {
+                HStack(spacing: 10) {
+                    ForEach(recent, id: \.url) { visit in
+                        Button { (commands() as? BrowserWindowController)?.open(visit.url, inNewTab: true) } label: {
+                            VStack(spacing: 6) {
+                                FaviconView(pageURL: visit.url, size: 22)
+                                    .frame(width: 46, height: 46)
+                                    .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(colors.hover))
+                                Text(URL(string: visit.url)?.host()?.replacingOccurrences(of: "www.", with: "") ?? visit.title)
+                                    .font(.system(size: 11)).foregroundStyle(colors.secondary).lineLimit(1).frame(width: 72)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .help(visit.title)
+                    }
+                }
+                .padding(.top, 6)
+            }
+            HStack(spacing: 18) {
+                Button("History") { commands()?.openPage(.history) }
+                Button("Bookmarks") { commands()?.openPage(.bookmarks) }
+            }
+            .buttonStyle(.plain).font(.system(size: 12)).foregroundStyle(colors.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(colors.pageBackground)
         .environment(\.colorScheme, colors.isDark ? .dark : .light)
+    }
+
+    /// Up to six recently visited sites, one per host.
+    private var recentSites: [Visit] {
+        var hosts = Set<String>(), result: [Visit] = []
+        for visit in state.history.prefix(300) where AddressResolver.isWebURL(visit.url) {
+            guard let host = URL(string: visit.url)?.host(), hosts.insert(host).inserted else { continue }
+            result.append(visit)
+            if result.count == 6 { break }
+        }
+        return result
     }
 }
