@@ -22,6 +22,9 @@ What changed in each release of Ikago, newest first. Add changes under **Unrelea
   Toolbar buttons that don't fit get smaller and then move into a More menu instead of dropping to a second row.
 - **Tabs:** ⇧⌘T brings back several closed tabs in their order and places. A closing tab in the tab row fades out
   instead of sliding over its neighbour. A Space without tabs shows a start screen with recent sites.
+- **Toolbar:** in Sidebar + Tabs, controls can sit at the window's edges or right beside the address on either side
+  (Settings ▸ Sidebar & Toolbar ▸ Toolbar). In the sidebar's top row, the center controls no longer overlap the
+  others.
 - **Fixes:** files dropped on a page reach its upload area instead of opening in a tab. Suggestions no longer show
   another website's icon; icons saved under the wrong site are cleared once and come back from their own sites. The address bar height in Sidebar + Tabs is a slider.
 

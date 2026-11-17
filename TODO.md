@@ -16,7 +16,7 @@ Working list for the next builds. Tick items off as they land; move finished the
   - [ ] Setting for where groups show: **both (default)**, sidebar/icon sidebar only, or Top Bar only.
 - [ ] **Hide (close) a tab group**: it stays saved but is hidden. This is separate from collapse.
   - [ ] Bring it back from the icon sidebar, or a clean "Show tab groups" button/menu.
-- [ ] **Toolbar placement in four zones**: far left, left of the URL bar, right of the URL bar, far right.
+- [x] **Toolbar placement in four zones**: far left, left of the URL bar, right of the URL bar, far right.
 - [x] **Bug: closing a tab animates over the tab before it** Fixed: the closing tab fades out under its neighbours. (the transition overlaps).
 - [ ] **Bug: a new tab opened from the command bar sometimes disappears**, or opens but isn't shown as selected
   in the Top Bar. It may be a state bug and not only a UI bug.
