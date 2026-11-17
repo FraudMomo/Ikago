@@ -5,6 +5,8 @@ What changed in each release of Ikago, newest first. Add changes under **Unrelea
 
 ## Unreleased
 
+## 0.5.1 — 2026-11-17
+
 - **Download needed:** copies before 0.5.1 can't install this update by themselves.
   [Download Ikago 0.5.1 from GitHub](https://github.com/FraudMomo/Ikago/releases/latest), open the DMG and drag
   Ikago to Applications to replace your copy. Your tabs and data stay, and later updates install by themselves.
