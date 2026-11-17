@@ -23,7 +23,7 @@ Working list for the next builds. Tick items off as they land; move finished the
 
 ## Sidebar + Tabs layout
 
-- [ ] **URL bar height**: a custom slider in place of the three fixed heights.
+- [x] **URL bar height**: a custom slider in place of the three fixed heights.
 - [x] **Bug: no scroll wheel/scrolling in the sidebar** Fixed: a slim scroll bar in its own gutter beside the rows.
   - [x] Setting "Keep pinned tabs and groups in view": only the tabs under them scroll. when many tabs are open.
 - [x] **Bug: toolbar icons are positioned wrongly in the sidebar.** The Reload button drops onto its own row
@@ -37,7 +37,7 @@ Working list for the next builds. Tick items off as they land; move finished the
 ## Bookmarks
 
 - [x] **Folders** fully supported, including in imports.
-- [ ] **Large bookmark lists stay fast**: optimize the list for thousands of entries.
+- [x] **Large bookmark lists stay fast**: the page filters once and shows 200 rows at a time; the bar shows 40 chips.
 
 ## Import and export
 
@@ -47,8 +47,10 @@ Working list for the next builds. Tick items off as they land; move finished the
   - [ ] Chrome cookies depend on the Keychain prompt ("Chrome Safe Storage"); confirm in a real import.
   - [ ] Passwords: Chrome's Login Data (Keychain), Firefox (key4.db), Safari (needs its CSV export).
   - [ ] Cookies for an engine not running this launch are lost; keep them until that engine starts.
-  - [ ] Read databases from a snapshot copy so an open browser never blocks or hides recent data.
-  - [ ] History is capped at 1,000 entries per import; raise it.
+  - [x] Read databases from a snapshot copy so an open browser never blocks or hides recent data.
+  - [ ] History: Ikago keeps 1,000 entries in total (`Session.maxHistory`), so imports can't add more. Decide on a
+    larger history store before raising it.
+  - [x] Importing again moves earlier flat bookmarks into their folders, without duplicates ("Import Again").
   - [ ] One clear report per item (found, imported, skipped and why) instead of one summary line.
 - [x] **Import keeps bookmark folders.**
 - [ ] **Export**: bookmarks, history and passwords in formats Chrome, Safari and others can import, so people can
@@ -110,7 +112,7 @@ Working list for the next builds. Tick items off as they land; move finished the
   when the page doesn't take the drop, or when it's dropped on the tab strip or sidebar. Check both engines.
   Fixed for WebKit (Chromium already gave drops to the page).
 - [ ] **Bug: DuckDuckGo sometimes shows as a plain page** (not loading properly or not styled).
-- [ ] **Empty state when all tabs are closed**: a nice Ikago screen, not a blank page with the Space name.
+- [x] **Empty state when all tabs are closed**: a nice Ikago screen, not a blank page with the Space name.
 - [x] **Extension popup "Allow on every website"** should look like a button, not a label.
 
 ## Engines, first run and downloads
