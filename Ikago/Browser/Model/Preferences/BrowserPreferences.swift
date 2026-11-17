@@ -24,6 +24,8 @@ struct BrowserPreferences: Codable, Equatable {
     var siteEngineLists: [String: String]? = nil
 
     var showPinnedGrid: Bool? = nil
+    /// Pinned tab rows stay above the scrolling tab list instead of scrolling away with it. Unset: they scroll.
+    var pinnedRowsStayInView: Bool? = nil
     /// Maximum sidebar pinned-tab columns. Unset: three.
     var pinnedGridColumns: Int? = nil
     var reuseBookmarkTabs: Bool? = nil

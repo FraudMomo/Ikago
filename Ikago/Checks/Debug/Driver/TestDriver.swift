@@ -515,6 +515,7 @@ enum TestDriver {
                 scroll.reflectScrolledClipView(scroll.contentView)
             }
         case "pingrid": state.browserPreferences.showPinnedGrid = arg != "off"
+        case "pinnedstay": state.browserPreferences.pinnedRowsStayInView = arg == "off" ? nil : true
         case "dump": dump(c)
         // Quit from the run loop like a menu does: inside this task the main queue is busy, so
         // `.terminateLater` work (clearing data, flushing cookies) could never finish.

@@ -11,6 +11,12 @@ struct EssentialsSettingsSection: View {
                         set: { on in withAnimation(.ikago) { state.browserPreferences.sidebarShortcuts = on ? true : nil } }))
                         .labelsHidden().toggleStyle(.switch)
                 }
+                PageDivider()
+                PageRow(title: "Keep pinned tabs and groups in view", subtitle: "Pinned tabs and groups stay in place; only the tabs below them scroll") {
+                    Toggle("Keep pinned tabs and groups in view", isOn: Binding(get: { state.browserPreferences.pinnedRowsStayInView == true },
+                        set: { on in withAnimation(.ikago) { state.browserPreferences.pinnedRowsStayInView = on ? true : nil } }))
+                        .labelsHidden().toggleStyle(.switch)
+                }
             }
             PageSection(title: "Sidebar Essentials") {
                 PageRow(title: "Show pinned-tab grid", subtitle: "Pinned tabs as a grid at the top of the sidebar") {

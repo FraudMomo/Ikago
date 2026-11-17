@@ -74,7 +74,7 @@ private struct NativeScrollView<Content: View>: FillingViewRepresentable {
     }
 }
 
-/// The list's scroll view: no scroller, native momentum and bounce, and the document sized by hand.
+/// The list's scroll view: an overlay scroller, native momentum and bounce, and the document sized by hand.
 ///
 /// The document is exactly as wide as the list and as tall as its content (at least the visible height), set only when
 /// that changes. The height is the one SwiftUI measures for the rows themselves (`ScrollRoot`): the host's own
@@ -88,7 +88,12 @@ final class ListScrollView: NSScrollView {
         super.init(frame: frame)
         drawsBackground = false
         contentView.drawsBackground = false
-        hasVerticalScroller = false
+        // A slim overlay scroller that shows while scrolling, so long lists show where you are. Overlay style keeps
+        // the rows full width even when a mouse makes the system prefer legacy scrollers.
+        verticalScroller = SlimScroller()
+        hasVerticalScroller = true
+        autohidesScrollers = true
+        scrollerStyle = .overlay
         hasHorizontalScroller = false
         verticalScrollElasticity = .allowed
         horizontalScrollElasticity = .none
@@ -97,6 +102,12 @@ final class ListScrollView: NSScrollView {
     }
 
     @available(*, unavailable) required init?(coder: NSCoder) { fatalError() }
+
+    /// AppKit resets the style when the system scroll bar preference changes; stay overlay.
+    override var scrollerStyle: NSScroller.Style {
+        get { .overlay }
+        set { super.scrollerStyle = .overlay }
+    }
 
     /// When a trackpad or wheel scroll (with its momentum) began; nil otherwise.
     private var liveScrollStart: Date?
@@ -289,5 +300,24 @@ private struct ScrollRoot<Content: View>: View {
             // which moved the whole list up by half the new height for a frame.
             .frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
             .frame(maxWidth: .infinity)
+    }
+}
+
+/// The sidebar's scroll indicator: a slim rounded knob in the text color, no track, drawn as an overlay scroller so
+/// AppKit fades it in while scrolling and out after. The system knob is wide and draws a track that looks out of place
+/// on the glass.
+final class SlimScroller: NSScroller {
+    override class var isCompatibleWithOverlayScrollers: Bool { true }
+    override class func scrollerWidth(for controlSize: NSControl.ControlSize, scrollerStyle: NSScroller.Style) -> CGFloat { 8 }
+
+    override func drawKnobSlot(in slotRect: NSRect, highlight flag: Bool) {}
+
+    override func drawKnob() {
+        let knob = rect(for: .knob)
+        guard knob.height > 0 else { return }
+        let width: CGFloat = 3
+        let bar = NSRect(x: bounds.maxX - width - 2, y: knob.minY + 2, width: width, height: max(0, knob.height - 4))
+        NSColor.labelColor.withAlphaComponent(0.28).setFill()
+        NSBezierPath(roundedRect: bar, xRadius: width / 2, yRadius: width / 2).fill()
     }
 }

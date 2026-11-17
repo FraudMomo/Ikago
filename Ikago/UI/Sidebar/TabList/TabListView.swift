@@ -61,6 +61,11 @@ struct TabListView: View {
     var onSelection: (() -> Void)? = nil
     @Namespace private var selection
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Heights for "Keep pinned tabs and groups in view": the pinned/groups part and the whole list.
+    @State private var topHeight: CGFloat = 0
+    /// Room for the scroll bar beside the rows, taken from the sidebar's 10 pt edge padding.
+    static let scrollGutter: CGFloat = 8
+    @State private var totalHeight: CGFloat = 0
 
     var body: some View {
         // One pass over the Space's tabs groups them by folder; the old per-folder filters walked every tab again
@@ -79,18 +84,33 @@ struct TabListView: View {
         let visibleItems = pinnedItems + folderItems.flatMap(\.visibleItems) + looseItems
         let activeIsListed = visibleItems.contains { $0.containsTab(activeID) }
         let order = pinnedItems.map(\.id) + folderItems.flatMap(\.order) + looseItems.map(\.id)
-        return GeometryReader { geometry in
+        // Optionally pinned rows and groups (everything above the New Tab line) stay put and only the tabs under them
+        // scroll. While that part would take more than 60% of the height it scrolls with the rest, so it never pushes
+        // the tabs out of reach.
+        let wantsFixed = state.browserPreferences.pinnedRowsStayInView == true && !(pinnedItems.isEmpty && folderItems.isEmpty)
+        let fixedTop = wantsFixed && (totalHeight == 0 || topHeight <= totalHeight * 0.6)
+        let top = VStack(spacing: 2) {
+            AnimatedListItems(items: pinnedItems) { item in itemView(item) }
+            // Pinned rows and groups are different kinds: a short hairline between them, no heading.
+            if !pinnedItems.isEmpty && !folderItems.isEmpty {
+                Rectangle().fill(colors.separator).frame(height: 1)
+                    .padding(.horizontal, 12).padding(.vertical, 3)
+                    .transition(.opacity)
+            }
+            SidebarPinBoundary(state: state, chrome: chrome, afterFolderID: nil)
+            ForEach(folderItems) { entry in branch(entry, showSelection: !activeIsListed) }
+        }
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { topHeight = $0 }
+        return VStack(spacing: 2) {
+            if fixedTop {
+                top
+                    .animation(reduceMotion ? nil : .ikagoQuick, value: order)
+                    .animation(reduceMotion ? nil : .ikagoQuick, value: folders.map { $0.id + ($0.parentID ?? "") })
+            }
+        GeometryReader { geometry in
             SidebarScrollView(chrome: chrome) {
                 VStack(spacing: 2) {
-                    AnimatedListItems(items: pinnedItems) { item in itemView(item) }
-                    // Pinned rows and groups are different kinds: a short hairline between them, no heading.
-                    if !pinnedItems.isEmpty && !folderItems.isEmpty {
-                        Rectangle().fill(colors.separator).frame(height: 1)
-                            .padding(.horizontal, 12).padding(.vertical, 3)
-                            .transition(.opacity)
-                    }
-                    SidebarPinBoundary(state: state, chrome: chrome, afterFolderID: nil)
-                    ForEach(folderItems) { entry in branch(entry, showSelection: !activeIsListed) }
+                    if !fixedTop { top }
                     if state.chromeLayout.sidebarShowsNewTab && !state.showsSidebarTopTabs {
                         Rectangle().fill(colors.separator).frame(height: 1).padding(.horizontal, 10).padding(.vertical, 6)
                         NewTabRow(colors: colors) { commands?.newTab() }
@@ -100,6 +120,9 @@ struct TabListView: View {
                         .tabListEndDrop(state: state, chrome: chrome)
                 }
                 .frame(minHeight: geometry.size.height, alignment: .top)
+                // The scroll view reaches into the sidebar's edge padding; the rows stop where they always did, so the
+                // scroll bar has its own gutter and never draws over them.
+                .padding(.trailing, Self.scrollGutter)
                 // Structure changes reflow in 0.12 s. Selection is not animated here: the highlight animates itself,
                 // and animating the whole list on every selection slid rows and the content height while scrolling.
                 .animation(reduceMotion ? nil : .ikagoQuick, value: order)
@@ -108,7 +131,12 @@ struct TabListView: View {
                 .animation(reduceMotion ? nil : .ikagoQuick, value: state.splits)
             }
             .frame(maxHeight: .infinity)
-        }.recordLayout("sidebar-tab-list")
+        }
+        .padding(.trailing, -Self.scrollGutter)
+        }
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { totalHeight = $0 }
+        .animation(reduceMotion ? nil : .ikagoQuick, value: fixedTop)
+        .recordLayout("sidebar-tab-list")
     }
 
     /// A group whose tabs are all closed or asleep (and none of them is on screen).

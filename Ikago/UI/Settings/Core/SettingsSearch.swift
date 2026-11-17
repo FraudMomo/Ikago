@@ -75,6 +75,7 @@ enum SettingsSearch {
         .init(title: "Peek links that open a new tab", category: .tabs, section: "Peek", keywords: "automatic target blank"),
         .init(title: "Page thumbnail in previews", category: .tabs, section: "Tab Previews", keywords: "hover screenshot image"),
         .init(title: "Space header and shortcuts", category: .toolbar, section: "Sidebar", keywords: "space name assistant bookmarks history navigation"),
+        .init(title: "Keep pinned tabs and groups in view", category: .toolbar, section: "Sidebar", keywords: "pinned pins fixed sticky scroll top"),
         .init(title: "Pinned-tab grid", category: .toolbar, section: "Sidebar Essentials", keywords: "essentials pins"),
         .init(title: "Grid columns", category: .toolbar, section: "Sidebar Essentials", keywords: "pinned tabs size count"),
         .init(title: "Show bookmarks bar", category: .toolbar, section: "Bookmarks Bar"),
