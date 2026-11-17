@@ -42,6 +42,7 @@ final class AppDelegate: NSObject, IKCEFApplicationDelegate {
         hasStarted = true
         DefaultBrowserSetting.registerInstalledCopy()
         WebNotifications.shared.activate()
+        FaviconCache.shared.removeMisattributedIconsOnce()
         FaviconCache.shared.encryptExistingFiles()
         ThreatHosts.shared.start()  // both engines; WebKit also has Apple’s own fraud warnings
         // Extensions load first so their content scripts reach the first page load.

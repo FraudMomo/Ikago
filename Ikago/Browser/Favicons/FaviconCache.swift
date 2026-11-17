@@ -179,6 +179,16 @@ final class FaviconCache {
         }
     }
 
+    /// One time, on the first launch with the fix for icons saved under the wrong site: a tab that moved to another site
+    /// used to keep the previous site's icon, and the cache saved it for the new site too. Those entries can't be told
+    /// apart on disk (their names are hashed), so the saved icons are cleared once; each comes back from its own site.
+    func removeMisattributedIconsOnce() {
+        let done = "faviconsCleanedOfMisattributedIcons"
+        guard !WebProfiles.isTestMode, !UserDefaults.standard.bool(forKey: done) else { return }
+        clear()
+        UserDefaults.standard.set(true, forKey: done)
+    }
+
     /// Drop recreatable RAM caches under system pressure; disk icons and live views' images stay intact.
     func trimMemory() {
         images.removeAllObjects()
