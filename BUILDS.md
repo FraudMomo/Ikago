@@ -22,6 +22,14 @@ What changed in each release of Ikago, newest first. Add changes under **Unrelea
   Toolbar buttons that don't fit get smaller and then move into a More menu instead of dropping to a second row.
 - **Tabs:** ⇧⌘T brings back several closed tabs in their order and places. A closing tab in the tab row fades out
   instead of sliding over its neighbour. A Space without tabs shows a start screen with recent sites.
+- **Passwords:** Settings ▸ Passwords shows how many passwords are only in Ikago and not yet in Apple Passwords
+  (iCloud Keychain), with a blue dot. Export all of them or choose which, and a weekly reminder offers it until you
+  do (Not Now, or Don't Remind Me).
+- **Memory:** three modes like Chrome's Memory Saver and Edge's sleeping tabs (Settings ▸ General ▸ Memory approach):
+  Conservative puts unused background tabs to sleep after 30 minutes, Balanced after 2 hours (new profiles), and
+  Responsive only when macOS runs short of memory. Playing, loading and visible tabs never sleep.
+- **Updates:** an update you dismissed with Later stays in Settings ▸ About ("Ikago X is available"), with a blue
+  dot, until you install it.
 - **Toolbar:** in Sidebar + Tabs, controls can sit at the window's edges or right beside the address on either side
   (Settings ▸ Sidebar & Toolbar ▸ Toolbar). In the sidebar's top row, the center controls no longer overlap the
   others.

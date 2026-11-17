@@ -86,7 +86,7 @@ Working list for the next builds. Tick items off as they land; move finished the
 
 ## Passwords
 
-- [ ] **Regular reminder when new passwords are saved** suggesting an export to iCloud Keychain. Offer
+- [x] **Regular reminder when new passwords are saved** suggesting an export to iCloud Keychain. Offer
   "Ignore" and "Don't show again".
 
 ## Settings
@@ -124,5 +124,5 @@ Working list for the next builds. Tick items off as they land; move finished the
 
 - [ ] **Animations and transitions on weaker Macs**: high CPU seen on an M1 MacBook Air. Measure, then optimize
   or reduce effects there.
-- [ ] **Tab memory for WebKit and Chromium**: study how Chrome discards/sleeps tabs. Make Conservative vs
+- [x] **Tab memory for WebKit and Chromium**: study how Chrome discards/sleeps tabs. Make Conservative vs
   Responsive modes clearly different in memory use.
