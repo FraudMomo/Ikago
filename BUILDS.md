@@ -25,7 +25,8 @@ What changed in each release of Ikago, newest first. Add changes under **Unrelea
 - **Passwords:** Settings ▸ Passwords shows how many passwords are only in Ikago and not yet in Apple Passwords
   (iCloud Keychain), with a blue dot. Export all of them or choose which, and a weekly reminder offers it until you
   do (Not Now, or Don't Remind Me).
-- **Memory:** three modes like Chrome's Memory Saver and Edge's sleeping tabs (Settings ▸ General ▸ Memory approach):
+- **Performance:** a new Settings page for memory and the performance monitor. Three memory modes like Chrome's
+  Memory Saver and Edge's sleeping tabs:
   Conservative puts unused background tabs to sleep after 30 minutes, Balanced after 2 hours (new profiles), and
   Responsive only when macOS runs short of memory. Playing, loading and visible tabs never sleep.
 - **Updates:** an update you dismissed with Later stays in Settings ▸ About ("Ikago X is available"), with a blue

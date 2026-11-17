@@ -28,8 +28,7 @@ extension SettingsCategory {
                     page("Toolbar", "Customize")]
         case .tabs:
             return [page("New Tabs", "New Tab", "Tab Placement", "Background Tabs", "Opening Bookmarks"),
-                    page("Links & Peek", "Peek", "Tab Previews"),
-                    page("Memory", "Memory")]
+                    page("Links & Peek", "Peek", "Tab Previews")]
         case .search:
             return [page("Search & Address", "Search & Address Bar"), page("Suggestions", "Suggestions")]
         case .extensions:
@@ -42,7 +41,7 @@ extension SettingsCategory {
             return [page("AutoFill", "AutoFill"), page("Saved", "Saved in Ikago", "Import from Apple Passwords", "Export to Apple Passwords")]
         case .about:
             return [page("Overview", "Ikago", "Acknowledgements"), page("Developer", "Developer")]
-        case .history, .imports:
+        case .history, .imports, .performance:
             return []
         }
     }

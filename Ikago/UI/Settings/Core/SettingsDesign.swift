@@ -81,6 +81,7 @@ extension SettingsCategory {
         case .search: Color(hex: 0x3B82F6)
         case .extensions: Color(hex: 0x8B5CF6)
         case .history: Color(hex: 0xF59E0B)
+        case .performance: Color(hex: 0x10B981)
         case .security: Color(hex: 0x22A559)
         case .passwords: Color(hex: 0x8E8E93)
         case .imports: Color(hex: 0x06A5C9)
@@ -124,10 +125,11 @@ extension SettingsCategory {
         case .general: "Your engine and everyday tools"
         case .appearance: "Shape your browsing space"
         case .toolbar: "Keep useful controls within reach"
-        case .tabs: "Opening, organizing and memory"
+        case .tabs: "Opening and organizing tabs"
         case .search: "Search and address suggestions"
         case .extensions: "Manage what runs in your browser"
         case .history: "Pages you’ve visited, and clearing browsing data"
+        case .performance: "Memory, sleeping tabs and what Ikago is using"
         case .security: "Connections, permissions and browsing data"
         case .passwords: "Sign in with your preferred password source"
         case .imports: "Choose what to bring from another browser"

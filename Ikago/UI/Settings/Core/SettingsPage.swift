@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum SettingsCategory: String, CaseIterable, Identifiable {
-    case general, appearance, toolbar, tabs, search, extensions, history, security, passwords, imports, about
+    case general, appearance, toolbar, tabs, search, performance, extensions, history, security, passwords, imports, about
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -10,6 +10,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable {
         case .toolbar: "Sidebar & Toolbar"
         case .tabs: "Tabs & Links"
         case .search: "Search"
+        case .performance: "Performance"
         case .extensions: "Extensions"
         case .history: "History"
         case .security: "Privacy & Security"
@@ -19,7 +20,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable {
         }
     }
     static var navigationGroups: [[Self]] {
-        [[.general, .appearance, .toolbar, .tabs, .search], [.security, .passwords, .extensions, .history], [.imports, .about]]
+        [[.general, .appearance, .toolbar, .tabs, .search, .performance], [.security, .passwords, .extensions, .history], [.imports, .about]]
     }
     var symbol: String {
         switch self {
@@ -28,6 +29,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable {
         case .toolbar: "sidebar.left"
         case .tabs: "square.on.square"
         case .search: "magnifyingglass"
+        case .performance: "gauge.with.dots.needle.67percent"
         case .extensions: "puzzlepiece.extension"
         case .history: "clock.arrow.circlepath"
         case .security: "hand.raised"
@@ -194,6 +196,8 @@ struct SettingsPage: View {
             BookmarkOpeningSection(state: state)
             PeekSettingsSection(state: state)
             BrowserFeaturesSection(state: state)
+        case .performance:
+            PerformanceSettingsSection(state: state, commands: commands)
         case .extensions:
             // Each engine has its own extensions; with per-site engines both can run.
             if BrowserRuntime.engine == .chromium {

@@ -23,6 +23,15 @@ struct BrowserFeaturesSection: View {
                     set: { state.browserPreferences.loadBackgroundTabs = $0 })).labelsHidden().toggleStyle(.switch)
             }
         }
+    }
+}
+
+/// Settings ▸ Performance: how Ikago saves memory, and its live performance monitor.
+struct PerformanceSettingsSection: View {
+    @Bindable var state: BrowserState
+    weak var commands: BrowserCommands?
+
+    var body: some View {
         PageSection(title: "Memory", footer: "Released pages reload when selected. Visible pages, playing media and unsaved forms stay open.") {
             PageRow(title: "Memory approach", subtitle: state.browserPreferences.resourcePolicy.summary) {
                 SettingsMenu(selection: $state.browserPreferences.resourcePolicy, options: ResourcePolicy.allCases.map { ($0, $0.title) })
@@ -36,6 +45,11 @@ struct BrowserFeaturesSection: View {
             PageRow(title: "Always keep these sites awake", subtitle: "Comma-separated, includes subdomains") {
                 TextField("mail.example.com, example.org", text: $state.browserPreferences.hibernationExceptions)
                     .textFieldStyle(.roundedBorder).frame(maxWidth: 280)
+            }
+        }
+        PageSection(title: "Monitor", footer: "Frame times, CPU and memory for Ikago and each open page, updated live.") {
+            PageRow(title: "Performance monitor", subtitle: "See what each tab and Ikago itself are using") {
+                Button("Open") { commands?.openPage(.performance) }
             }
         }
     }
