@@ -76,6 +76,12 @@ extension BrowserWindowController: BrowserCommands, NSMenuItemValidation {
         window?.makeKeyAndOrderFront(nil)
     }
 
+    /// Bookmarks ▸ a bookmark (`BookmarksMenu`). ⌘-click opens it in a new tab.
+    @objc func openBookmarkFromMenu(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String, let bookmark = state.bookmarks.first(where: { $0.id == id }) else { return }
+        openBookmark(bookmark, forceNewTab: NSEvent.modifierFlags.contains(.command))
+    }
+
     func openBookmark(_ bookmark: Bookmark, forceNewTab: Bool = false) {
         dismissCommandPalette()
         chrome.showDownloads = false

@@ -86,12 +86,13 @@ enum MainMenu {
             $0.item("Downloads", #selector(BrowserWindowController.showDownloads(_:)), "j", [.command, .shift])
             $0.item("Notes", #selector(BrowserWindowController.showNotes(_:)), "j", [.command, .option])
         }
-        main.addSubmenu("Bookmarks") {
+        let bookmarks = main.addSubmenu("Bookmarks") {
             $0.item("Show Bookmarks Bar", #selector(BrowserWindowController.toggleBookmarksBar(_:)), "b", [.command, .shift])
             $0.separator()
             $0.item("Bookmark This Page", #selector(BrowserWindowController.bookmarkPage(_:)), "d")
             $0.item("Show Bookmarks", #selector(BrowserWindowController.showBookmarks(_:)), "b", [.command, .option])
         }
+        bookmarks.delegate = BookmarksMenu.shared  // the bookmarks themselves follow, rebuilt each time it opens
         main.addSubmenu("Tab") {
             $0.item("Next Tab", #selector(BrowserWindowController.nextTab(_:)), "\t", [.control])
             $0.item("Previous Tab", #selector(BrowserWindowController.previousTab(_:)), "\t", [.control, .shift])

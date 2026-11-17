@@ -526,6 +526,17 @@ enum TestDriver {
                     for note in data.notes where !note.contains("encrypted cookies") { print("IKTEST importprobe   note: \(note)") }
                 } catch { print("IKTEST importprobe \(profile.browser) [\(profile.name)] ERROR \(error.localizedDescription)") }
             }
+        case "bookmarksmenu":  // the menu bar's Bookmarks menu as it would open: each item, submenus one level deep
+            if let menu = NSApp.mainMenu?.items.first(where: { $0.title == "Bookmarks" })?.submenu {
+                BookmarksMenu.shared.menuNeedsUpdate(menu)
+                for item in menu.items {
+                    print("IKTEST bookmarksmenu \(item.isSeparatorItem ? "—" : item.title)\(item.submenu != nil ? " ▸" : "")")
+                    if let sub = item.submenu, sub.delegate === BookmarksMenu.shared {
+                        BookmarksMenu.shared.menuWillOpen(sub)
+                        for child in sub.items { print("IKTEST bookmarksmenu     \(child.isSeparatorItem ? "—" : child.title)\(child.submenu != nil ? " ▸" : "")") }
+                    }
+                }
+            }
         case "pinnedstay": state.browserPreferences.pinnedRowsStayInView = arg == "off" ? nil : true
         case "dump": dump(c)
         // Quit from the run loop like a menu does: inside this task the main queue is busy, so
