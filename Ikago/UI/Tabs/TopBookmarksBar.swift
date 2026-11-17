@@ -7,6 +7,7 @@ struct TopBookmarksBar: View {
     let state: BrowserState
     weak var commands: BrowserCommands?
     static let height: CGFloat = 32
+    private static let chipLimit = 40
 
     var body: some View {
         let colors = state.palette
@@ -30,8 +31,27 @@ struct TopBookmarksBar: View {
                 if !folders.isEmpty && !loose.isEmpty {
                     Rectangle().fill(colors.separator).frame(width: 1, height: 14).padding(.horizontal, 4)
                 }
-                ForEach(loose) { bookmark in
+                // The first ones as chips; a long list continues in a menu instead of thousands of chips.
+                ForEach(loose.prefix(Self.chipLimit)) { bookmark in
                     BookmarkShortcut(bookmark: bookmark, state: state, colors: colors, commands: commands).fixedSize()
+                }
+                if loose.count > Self.chipLimit {
+                    Menu {
+                        ForEach(loose.dropFirst(Self.chipLimit).prefix(400)) { bookmark in
+                            Button(bookmark.title.isEmpty ? bookmark.url : String(bookmark.title.prefix(80))) {
+                                commands?.openBookmark(bookmark, forceNewTab: NSEvent.modifierFlags.contains(.command))
+                            }
+                        }
+                        if loose.count > Self.chipLimit + 400 {
+                            Divider()
+                            Button("Show All Bookmarks…") { commands?.openPage(.bookmarks) }
+                        }
+                    } label: {
+                        Image(systemName: "chevron.right.2").font(.system(size: 10, weight: .semibold))
+                            .frame(width: 26, height: 26).contentShape(Rectangle())
+                    }
+                    .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
+                    .foregroundStyle(colors.secondary).help("More Bookmarks")
                 }
                 if folders.isEmpty && loose.isEmpty {
                     Text("Bookmarks you add appear here").font(.system(size: 12)).foregroundStyle(colors.secondary)

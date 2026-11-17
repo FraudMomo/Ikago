@@ -7,13 +7,15 @@ struct BookmarksPage: View {
     weak var commands: BrowserCommands?
     @State private var query = ""
     @State private var folderID: String?
+    /// Rows drawn so far: big folders and searches show 200 at a time instead of building thousands of rows at once.
+    @State private var limit = Self.pageSize
+    private static let pageSize = 200
 
     private var folder: BookmarkFolder? { state.bookmarkFolders.first { $0.id == folderID } }
     private var matches: [Bookmark] {
-        state.bookmarks.filter {
-            query.isEmpty ? $0.folderID == folderID
-                : $0.title.localizedCaseInsensitiveContains(query) || $0.url.localizedCaseInsensitiveContains(query)
-        }
+        guard !query.isEmpty else { return state.bookmarks(in: folderID) }
+        let options: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive]
+        return state.bookmarks.filter { $0.title.range(of: query, options: options) != nil || $0.url.range(of: query, options: options) != nil }
     }
     private var folders: [BookmarkFolder] {
         query.isEmpty ? state.bookmarkChildren(of: folderID)
@@ -21,7 +23,9 @@ struct BookmarksPage: View {
     }
 
     var body: some View {
-        PageScaffold(title: "Bookmarks", colors: state.palette, trailing: AnyView(
+        // Worked out once per update: the filters run over every bookmark.
+        let matches = matches, folders = folders
+        return PageScaffold(title: "Bookmarks", colors: state.palette, trailing: AnyView(
             TextField("Search bookmarks", text: $query).textFieldStyle(.roundedBorder).frame(maxWidth: 240))) {
             ViewThatFits(in: .horizontal) {
                 HStack { navigation; Spacer(minLength: 12); newFolder }
@@ -46,7 +50,7 @@ struct BookmarksPage: View {
                     .bookmarkDrop(state: state, chrome: nil, folderID: child.id)
                     PageDivider()
                 }
-                ForEach(matches) { bookmark in
+                ForEach(matches.prefix(limit)) { bookmark in
                     Button { commands?.openBookmark(bookmark, forceNewTab: false) } label: {
                         HStack(spacing: 12) {
                             FaviconView(pageURL: bookmark.url, iconURL: bookmark.favicon)
@@ -62,10 +66,19 @@ struct BookmarksPage: View {
                     .draggable(BookmarkDrag(id: bookmark.id))
                     PageDivider()
                 }
+                if matches.count > limit {
+                    Button { limit += Self.pageSize } label: {
+                        Text("Show \(min(Self.pageSize, matches.count - limit)) More of \(matches.count - limit)")
+                            .frame(maxWidth: .infinity).padding(14).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain).foregroundStyle(state.palette.secondary)
+                }
                 if matches.isEmpty && folders.isEmpty { Color.clear.frame(height: 40) }
             }
             .bookmarkDrop(state: state, chrome: nil, folderID: folderID)
         }
+        .onChange(of: query) { _, _ in limit = Self.pageSize }
+        .onChange(of: folderID) { _, _ in limit = Self.pageSize }
         .onChange(of: state.bookmarkFolders) { _, _ in
             if folderID != nil && folder == nil { folderID = nil }
         }
