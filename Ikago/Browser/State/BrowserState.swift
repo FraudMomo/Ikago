@@ -211,14 +211,28 @@ final class BrowserState {
         // Like Chrome: back in its Space, its group and its place, selected. A fresh identity; the page and pin state are kept.
         let space = last.space.flatMap(UUID.init(uuidString:)).flatMap { id in spaces.first { $0.id == id }?.id } ?? activeSpaceID
         let folder = last.folder.flatMap { id in folders.first { $0.id == id && $0.spaceID == space }?.id }
-        let tab = TabItem(url: InternalPage(url: last.url)?.url ?? last.url, title: last.title, pinned: last.pinned, spaceID: space,
-                          folderID: last.pinned ? nil : folder)
+        // The same identity when it's free, so tabs closed after this one (which name it as their neighbour) find
+        // their place again when they are reopened too.
+        let id = tabs.contains { $0.id == last.id } ? UUID().uuidString : last.id
+        let tab = TabItem(id: id, url: InternalPage(url: last.url)?.url ?? last.url, title: last.title, pinned: last.pinned,
+                          spaceID: space, folderID: last.pinned ? nil : folder)
         tab.faviconURL = last.favicon.flatMap(URL.init(string:))
         tab.history = last.history
         tab.pinAsRow = last.pinAsRow ?? false
-        if let anchor = last.after, let index = tabs.firstIndex(where: { $0.id == anchor && $0.spaceID == space }) {
+        tab.pinAfterFolderID = last.pinAfterFolderID
+        // Its neighbour may have closed too: follow the closed tabs' own neighbours back to one that is open, like
+        // Chrome restoring a run of closed tabs in their order.
+        var anchor = last.after
+        var lost = false  // the chain ends at a tab that is gone for good: put it at the end
+        var steps = 0
+        while let current = anchor, !tabs.contains(where: { $0.id == current }) {
+            guard steps < closed.count, let record = closed.first(where: { $0.id == current }) else { lost = true; break }
+            anchor = record.after
+            steps += 1
+        }
+        if !lost, let anchor, let index = tabs.firstIndex(where: { $0.id == anchor && $0.spaceID == space }) {
             tabs.insert(tab, at: index + 1)
-        } else if last.after == nil, let index = tabs.firstIndex(where: { $0.spaceID == space }) {
+        } else if !lost, anchor == nil, let index = tabs.firstIndex(where: { $0.spaceID == space }) {
             tabs.insert(tab, at: index)  // it was its Space's first tab
         } else {
             tabs.append(tab)  // its neighbour has closed too
