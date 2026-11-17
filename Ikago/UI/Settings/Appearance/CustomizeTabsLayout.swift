@@ -55,14 +55,7 @@ struct CustomizeExtras: View {
                 }
             }
             if state.usesTabsLayout {
-                line("Bar height") {
-                    Picker("Bar height", selection: Binding(
-                        get: { TabsBarHeight(rawValue: state.browserPreferences.tabsBarHeight ?? 36) ?? .standard },
-                        set: { state.browserPreferences.tabsBarHeight = $0 == .standard ? nil : $0.rawValue })) {
-                        ForEach(TabsBarHeight.allCases, id: \.self) { Text($0.name).tag($0) }
-                    }
-                    .pickerStyle(.segmented).labelsHidden().fixedSize()
-                }
+                line("Bar height") { BarHeightSlider(state: state) }
             }
         }
     }
@@ -97,5 +90,29 @@ enum ChipPayload {
         let parts = text.split(separator: "@", maxSplits: 1).map(String.init)
         guard let item = parts.first.flatMap(ChromeItem.init(rawValue:)) else { return nil }
         return (item, parts.count > 1 ? ChromeZone(rawValue: parts[1]) : nil)
+    }
+}
+
+/// The address bar's height in points, any value from 26 to 52. The bar (and the page under it) resizes once when the
+/// slider is let go, not on every step: pages must not be resized frame by frame.
+private struct BarHeightSlider: View {
+    let state: BrowserState
+    @State private var value: Double?
+
+    var body: some View {
+        let current = value ?? Double(state.tabsToolbarHeight)
+        HStack(spacing: 10) {
+            Slider(value: Binding(get: { current }, set: { value = $0.rounded() }), in: 26...52, step: 1) { editing in
+                guard !editing, let value else { return }
+                state.browserPreferences.tabsBarHeight = value == TabsBarHeight.standard.rawValue ? nil : value
+                self.value = nil
+            }
+            .frame(width: 160)
+            Text("\(Int(current)) pt").font(.system(size: 12)).monospacedDigit().foregroundStyle(.secondary).frame(width: 40, alignment: .trailing)
+            if state.browserPreferences.tabsBarHeight != nil {
+                Button("Reset") { state.browserPreferences.tabsBarHeight = nil }
+                    .buttonStyle(.plain).font(.system(size: 12)).foregroundStyle(.secondary)
+            }
+        }
     }
 }
