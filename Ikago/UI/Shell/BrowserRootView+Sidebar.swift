@@ -42,6 +42,13 @@ extension BrowserRootView {
                 // straight down into the page.
                 .padding(.trailing, trailing)
                 .transition(.opacity)
+                if state.showsBookmarksBar {
+                    IsolatedHost(chrome: chrome) { TopBookmarksBar(state: state, commands: commands) }
+                        .frame(height: TopBookmarksBar.height)
+                        .background(Rectangle().fill(state.tabSheetColor))
+                        .padding(.trailing, trailing)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
             }
             contentCard
         }

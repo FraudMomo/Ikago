@@ -35,7 +35,7 @@ struct SidebarView: View {
                 }
             }
 
-            if state.showsBookmarksBar { SidebarBookmarksDrawer(state: state, chrome: chrome, commands: commands) }
+            if state.showsBookmarksBar && !state.showsSidebarTopTabs { SidebarBookmarksDrawer(state: state, chrome: chrome, commands: commands) }
             SidebarMediaPlayer(state: state, commands: commands)
             if !state.visibleChromeItems(state.chromeLayout.bottomItems).isEmpty {
                 // Left, centre and right groups, as placed in Settings ▸ Sidebar & Toolbar ▸ Customize; the centre stays
