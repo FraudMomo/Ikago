@@ -43,11 +43,13 @@
   layout-forcing reads (`getClientRects`) in reports, artwork only for playing media, and WebKit reports once per burst.
   Silent autoplay previews never report: only media that has been heard, errors and volume changes do.
 - Browser preferences and bookmarks persist with the session; keep new session fields optional
-  so existing profiles restore. `TabMemoryManagement` responds to macOS memory pressure, never an idle clock or a RAM
-  quota. Conservative reclaims safe inactive pages on warnings; Responsive waits for critical pressure. Visible split
+  so existing profiles restore. `TabMemoryManagement` follows Chrome's Memory Saver and Edge's sleeping tabs, never a RAM
+  quota: Conservative sleeps background tabs unused for 30 minutes and Balanced (new profiles) for 2 hours, both also
+  reclaiming on macOS memory warnings; Responsive keeps Safari's behaviour, no timer and only critical pressure. Idle
+  time counts from when a tab was last on screen; a tab not seen since launch counts from first sight. Visible split
   panes, loading/playing/capturing pages, popups, protected pins/sites, drafts and native navigation history are protected.
   Failed inspection retains a page. Safe parked engine-history documents can release their views while retaining their
-  Back/Forward destination and engine. Wake through `startIfNeeded()`. New profiles use Conservative; saved profiles
+  Back/Forward destination and engine. Wake through `startIfNeeded()`. New profiles use Balanced; saved profiles
   map the former hibernation opt-in to Conservative and other profiles to Responsive unless a new choice was saved.
 - Picture in Picture (the media island's button, the video's right-click item, a page's own PiP button). WebKit: macOS's own
   PiP, which WebKit turns off for embedding apps; `MediaPictureInPicture.allow` turns it on for every web view (measured:

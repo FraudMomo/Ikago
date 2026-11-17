@@ -53,6 +53,23 @@ enum TabMemoryChecks {
         await memory.reclaim(.critical)
         check(controller.page != nil, "uninspectable embedded documents are protected")
         _ = try? await page.callAsync("document.getElementById('resource-frame').remove();return true;")
+        // Idle sleep, as Chrome's Memory Saver and Edge's sleeping tabs: never with Responsive; Balanced after 2 hours.
+        state.browserPreferences.resourcePolicy = .responsive
+        memory.sleepIdleTabs(now: Date().addingTimeInterval(10 * 3600))
+        check(controller.page != nil, "Responsive never sleeps tabs on a timer")
+        state.browserPreferences.resourcePolicy = .balanced
+        memory.sleepIdleTabs(now: Date().addingTimeInterval(3600))
+        check(controller.page != nil, "Balanced keeps a tab unused for an hour")
+        memory.sleepIdleTabs(now: Date().addingTimeInterval(3 * 3600))
+        check(controller.page == nil && background.isHibernating, "Balanced sleeps a tab unused for over 2 hours")
+        check(browser.content.controller(for: visible.id)?.page != nil, "the visible tab never sleeps on a timer")
+        state.select(background.id)
+        for _ in 0..<100 {
+            if controller.page != nil, !background.isLoading { break }
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        state.select(visible.id)
+        state.browserPreferences.resourcePolicy = .conservative
         await memory.reclaim(.warning)
         check(controller.page == nil && background.isHibernating, "Conservative releases a safe inactive page on warning")
         check(browser.content.controller(for: visible.id)?.page != nil, "visible page stays resident")

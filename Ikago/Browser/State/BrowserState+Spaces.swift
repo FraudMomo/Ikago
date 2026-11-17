@@ -115,7 +115,7 @@ extension BrowserState {
         browserPreferences.showPinnedGrid = true
         browserPreferences.preferredEngine = Self.newProfileEngine
         browserPreferences.chromiumVideoTranslation = false
-        browserPreferences.resourcePolicy = .conservative
+        browserPreferences.resourcePolicy = .balanced
         chromeLayout.sidebarTop = [.sidebarToggle, .back, .forward]
         chromeLayout.sidebarBottom = [.spaces, .newSpace, .settings]
     }
