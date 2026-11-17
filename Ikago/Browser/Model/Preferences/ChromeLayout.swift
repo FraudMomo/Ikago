@@ -28,6 +28,14 @@ enum ChromeItem: String, Codable, CaseIterable, Identifiable {
         }
     }
 
+    /// Controls whose popover or menu opens from the button itself, so they never move into a More menu.
+    var anchorsPopover: Bool {
+        switch self {
+        case .spaces, .downloads, .devices, .siteInfo, .share: true
+        default: false
+        }
+    }
+
     var symbol: String {
         switch self {
         case .sidebarToggle: "sidebar.left"

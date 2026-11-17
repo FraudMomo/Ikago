@@ -52,6 +52,61 @@ struct ChromeItemView: View {
     }
 }
 
+/// Controls that didn't fit in the sidebar's top row, as a menu. Only plain buttons land here (`anchorsPopover`).
+struct ChromeOverflowMenu: View {
+    let items: [ChromeItem]
+    let state: BrowserState
+    let colors: Palette
+    weak var commands: BrowserCommands?
+    var size: CGFloat = 28
+
+    var body: some View {
+        Menu {
+            ForEach(items) { item in
+                Button { perform(item) } label: { Label(item.name, systemImage: item.symbol) }
+                    .disabled(!enabled(item))
+            }
+        } label: {
+            Image(systemName: "chevron.right.2")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(colors.glass ? colors.text.opacity(0.85) : colors.secondary)
+                .frame(width: size, height: size)
+                .contentShape(Circle()).glassControl(Circle(), colors)
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("More")
+    }
+
+    private func enabled(_ item: ChromeItem) -> Bool {
+        switch item {
+        case .back: state.activeTab?.canGoBack == true
+        case .forward: state.activeTab?.canGoForward == true
+        case .reload: state.activeTab != nil
+        default: true
+        }
+    }
+
+    private func perform(_ item: ChromeItem) {
+        switch item {
+        case .back: commands?.goBack()
+        case .forward: commands?.goForward()
+        case .reload: commands?.reloadOrStop()
+        case .sidebarToggle: commands?.cycleSidebar()
+        case .newTab: commands?.newTab()
+        case .newSpace: commands?.newSpace()
+        case .bookmarks: commands?.openPage(.bookmarks)
+        case .history: commands?.openPage(.history)
+        case .settings: commands?.openPage(.settings)
+        case .assistant: commands?.togglePageAssistant()
+        case .notes: commands?.openPage(.notes)
+        case .spaces, .downloads, .devices, .siteInfo, .share: break
+        }
+    }
+}
+
 /// The active Space; click to switch Spaces or add one.
 struct SpaceMenu: View {
     let state: BrowserState

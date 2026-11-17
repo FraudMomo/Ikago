@@ -64,8 +64,9 @@ struct SidebarView: View {
         .animation(.ikago, value: state.showsBookmarksBar)
     }
 
-    /// The traffic lights, then the customizable controls. Controls never slide under the lights: those that don't fit
-    /// beside them (an automatic Downloads button first) move to a second row just below.
+    /// The traffic lights, then the customizable controls, in one row that never slides under the lights. When the
+    /// controls don't fit at full size they get smaller; when they still don't fit, the plain buttons move into a
+    /// "More" menu at the end. Controls that anchor a popover (Downloads, Devices, Spaces, Share, Site Info) stay.
     private func topRow(_ colors: Palette) -> some View {
         let layout = state.chromeLayout
         let leading = state.visibleChromeItems(layout.topLeading), center = state.visibleChromeItems(layout.topCenter)
@@ -73,37 +74,42 @@ struct SidebarView: View {
         if (DownloadCenter.shared.showsToolbarButton || chrome.showDownloads) && !layout.contains(.downloads) {
             trailing.append(.downloads)
         }
-        let fit = Self.topRowCapacity(state: state)
         let all = leading + center + trailing
-        // Too many for one row: the first ones stay on the right beside the lights and the rest wrap below, as before.
-        let wraps = all.count > fit
-        let rest = wraps ? Array(all.dropFirst(fit)) : []
-        return VStack(alignment: .trailing, spacing: 4) {
-            Group {
-                if wraps {
-                    controls(Array(all.prefix(fit)), colors).frame(maxWidth: .infinity, alignment: .trailing)
-                } else {
-                    // Left, centre and right groups; all of them start after the traffic lights, never under them.
-                    ZStack {
-                        HStack(spacing: 0) {
-                            controls(leading, colors)
-                            Spacer(minLength: 0)
-                            controls(trailing, colors)
-                        }
-                        controls(center, colors)
+        let fitsFull = all.count <= Self.topRowCapacity(state: state)
+        let compactFit = Self.topRowCapacity(state: state, step: Self.compactStep)
+        let size: CGFloat = fitsFull ? 28 : Self.compactSize
+        return Group {
+            if fitsFull || all.count <= compactFit {
+                // Left, centre and right groups; all of them start after the traffic lights, never under them.
+                ZStack {
+                    HStack(spacing: 0) {
+                        controls(leading, colors, size: size)
+                        Spacer(minLength: 0)
+                        controls(trailing, colors, size: size)
                     }
-                    .padding(.leading, leading.isEmpty && center.isEmpty ? 0 : Self.lightsReserve(state: state))
+                    controls(center, colors, size: size)
+                }
+                .padding(.leading, leading.isEmpty && center.isEmpty ? 0 : Self.lightsReserve(state: state))
+            } else {
+                let split = Self.overflow(all, slots: compactFit - 1)
+                HStack(spacing: 0) {
+                    Spacer(minLength: 0)
+                    controls(split.shown, colors, size: size, more: split.more)
                 }
             }
-            .frame(height: BrowserState.sidebarRowHeight)
-            if !rest.isEmpty {
-                controls(rest, colors)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .frame(height: 32)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-            }
         }
-        .animation(.ikagoQuick, value: rest.count)
+        .frame(height: BrowserState.sidebarRowHeight)
+    }
+
+    private static let compactSize: CGFloat = 24
+    private static let compactStep: CGFloat = 26
+
+    /// Keeps popover-anchoring controls and as many others as fit, in their order; the rest go to the More menu.
+    static func overflow(_ items: [ChromeItem], slots: Int) -> (shown: [ChromeItem], more: [ChromeItem]) {
+        let anchored = items.filter(\.anchorsPopover)
+        let room = max(0, slots - anchored.count)
+        let kept = Set(items.filter { !$0.anchorsPopover }.prefix(room))
+        return (items.filter { $0.anchorsPopover || kept.contains($0) }, items.filter { !$0.anchorsPopover && !kept.contains($0) })
     }
 
     /// Room the traffic lights take at the start of the sidebar's top row.
@@ -112,26 +118,30 @@ struct SidebarView: View {
         return lightsInSidebar ? max(0, 79 + 8 - CGFloat(state.frameInset) - 10) : 0
     }
 
-    @ViewBuilder private func controls(_ items: [ChromeItem], _ colors: Palette, height: CGFloat = 34, dots: Bool = false) -> some View {
-        if !items.isEmpty {
+    @ViewBuilder private func controls(_ items: [ChromeItem], _ colors: Palette, height: CGFloat = 34, dots: Bool = false,
+                                       size: CGFloat = 28, more: [ChromeItem] = []) -> some View {
+        if !items.isEmpty || !more.isEmpty {
             GlassControlGroup(colors: colors, height: height) {
                 HStack(spacing: dots ? 4 : 2) {
                     ForEach(items) { item in
-                        ChromeItemView(item: item, state: state, colors: colors, commands: commands, spacesAsDots: dots)
+                        ChromeItemView(item: item, state: state, colors: colors, commands: commands, size: size, spacesAsDots: dots)
+                    }
+                    if !more.isEmpty {
+                        ChromeOverflowMenu(items: more, state: state, colors: colors, commands: commands, size: size)
                     }
                 }
             }
         }
     }
 
-    /// How many 28 pt controls fit between the traffic lights and the sidebar's trailing edge.
-    static func topRowCapacity(state: BrowserState) -> Int {
+    /// How many controls (28 pt plus spacing by default) fit between the traffic lights and the sidebar's trailing edge.
+    static func topRowCapacity(state: BrowserState, step: CGFloat = 30) -> Int {
         let content = CGFloat(state.sidebarWidth) - 20  // the sidebar's horizontal padding
         let inset = CGFloat(state.frameInset)
         let lightsInSidebar = !state.sidebarOnRight || state.sidebarLightsFollow
         // The lights end 79 pt into the window (19 pt + three 14 pt buttons 9 pt apart); keep 8 pt clear of them.
         let reserved = lightsInSidebar ? max(0, 79 + 8 - inset - 10) : 0
-        return max(1, Int((content - reserved - 8 + 2) / 30))
+        return max(1, Int((content - reserved - 8 + 2) / step))
     }
 }
 
