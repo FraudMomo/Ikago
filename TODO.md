@@ -31,7 +31,7 @@ Working list for the next builds. Tick items off as they land; move finished the
   row wraps or overflows when it's narrow or has several buttons (a phone/device button, the sidebar toggle,
   Back, Forward, Reload). Fixed: icons shrink first, then plain buttons move into a "»" More menu; Downloads,
   Devices, Spaces, Share and Site Info always stay in the row.
-- [ ] **Customizable Space header and shortcuts**, like the toolbar: remove the assistant button, add your own
+- [x] **Customizable Space header and shortcuts**, like the toolbar: remove the assistant button, add your own
   buttons, move the grid above or below, and so on.
 
 ## Bookmarks

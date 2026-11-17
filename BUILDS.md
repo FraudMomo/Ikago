@@ -17,11 +17,13 @@ What changed in each release of Ikago, newest first. Add changes under **Unrelea
   running (such as Momentum's "Message to service worker timed out") no longer looks like a failed install, and
   Restart in Settings ▸ Extensions starts it fresh.
 - **Sidebar:** a slim scroll bar beside the tab list, and Keep pinned tabs and groups in view (Settings ▸ Sidebar).
+  The Space header and shortcuts are customizable: show or hide the Space name, choose the rows (Assistant,
+  Bookmarks, History, Downloads, Notes, Performance, Settings) and put the pinned-tab grid above or below them.
   Toolbar buttons that don't fit get smaller and then move into a More menu instead of dropping to a second row.
 - **Tabs:** ⇧⌘T brings back several closed tabs in their order and places. A closing tab in the tab row fades out
   instead of sliding over its neighbour. A Space without tabs shows a start screen with recent sites.
 - **Fixes:** files dropped on a page reach its upload area instead of opening in a tab. Suggestions no longer show
-  another website's icon. The address bar height in Sidebar + Tabs is a slider.
+  another website's icon; icons saved under the wrong site are cleared once and come back from their own sites. The address bar height in Sidebar + Tabs is a slider.
 
 ## 0.5.1 — 2026-11-17
 
