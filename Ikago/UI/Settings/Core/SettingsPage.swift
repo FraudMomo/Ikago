@@ -244,6 +244,9 @@ private struct SettingsNavigationRow: View {
                     .foregroundStyle(selected ? colors.text : colors.secondary)
                 Text(category.title).font(.system(size: 13, weight: selected ? .medium : .regular)).lineLimit(1)
                 Spacer(minLength: 0)
+                if SettingsBadges.shows(category) {
+                    Circle().fill(Color.settingsAccent).frame(width: 7, height: 7).accessibilityLabel("Needs attention")
+                }
             }
             .foregroundStyle(selected ? colors.text : colors.text.opacity(0.8))
             .padding(.horizontal, 8).frame(height: 32)
@@ -254,5 +257,16 @@ private struct SettingsNavigationRow: View {
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
         .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+/// Blue dots beside Settings categories that have something waiting: an update not installed yet (About).
+@MainActor
+enum SettingsBadges {
+    static func shows(_ category: SettingsCategory) -> Bool {
+        switch category {
+        case .about: AppUpdates.isAvailable && AppUpdates.shared.prompt.available != nil
+        default: false
+        }
     }
 }

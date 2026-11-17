@@ -60,6 +60,8 @@ final class UpdatePrompt {
     }
 
     var phase: Phase?
+    /// An update that was found and not installed (Later on the card): Settings ▸ About keeps offering it.
+    var available: UpdateSummary?
     @ObservationIgnored fileprivate var choose: ((SPUUserUpdateChoice) -> Void)?
     @ObservationIgnored fileprivate var cancel: (() -> Void)?
     @ObservationIgnored fileprivate var acknowledge: (() -> Void)?
@@ -92,6 +94,7 @@ final class UpdatePrompt {
 
     func skip() {
         choose?(.skip)
+        available = nil
         clear()
     }
 
@@ -131,6 +134,7 @@ final class AppUpdateDriver: NSObject, SPUUserDriver {
         prompt.cancel = nil
         prompt.choose = reply
         prompt.installChosen = false
+        prompt.available = summary
         present(.found(summary, downloaded: state.stage != .notDownloaded))
     }
 
@@ -140,6 +144,7 @@ final class AppUpdateDriver: NSObject, SPUUserDriver {
     func showUpdateNotFoundWithError(_ error: any Error, acknowledgement: @escaping () -> Void) {
         prompt.cancel = nil
         prompt.acknowledge = acknowledgement
+        prompt.available = nil
         prompt.phase = .upToDate
     }
 
@@ -181,6 +186,7 @@ final class AppUpdateDriver: NSObject, SPUUserDriver {
 
     func showUpdateInstalledAndRelaunched(_ relaunched: Bool, acknowledgement: @escaping () -> Void) {
         acknowledgement()
+        prompt.available = nil
         prompt.clear()
     }
 

@@ -6,6 +6,22 @@ struct AppUpdateRows: View {
     private var updates: AppUpdates { .shared }
 
     var body: some View {
+        // An update the card offered and that wasn't installed (Later): it stays here until it is.
+        if let update = updates.prompt.available {
+            PageRow(title: "Ikago \(update.version) is available", subtitle: availableSubtitle(update)) {
+                HStack(spacing: 8) {
+                    Circle().fill(Color.settingsAccent).frame(width: 8, height: 8).accessibilityHidden(true)
+                    if let page = update.downloadPage {
+                        Button("Download") { NSWorkspace.shared.open(page) }.buttonStyle(SettingsButtonStyle(prominent: true))
+                    } else {
+                        // A user-initiated check brings the update card back, already downloaded if it was.
+                        Button("Update") { updates.checkForUpdates(nil) }
+                            .buttonStyle(SettingsButtonStyle(prominent: true)).disabled(!updates.canCheck)
+                    }
+                }
+            }
+            PageDivider()
+        }
         PageRow(title: "Check for updates automatically", subtitle: subtitle) {
             HStack(spacing: 8) {
                 Button("Check Now") { updates.checkForUpdates(nil) }.disabled(!updates.canCheck)
@@ -20,6 +36,11 @@ struct AppUpdateRows: View {
                                                                   set: { updates.setInstallsAutomatically($0) }))
                 .labelsHidden().toggleStyle(.switch).disabled(!updates.checksAutomatically)
         }
+    }
+
+    private func availableSubtitle(_ update: UpdateSummary) -> String {
+        let first = update.notes.first { !$0.contains("Download needed") }
+        return update.kind + (first.map { " · " + String($0.prefix(120)) } ?? "")
     }
 
     private var subtitle: String {
