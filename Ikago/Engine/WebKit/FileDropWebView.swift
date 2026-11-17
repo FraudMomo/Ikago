@@ -1,8 +1,8 @@
 import AppKit
 import WebKit
 
-/// WebKit owns drag hit testing inside its page; handle browser file navigation there
-/// as well as on the native destination used by internal and empty pages.
+/// WebKit owns drag hit testing inside its page, so file drops go to the page first; a file the page doesn't take opens
+/// as a tab (internal and empty pages use `FileDropHostingView`).
 final class FileDropWebView: WKWebView {
     var pageAction: (PageContextAction) -> Void = { _ in }
     var menuActions: [PageMenuAction] = []
@@ -14,26 +14,26 @@ final class FileDropWebView: WKWebView {
         configurePageMenu(menu, event: event)
     }
 
-    private func files(_ sender: any NSDraggingInfo) -> [URL] {
-        guard sender.draggingSourceOperationMask.contains(.copy) else { return [] }
-        return LocalFileDrop.files(in: sender.draggingPasteboard)
-    }
-
-    override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
-        files(sender).isEmpty ? super.draggingEntered(sender) : .copy
-    }
-
-    override func draggingUpdated(_ sender: any NSDraggingInfo) -> NSDragOperation {
-        files(sender).isEmpty ? super.draggingUpdated(sender) : .copy
-    }
-
-    override func prepareForDragOperation(_ sender: any NSDraggingInfo) -> Bool {
-        !files(sender).isEmpty || super.prepareForDragOperation(sender)
-    }
+    /// Files from the drop in progress. The page gets the drop first (an upload area takes it); only when WebKit
+    /// would load a dropped file in place does the tab open the files instead (`consumeDroppedFileNavigation`).
+    private var droppedFiles: [URL] = []
+    private var droppedAt = Date.distantPast
 
     override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
-        let urls = files(sender)
-        guard !urls.isEmpty else { return super.performDragOperation(sender) }
+        if sender.draggingSourceOperationMask.contains(.copy) {
+            droppedFiles = LocalFileDrop.files(in: sender.draggingPasteboard)
+            droppedAt = Date()
+        }
+        return super.performDragOperation(sender)
+    }
+
+    /// True when a main-frame navigation to `url` is WebKit loading a file the page didn't take; the files then open
+    /// the browser's way (new tabs) and the navigation is cancelled.
+    func consumeDroppedFileNavigation(to url: URL) -> Bool {
+        guard url.isFileURL, !droppedFiles.isEmpty, Date().timeIntervalSince(droppedAt) < 2,
+              droppedFiles.contains(where: { $0.standardizedFileURL == url.standardizedFileURL }) else { return false }
+        let urls = droppedFiles
+        droppedFiles = []
         DispatchQueue.main.async { [onFiles] in onFiles(urls) }
         return true
     }

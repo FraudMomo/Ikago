@@ -9,6 +9,9 @@ extension WebKitTab: WKNavigationDelegate {
         guard let url = action.request.url else { return (.cancel, preferences) }
         preferences.preferredHTTPSNavigationPolicy = BrowserSecurity.shared.httpsPolicy(for: url)
         let scheme = url.scheme?.lowercased() ?? ""
+        if action.targetFrame?.isMainFrame != false, (webView as? FileDropWebView)?.consumeDroppedFileNavigation(to: url) == true {
+            return (.cancel, preferences)
+        }
 
         // WKNavigationAction uses a button mask: middle is 4 (NSEvent uses index 2).
         // Auxiliary navigation can also be .other instead of .linkActivated.
