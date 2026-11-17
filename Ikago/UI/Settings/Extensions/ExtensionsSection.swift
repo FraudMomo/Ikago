@@ -87,9 +87,14 @@ private struct ExtensionRow: View {
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(ext?.displayName ?? record.id).lineLimit(1)
-                Text(detail).font(.caption).foregroundStyle(errors.isEmpty ? Color.secondary : Color.orange).lineLimit(2)
+                Text(detail).font(.caption).foregroundStyle(loadErrors.isEmpty ? Color.secondary : Color.orange).lineLimit(2)
+                    .help(runtimeErrors.map(\.localizedDescription).joined(separator: "\n"))
             }
             Spacer()
+            if record.enabled, !runtimeErrors.isEmpty, loadErrors.isEmpty {
+                Button("Restart") { Task { await ExtensionManager.shared.restart(record.id) } }
+                    .help("Load the extension again. Its background worker starts fresh, which clears most of these errors.")
+            }
             if context?.optionsPageURL != nil {
                 Button("Options") {
                     if let url = context?.optionsPageURL { commands?.openInNewTab(url.absoluteString) }
@@ -108,12 +113,18 @@ private struct ExtensionRow: View {
 
     private var extManifest: [String: Any]? { context?.webExtension.manifest }
 
-    private var errors: [Error] { (context?.webExtension.errors ?? []) + (context?.errors ?? []) }
+    /// The extension couldn't be read or loaded: it doesn't work.
+    private var loadErrors: [Error] { context?.webExtension.errors ?? [] }
+    /// Errors while it runs, often its own scripts' (a background worker that timed out): it usually still works.
+    private var runtimeErrors: [Error] { context?.errors ?? [] }
 
     private var detail: String {
         if let failure = ExtensionManager.shared.failures[record.id] { return "Not supported or failed to load: \(failure)" }
         if !record.enabled { return "Off" }
-        if let first = errors.first { return "Problem: \(first.localizedDescription)" }
+        if let first = loadErrors.first { return "Problem: \(first.localizedDescription)" }
+        if let first = runtimeErrors.first {
+            return "Version \(context?.webExtension.displayVersion ?? "?") · It reported an error: \(first.localizedDescription)"
+        }
         if let manifest = extManifest {
             let warnings = ExtensionCompatibility.warnings(manifest: manifest, safari: record.appexPath != nil)
             if !warnings.isEmpty { return "Limited support · " + warnings.joined(separator: " ") }

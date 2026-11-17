@@ -206,6 +206,16 @@ final class ExtensionManager: NSObject {
         }
     }
 
+    /// Unloads and loads an extension again: its background service worker starts fresh and its runtime errors clear.
+    /// For an extension whose worker got stuck (Momentum's "Message to service worker timed out").
+    func restart(_ id: String) async {
+        guard !installing.contains(id), let record = records.first(where: { $0.id == id }), record.enabled else { return }
+        if let context = contexts.removeValue(forKey: id) { try? context.webExtensionController?.unload(context) }
+        failures[id] = nil
+        do { _ = try await load(record) } catch { failures[id] = error.localizedDescription }
+        actionDidChange()
+    }
+
     func remove(_ id: String) {
         guard !installing.contains(id) else { return }
         if let context = contexts.removeValue(forKey: id) { try? context.webExtensionController?.unload(context) }
