@@ -43,8 +43,8 @@ struct SidebarSpaceHeader: View {
     }
 }
 
-/// Quiet rows for places beside the tabs: the assistant (when on), bookmarks and history. A row is selected while
-/// what it opens is on screen.
+/// Quiet rows for places beside the tabs, the ones chosen in Settings (Assistant, Bookmarks and History unless changed).
+/// A row is selected while what it opens is on screen.
 struct SidebarShortcuts: View {
     let state: BrowserState
     let chrome: ChromeModel
@@ -54,16 +54,13 @@ struct SidebarShortcuts: View {
         let colors = state.palette
         let page = state.activeTab.flatMap { InternalPage(url: $0.url) }
         VStack(spacing: 1) {
-            if state.browserPreferences.pageIntelligence == true {
-                SidebarShortcutRow(title: "Assistant", symbol: "sparkles", selected: chrome.showPageAssistant, colors: colors) {
-                    commands?.togglePageAssistant()
+            // The person's chosen rows; the assistant only while page intelligence is on.
+            ForEach(state.browserPreferences.shortcutItems.filter { $0 != .assistant || state.browserPreferences.pageIntelligence == true }) { item in
+                SidebarShortcutRow(title: item.title, symbol: item.symbol,
+                                   selected: item == .assistant ? chrome.showPageAssistant : item == .notes ? chrome.showNotes : page == item.page && page != nil,
+                                   colors: colors) {
+                    if let target = item.page { commands?.openPage(target) } else { commands?.togglePageAssistant() }
                 }
-            }
-            SidebarShortcutRow(title: "Bookmarks", symbol: "bookmark", selected: page == .bookmarks, colors: colors) {
-                commands?.openPage(.bookmarks)
-            }
-            SidebarShortcutRow(title: "History", symbol: "clock", selected: page == .history, colors: colors) {
-                commands?.openPage(.history)
             }
         }
     }

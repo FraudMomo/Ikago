@@ -40,6 +40,12 @@ struct BrowserPreferences: Codable, Equatable {
     var sidebarTopTabs: Bool? = nil
     /// A Space header and rows for the assistant, bookmarks and history at the top of the sidebar. Unset: off.
     var sidebarShortcuts: Bool? = nil
+    /// Which shortcut rows show, in order (`SidebarShortcut` raw values). Unset: Assistant, Bookmarks, History.
+    var sidebarShortcutItems: [String]? = nil
+    /// The Space's name above the shortcuts. Unset: shown.
+    var sidebarSpaceName: Bool? = nil
+    /// The pinned-tab grid sits above the shortcut rows instead of below them. Unset: below.
+    var pinnedGridAboveShortcuts: Bool? = nil
     /// The small card shown after resting on a tab, and whether it carries a page thumbnail. Unset: both on.
     var tabHoverPreviews: Bool? = nil
     var tabPreviewThumbnails: Bool? = nil
@@ -198,5 +204,64 @@ enum TabsBarHeight: Double, CaseIterable {
         case .standard: "Standard"
         case .large: "Large"
         }
+    }
+}
+
+/// A row in the sidebar's shortcuts (Settings ▸ Sidebar ▸ Space header and shortcuts).
+enum SidebarShortcut: String, CaseIterable, Identifiable {
+    case assistant, bookmarks, history, downloads, notes, performance, settings
+
+    static let defaults: [SidebarShortcut] = [.assistant, .bookmarks, .history]
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .assistant: "Assistant"
+        case .bookmarks: "Bookmarks"
+        case .history: "History"
+        case .downloads: "Downloads"
+        case .notes: "Notes"
+        case .performance: "Performance"
+        case .settings: "Settings"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .assistant: "sparkles"
+        case .bookmarks: "bookmark"
+        case .history: "clock"
+        case .downloads: "arrow.down.circle"
+        case .notes: "note.text"
+        case .performance: "gauge.with.dots.needle.33percent"
+        case .settings: "gearshape"
+        }
+    }
+
+    /// The Ikago page it opens; the assistant is a panel instead.
+    var page: InternalPage? {
+        switch self {
+        case .assistant: nil
+        case .bookmarks: .bookmarks
+        case .history: .history
+        case .downloads: .downloads
+        case .notes: .notes
+        case .performance: .performance
+        case .settings: .settings
+        }
+    }
+}
+
+extension BrowserPreferences {
+    var shortcutItems: [SidebarShortcut] {
+        sidebarShortcutItems.map { $0.compactMap(SidebarShortcut.init(rawValue:)) } ?? SidebarShortcut.defaults
+    }
+
+    /// Turns one shortcut on or off, keeping the rows in `SidebarShortcut` order.
+    mutating func setShortcut(_ item: SidebarShortcut, shown: Bool) {
+        var set = Set(shortcutItems)
+        if shown { set.insert(item) } else { set.remove(item) }
+        let items = SidebarShortcut.allCases.filter(set.contains)
+        sidebarShortcutItems = items == SidebarShortcut.defaults ? nil : items.map(\.rawValue)
     }
 }

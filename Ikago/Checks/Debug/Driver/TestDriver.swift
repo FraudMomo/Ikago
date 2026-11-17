@@ -558,6 +558,9 @@ enum TestDriver {
             let count2 = state.bookmarks.filter { $0.url.hasPrefix("https://reimport.example") }.count
             let roots = state.bookmarkFolders.filter { $0.name == "Imported from Probe" }.count
             print("IKTEST reimportcheck \(moved && count1 == 2 && count2 == 2 && roots == 1 ? "PASS" : "FAIL") moved=\(moved) first=\(count1) again=\(count2) roots=\(roots)")
+        case "shortcutitems":  // comma-separated SidebarShortcut names; "default" resets
+            state.browserPreferences.sidebarShortcutItems = arg == "default" ? nil : arg.split(separator: ",").map(String.init)
+        case "gridabove": state.browserPreferences.pinnedGridAboveShortcuts = arg == "off" ? nil : true
         case "pinnedstay": state.browserPreferences.pinnedRowsStayInView = arg == "off" ? nil : true
         case "dump": dump(c)
         // Quit from the run loop like a menu does: inside this task the main queue is busy, so

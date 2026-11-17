@@ -13,7 +13,7 @@ struct SidebarView: View {
         VStack(alignment: .leading, spacing: 10) {
             topRow(colors)
             let shortcuts = state.browserPreferences.sidebarShortcuts == true
-            if shortcuts { SidebarSpaceHeader(state: state, commands: commands) }
+            if shortcuts && state.browserPreferences.sidebarSpaceName != false { SidebarSpaceHeader(state: state, commands: commands) }
             if state.chromeLayout.sidebarShowsAddress {
                 if chrome.isEditingAddress(of: state.activeTabID) {
                     InlineAddressField(model: palette, fontSize: 13, alignment: .left, commands: commands)
@@ -26,10 +26,13 @@ struct SidebarView: View {
                     AddressField(state: state, colors: colors, commands: commands)
                 }
             }
-            if shortcuts { SidebarShortcuts(state: state, chrome: chrome, commands: commands) }
+            // The pinned grid goes below the shortcuts, or above them when chosen (Settings ▸ Sidebar).
+            let gridAbove = shortcuts && state.browserPreferences.pinnedGridAboveShortcuts == true
+            if shortcuts && !gridAbove { SidebarShortcuts(state: state, chrome: chrome, commands: commands) }
             SpaceSwipeContent(swipe: chrome.spaceSwipe, width: CGFloat(state.sidebarWidth)) {
                 VStack(alignment: .leading, spacing: 10) {
                     SidebarEssentials(state: state, chrome: chrome, commands: commands)
+                    if gridAbove { SidebarShortcuts(state: state, chrome: chrome, commands: commands) }
                     TabListView(state: state, chrome: chrome, colors: colors, commands: commands)
                         .id(state.activeSpaceID).transition(.opacity.combined(with: .offset(x: 18)))
                 }
