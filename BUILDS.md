@@ -5,6 +5,22 @@ What changed in each release of Ikago, newest first. Add changes under **Unrelea
 
 ## Unreleased
 
+- **Bookmarks:** the Bookmarks menu in the menu bar lists your bookmarks, with folders as submenus. Sidebar + Tabs
+  has a bookmarks bar under the address (⇧⌘B), with folders as menus. Large collections stay fast.
+- **Import:** bookmarks keep their folders, inside an "Imported from …" folder. Safari's open tabs and Tab Groups and
+  its website logins come across too (Full Disk Access needed). Import works while the other browser is open, and
+  Import Again moves bookmarks from earlier imports into their folders without making copies.
+- **Find in page:** a new find bar with Highlight All and a match count. Esc closes it from anywhere and clears every
+  highlight, and ⌘F always puts the cursor in it.
+- **Extensions:** an extension asking to read a website shows Ikago's own card instead of a system alert, over the
+  page that asked in split view. "Allow on Every Website" is a proper button.
+- **Sidebar:** a slim scroll bar beside the tab list, and Keep pinned tabs and groups in view (Settings ▸ Sidebar).
+  Toolbar buttons that don't fit get smaller and then move into a More menu instead of dropping to a second row.
+- **Tabs:** ⇧⌘T brings back several closed tabs in their order and places. A closing tab in the tab row fades out
+  instead of sliding over its neighbour. A Space without tabs shows a start screen with recent sites.
+- **Fixes:** files dropped on a page reach its upload area instead of opening in a tab. Suggestions no longer show
+  another website's icon. The address bar height in Sidebar + Tabs is a slider.
+
 ## 0.5.1 — 2026-11-17
 
 - **Download needed:** copies before 0.5.1 can't install this update by themselves.
