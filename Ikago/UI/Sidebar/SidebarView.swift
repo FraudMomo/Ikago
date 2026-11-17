@@ -84,14 +84,13 @@ struct SidebarView: View {
         return Group {
             if fitsFull || all.count <= compactFit {
                 // Left, centre and right groups; all of them start after the traffic lights, never under them.
-                ZStack {
-                    HStack(spacing: 0) {
-                        controls(leading, colors, size: size)
-                        Spacer(minLength: 0)
-                        controls(trailing, colors, size: size)
-                    }
-                    controls(center, colors, size: size)
+                // Each group in its own stack, so an empty one still holds its slot.
+                ThreeSlotLayout {
+                    HStack(spacing: 0) { controls(leading, colors, size: size) }
+                    HStack(spacing: 0) { controls(center, colors, size: size) }
+                    HStack(spacing: 0) { controls(trailing, colors, size: size) }
                 }
+                .frame(maxWidth: .infinity)
                 .padding(.leading, leading.isEmpty && center.isEmpty ? 0 : Self.lightsReserve(state: state))
             } else {
                 let split = Self.overflow(all, slots: compactFit - 1)

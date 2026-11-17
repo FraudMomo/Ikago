@@ -74,15 +74,12 @@ private struct SidebarMockup: View {
         }
     }
 
-    /// A row's three places: left, centre (kept centred) and right.
+    /// A row's three places: left, centre (centred while there's room, never over the others) and right.
     private func row(_ zones: [ChromeZone]) -> some View {
-        ZStack {
-            HStack(spacing: 0) {
-                ZoneView(zone: zones[0], state: state, colors: colors)
-                Spacer(minLength: 4)
-                ZoneView(zone: zones[2], state: state, colors: colors)
-            }
+        ThreeSlotLayout {
+            ZoneView(zone: zones[0], state: state, colors: colors)
             ZoneView(zone: zones[1], state: state, colors: colors)
+            ZoneView(zone: zones[2], state: state, colors: colors)
         }
         .frame(maxWidth: .infinity)
     }
@@ -111,7 +108,7 @@ struct ZoneView: View {
             }
         }
         .frame(minWidth: 26, minHeight: 30)
-        .help(zone == .rail ? zone.title : "\(zone.isTop ? "Top" : "Bottom") \(zone.title.lowercased())")
+        .help(zone == .rail || ChromeZone.toolbarRow.contains(zone) ? zone.title : "\(zone.isTop ? "Top" : "Bottom") \(zone.title.lowercased())")
         .padding(.horizontal, 2)
         .background(RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
             .strokeBorder(targeted ? Color.settingsAccent : colors.separator, style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
