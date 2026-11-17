@@ -63,6 +63,10 @@
     Typing straight after ⌘L/⌘T never loses letters: keys that arrive before the field has the keyboard go to its text
     (`BrowserWindow.typeAhead`), and the field selects all only while nothing has been typed (`palette.edited`,
     `selectsAllOnFocus`), or a late re-focus selects the first letters and the next keystroke replaces them (`typefast`).
-13. **Toolbar controls come from `state.chromeLayout`** (`ChromeLayout`: the sidebar's top row and bottom bar, lists of
-    `ChromeItem`), drawn by `ChromeItemView`. New controls get a `ChromeItem` case so users can place them. "Chrome" in
+13. **Toolbar controls come from `state.chromeLayout`** (`ChromeLayout`: the sidebar's top row and bottom bar, the
+    Sidebar + Tabs toolbar's left and right (`toolbarLeading`/`toolbarTrailing`), and the rail's foot (`rail`), lists of
+    `ChromeItem`), drawn by `ChromeItemView`. Each `ChromeZone.family` is separate, so one item can sit in the sidebar and
+    the toolbar at once; `add(_:)` places a control in both layouts. Layouts saved before the toolbar had its own places
+    derive them from the sidebar's top row. `addressShowsReload`/`addressShowsSiteInfo` take those buttons out of both
+    address fields, and `.siteInfo` opens the site card from any toolbar (`toggleSiteInfo(fromToolbar:)`). New controls get a `ChromeItem` case so users can place them. "Chrome" in
     these names means the browser's own UI, not Google Chrome.

@@ -58,6 +58,8 @@ struct BrowserPreferences: Codable, Equatable {
     var pageGrabHeight: Double? = nil
     /// Double-clicking the page's top edge or its header zooms the window. Unset: on.
     var pageGrabZoom: Bool? = nil
+    /// Sidebar + Tabs: the address bar's height in points (`TabsBarHeight`); unset is the standard 36.
+    var tabsBarHeight: Double? = nil
     /// On by default. Sessions from before that default get it once (`httpsDefaultApplied`), after which
     /// the setting is the person's own.
     var forceHTTPS: Bool? = true
@@ -180,6 +182,19 @@ enum PageGrabMode: String, Codable, CaseIterable {
         case .off: "Off"
         case .hold: "Press and Hold"
         case .header: "Drop-Down Header"
+        }
+    }
+}
+
+/// Sidebar + Tabs: how tall the address bar under the tabs is.
+enum TabsBarHeight: Double, CaseIterable {
+    case compact = 30, standard = 36, large = 44
+
+    var name: String {
+        switch self {
+        case .compact: "Compact"
+        case .standard: "Standard"
+        case .large: "Large"
         }
     }
 }

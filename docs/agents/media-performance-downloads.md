@@ -32,6 +32,12 @@
   and a new download brings it back). A user-placed Downloads control is permanent. Download flight
   and completion feedback is visual only, passes through input and respects Reduce Motion.
   Page progress and Stop belong in every address presentation; a finished load runs the progress line to the end, then fades it.
+  (`addressShowsReload` off hides only Reload on hover; Stop stays while a page loads.)
+- The page menu's Download Image / Download Linked File: WebKit's own items hand their download to a private delegate
+  call and otherwise do nothing, so `configurePageMenu` retargets them (by menu identifier) to `startDownload(using:)`
+  with the address under the pointer (`downloadmenu:image|link` test action). Chromium's Alloy menu has none: the bridge
+  adds them and starts `StartDownload`; a download the person asked for skips the site download prompt
+  (`_requestedDownload`).
 - The media script stays cheap on huge, changing pages (Pinterest): mutations are looked at once a quarter second (only
   the added elements themselves, never their subtrees; deeper shadow roots are found on load, clicks and keys), no
   layout-forcing reads (`getClientRects`) in reports, artwork only for playing media, and WebKit reports once per burst.

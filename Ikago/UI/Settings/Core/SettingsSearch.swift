@@ -80,6 +80,9 @@ enum SettingsSearch {
         .init(title: "Show bookmarks bar", category: .toolbar, section: "Bookmarks Bar"),
         .init(title: "Switch to an open tab", category: .toolbar, section: "Opening Bookmarks", keywords: "bookmarks"),
         .init(title: "Customize toolbar", category: .toolbar, section: "Customize", keywords: "buttons controls sidebar"),
+        .init(title: "Bar height", category: .toolbar, section: "Customize", keywords: "tabs toolbar address height compact large"),
+        .init(title: "Address field buttons", category: .toolbar, section: "Customize", keywords: "reload refresh site extensions puzzle"),
+        .init(title: "Icons-only sidebar controls", category: .toolbar, section: "Customize", keywords: "rail compact icons downloads"),
 
         .init(title: "New tabs open", category: .tabs, section: "New Tab", keywords: "homepage command bar extension"),
         .init(title: "Focus address bar on new tabs", category: .tabs, section: "New Tab"),

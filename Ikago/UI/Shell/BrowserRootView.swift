@@ -256,7 +256,7 @@ struct BrowserRootView: View {
         if chrome.showFind {
             FindBarView(model: find, colors: state.palette)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                .padding(.top, state.showsSidebarTopTabs ? SidebarTopTabs.height(state) + BrowserState.tabsToolbarHeight + 12 : 20)
+                .padding(.top, state.showsSidebarTopTabs ? SidebarTopTabs.height(state) + state.tabsToolbarHeight + 12 : 20)
                 .padding(.trailing, 20)
                 .transition(.move(edge: .top).combined(with: .opacity))
         }

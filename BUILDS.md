@@ -5,6 +5,16 @@ What changed in each release of Ikago, newest first. Add changes under **Unrelea
 
 ## Unreleased
 
+- **Downloads:** Download Image and Download Linked File in a page's menu work again with WebKit, and Chromium pages
+  have them too.
+- **Sidebar + Tabs:** the toolbar has its own controls, separate from the sidebar's: Settings ▸ Sidebar & Toolbar ▸
+  Toolbar places them left or right of the address, and sets the bar's height (Compact, Standard or Large). Pinned
+  tabs lead the tab row as icons when the icon sidebar is hidden, so the tabs no longer depend on it.
+- **Icons-only sidebar:** choose the controls at its foot, such as Downloads in place of the sidebar button.
+  Downloads appear there by themselves while there are any.
+- **Address field:** Reload and the site and extensions button can leave the address field, and Site & Extensions is
+  a control you can place in any toolbar.
+
 ## 0.4.1 — 2026-11-16
 
 - **Updates:** updates now install after downloading; before, macOS stopped the installer and showed "Update Error!".

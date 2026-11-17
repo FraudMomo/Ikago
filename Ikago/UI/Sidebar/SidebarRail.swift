@@ -2,8 +2,8 @@ import SwiftUI
 
 /// The Sidebar layout's middle state: a slim rail of icons beside the page. The traffic lights stand in a
 /// column at the top (Ikago draws them there, `FullScreenWindowControls`), then the essentials (pinned tabs)
-/// as tiles, a new-tab button, groups as one tile each (their icon in their colour; a click opens them in place), loose tabs, and at the bottom the Spaces and the sidebar button, which
-/// moves on to the next sidebar state. Titles show on hover; the active tab's highlight slides between tiles.
+/// as tiles, a new-tab button, groups as one tile each (their icon in their colour; a click opens them in place), loose tabs, and at the bottom the Spaces and the
+/// placed controls (the sidebar button by default, which moves on to the next sidebar state). Titles show on hover; the active tab's highlight slides between tiles.
 struct SidebarRail: View {
     let state: BrowserState
     weak var commands: BrowserCommands?
@@ -43,7 +43,13 @@ struct SidebarRail: View {
             }
             .frame(maxHeight: .infinity)
             if state.spaces.count > 1 { spaces(colors) }
-            tile(symbol: "sidebar.left", label: "Hide Sidebar", colors: colors) { commands?.cycleSidebar() }
+            ForEach(footItems) { item in
+                if item == .sidebarToggle {
+                    tile(symbol: "sidebar.left", label: "Hide Sidebar", colors: colors) { commands?.cycleSidebar() }
+                } else {
+                    ChromeItemView(item: item, state: state, colors: colors, commands: commands, size: 32)
+                }
+            }
         }
         .padding(.bottom, 10)
         .frame(width: BrowserState.sidebarRailWidth)
@@ -52,6 +58,14 @@ struct SidebarRail: View {
         .background(WindowDragArea())
         .ignoresSafeArea(.container, edges: .top)
         .animation(.ikagoQuick, value: state.activeTabID)
+    }
+
+    /// The controls at the rail's foot (Settings ▸ Sidebar & Toolbar ▸ Customize ▸ Icons-only sidebar). Downloads join
+    /// them while there are any, unless a toolbar above the page already shows them.
+    private var footItems: [ChromeItem] {
+        var items = state.visibleChromeItems(state.chromeLayout.rail).filter { $0 != .spaces || state.spaces.count < 2 }
+        if !state.usesTabsLayout, !items.contains(.downloads), DownloadCenter.shared.showsToolbarButton { items.append(.downloads) }
+        return items
     }
 
     // MARK: Groups

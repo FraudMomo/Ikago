@@ -154,9 +154,9 @@ enum TestDriver {
         case "snapshot": snapshot(c.window, to: arg)
         case "updatecard":  // security | features | off: a sample update card in the frontmost window
             let notes = arg == "security" ? ["**Chromium 157.0.8123.45:** the latest security and stability fixes from the Chromium project."]
-                : ["**Passwords:** the key and the login list now show reliably in sign-in dialogs and web components.",
-                   "**Moving the window:** a drop-down header at the top of the page, with its own settings."]
-            let summary = UpdateSummary(version: arg == "security" ? "0.3.1" : "0.4.0", security: arg == "security",
+                : ["**Sidebar + Tabs:** the toolbar has its own controls, and the bar's height is yours to choose.",
+                   "**Downloads:** Download Image and Download Linked File work in every page's menu."]
+            let summary = UpdateSummary(version: arg == "security" ? "0.4.2" : "0.5.0", security: arg == "security",
                                         chromium: arg == "security" ? "157.0.8123.45" : nil, notes: notes)
             AppUpdates.shared.prompt.phase = arg == "off" ? nil : .found(summary, downloaded: false)
             NSApp.activate(); c.window?.makeKeyAndOrderFront(nil)
@@ -399,6 +399,9 @@ enum TestDriver {
                       time: UInt64((now - Double(i) * 4300) * 1000))
             }
         case "settingscategory": if let category = SettingsCategory(rawValue: arg) { state.settingsCategory = category }
+        case "settingssubpage":  // <category>:<subpage title>
+            let p = arg.split(separator: ":", maxSplits: 1).map(String.init)
+            if p.count == 2, let category = SettingsCategory(rawValue: p[0]) { state.settingsCategory = category; state.settingsSubpage[category] = p[1] }
         case "downloads": c.toggleDownloads()
         case "overview": c.toggleSidebar()
         case "assistant": state.browserPreferences.pageIntelligence = true; c.chrome.showPageAssistant = arg != "off"
@@ -417,6 +420,11 @@ enum TestDriver {
         case "sidebartranslucency": state.browserPreferences.translucentSidebar = arg == "on"
         case "glass": state.useGlass = arg != "off"
         case "inset": state.frameInset = Double(arg) ?? 8
+        case "tabsbar": state.browserPreferences.tabsBarHeight = Double(arg)  // Sidebar + Tabs bar height, points
+        case "addressbuttons":  // <reload|site>:<on|off>
+            let p = arg.split(separator: ":").map(String.init)
+            if p.first == "reload" { state.chromeLayout.addressShowsReload = p.last == "on" }
+            if p.first == "site" { state.chromeLayout.addressShowsSiteInfo = p.last == "on" }
         case "chrome":  // place:<item>:<zone>[:<before>] | remove:<item>:top|side | reset
             let p = arg.split(separator: ":").map(String.init)
             if p.first == "reset" { state.chromeLayout = ChromeLayout() }

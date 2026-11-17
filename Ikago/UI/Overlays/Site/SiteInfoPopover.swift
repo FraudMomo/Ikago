@@ -39,10 +39,10 @@ struct SiteInfoButton: View {
 extension BrowserWindowController {
     /// Opens the site card under its button, or closes it. Sidebar + Tabs: the button sits at the end of the address
     /// bar, whose frame the shell knows. Elsewhere: where the pointer is (a button's action runs after its click event,
-    /// so `NSApp.currentEvent` isn't the click any more).
-    func toggleSiteInfo() {
+    /// so `NSApp.currentEvent` isn't the click any more); a toolbar's Site & Extensions control opens it there too.
+    func toggleSiteInfo(fromToolbar: Bool = false) {
         if chrome.showSiteInfo { chrome.showSiteInfo = false; return }
-        if state.showsSidebarTopTabs, let field = chrome.addressFieldFrame {
+        if !fromToolbar, state.showsSidebarTopTabs, let field = chrome.addressFieldFrame {
             chrome.siteInfoAnchor = CGPoint(x: field.maxX - 15, y: field.maxY - 2)
         } else if let window, let height = window.contentView?.bounds.height {
             let point = window.mouseLocationOutsideOfEventStream

@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// The Sidebar layout's optional tab row (Settings ▸ Appearance ▸ Layout ▸ Sidebar + Tabs): ungrouped tabs sit above the
-/// page like folders' open documents, while the sidebar keeps the Space, pins and groups. The active tab is drawn in the
+/// page like folders' open documents, while the rail keeps the Space, pins and groups; with the rail hidden, pinned tabs
+/// lead the row as icon-only tabs. The active tab is drawn in the
 /// page's own color and meets the page card, so tab and page read as one sheet.
 struct SidebarTopTabs: View {
     let state: BrowserState
@@ -27,21 +28,26 @@ struct SidebarTopTabs: View {
     var body: some View {
         var seen = Set<String>()
         let items = state.listItems(state.looseTabs, seen: &seen)
+        // Without the rail, pinned tabs lead the row as icon-only tabs, so the tabs never depend on the sidebar.
+        let pins = state.showsSidebarRail ? [] : state.pinnedTabs
+        let pinsWidth = CGFloat(pins.count) * Self.pinnedWidth
         let colors = state.palette
         return GeometryReader { geometry in
             let leading = leadingReserve
             let rowHeight = Self.height(state)
             let available = max(60, geometry.size.width - leading - 44)
+            let forTabs = max(60, available - pinsWidth)
             let slots = items.reduce(CGFloat(0)) { $0 + Self.slots(of: $1) }
             // Like Chrome: tabs share the row up to a comfortable width, keep a readable minimum, then scroll.
-            let fitted = min(228, max(112, (available - Self.edgeInset * 2) / max(1, slots)))
+            let fitted = min(228, max(112, (forTabs - Self.edgeInset * 2) / max(1, slots)))
             let width = heldWidth.map { min($0, 228) } ?? fitted
             let _ = lastWidth.value = width
-            let natural = items.reduce(Self.edgeInset * 2) { $0 + width * Self.slots(of: $1) }
+            let natural = items.reduce(Self.edgeInset * 2 + pinsWidth) { $0 + width * Self.slots(of: $1) }
             HStack(spacing: 0) {
                 Color.clear.frame(width: leading)
                 ScrollView(.horizontal) {
                     HStack(spacing: 0) {
+                        ForEach(pins) { tab in pinnedTab(tab, colors: colors).tabSlot() }
                         ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                             itemView(item, width: width * Self.slots(of: item), colors: colors,
                                      divider: showsDivider(after: item, next: items[safe: index + 1]))
@@ -83,7 +89,22 @@ struct SidebarTopTabs: View {
         .background(WindowDragArea())
         .environment(\.colorScheme, colors.isDark ? .dark : .light)
         .stripDrop(state: state, chrome: chrome)
-        .tabStripMotion(TabMotionKey(ids: items.map(\.id), held: heldWidth != nil), space: state.activeSpaceID, reduceMotion: reduceMotion)
+        .tabStripMotion(TabMotionKey(ids: pins.map(\.id) + items.map(\.id), held: heldWidth != nil), space: state.activeSpaceID, reduceMotion: reduceMotion)
+    }
+
+    static let pinnedWidth: CGFloat = 44
+
+    private func pinnedTab(_ tab: TabItem, colors: Palette) -> some View {
+        let active = tab.id == state.activeTabID
+        let hover: (Bool) -> Void = { on in hoveredID = on ? tab.id : (hoveredID == tab.id ? nil : hoveredID) }
+        return AttachedTab(width: Self.pinnedWidth, active: active, colors: colors, divider: false, sheet: state.tabSheetColor, onHover: hover) { _ in
+            FaviconView(tab: tab, size: 15).opacity(tab.isUnloaded && !active ? 0.6 : 1)
+        }
+        .tabSelectionTint(chrome.selectedTabIDs.contains(tab.id), colors: colors)
+        .onTapGesture { TabClick.handle(tab, state: state, chrome: chrome, commands: commands) { state.select(tab.id) } }
+        .help(tab.displayTitle)
+        .tabPeek(tab, commands: commands)
+        .tabInteractions(tab, state: state, chrome: chrome, commands: commands)
     }
 
     private static func slots(of item: TabListItem) -> CGFloat {

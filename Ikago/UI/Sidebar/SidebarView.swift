@@ -154,10 +154,10 @@ struct AddressField: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity).contentShape(Rectangle())
             }.buttonStyle(.plain).help("Search or enter address (⌘L)")
-            if let tab, tab.isLoading || hovering {
+            if let tab, tab.isLoading || (hovering && state.chromeLayout.addressShowsReload) {
                 PageLoadButton(tab: tab, colors: colors, commands: commands)
             }
-            if hovering || SiteInfoButton.isShown(commands) {
+            if state.chromeLayout.addressShowsSiteInfo, hovering || SiteInfoButton.isShown(commands) {
                 SiteInfoButton(state: state, colors: colors, commands: commands)
                     .transition(.opacity.combined(with: .scale(scale: 0.7)))
             }

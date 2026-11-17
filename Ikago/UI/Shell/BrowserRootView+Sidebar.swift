@@ -32,7 +32,7 @@ extension BrowserRootView {
                 IsolatedHost(chrome: chrome) {
                     TabsToolbar(state: state, chrome: chrome, palette: palette, commands: commands)
                 }
-                .frame(height: BrowserState.tabsToolbarHeight)
+                .frame(height: state.tabsToolbarHeight)
                 .background {
                     UnevenRoundedRectangle(topLeadingRadius: state.pageCornerRadius, topTrailingRadius: state.pageCornerRadius,
                                            style: .continuous)

@@ -31,7 +31,9 @@
    `IsolatedHost`) shows the Space's ungrouped tabs above the page as arched, attached tabs (`AttachedTabShape`), and
    `TabsToolbar` (its own host) is the top of the page card: navigation left, the centred address field, other controls right;
    the page's top corners are square under it (`WebTabContainerView.squareTop`). The address bar is 36 pt with no rule under it; the active tab and the bar share `tabSheetColor` (`Palette.tabSheet`: the page color, or a raised 0x2C2C2E in dark mode when the Space color is near-black so the active tab still shows; when frosted, a see-through page color in light mode and a 12% white veil in dark mode, which a darker veil all but vanished into), so tab and bar read as one lighter sheet that settles into the solid page. There is no full sidebar in this layout:
-   the sidebar is a rail of pins and groups below the tab row, or hidden (its peek is the rail). New tabs open on the right
+   the sidebar is a rail of pins and groups below the tab row, or hidden (its peek is the rail); while it is hidden, pinned
+   tabs lead the tab row as 44 pt icon tabs. The bar's height is `browserPreferences.tabsBarHeight` (`TabsBarHeight`,
+   read through `state.tabsToolbarHeight` and `tabsFieldHeight`). New tabs open on the right
    (`effectiveNewTabPosition`); the address frame reaches the shell through `ChromeModel.addressFieldFrame`. There is one `ContentHost`, so turning the row on or off never moves the page.
    Switching layouts goes through `LayoutSwitch.set`: the new layout is built in one frame with animations disabled and
    the window cross-fades (a `CATransition` on its layer); never animate the switch's geometry, which resized every page

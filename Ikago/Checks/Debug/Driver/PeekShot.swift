@@ -3,14 +3,15 @@ import AppKit
 import Darwin
 
 /// Reads what a page really drew: captures the window (its own, no permission needed) and finds where a red strip at
-/// the page's top and a blue strip at its bottom appear, against the page view's own edges.
+/// the page's top and a blue strip at its bottom appear, against the page view's own edges. A `save` path ending in
+/// "@2x.png" keeps the display's full resolution.
 @MainActor
 enum PeekShot {
     static func measure(_ view: NSView, window: NSWindow?, save: String?) -> String {
         guard let window, let content = window.contentView else { return "no-window" }
         typealias Capture = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?
         guard let symbol = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGWindowListCreateImage") else { return "no-capture-api" }
-        guard let image = unsafeBitCast(symbol, to: Capture.self)(.null, 8, UInt32(window.windowNumber), 1 | 16)?.takeRetainedValue()
+        guard let image = unsafeBitCast(symbol, to: Capture.self)(.null, 8, UInt32(window.windowNumber), save?.hasSuffix("@2x.png") == true ? 1 : 1 | 16)?.takeRetainedValue()
         else { return "no-image" }
         let bitmap = NSBitmapImageRep(cgImage: image)
         if let save { try? bitmap.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: save)) }

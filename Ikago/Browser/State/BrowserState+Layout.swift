@@ -8,8 +8,12 @@ extension BrowserState {
     var usesTabsLayout: Bool { browserPreferences.sidebarTopTabs == true }
     /// The tab row and address bar are on screen (full screen gives the page the whole display).
     var showsSidebarTopTabs: Bool { usesTabsLayout && !isImmersive }
-    /// The address bar under the tab row, part of the page's card.
-    static let tabsToolbarHeight: CGFloat = 36
+    /// The address bar under the tab row, part of the page's card (Settings ▸ Sidebar & Toolbar ▸ Bar height).
+    var tabsToolbarHeight: CGFloat {
+        CGFloat((browserPreferences.tabsBarHeight ?? TabsBarHeight.standard.rawValue).clamped(to: 26...52))
+    }
+    /// The address field and control groups inside it.
+    var tabsFieldHeight: CGFloat { tabsToolbarHeight - 8 }
     /// The sidebar's top row (traffic lights and toolbar controls), measured from the window's top edge. Everything
     /// that shares that line, the lights, the sidebar's controls and the Sidebar + Tabs row, centres on `sidebarRowCenter`.
     var sidebarRowTop: CGFloat { max(8, CGFloat(frameInset)) }
@@ -56,7 +60,7 @@ extension BrowserState {
 extension BrowserState {
     /// Seed the sidebar's toolbar on enable; later customization, including removal, survives relaunch.
     func preparePageAssistantToolbar() {
-        if !chromeLayout.contains(.assistant) { chromeLayout.place(.assistant, in: .sidebarTop) }
+        if !chromeLayout.contains(.assistant) { chromeLayout.add(.assistant) }
         browserPreferences.assistantToolbarInitialized = true
     }
 

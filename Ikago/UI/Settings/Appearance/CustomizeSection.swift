@@ -1,13 +1,15 @@
 import SwiftUI
 
-/// Settings ▸ Customize: a live mockup of the sidebar. Its top row and bottom bar each have a left, centre and right
-/// place: drag items into any of them, reorder within one, hover and click − to remove, drag (or click) from Available
-/// to add.
+/// Settings ▸ Customize: a live mockup of the current layout. The sidebar's top row and bottom bar each have a left,
+/// centre and right place; Sidebar + Tabs has the toolbar's left and right instead. Below them sit the icons-only
+/// sidebar's foot and the address field's own buttons. Drag items into any place, reorder within one, hover and click −
+/// to remove, drag (or click) from Available to add.
 struct CustomizeSection: View {
     let state: BrowserState
 
     var body: some View {
         let colors = state.palette
+        let tabs = state.usesTabsLayout
         PageSection(title: "Customize",
                     footer: "Drag items to the left, centre or right of a row. Hover and click − to remove; click an item in Available to add it.") {
             VStack(alignment: .leading, spacing: 16) {
@@ -18,14 +20,20 @@ struct CustomizeSection: View {
                         .disabled(state.chromeLayout == ChromeLayout())
                 }
                 ScrollView(.horizontal) {
-                    SidebarMockup(state: state, colors: colors)
-                        .frame(minWidth: 420)  // narrower than this the mockup scrolls instead of squashing
+                    Group {
+                        if tabs { TabsMockup(state: state, colors: colors) } else { SidebarMockup(state: state, colors: colors) }
+                    }
+                    // As wide as the section; narrower than 420 the mockup scrolls instead of squashing.
+                    .containerRelativeFrame(.horizontal) { width, _ in max(420, width) }
                 }
                 .scrollIndicators(.never)
                 .padding(14)
                 .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(colors.tint))
                 .environment(\.colorScheme, colors.isDark ? .dark : .light)
-                AvailableTray(state: state, colors: colors)
+                CustomizeExtras(state: state, colors: colors)
+                AvailableTray(state: state, colors: colors,
+                              zones: tabs ? ChromeZone.toolbarRow : ChromeZone.topRow + ChromeZone.bottomRow,
+                              home: tabs ? .toolbarTrailing : .sidebarTop)
             }
             .padding(.vertical, 16)
         }
@@ -91,8 +99,8 @@ struct ZoneView: View {
         let items = state.chromeLayout[zone]
         HStack(spacing: 2) {
             ForEach(items) { item in
-                ItemChip(item: item, colors: colors, spacesAsDots: !zone.isTop) {
-                    withAnimation(.ikago) { state.chromeLayout.remove(item) }
+                ItemChip(item: item, zone: zone, colors: colors, spacesAsDots: !zone.isTop && zone != .rail) {
+                    withAnimation(.ikago) { state.chromeLayout.remove(item, from: zone.family) }
                 }
                 .dropDestination(for: String.self) { ids, _ in return place(ids, before: item) }
             }
@@ -103,7 +111,7 @@ struct ZoneView: View {
             }
         }
         .frame(minWidth: 26, minHeight: 30)
-        .help("\(zone.isTop ? "Top" : "Bottom") \(zone.title.lowercased())")
+        .help(zone == .rail ? zone.title : "\(zone.isTop ? "Top" : "Bottom") \(zone.title.lowercased())")
         .padding(.horizontal, 2)
         .background(RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
             .strokeBorder(targeted ? Color.settingsAccent : colors.separator, style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
@@ -112,7 +120,7 @@ struct ZoneView: View {
     }
 
     private func place(_ ids: [String], before target: ChromeItem?) -> Bool {
-        guard let id = ids.first, let item = ChromeItem(rawValue: id), zone.allowed.contains(item) else { return false }
+        guard let (item, _) = ids.first.flatMap(ChipPayload.parse), zone.allowed.contains(item) else { return false }
         withAnimation(.ikago) { state.chromeLayout.place(item, in: zone, before: target) }
         return true
     }
@@ -121,6 +129,7 @@ struct ZoneView: View {
 /// One placed item: drag to move; hover shows − to remove.
 private struct ItemChip: View {
     let item: ChromeItem
+    let zone: ChromeZone
     let colors: Palette
     var spacesAsDots = false
     let onRemove: () -> Void
@@ -154,19 +163,22 @@ private struct ItemChip: View {
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
         .animation(.ikagoQuick, value: hovering)
-        .draggable(item.rawValue) { ChipPreview(item: item) }
+        .draggable(ChipPayload.make(item, from: zone)) { ChipPreview(item: item) }
         .help(item.name)
     }
 }
 
-/// Items not placed in the sidebar. Drop an item here to remove it.
+/// Items not placed in the layout's places. Drop an item here to remove it from the place it came from.
 private struct AvailableTray: View {
     let state: BrowserState
     let colors: Palette
+    let zones: [ChromeZone]
+    /// Where a click adds an item.
+    let home: ChromeZone
     @State private var targeted = false
 
     var body: some View {
-        let items = state.chromeLayout.available()
+        let items = state.chromeLayout.available(in: zones)
         ScrollView(.horizontal) { HStack(spacing: 8) {
             Text("Available").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
             if items.isEmpty {
@@ -191,14 +203,14 @@ private struct AvailableTray: View {
         .background(RoundedRectangle(cornerRadius: Radius.row, style: .continuous)
             .strokeBorder(targeted ? Color.red.opacity(0.6) : .clear, style: StrokeStyle(lineWidth: 1, dash: [3, 3])))
         .dropDestination(for: String.self) { ids, _ in
-            guard let id = ids.first, let item = ChromeItem(rawValue: id) else { return false }
-            withAnimation(.ikago) { state.chromeLayout.remove(item) }
+            guard let (item, from) = ids.first.flatMap(ChipPayload.parse) else { return false }
+            withAnimation(.ikago) { state.chromeLayout.remove(item, from: from?.family ?? zones) }
             return true
         } isTargeted: { targeted = $0 }
     }
 
     private func add(_ item: ChromeItem) {
-        withAnimation(.ikago) { state.chromeLayout.place(item, in: .sidebarTop) }
+        withAnimation(.ikago) { state.chromeLayout.place(item, in: home) }
     }
 }
 
@@ -212,7 +224,7 @@ private struct ChipPreview: View {
     }
 }
 
-private struct TrafficLights: View {
+struct TrafficLights: View {
     var body: some View {
         HStack(spacing: 5) {
             ForEach([Color.red, .yellow, .green], id: \.self) { Circle().fill($0.opacity(0.85)).frame(width: 9, height: 9) }
@@ -220,7 +232,7 @@ private struct TrafficLights: View {
     }
 }
 
-private struct FakeTab: View {
+struct FakeTab: View {
     let colors: Palette
     let active: Bool
     let width: CGFloat

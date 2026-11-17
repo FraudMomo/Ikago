@@ -24,7 +24,7 @@ struct OtherDevicesSection: View {
     private func setDeviceTabs(_ on: Bool) {
         state.browserPreferences.safariDeviceTabs = on ? true : nil
         if on {
-            if !state.chromeLayout.contains(.devices) { state.chromeLayout.place(.devices, in: .sidebarTop) }
+            state.chromeLayout.add(.devices)
             Task { await SafariSyncedTabsModel.shared.refresh(force: true) }
         } else {
             state.chromeLayout.remove(.devices)

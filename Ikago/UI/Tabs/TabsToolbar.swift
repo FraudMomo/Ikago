@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Sidebar + Tabs: the bar between the tab row and the page, the top of the page's own card. Navigation controls on the
-/// left, the address centred in a quiet field, everything else on the right. It sits in its own host (`IsolatedHost`):
+/// Sidebar + Tabs: the bar between the tab row and the page, the top of the page's own card. The address sits centred
+/// in a quiet field between the controls placed on its left and right (Settings ▸ Sidebar & Toolbar ▸ Customize). It sits in its own host (`IsolatedHost`):
 /// it follows the active page's address and progress, which the rest of the window doesn't need to hear about.
 struct TabsToolbar: View {
     let state: BrowserState
@@ -9,18 +9,14 @@ struct TabsToolbar: View {
     let palette: CommandPaletteModel
     weak var commands: BrowserCommands?
 
-    /// Controls that stay left of the address; the rest of the placed controls sit on the right.
-    static let navigation: Set<ChromeItem> = [.sidebarToggle, .back, .forward, .reload]
-    static let fieldHeight: CGFloat = 28
-
     var body: some View {
         let colors = state.palette
-        var items = state.visibleChromeItems(state.chromeLayout.topItems)
-        if (DownloadCenter.shared.showsToolbarButton || chrome.showDownloads) && !state.chromeLayout.contains(.downloads) {
-            items.append(.downloads)
+        let layout = state.chromeLayout
+        let leading = state.visibleChromeItems(layout.toolbarLeading)
+        var trailing = state.visibleChromeItems(layout.toolbarTrailing)
+        if (DownloadCenter.shared.showsToolbarButton || chrome.showDownloads) && !layout.contains(.downloads, in: .toolbarLeading) {
+            trailing.append(.downloads)
         }
-        let leading = items.filter { Self.navigation.contains($0) }
-        let trailing = items.filter { !Self.navigation.contains($0) }
         // Both sides take the same width, so the address stays centred on the page.
         let side = CGFloat(max(leading.count, trailing.count)) * 30 + (colors.glass ? 8 : 0)
         return HStack(spacing: 10) {
@@ -31,7 +27,7 @@ struct TabsToolbar: View {
             controls(trailing, colors).frame(width: side, alignment: .trailing)
         }
         .padding(.horizontal, 8)
-        .frame(height: BrowserState.tabsToolbarHeight)
+        .frame(height: state.tabsToolbarHeight)
         .background(WindowDragArea())
         .environment(\.colorScheme, colors.isDark ? .dark : .light)
         .animation(.ikagoQuick, value: trailing)
@@ -43,12 +39,12 @@ struct TabsToolbar: View {
     @ViewBuilder private func controls(_ items: [ChromeItem], _ colors: Palette) -> some View {
         let row = HStack(spacing: 2) {
             ForEach(items) { item in
-                ChromeItemView(item: item, state: state, colors: colors, commands: commands)
+                ChromeItemView(item: item, state: state, colors: colors, commands: commands, size: min(28, state.tabsFieldHeight))
                     .transition(.opacity.combined(with: .scale(scale: 0.8)))
             }
         }
         if colors.glass && !items.isEmpty {
-            GlassControlGroup(colors: colors, height: TabsToolbar.fieldHeight) { row }
+            GlassControlGroup(colors: colors, height: state.tabsFieldHeight) { row }
         } else {
             row.environment(\.inGlassGroup, true)
         }
@@ -94,10 +90,10 @@ private struct TabsAddressField: View {
                 // the click (and started editing) instead of these.
                 HStack(spacing: 0) {
                     Spacer(minLength: 0)
-                    if let tab, tab.isLoading || hovering {
+                    if let tab, tab.isLoading || (hovering && state.chromeLayout.addressShowsReload) {
                         PageLoadButton(tab: tab, colors: colors, commands: commands)
                     }
-                    if hovering || SiteInfoButton.isShown(commands) {
+                    if state.chromeLayout.addressShowsSiteInfo, hovering || SiteInfoButton.isShown(commands) {
                         SiteInfoButton(state: state, colors: colors, commands: commands)
                     }
                 }
@@ -106,7 +102,7 @@ private struct TabsAddressField: View {
                 .help("Search or enter address (⌘L)")
             }
         }
-        .frame(height: TabsToolbar.fieldHeight)
+        .frame(height: state.tabsFieldHeight)
         .background {
             if editing || !colors.glass {
                 shape.fill(editing ? colors.pageBackground : colors.text.opacity(hovering ? 0.08 : 0.05))
