@@ -99,7 +99,7 @@ enum TestDriver {
         case "palettedown": c.palette.moveSelection(1); c.palette.query = c.palette.query  // same text written back
         case "suggestions": print("IKTEST suggestions \(c.palette.selection) " + c.palette.suggestions.map(\.title).joined(separator: " | "))
         case "suggestionkinds": print("IKTEST suggestionkinds " + c.palette.suggestions.map { "\($0.source)" }.joined(separator: ","))
-        case "find": c.showFindBar(); c.find.text = arg
+        case "find": c.showFindBar(); c.find.text = arg; c.find.search()
         case "findclose": c.closeFindBar()
         case "js":  // function body in the isolated world (may await, must return); prints the result
             do {

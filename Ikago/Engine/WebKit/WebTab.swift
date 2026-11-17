@@ -187,7 +187,11 @@ final class WebKitTab: NSObject, WebTab {
     }
 
     func clearFindSelection() {
-        webView.evaluateJavaScript("window.getSelection().removeAllRanges()", in: nil, in: .defaultClient) { _ in }
+        // WebKit keeps drawing its yellow find indicator over the last match until a search fails; an empty search
+        // doesn't clear it. A search that can't match does. Then the selected match and Highlight All marks go too.
+        webView.find("\u{2063}ikago-clear-find-\(UUID().uuidString)", configuration: WKFindConfiguration()) { _ in }
+        webView.evaluateJavaScript("window.getSelection().removeAllRanges();" + FindHighlights.clearScript,
+                                   in: nil, in: .defaultClient) { _ in }
     }
 
     // MARK: Media, scripting, printing

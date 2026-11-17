@@ -181,18 +181,61 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
         palette.onDismiss = { [weak self] in self?.dismissCommandPalette() }
         palette.onAction = { [weak self] action in action.perform(in: self?.window) }
         find.onSearch = { [weak self] text, forward, _ in
-            self?.activeController?.page?.find(text, forward: forward, matchCase: false)
+            guard let self, let page = self.activeController?.page else { return }
+            guard !text.isEmpty else { page.clearFindSelection(); return }
+            page.find(text, forward: forward, matchCase: false)
+            self.updateFindHighlights(page, text: text)
+        }
+        find.onHighlightAllChanged = { [weak self] in
+            guard let self, let page = self.activeController?.page else { return }
+            self.updateFindHighlights(page, text: self.find.text)
         }
         find.onClose = { [weak self] in self?.closeFindBar() }
     }
     func showFindBar() {
         guard state.activeTab != nil else { return }
+        // Chromium marks every match itself, so the toggle is only for WebKit.
+        find.offersHighlightAll = !(activeController?.page is CEFWebTab)
         withAnimation(.ikago) { chrome.showFind = true }
         find.search()
+        focusFindField()
+    }
+    /// Gives the keyboard to the find field with its text selected, also when the bar is already open. The page (a
+    /// web view or a Chromium page) usually holds the keyboard, and SwiftUI's focus alone didn't take it from there.
+    private func focusFindField() {
+        let focus: @MainActor () -> Void = { [weak self] in
+            guard let self, self.chrome.showFind, let window = self.window, let root = window.contentView else { return }
+            @MainActor func field(in view: NSView) -> NSTextField? {
+                if let field = view as? NSTextField, field.isEditable, field.placeholderString == "Find in page",
+                   !field.isHiddenOrHasHiddenAncestor { return field }
+                return view.subviews.lazy.compactMap(field(in:)).first
+            }
+            guard let field = field(in: root) else { return }
+            if let editor = field.currentEditor(), window.firstResponder === editor { return }
+            window.makeFirstResponder(field)
+            field.currentEditor()?.selectAll(nil)
+        }
+        DispatchQueue.main.async { focus() }
+        // Again once the bar's appearance has settled (it is inserted with an animation).
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { focus() }
+    }
+    /// Highlight All (WebKit): marks every match, or removes the marks when it is off.
+    private func updateFindHighlights(_ page: WebTab, text: String) {
+        guard !(page is CEFWebTab) else { return }
+        guard find.highlightAll, !text.isEmpty else {
+            Task { _ = try? await page.evaluate(FindHighlights.clearScript) }
+            return
+        }
+        Task { [weak self] in
+            let count = (try? await page.callAsync(FindHighlights.markBody(text, matchCase: false))) as? Int
+            guard let self, let count, count >= 0, self.find.text == text, self.chrome.showFind else { return }
+            self.find.totalMatches = count
+        }
     }
     func closeFindBar() {
         activeController?.page?.clearFindSelection()
         find.matchCount = 0
+        find.totalMatches = nil
         withAnimation(.ikagoQuick) { chrome.showFind = false }
         activeController?.focus()
     }

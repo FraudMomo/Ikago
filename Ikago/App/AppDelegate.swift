@@ -119,6 +119,12 @@ final class AppDelegate: NSObject, IKCEFApplicationDelegate {
                 controller.chrome.showDownloads = false
                 return nil
             }
+            // Esc closes the find bar (and clears its highlights) wherever focus is: in its field, on the page after
+            // Return/clicking a match, or on a toolbar button. A field editor can swallow Esc before SwiftUI sees it.
+            if event.keyCode == 53, controller.chrome.showFind, !controller.chrome.showPalette {
+                controller.closeFindBar()
+                return nil
+            }
             return ShortcutRouter.intercept(event) ? nil : event
         }
         // Mouse back/forward buttons (the extra buttons are 3 and 4).
