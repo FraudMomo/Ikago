@@ -47,6 +47,10 @@ struct TabSlotReveal: ViewModifier, Animatable {
     func body(content: Content) -> some View {
         SlotLayout(fraction: fraction) { content }
             .clipShape(HorizontalClip(open: fraction >= 1))
+            // A slot on its way in or out fades with its width and draws under its neighbours, so a closing tab never
+            // covers the tab before it (whose selected shape now reaches into its space).
+            .opacity(fraction >= 1 ? 1 : Double(min(1, max(0, fraction) * 1.4)))
+            .zIndex(fraction >= 1 ? 0 : -1)
     }
 }
 
