@@ -97,7 +97,7 @@ struct SafariSyncedTabs: Sendable {
         return value.doubleValue
     }
 
-    private static func groups(_ database: ImportDatabase) throws -> [Group] {
+    static func groups(_ database: ImportDatabase) throws -> [Group] {
         let folders = try database.rows("""
             SELECT id, parent, subtype, title FROM bookmarks WHERE type = 1 AND deleted = 0 AND parent IS NOT NULL ORDER BY order_index
             """)

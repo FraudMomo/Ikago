@@ -515,6 +515,17 @@ enum TestDriver {
                 scroll.reflectScrolledClipView(scroll.contentView)
             }
         case "pingrid": state.browserPreferences.showPinnedGrid = arg != "off"
+        case "importprobe":  // every detected browser profile: what an import reads (counts and notes only, no contents)
+            let home = FileManager.default.homeDirectoryForCurrentUser
+            for profile in BrowserProfileDiscovery.discover(home: home, installedBrowsers: BrowserProfileDiscovery.installedBrowsers()) {
+                let started = Date()
+                do {
+                    let data = try BrowserProfileImporter.read(profile.directory, kind: profile.kind, decryptWith: nil)
+                    let encrypted = data.notes.first { $0.contains("encrypted cookies") } ?? ""
+                    print("IKTEST importprobe \(profile.browser) [\(profile.name)] bookmarks=\(data.bookmarks.count) history=\(data.history.count) tabs=\(data.tabs.count) cookies=\(data.cookies.count) access=\(data.accessIssues) \(String(format: "%.1fs", Date().timeIntervalSince(started))) \(encrypted)")
+                    for note in data.notes where !note.contains("encrypted cookies") { print("IKTEST importprobe   note: \(note)") }
+                } catch { print("IKTEST importprobe \(profile.browser) [\(profile.name)] ERROR \(error.localizedDescription)") }
+            }
         case "pinnedstay": state.browserPreferences.pinnedRowsStayInView = arg == "off" ? nil : true
         case "dump": dump(c)
         // Quit from the run loop like a menu does: inside this task the main queue is busy, so

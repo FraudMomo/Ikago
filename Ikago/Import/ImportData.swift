@@ -12,6 +12,13 @@ struct ImportTab: Sendable {
     var groupCollapsed = false
 }
 
+/// A bookmark and the folders it sits in, outermost first ("Bookmarks Bar", "Work").
+struct ImportedBookmark: Sendable {
+    var url: String
+    var title: String
+    var folders: [String] = []
+}
+
 struct ImportedCookie: Sendable {
     var domain: String
     var path = "/"
@@ -37,12 +44,14 @@ struct ImportedCookie: Sendable {
 }
 
 struct BrowserImportData: Sendable {
-    var bookmarks: [Bookmark] = []
+    var bookmarks: [ImportedBookmark] = []
     var history: [Visit] = []
     var tabs: [ImportTab] = []
     var cookies: [ImportedCookie] = []
     var notes: [String] = []
     var accessIssues: [String] = []
+    /// The browser it came from, for the "Imported from …" bookmark folder.
+    var sourceName = ""
     var hasData: Bool { !bookmarks.isEmpty || !history.isEmpty || !tabs.isEmpty || !cookies.isEmpty }
 }
 
@@ -59,10 +68,19 @@ extension BrowserState {
         guard !isFrozen else { return "Import stopped because Ikago is closing." }
         guard let destination = spaces.first(where: { $0.id == spaceID }) else { return "The destination Space was removed. Choose another Space." }
         var addedBookmarks = 0, addedTabs = 0, addedCookies = 0, failedCookies = 0
-        if selection.bookmarks {
-            var urls = Set(bookmarks.map(\.url))
-            for item in data.bookmarks where bookmarks.count < 5000 && AddressResolver.isWebURL(item.url) && urls.insert(item.url).inserted {
-                bookmarks.append(Bookmark(url: item.url, title: String(item.title.prefix(512))))
+        if selection.bookmarks, !data.bookmarks.isEmpty {
+            // Like Chrome: everything goes into one "Imported from …" folder with the source's own folders inside it.
+            // Importing again reuses those folders and skips bookmarks already in the same folder.
+            let root = importFolder(named: data.sourceName.isEmpty ? "Imported" : "Imported from \(data.sourceName)", parent: nil)
+            var seen = Set(bookmarks.map { ($0.folderID ?? "") + "\u{1F}" + $0.url })
+            for item in data.bookmarks where bookmarks.count < 5000 && AddressResolver.isWebURL(item.url) {
+                var folder = root
+                for name in item.folders.prefix(8) where !name.isEmpty {
+                    guard let parent = folder, let next = importFolder(named: name, parent: parent) else { break }
+                    folder = next
+                }
+                guard seen.insert((folder ?? "") + "\u{1F}" + item.url).inserted else { continue }
+                bookmarks.append(Bookmark(url: item.url, title: String(item.title.prefix(512)), folderID: folder))
                 addedBookmarks += 1
             }
         }
@@ -102,5 +120,16 @@ extension BrowserState {
         }
         let limitNote = limitedTabs > 0 ? " Skipped \(limitedTabs) additional tabs because Ikago’s tab or folder limit was reached." : ""
         return "Imported \(addedBookmarks) bookmarks, \(addedTabs) tabs, \(addedGroups) groups and \(addedCookies) cookies.\(selection.history ? " History merged." : "") Duplicates were skipped; existing data was kept.\(limitNote)\(failedCookies > 0 ? " Partial import: \(failedCookies) cookies were rejected by the destination engine." : "")"
+    }
+
+    /// A bookmark folder for imported bookmarks: the existing one with that name in that place, or a new one while
+    /// there is room (nil when Ikago's folder limit is reached; the bookmark then stays in the folder above).
+    private func importFolder(named name: String, parent: String?) -> String? {
+        let name = String(name.prefix(128))
+        if let existing = bookmarkFolders.first(where: { $0.name == name && $0.parentID == parent }) { return existing.id }
+        guard bookmarkFolders.count < 500 else { return nil }
+        let folder = BookmarkFolder(name: name, parentID: parent)
+        bookmarkFolders.append(folder)
+        return folder.id
     }
 }

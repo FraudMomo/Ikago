@@ -58,16 +58,102 @@ enum ImportFileParser {
         return result
     }
 
-    static func collectBookmarks(_ object: Any, into result: inout BrowserImportData, depth: Int = 0) {
+    /// Bookmarks with their folders from Chrome's `Bookmarks` JSON, Safari's `Bookmarks.plist` and similar exports.
+    static func collectBookmarks(_ object: Any, into result: inout BrowserImportData, path: [String] = [], depth: Int = 0) {
         guard depth < 64, result.bookmarks.count < 5000 else { return }
-        if let list = object as? [Any] { for child in list { collectBookmarks(child, into: &result, depth: depth + 1) }; return }
+        if let list = object as? [Any] {
+            for child in list { collectBookmarks(child, into: &result, path: path, depth: depth + 1) }
+            return
+        }
         guard let row = object as? [String: Any] else { return }
         if let url = (row["url"] ?? row["URLString"]) as? String, AddressResolver.isWebURL(url) {
             let title = row["name"] as? String ?? row["title"] as? String ?? (row["URIDictionary"] as? [String: Any])?["title"] as? String ?? url
-            result.bookmarks.append(Bookmark(url: url, title: String(title.prefix(512))))
+            result.bookmarks.append(ImportedBookmark(url: url, title: String(title.prefix(512)), folders: path))
             return
         }
-        for value in row.values where value is [Any] || value is [String: Any] { collectBookmarks(value, into: &result, depth: depth + 1) }
+        // Safari: lists are folders; the top-level ones have internal names. History (a proxy) has no bookmarks.
+        if let type = row["WebBookmarkType"] as? String {
+            guard type == "WebBookmarkTypeList", let children = row["Children"] else { return }
+            let title = row["Title"] as? String ?? ""
+            let names = ["BookmarksBar": "Favorites", "BookmarksMenu": "Bookmarks Menu", "com.apple.ReadingList": "Reading List"]
+            let name = names[title] ?? title
+            collectBookmarks(children, into: &result, path: name.isEmpty ? path : path + [name], depth: depth + 1)
+            return
+        }
+        // Chrome: folders have a name and children ("Bookmarks bar", "Other bookmarks" at the top).
+        if row["type"] as? String == "folder", let children = row["children"] {
+            let name = row["name"] as? String ?? ""
+            collectBookmarks(children, into: &result, path: name.isEmpty ? path : path + [name], depth: depth + 1)
+            return
+        }
+        // Chrome's roots and other containers, in a stable order.
+        for key in row.keys.sorted(by: Self.rootOrder) {
+            let value = row[key]!
+            if value is [Any] || value is [String: Any] { collectBookmarks(value, into: &result, path: path, depth: depth + 1) }
+        }
+    }
+
+    private static func rootOrder(_ a: String, _ b: String) -> Bool {
+        let order = ["bookmark_bar": 0, "other": 1, "synced": 2]
+        return (order[a] ?? 3, a) < (order[b] ?? 3, b)
+    }
+
+    /// Chrome's `Bookmarks` file. A profile without bookmarks is a normal result, not an error.
+    static func chromiumBookmarks(_ url: URL) throws -> [ImportedBookmark] {
+        let data = try Data(contentsOf: url)
+        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any], let roots = root["roots"] else {
+            throw error("Chrome’s bookmarks file has an unexpected format.")
+        }
+        var result = BrowserImportData()
+        collectBookmarks(roots, into: &result)
+        return result.bookmarks
+    }
+
+    /// Safari's `Cookies.binarycookies`: big-endian page table, then pages of little-endian cookie records whose strings
+    /// are NUL-terminated at offsets from the record's start, and whose dates count from 2001.
+    static func safariCookies(_ data: Data) throws -> [ImportedCookie] {
+        let bytes = [UInt8](data)
+        func be32(_ at: Int) -> Int { at + 4 <= bytes.count ? Int(bytes[at]) << 24 | Int(bytes[at + 1]) << 16 | Int(bytes[at + 2]) << 8 | Int(bytes[at + 3]) : 0 }
+        func le32(_ at: Int) -> Int { at + 4 <= bytes.count ? Int(bytes[at]) | Int(bytes[at + 1]) << 8 | Int(bytes[at + 2]) << 16 | Int(bytes[at + 3]) << 24 : 0 }
+        func double(_ at: Int) -> Double {
+            guard at + 8 <= bytes.count else { return 0 }
+            var raw: UInt64 = 0
+            for index in 0..<8 { raw |= UInt64(bytes[at + index]) << (8 * UInt64(index)) }
+            return Double(bitPattern: raw)
+        }
+        func string(_ at: Int, limit: Int) -> String? {
+            guard at >= 0, at < limit else { return nil }
+            var end = at
+            while end < limit, bytes[end] != 0 { end += 1 }
+            return String(decoding: bytes[at..<end], as: UTF8.self)
+        }
+        guard bytes.count >= 8, Array(bytes.prefix(4)) == Array("cook".utf8) else { throw error("Safari’s cookie file has an unexpected format.") }
+        let pages = be32(4)
+        guard pages >= 0, pages < 100_000 else { throw error("Safari’s cookie file is damaged.") }
+        var cookies: [ImportedCookie] = []
+        var page = 8 + pages * 4
+        for index in 0..<pages {
+            let size = be32(8 + index * 4)
+            defer { page += size }
+            guard size > 8, page + size <= bytes.count else { break }
+            let count = le32(page + 4)
+            for slot in 0..<min(count, 10_000) {
+                let start = page + le32(page + 8 + slot * 4)
+                let length = le32(start)
+                guard length >= 56, start + length <= page + size else { continue }
+                let end = start + length
+                let flags = le32(start + 8)
+                guard let domain = string(start + le32(start + 16), limit: end), let name = string(start + le32(start + 20), limit: end),
+                      let path = string(start + le32(start + 24), limit: end), let value = string(start + le32(start + 28), limit: end)
+                else { continue }
+                let expiry = double(start + 40)
+                cookies.append(ImportedCookie(domain: domain, path: path.isEmpty ? "/" : path, name: name, value: value,
+                                              secure: flags & 1 != 0, httpOnly: flags & 4 != 0,
+                                              expires: expiry > 0 ? Date(timeIntervalSinceReferenceDate: expiry) : nil))
+                if cookies.count >= 50_000 { return cookies }
+            }
+        }
+        return cookies
     }
 
     static func cookie(_ row: [String: Any]) -> ImportedCookie? {
@@ -95,17 +181,32 @@ enum ImportFileParser {
         return result
     }
 
+    /// Netscape bookmark HTML (every browser's export): `<DT><H3>` names a folder whose `<DL>` holds its items.
     private static func bookmarksHTML(_ data: Data) throws -> BrowserImportData {
         guard let text = String(data: data, encoding: .utf8) else { throw error("The bookmarks file is not UTF-8.") }
-        let pattern = #"<a\b[^>]*\bhref\s*=\s*["']([^"']+)["'][^>]*>(.*?)</a\s*>"#
+        let pattern = #"<h3\b[^>]*>(.*?)</h3\s*>|<dl\b[^>]*>|</dl\s*>|<a\b[^>]*\bhref\s*=\s*["']([^"']+)["'][^>]*>(.*?)</a\s*>"#
         let expression = try NSRegularExpression(pattern: pattern, options: [.caseInsensitive, .dotMatchesLineSeparators])
         let ns = text as NSString
         var result = BrowserImportData()
-        for match in expression.matches(in: text, range: NSRange(location: 0, length: ns.length)).prefix(5000) {
-            let url = entities(ns.substring(with: match.range(at: 1)))
-            guard AddressResolver.isWebURL(url) else { continue }
-            let title = entities(ns.substring(with: match.range(at: 2)).replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression))
-            result.bookmarks.append(Bookmark(url: url, title: String(title.prefix(512))))
+        var stack: [String] = [], pending: String?
+        func plain(_ range: NSRange) -> String {
+            entities(ns.substring(with: range).replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression))
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        for match in expression.matches(in: text, range: NSRange(location: 0, length: ns.length)) {
+            let token = ns.substring(with: match.range).prefix(4).lowercased()
+            if match.range(at: 1).location != NSNotFound {
+                pending = plain(match.range(at: 1))
+            } else if token.hasPrefix("<dl") {
+                stack.append(pending ?? ""); pending = nil
+            } else if token.hasPrefix("</dl") {
+                if !stack.isEmpty { stack.removeLast() }
+            } else if match.range(at: 2).location != NSNotFound, result.bookmarks.count < 5000 {
+                let url = entities(ns.substring(with: match.range(at: 2)))
+                guard AddressResolver.isWebURL(url) else { continue }
+                result.bookmarks.append(ImportedBookmark(url: url, title: String(plain(match.range(at: 3)).prefix(512)),
+                                                         folders: stack.filter { !$0.isEmpty }))
+            }
         }
         return result
     }

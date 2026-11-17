@@ -21,7 +21,7 @@ enum BrowserProfileImporter {
         }
         switch kind {
         case .chromium:
-            attempt("Bookmarks") { result.bookmarks = try ImportFileParser.read($0).bookmarks }
+            attempt("Bookmarks") { result.bookmarks = try ImportFileParser.chromiumBookmarks($0) }
             attempt("History") { path in
                 let rows = try ImportDatabase(path).rows("SELECT url, title, last_visit_time FROM urls ORDER BY last_visit_time DESC LIMIT 1000")
                 result.history = rows.compactMap { row in
@@ -72,10 +72,26 @@ enum BrowserProfileImporter {
         case .firefox:
             attempt("places.sqlite") { path in
                 let db = try ImportDatabase(path)
-                let bookmarks = try db.rows("SELECT p.url, COALESCE(b.title,p.title,'') AS title FROM moz_bookmarks b JOIN moz_places p ON b.fk=p.id WHERE b.type=1 LIMIT 5000")
+                // Folders (type 2) by id, so each bookmark keeps its folder path; Firefox's own roots get their names.
+                let rootNames = ["menu": "Bookmarks Menu", "toolbar": "Bookmarks Toolbar", "unfiled": "Other Bookmarks", "mobile": "Mobile Bookmarks"]
+                var folders: [Int64: (parent: Int64, name: String)] = [:]
+                for row in try db.rows("SELECT id, parent, COALESCE(title,'') AS title FROM moz_bookmarks WHERE type=2 LIMIT 10000") {
+                    guard let id = row["id"] as? Int64, let parent = row["parent"] as? Int64 else { continue }
+                    let title = row["title"] as? String ?? ""
+                    folders[id] = (parent, rootNames[title] ?? title)
+                }
+                func folderPath(_ id: Int64) -> [String] {
+                    var names: [String] = [], current = id, steps = 0
+                    while let folder = folders[current], folder.parent != 0, steps < 32 {
+                        names.insert(folder.name, at: 0); current = folder.parent; steps += 1
+                    }
+                    return names.filter { !$0.isEmpty }
+                }
+                let bookmarks = try db.rows("SELECT p.url, COALESCE(b.title,p.title,'') AS title, b.parent FROM moz_bookmarks b JOIN moz_places p ON b.fk=p.id WHERE b.type=1 ORDER BY b.parent, b.position LIMIT 5000")
                 result.bookmarks = bookmarks.compactMap { row in
                     guard let address = row["url"] as? String, AddressResolver.isWebURL(address) else { return nil }
-                    return Bookmark(url: address, title: String((row["title"] as? String ?? address).prefix(512)))
+                    return ImportedBookmark(url: address, title: String((row["title"] as? String ?? address).prefix(512)),
+                                            folders: (row["parent"] as? Int64).map { folderPath($0) } ?? [])
                 }
                 result.history = try db.rows("SELECT url, COALESCE(title,'') AS title, last_visit_date FROM moz_places WHERE last_visit_date IS NOT NULL ORDER BY last_visit_date DESC LIMIT 1000").compactMap { row in
                     guard let address = row["url"] as? String, AddressResolver.isWebURL(address) else { return nil }
@@ -107,7 +123,33 @@ enum BrowserProfileImporter {
                     return Visit(url: address, title: String((row["title"] as? String ?? address).prefix(512)), time: UInt64(max(0, seconds * 1000)))
                 }
             }
-            result.notes.append("Safari cookies and open tabs require an exported file. Select Export or session file to import cookie JSON/Netscape text or a session export.")
+            // Cookies and tabs live in Safari's container, which macOS shows only to apps with Full Disk Access.
+            let library = url.deletingLastPathComponent()
+            let container = library.appending(path: "Containers/com.apple.Safari/Data/Library")
+            var blocked = false
+            func safariFile(_ candidates: [URL], _ body: (URL) throws -> Void) {
+                guard let file = candidates.first(where: { FileManager.default.fileExists(atPath: $0.path) }) else { return }
+                do { try body(file) }
+                catch {
+                    if ImportAccessError.isPermissionDenied(error) { blocked = true }
+                    else if !ImportAccessError.isMissing(error) { result.notes.append("\(file.lastPathComponent): \(error.localizedDescription)") }
+                }
+            }
+            safariFile([container.appending(path: "Cookies/Cookies.binarycookies"), library.appending(path: "Cookies/Cookies.binarycookies")]) {
+                result.cookies = try ImportFileParser.safariCookies(Data(contentsOf: $0))
+            }
+            safariFile([container.appending(path: "Safari/SafariTabs.db"), url.appending(path: "SafariTabs.db")]) {
+                // Named Tab Groups become Ikago groups; Safari's unnamed windows come in as ungrouped tabs.
+                for group in try SafariSyncedTabs.groups(ImportDatabase($0)) {
+                    let name = group.name.trimmingCharacters(in: .whitespaces)
+                    for tab in group.tabs {
+                        result.tabs.append(ImportTab(url: tab.url, title: String(tab.title.prefix(512)), group: name.isEmpty ? nil : name))
+                    }
+                }
+            }
+            if blocked {
+                result.notes.append("Safari’s website logins and open tabs need Full Disk Access for Ikago: System Settings › Privacy & Security › Full Disk Access. Then import again.")
+            }
         case .file: break
         }
         if kind == .chromium, !result.tabs.isEmpty {

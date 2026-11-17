@@ -54,7 +54,8 @@ final class BrowserImportModel {
             let grant = try await prepareAccess(source, requestAccess)
             defer { grant?.end() }
             guard !Task.isCancelled, !state.isFrozen else { return }
-            let data = try await reader(source)
+            var data = try await reader(source)
+            data.sourceName = source.kind == .file ? "" : source.browser
             notes = data.notes
             guard data.hasData else {
                 failed = true

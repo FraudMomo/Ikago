@@ -70,7 +70,7 @@ enum BrowserImportAccessChecks {
                   && state.bookmarks.contains { $0.url == "https://allowed.example" } && state.folders.count == 4,
                   "approved retry imports Chrome bookmarks, tabs and groups")
             let partial = BrowserImportModel(home: root, reader: { _ in
-                BrowserImportData(bookmarks: [Bookmark(url: "https://partial.example", title: "Partial")], accessIssues: ["Cookies"])
+                BrowserImportData(bookmarks: [ImportedBookmark(url: "https://partial.example", title: "Partial")], accessIssues: ["Cookies"])
             })
             await partial.importProfile(source, into: state)
             check(partial.failed && partial.accessNeededFor != nil && !partial.completed.contains(source.id) && partial.result?.contains("Some browser data is blocked") == true,
