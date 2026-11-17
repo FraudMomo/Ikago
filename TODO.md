@@ -10,8 +10,8 @@ Working list for the next builds. Tick items off as they land; move finished the
 
 ## Top Bar layout (make it as usable as the sidebar)
 
-- [ ] **Bookmarks bar** under the Top Bar.
-- [ ] **Bookmarks in the macOS menu bar**: a Bookmarks menu with folders as submenus.
+- [x] **Bookmarks bar** under the Top Bar.
+- [x] **Bookmarks in the macOS menu bar**: a Bookmarks menu with folders as submenus.
 - [ ] **Tab groups in the Top Bar**: Chrome-style group chips that collapse and expand.
   - [ ] Setting for where groups show: **both (default)**, sidebar/icon sidebar only, or Top Bar only.
 - [ ] **Hide (close) a tab group**: it stays saved but is hidden. This is separate from collapse.
@@ -36,13 +36,21 @@ Working list for the next builds. Tick items off as they land; move finished the
 
 ## Bookmarks
 
-- [ ] **Folders** fully supported, including in imports.
+- [x] **Folders** fully supported, including in imports.
 - [ ] **Large bookmark lists stay fast**: optimize the list for thousands of entries.
 
 ## Import and export
 
-- [ ] **Bug: the Chrome import may import nothing.** Check it end to end against a real Chrome profile.
-- [ ] **Import keeps bookmark folders.**
+- [ ] **Robust import for every browser** (Chrome, Safari, Firefox and the others). Checked with real profiles:
+  - [x] Safari open tabs (Tab Groups → groups) and website logins (cookies) are read; Full Disk Access is explained.
+  - [x] Chrome: a profile without bookmarks no longer reports an error.
+  - [ ] Chrome cookies depend on the Keychain prompt ("Chrome Safe Storage"); confirm in a real import.
+  - [ ] Passwords: Chrome's Login Data (Keychain), Firefox (key4.db), Safari (needs its CSV export).
+  - [ ] Cookies for an engine not running this launch are lost; keep them until that engine starts.
+  - [ ] Read databases from a snapshot copy so an open browser never blocks or hides recent data.
+  - [ ] History is capped at 1,000 entries per import; raise it.
+  - [ ] One clear report per item (found, imported, skipped and why) instead of one summary line.
+- [x] **Import keeps bookmark folders.**
 - [ ] **Export**: bookmarks, history and passwords in formats Chrome, Safari and others can import, so people can
   leave Ikago.
 
