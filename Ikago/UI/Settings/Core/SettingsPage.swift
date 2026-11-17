@@ -260,12 +260,14 @@ private struct SettingsNavigationRow: View {
     }
 }
 
-/// Blue dots beside Settings categories that have something waiting: an update not installed yet (About).
+/// Blue dots beside Settings categories that have something waiting: an update not installed yet (About), passwords
+/// saved only in Ikago and not yet in Apple Passwords (Passwords).
 @MainActor
 enum SettingsBadges {
     static func shows(_ category: SettingsCategory) -> Bool {
         switch category {
         case .about: AppUpdates.isAvailable && AppUpdates.shared.prompt.available != nil
+        case .passwords: !PasswordVault.shared.unexported.isEmpty
         default: false
         }
     }

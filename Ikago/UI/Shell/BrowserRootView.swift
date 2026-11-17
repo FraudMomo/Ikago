@@ -82,6 +82,10 @@ struct BrowserRootView: View {
                     UpdateCard(prompt: AppUpdates.shared.prompt, phase: phase, colors: state.palette)
                         .transition(.opacity.combined(with: .move(edge: .top)))
                 }
+                if appearsActive, PasswordExportReminder.shared.showing, AppUpdates.shared.prompt.phase == nil {
+                    PasswordExportReminderCard(reminder: .shared, state: state, commands: commands)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
                 if let offer = chrome.passwordSave {
                     PasswordSaveCard(offer: offer, colors: state.palette).id(offer.id)
                         .transition(.opacity.combined(with: .move(edge: .top)))
