@@ -5,6 +5,8 @@ What changed in each release of Ikago, newest first. Add changes under **Unrelea
 
 ## Unreleased
 
+## 0.5.0 — 2026-11-17
+
 - **Downloads:** Download Image and Download Linked File in a page's menu work again with WebKit, and Chromium pages
   have them too.
 - **Sidebar + Tabs:** the toolbar has its own controls, separate from the sidebar's: Settings ▸ Sidebar & Toolbar ▸
