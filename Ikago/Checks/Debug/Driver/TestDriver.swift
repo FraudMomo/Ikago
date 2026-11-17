@@ -539,6 +539,13 @@ enum TestDriver {
             }
         case "reimportcheck":  // an earlier flat import moves into folders on re-import; importing again adds nothing
             let url = "https://reimport.example/page"
+            // Start clean: the test session keeps bookmarks between runs.
+            state.bookmarks.removeAll { $0.url.hasPrefix("https://reimport.example") }
+            let probeRoots = Set(state.bookmarkFolders.filter { $0.name == "Imported from Probe" }.map(\.id))
+            state.bookmarkFolders.removeAll { probeRoots.contains($0.id) || $0.parentID.map(probeRoots.contains) == true
+                || ($0.name == "Work" && $0.parentID == nil) }
+            let remaining = Set(state.bookmarkFolders.map(\.id))
+            state.bookmarkFolders.removeAll { folder in folder.parentID.map { !remaining.contains($0) } ?? false }
             state.bookmarks.append(Bookmark(url: url, title: "Flat"))
             var data = BrowserImportData(bookmarks: [ImportedBookmark(url: url, title: "Flat", folders: ["Bar", "Work"]),
                                                      ImportedBookmark(url: url + "2", title: "New", folders: ["Bar"])])

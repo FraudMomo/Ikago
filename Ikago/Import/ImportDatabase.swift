@@ -1,14 +1,19 @@
 import Foundation
 import SQLite3
 
-/// Read-only SQLite access includes committed WAL records without copying or editing the source.
+/// Reads a browser's database from a private snapshot: the file and its WAL/journal are copied to a temporary folder
+/// first, so a browser that is open can't lock Ikago out or hide records still in its WAL, and the source is never
+/// opened by SQLite at all. The copy is removed when the reader goes away. Falls back to a read-only open in place if
+/// the copy can't be made.
 final class ImportDatabase {
     private var database: OpaquePointer?
+    private var snapshot: URL?
     init(_ file: URL) throws {
         // Retain Foundation's specific missing/access error; SQLite CANTOPEN alone is ambiguous.
         let probe = try FileHandle(forReadingFrom: file)
         try probe.close()
-        guard sqlite3_open_v2(file.path, &database, SQLITE_OPEN_READONLY | SQLITE_OPEN_NOMUTEX, nil) == SQLITE_OK else {
+        let path = Self.snapshot(of: file).map { copy in snapshot = copy.deletingLastPathComponent(); return copy.path } ?? file.path
+        guard sqlite3_open_v2(path, &database, SQLITE_OPEN_READONLY | SQLITE_OPEN_NOMUTEX, nil) == SQLITE_OK else {
             let failure = databaseError(fallback: "The browser database couldn’t be opened. Close the source browser and try again.")
             if let database { sqlite3_close(database) }
             database = nil
@@ -17,7 +22,29 @@ final class ImportDatabase {
         sqlite3_busy_timeout(database, 1000)
         sqlite3_exec(database, "PRAGMA query_only=ON", nil, nil, nil)
     }
-    deinit { if let database { sqlite3_close(database) } }
+    deinit {
+        if let database { sqlite3_close(database) }
+        if let snapshot { try? FileManager.default.removeItem(at: snapshot) }
+    }
+
+    /// The database and its side files copied into a new private temporary folder, or nil when that fails.
+    private static func snapshot(of file: URL) -> URL? {
+        let manager = FileManager.default
+        let folder = manager.temporaryDirectory.appending(path: "ikago-import-\(UUID().uuidString)", directoryHint: .isDirectory)
+        do {
+            try manager.createDirectory(at: folder, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+            let copy = folder.appending(path: file.lastPathComponent)
+            try manager.copyItem(at: file, to: copy)
+            for suffix in ["-wal", "-shm", "-journal"] {
+                let side = URL(fileURLWithPath: file.path + suffix)
+                if manager.fileExists(atPath: side.path) { try? manager.copyItem(at: side, to: URL(fileURLWithPath: copy.path + suffix)) }
+            }
+            return copy
+        } catch {
+            try? manager.removeItem(at: folder)
+            return nil
+        }
+    }
 
     private func databaseError(fallback: String) -> Error {
         if let database {
