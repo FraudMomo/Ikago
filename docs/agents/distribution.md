@@ -34,11 +34,15 @@ Public releases are made by `scripts/release.py` and published as GitHub Release
 - Release builds set `SURequireSignedFeed` and `SUVerifyUpdateBeforeExtraction`: the feed itself is signed with the
   update key (`sign_update` on appcast.xml), so a tampered feed or an unsigned download is refused. Release notes
   travel inside the signed feed (`<description sparkle:format="markdown">`), never as a link to a web page.
-- `LSFileQuarantineEnabled` quarantines every folder Ikago creates, including Sparkle's in Ikago's caches, and Sparkle's
-  separate installer may not create its working folder inside a quarantined one ("Update Error!" after a good
-  download). `AppUpdates.releaseSparkleFolder()` removes the flag from those folders before each check, download and
-  install. Copies before build 21 (0.4.1) lack it, so every feed marks itself information-only for them
-  (`firstSelfUpdatingBuild` in release.json, `<sparkle:informationalUpdate>`): they link to the release page instead.
+- Sparkle's installer (`Autoupdate`) runs as its own process and may not write into Ikago's app group container, even
+  signed with the group (measured: "Operation not permitted" either way). With protected storage
+  `Caches/app.ikago.browser` is a link into that container, so `AppUpdates.prepareSparkleFolder()` (at start and before
+  each check, download and install) makes `org.sparkle-project.Sparkle` there a link to
+  `Caches/app.ikago.browser.Updates/org.sparkle-project.Sparkle` outside it (the installer refuses a download whose
+  resolved path lacks `org.sparkle-project.Sparkle` and `PersistentDownloads`), and removes the quarantine flag (`LSFileQuarantineEnabled`) from those folders. Copies before build 23
+  (0.5.1) fail to install updates ("Update Error!" or "An error occurred while starting the installer"), so every feed
+  marks itself information-only for them (`firstSelfUpdatingBuild` in release.json, `<sparkle:informationalUpdate>`):
+  they link to the release page instead.
 - Ikago draws its own update UI (`AppUpdateDriver`, an `SPUUserDriver`): `UpdateCard` at the top right of the active
   window says what the update is (`UpdateSummary.kind`: a security update with its Chromium from `<ikago:chromium>`,
   new features from BUILDS.md, or both), then Update and Relaunch or Later; security updates

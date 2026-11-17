@@ -152,12 +152,14 @@ enum TestDriver {
         case "permission":  // answer the visible permission sheet: allow | deny
             c.finishPermission(arg == "allow" ? .allow : .deny)
         case "snapshot": snapshot(c.window, to: arg)
-        case "updatecard":  // security | features | off: a sample update card in the frontmost window
+        case "updatecard":  // security | features | download | off: a sample update card in the frontmost window
             let notes = arg == "security" ? ["**Chromium 157.0.8123.45:** the latest security and stability fixes from the Chromium project."]
+                : arg == "download" ? ["**Download needed:** copies before 0.5.1 can't install this update by themselves. [Download Ikago 0.5.1 from GitHub](https://github.com/FraudMomo/Ikago/releases/latest), open the DMG and drag Ikago to Applications to replace your copy."]
                 : ["**Sidebar + Tabs:** the toolbar has its own controls, and the bar's height is yours to choose.",
                    "**Downloads:** Download Image and Download Linked File work in every page's menu."]
             let summary = UpdateSummary(version: arg == "security" ? "0.4.2" : "0.5.0", security: arg == "security",
-                                        chromium: arg == "security" ? "157.0.8123.45" : nil, notes: notes)
+                                        chromium: arg == "security" ? "157.0.8123.45" : nil, notes: notes,
+                                        downloadPage: arg == "download" ? URL(string: "https://github.com/FraudMomo/Ikago/releases/latest") : nil)
             AppUpdates.shared.prompt.phase = arg == "off" ? nil : .found(summary, downloaded: false)
             NSApp.activate(); c.window?.makeKeyAndOrderFront(nil)
         case "windowshot":  // <png>: the window as it appears on screen, glass and pages included

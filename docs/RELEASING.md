@@ -134,6 +134,15 @@ never appears in the shell history.
   `main`, then run the workflow again (untick **trial** to publish).
 - **A bad release went out:** publish a fixed one with a higher version. Don't delete or move a tag. Deleting a GitHub
   release removes its page and DMG, but copies that already installed it keep it.
+- **Updates download but won't install** ("Update Error!", "An error occurred while starting the installer"): read
+  the log (below) for `Autoupdate`. Sparkle's installer is a separate process, so macOS rules about which processes
+  may touch Ikago's folders apply to it, not to Ikago. Once fixed, raise `firstSelfUpdatingBuild` in
+  `scripts/release.json` to the fixed build: the feed then shows older copies "needs a new download" instead of an
+  install that fails. Put a download link first in the release notes, because copies from before 0.5.1 can only
+  show the notes; their card can't open the page.
+- **Every change to updates needs a real update:** checks can't reproduce what macOS allows the installer. Keep your
+  own `/Applications/Ikago.app` on the published releases, and after publishing, let it update itself
+  (Ikago ▸ Check for Updates…). If it fails, delete the release before anyone else gets it.
 - **People can't install an update:** check the feed at
   `https://github.com/FraudMomo/Ikago/releases/latest/download/appcast.xml`, and the app's log
   (`/usr/bin/log show --last 10m --predicate 'process CONTAINS "Ikago" OR process CONTAINS "Autoupdate"'`).

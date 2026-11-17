@@ -56,6 +56,7 @@ struct UpdateCard: View {
         let version = summary.map { "Ikago \($0.version)" } ?? "the update"
         switch phase {
         case .checking: return "Checking for updates…"
+        case .found(let found, _) where found.downloadPage != nil: return "\(version) needs a new download"
         case .found(_, let downloaded): return downloaded ? "\(version) is ready to install" : "\(version) is available"
         case .downloading: return "Downloading \(version)…"
         case .installing: return "Installing \(version)…"
@@ -96,6 +97,14 @@ struct UpdateCard: View {
 
     @ViewBuilder private var buttons: some View {
         switch phase {
+        case .found(let summary, _) where summary.downloadPage != nil:
+            HStack(spacing: 8) {
+                Spacer(minLength: 0)
+                Button("Later") { withAnimation(.ikago) { prompt.later() } }.buttonStyle(SettingsButtonStyle()).fixedSize()
+                Button("Download from GitHub") { if let page = summary.downloadPage { prompt.download(page) } }
+                    .buttonStyle(SettingsButtonStyle(prominent: true)).fixedSize()
+            }
+            .controlSize(.small)
         case .found(let summary, let downloaded):
             HStack(spacing: 8) {
                 if !summary.security {

@@ -5,6 +5,12 @@ What changed in each release of Ikago, newest first. Add changes under **Unrelea
 
 ## Unreleased
 
+- **Download needed:** copies before 0.5.1 can't install this update by themselves.
+  [Download Ikago 0.5.1 from GitHub](https://github.com/FraudMomo/Ikago/releases/latest), open the DMG and drag
+  Ikago to Applications to replace your copy. Your tabs and data stay, and later updates install by themselves.
+- **Updates:** updates install again. macOS kept Sparkle's installer out of Ikago's protected storage, so updates
+  downloaded and then stopped with "An error occurred while starting the installer".
+
 ## 0.5.0 — 2026-11-17
 
 - **Downloads:** Download Image and Download Linked File in a page's menu work again with WebKit, and Chromium pages

@@ -8,10 +8,13 @@ struct UpdateSummary: Equatable {
     let security: Bool
     let chromium: String?
     let notes: [String]
+    /// An update this copy can't install by itself (`<sparkle:informationalUpdate>`): the card offers the download page.
+    var downloadPage: URL? = nil
 
     init(_ item: SUAppcastItem) {
         version = item.displayVersionString
         security = item.isCriticalUpdate
+        downloadPage = item.isInformationOnlyUpdate ? item.infoURL : nil
         let text = item.itemDescription ?? ""
         // One bullet per "- " line; an indented line continues the bullet above it.
         var bullets: [String] = []
@@ -29,8 +32,9 @@ struct UpdateSummary: Equatable {
         chromium = fromFeed ?? text.firstMatch(of: /Chromium (\d+(?:\.\d+){1,3})/).map { String($0.1) }
     }
 
-    init(version: String, security: Bool, chromium: String?, notes: [String]) {
+    init(version: String, security: Bool, chromium: String?, notes: [String], downloadPage: URL? = nil) {
         (self.version, self.security, self.chromium, self.notes) = (version, security, chromium, notes)
+        self.downloadPage = downloadPage
     }
 
     /// What kind of update it is, for the card's label.
@@ -80,6 +84,12 @@ final class UpdatePrompt {
         clear()
     }
 
+    /// Opens the release page for an update this copy can't install, and dismisses the card.
+    func download(_ page: URL) {
+        NSWorkspace.shared.open(page)
+        later()
+    }
+
     func skip() {
         choose?(.skip)
         clear()
@@ -115,7 +125,7 @@ final class AppUpdateDriver: NSObject, SPUUserDriver {
     }
 
     func showUpdateFound(with appcastItem: SUAppcastItem, state: SPUUserUpdateState, reply: @escaping (SPUUserUpdateChoice) -> Void) {
-        AppUpdates.releaseSparkleFolder()
+        AppUpdates.prepareSparkleFolder()
         let summary = UpdateSummary(appcastItem)
         prompt.summary = summary
         prompt.cancel = nil
@@ -140,7 +150,7 @@ final class AppUpdateDriver: NSObject, SPUUserDriver {
     }
 
     func showDownloadInitiated(cancellation: @escaping () -> Void) {
-        AppUpdates.releaseSparkleFolder()
+        AppUpdates.prepareSparkleFolder()
         prompt.cancel = cancellation
         (expected, received) = (0, 0)
         prompt.phase = .downloading(prompt.summary, fraction: nil)
@@ -158,7 +168,7 @@ final class AppUpdateDriver: NSObject, SPUUserDriver {
     func showExtractionReceivedProgress(_ progress: Double) {}
 
     func showReady(toInstallAndRelaunch reply: @escaping (SPUUserUpdateChoice) -> Void) {
-        AppUpdates.releaseSparkleFolder()  // the installer is about to create its folder there
+        AppUpdates.prepareSparkleFolder()  // the installer is about to create its folder there
         prompt.cancel = nil
         if prompt.installChosen { return reply(.install) }  // the person already chose Update and Relaunch
         prompt.relaunch = reply

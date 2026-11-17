@@ -28,7 +28,7 @@ final class AppUpdates: NSObject, NSMenuItemValidation {
 
     func start() {
         guard Self.isAvailable, updater == nil else { return }
-        Self.releaseSparkleFolder()
+        Self.prepareSparkleFolder()
         let updater = SPUUpdater(hostBundle: .main, applicationBundle: .main, userDriver: driver, delegate: nil)
         do { try updater.start() } catch {
             NSLog("Ikago updates could not start: %@", error.localizedDescription)
@@ -62,20 +62,36 @@ final class AppUpdates: NSObject, NSMenuItemValidation {
     }
 
     @objc func checkForUpdates(_ sender: Any?) {
-        Self.releaseSparkleFolder()
+        Self.prepareSparkleFolder()
         updater?.checkForUpdates()
     }
 
-    /// Ikago quarantines what it creates (`LSFileQuarantineEnabled`, so downloads are checked by Gatekeeper), and that
-    /// includes Sparkle's folder in Ikago's caches. Sparkle's installer runs as its own process and may not create its
-    /// working folder inside a quarantined one ("Operation not permitted"), so the update would download and then fail.
-    /// The folders lose the flag before each check and install; the update itself is verified by its signatures.
-    static func releaseSparkleFolder() {
-        guard let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
+    /// Sparkle keeps its downloads and its installer's working folder in `Caches/<bundle ID>/org.sparkle-project.Sparkle`.
+    /// With protected storage that caches folder is a link into Ikago's app group container, which macOS locks to Ikago
+    /// itself: Sparkle's installer runs as its own process and may not create anything there ("Operation not
+    /// permitted", even signed with the group), so every update downloaded and then failed. Sparkle's folder becomes a
+    /// link to `Caches/<bundle ID>.Updates/org.sparkle-project.Sparkle` outside the container
+    /// (Sparkle's installer refuses downloads whose resolved path lacks that folder name), which the installer can use; it only ever holds
+    /// signed update archives. Ikago also quarantines what it creates (`LSFileQuarantineEnabled`), so the folders lose
+    /// that flag before each check and install; the update itself is verified by its signatures.
+    static func prepareSparkleFolder() {
+        let files = FileManager.default
+        guard let caches = files.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
         let app = caches.appending(path: AppIdentity.bundleID, directoryHint: .isDirectory)
         let sparkle = app.appending(path: "org.sparkle-project.Sparkle", directoryHint: .isDirectory)
-        var folders = [app, sparkle]
-        if let inside = FileManager.default.enumerator(at: sparkle, includingPropertiesForKeys: [.isDirectoryKey]) {
+        // Sparkle's installer only accepts downloads whose real path runs through a folder with Sparkle's name.
+        let outside = caches.appending(path: AppIdentity.bundleID + ".Updates/org.sparkle-project.Sparkle", directoryHint: .isDirectory)
+        let linked = (try? app.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == true
+        // Only a real folder (or none) is replaced, never a link, so a download in progress is never touched.
+        if linked, (try? files.destinationOfSymbolicLink(atPath: sparkle.path)) == nil {
+            try? files.createDirectory(at: outside, withIntermediateDirectories: true)
+            // A folder from before holds only update downloads; Sparkle fetches them again.
+            try? files.removeItem(at: sparkle)
+            try? files.createSymbolicLink(at: sparkle, withDestinationURL: outside)
+        }
+        let root = linked ? outside : sparkle
+        var folders = [app, root]
+        if let inside = files.enumerator(at: root, includingPropertiesForKeys: [.isDirectoryKey]) {
             for case let url as URL in inside where (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
                 folders.append(url)
             }
