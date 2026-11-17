@@ -82,12 +82,12 @@ struct BrowserImportButton: View {
     var body: some View {
         HStack(spacing: 10) {
             if model.importingID == profile.id { ProgressView().controlSize(.small) }
-            Button(model.completed.contains(profile.id) ? "Imported" : model.importingID == profile.id ? "Importing…" : "Import") {
+            Button(model.importingID == profile.id ? "Importing…" : model.completed.contains(profile.id) ? "Import Again" : "Import") {
                 willImport()
                 Task { await model.importProfile(profile, into: state) }
             }
             .buttonStyle(SettingsButtonStyle(prominent: prominent))
-            .disabled(model.importingID != nil || model.completed.contains(profile.id))
+            .disabled(model.importingID != nil)  // importing again only adds what is new
             .accessibilityLabel("Import from \(profile.browser), \(profile.name)")
         }
     }

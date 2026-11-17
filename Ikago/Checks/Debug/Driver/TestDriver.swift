@@ -537,6 +537,20 @@ enum TestDriver {
                     }
                 }
             }
+        case "reimportcheck":  // an earlier flat import moves into folders on re-import; importing again adds nothing
+            let url = "https://reimport.example/page"
+            state.bookmarks.append(Bookmark(url: url, title: "Flat"))
+            var data = BrowserImportData(bookmarks: [ImportedBookmark(url: url, title: "Flat", folders: ["Bar", "Work"]),
+                                                     ImportedBookmark(url: url + "2", title: "New", folders: ["Bar"])])
+            data.sourceName = "Probe"
+            _ = await state.applyImport(data, selection: ImportSelection(), to: state.activeSpaceID)
+            let count1 = state.bookmarks.filter { $0.url.hasPrefix("https://reimport.example") }.count
+            let work = state.bookmarkFolders.first { $0.name == "Work" }
+            let moved = state.bookmarks.first { $0.url == url }?.folderID == work?.id && work != nil
+            _ = await state.applyImport(data, selection: ImportSelection(), to: state.activeSpaceID)
+            let count2 = state.bookmarks.filter { $0.url.hasPrefix("https://reimport.example") }.count
+            let roots = state.bookmarkFolders.filter { $0.name == "Imported from Probe" }.count
+            print("IKTEST reimportcheck \(moved && count1 == 2 && count2 == 2 && roots == 1 ? "PASS" : "FAIL") moved=\(moved) first=\(count1) again=\(count2) roots=\(roots)")
         case "pinnedstay": state.browserPreferences.pinnedRowsStayInView = arg == "off" ? nil : true
         case "dump": dump(c)
         // Quit from the run loop like a menu does: inside this task the main queue is busy, so

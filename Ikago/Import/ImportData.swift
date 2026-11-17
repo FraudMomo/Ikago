@@ -67,21 +67,33 @@ extension BrowserState {
     func applyImport(_ data: BrowserImportData, selection: ImportSelection, to spaceID: UUID) async -> String {
         guard !isFrozen else { return "Import stopped because Ikago is closing." }
         guard let destination = spaces.first(where: { $0.id == spaceID }) else { return "The destination Space was removed. Choose another Space." }
-        var addedBookmarks = 0, addedTabs = 0, addedCookies = 0, failedCookies = 0
+        var addedBookmarks = 0, movedBookmarks = 0, addedTabs = 0, addedCookies = 0, failedCookies = 0
         if selection.bookmarks, !data.bookmarks.isEmpty {
             // Like Chrome: everything goes into one "Imported from …" folder with the source's own folders inside it.
             // Importing again reuses those folders and skips bookmarks already in the same folder.
             let root = importFolder(named: data.sourceName.isEmpty ? "Imported" : "Imported from \(data.sourceName)", parent: nil)
-            var seen = Set(bookmarks.map { ($0.folderID ?? "") + "\u{1F}" + $0.url })
-            for item in data.bookmarks where bookmarks.count < 5000 && AddressResolver.isWebURL(item.url) {
+            // Importing again is safe: a bookmark already in some folder is kept where it is, and one left at the top
+            // level (earlier imports brought everything in flat) moves into its folder instead of being copied.
+            let known = Set(bookmarkFolders.map(\.id))
+            var placed = Set(bookmarks.filter { $0.folderID.map(known.contains) ?? false }.map(\.url))
+            var loose: [String: Int] = [:]
+            for (index, bookmark) in bookmarks.enumerated() where !(bookmark.folderID.map(known.contains) ?? false) {
+                loose[bookmark.url] = loose[bookmark.url] ?? index
+            }
+            for item in data.bookmarks where AddressResolver.isWebURL(item.url) && !placed.contains(item.url) {
                 var folder = root
                 for name in item.folders.prefix(8) where !name.isEmpty {
                     guard let parent = folder, let next = importFolder(named: name, parent: parent) else { break }
                     folder = next
                 }
-                guard seen.insert((folder ?? "") + "\u{1F}" + item.url).inserted else { continue }
-                bookmarks.append(Bookmark(url: item.url, title: String(item.title.prefix(512)), folderID: folder))
-                addedBookmarks += 1
+                placed.insert(item.url)
+                if let index = loose.removeValue(forKey: item.url) {
+                    bookmarks[index].folderID = folder
+                    movedBookmarks += 1
+                } else if bookmarks.count < 5000 {
+                    bookmarks.append(Bookmark(url: item.url, title: String(item.title.prefix(512)), folderID: folder))
+                    addedBookmarks += 1
+                }
             }
         }
         if selection.history {
@@ -119,7 +131,8 @@ extension BrowserState {
             }
         }
         let limitNote = limitedTabs > 0 ? " Skipped \(limitedTabs) additional tabs because Ikago’s tab or folder limit was reached." : ""
-        return "Imported \(addedBookmarks) bookmarks, \(addedTabs) tabs, \(addedGroups) groups and \(addedCookies) cookies.\(selection.history ? " History merged." : "") Duplicates were skipped; existing data was kept.\(limitNote)\(failedCookies > 0 ? " Partial import: \(failedCookies) cookies were rejected by the destination engine." : "")"
+        let movedNote = movedBookmarks > 0 ? " Moved \(movedBookmarks) earlier imported bookmarks into their folders." : ""
+        return "Imported \(addedBookmarks) bookmarks, \(addedTabs) tabs, \(addedGroups) groups and \(addedCookies) cookies.\(selection.history ? " History merged." : "") Duplicates were skipped; existing data was kept.\(limitNote)\(movedNote)\(failedCookies > 0 ? " Partial import: \(failedCookies) cookies were rejected by the destination engine." : "")"
     }
 
     /// A bookmark folder for imported bookmarks: the existing one with that name in that place, or a new one while
