@@ -9,6 +9,13 @@ constexpr int kTranslate = MENU_ID_USER_FIRST + 103;
 constexpr int kVideo = MENU_ID_USER_FIRST + 104;
 constexpr int kSave = MENU_ID_USER_FIRST + 105;
 constexpr int kInspect = MENU_ID_USER_FIRST + 100;
+constexpr int kDownloadLink = MENU_ID_USER_FIRST + 106;
+constexpr int kDownloadImage = MENU_ID_USER_FIRST + 107;
+
+bool Downloadable(const CefString &url) {
+  std::string text = url.ToString();
+  return text.rfind("http://", 0) == 0 || text.rfind("https://", 0) == 0 || text.rfind("data:", 0) == 0 || text.rfind("blob:", 0) == 0;
+}
 class ContextMenu final : public CefContextMenuHandler {
  public:
   explicit ContextMenu(IKCEFPage *page) : page_(page) {}
@@ -18,6 +25,9 @@ class ContextMenu final : public CefContextMenuHandler {
     if (!page || page.isClosed) return;
     if (model->GetCount()) model->AddSeparator();
     if (!params->GetLinkUrl().empty()) model->AddItem(kPrivate, "Open Link in Private Window");
+    if (Downloadable(params->GetLinkUrl())) model->AddItem(kDownloadLink, "Download Linked File");
+    if (params->GetMediaType() == CM_MEDIATYPE_IMAGE && Downloadable(params->GetSourceUrl()))
+      model->AddItem(kDownloadImage, "Download Image");
     if (!params->GetSelectionText().empty()) model->AddItem(kSearch, "Search Selection in Ikago");
     model->AddItem(kTranslate, "Translate Page");
     model->AddItem(kSave, "Save Page As…");
@@ -36,6 +46,12 @@ class ContextMenu final : public CefContextMenuHandler {
       NSString *action = command == kPrivate ? @"private" : command == kSearch ? @"search" : command == kVideo ? @"video" : command == kSave ? @"save" : @"translate";
       std::string value = command == kPrivate ? params->GetLinkUrl().ToString() : command == kSearch ? params->GetSelectionText().ToString() : command == kVideo ? params->GetSourceUrl().ToString() : "";
       [page emit:@"contextAction" payload:@{@"action": action, @"text": [NSString stringWithUTF8String:value.c_str()] ?: @""}];
+      return true;
+    }
+    if (page && !page.isClosed && (command == kDownloadLink || command == kDownloadImage)) {
+      CefString url = command == kDownloadLink ? params->GetLinkUrl() : params->GetSourceUrl();
+      page->_requestedDownload = [NSString stringWithUTF8String:url.ToString().c_str()];
+      if (page->_browser) page->_browser->GetHost()->StartDownload(url);
       return true;
     }
     if (command != kInspect) return false;

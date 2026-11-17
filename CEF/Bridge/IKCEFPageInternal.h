@@ -30,6 +30,8 @@ NSError *IKCEFError(NSString *message);
   NSMutableDictionary<NSNumber *, IKCEFPage *> *_pendingPopups;
   NSMutableArray<IKCEFMediaRequest *> *_mediaRequests;
   BOOL _captureBlocked;
+  /// A download the person asked for from the page menu, which needs no site permission.
+  NSString *_requestedDownload;
 }
 - (instancetype)initContainer;
 - (void)emit:(NSString *)name payload:(NSDictionary *)payload;

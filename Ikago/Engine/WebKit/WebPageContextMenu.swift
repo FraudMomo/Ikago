@@ -6,8 +6,19 @@ extension FileDropWebView {
         menuActions.removeAll()
         // Keep WebKit's editing, spelling, dictionary and native video commands.
         // Replace only the system Search Web action, which otherwise launches Safari.
+        let point = convert(event.locationInWindow, from: nil)
+        let y = isFlipped ? point.y : bounds.height - point.y
         for item in menu.items {
             let identifier = item.identifier?.rawValue.lowercased() ?? ""
+            // WebKit's own Download Image / Linked File / Video items hand their download to a private delegate
+            // call and otherwise do nothing; download the same address through the public API instead.
+            if let kind = DownloadTarget(identifier: identifier) {
+                let target = PageMenuAction { [weak self] in self?.download(kind, atX: point.x, y: y) }
+                menuActions.append(target)
+                item.target = target
+                item.action = #selector(PageMenuAction.invoke(_:))
+                continue
+            }
             if identifier.contains("searchweb") || identifier.contains("searchtheweb")
                 || item.action.map({ let action = NSStringFromSelector($0).lowercased(); return action.contains("searchweb") || action.contains("searchtheweb") }) == true {
                 let target = PageMenuAction { [weak self] in self?.searchSelection() }
@@ -19,8 +30,6 @@ extension FileDropWebView {
         }
         addPageItem("Translate Page", to: menu) { [weak self] in self?.pageAction(.translate) }
         addPageItem("Save Page As…", to: menu, separated: false) { [weak self] in self?.pageAction(.savePage) }
-        let point = convert(event.locationInWindow, from: nil)
-        let y = isFlipped ? point.y : bounds.height - point.y
         let script = """
         (() => {
           let e = document.elementFromPoint(\(point.x), \(y));
@@ -43,6 +52,26 @@ extension FileDropWebView {
         }
     }
 
+    private func download(_ kind: DownloadTarget, atX x: CGFloat, y: CGFloat) {
+        let script = """
+        (() => {
+          const e = document.elementFromPoint(\(x), \(y));
+          const pick = {link: () => e?.closest('a[href]')?.href,
+                        image: () => { const i = e?.closest('img'); return i?.currentSrc || i?.src; },
+                        media: () => { const m = e?.closest('video, audio'); return m?.currentSrc || m?.src; }};
+          return pick['\(kind.rawValue)']() || '';
+        })()
+        """
+        evaluateJavaScript(script, in: nil, in: .defaultClient) { [weak self] result in
+            guard let self, case .success(let value) = result, let text = value as? String, let url = URL(string: text),
+                  ["http", "https", "data", "blob"].contains(url.scheme?.lowercased() ?? "") else { return }
+            let isPrivate = WebProfiles.isPrivateStore(self.configuration.websiteDataStore)
+            self.startDownload(using: URLRequest(url: url)) { download in
+                DownloadCenter.shared.track(download, isPrivate: isPrivate)
+            }
+        }
+    }
+
     private func searchSelection() {
         evaluateJavaScript("window.getSelection()?.toString().slice(0,4096) || ''", in: nil, in: .defaultClient) { [weak self] result in
             if case .success(let value) = result, let text = value as? String, !text.isEmpty { self?.pageAction(.search(text)) }
@@ -56,5 +85,17 @@ extension FileDropWebView {
         let item = NSMenuItem(title: title, action: #selector(PageMenuAction.invoke(_:)), keyEquivalent: "")
         item.target = target
         menu.addItem(item)
+    }
+}
+
+/// Which of WebKit's download items was picked, from its menu identifier.
+private enum DownloadTarget: String {
+    case link, image, media
+
+    init?(identifier: String) {
+        if identifier.contains("downloadlinkedfile") { self = .link }
+        else if identifier.contains("downloadimage") { self = .image }
+        else if identifier.contains("downloadmedia") { self = .media }
+        else { return nil }
     }
 }

@@ -380,6 +380,18 @@ enum TestDriver {
             if let index = menu.items.firstIndex(where: { $0.title == "Search in Ikago" }) { menu.performActionForItem(at: index) }
             try? await Task.sleep(for: .seconds(1))
             print("IKTEST searchselection tabs=\(state.tabs.map(\.url))")
+        case "downloadmenu":  // <image|link>: WebKit's Download item for the element at (100, 100), then the downloads
+            guard let web = (c.activeController?.page as? WebKitTab)?.webView as? FileDropWebView else { break }
+            let menu = NSMenu()
+            let item = NSMenuItem(title: "Download", action: NSSelectorFromString("_downloadImage:"), keyEquivalent: "")
+            item.identifier = NSUserInterfaceItemIdentifier(arg == "link" ? "WKMenuItemIdentifierDownloadLinkedFile" : "WKMenuItemIdentifierDownloadImage")
+            menu.addItem(item)
+            let event = NSEvent.mouseEvent(with: .rightMouseDown, location: NSPoint(x: 100, y: web.bounds.height - 100), modifierFlags: [],
+                                           timestamp: 0, windowNumber: c.window?.windowNumber ?? 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+            web.configurePageMenu(menu, event: event)
+            menu.performActionForItem(at: 0)
+            try? await Task.sleep(for: .seconds(3))
+            print("IKTEST downloadmenu \(DownloadCenter.shared.items.map { "\($0.name) finished=\($0.finished) failed=\($0.failed)" })")
         case "seedhistory":  // <count> visits to made-up sites, spread over the last 30 days
             let now = Date().timeIntervalSince1970
             state.history = (0..<(Int(arg) ?? 300)).map { i in

@@ -40,6 +40,10 @@ class Client final : public CefClient, public CefLifeSpanHandler,
   bool OnBeforeDownload(CefRefPtr<CefBrowser> browser, CefRefPtr<CefDownloadItem> item,
       const CefString& name, CefRefPtr<CefBeforeDownloadCallback> callback) override {
     IKCEFPage *page = page_;
+    NSString *url = [NSString stringWithUTF8String:item->GetOriginalUrl().ToString().c_str()];
+    BOOL requested = page && page->_requestedDownload && [page->_requestedDownload isEqualToString:url];
+    if (requested) page->_requestedDownload = nil;
+    if (requested) return IKCEFBeforeDownload(browser, item, name, callback, nil);
     return IKCEFBeforeDownload(browser, item, name, callback, page.downloadGateHandler);
   }
   void OnDownloadUpdated(CefRefPtr<CefBrowser> browser, CefRefPtr<CefDownloadItem> item,
