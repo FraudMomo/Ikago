@@ -5,6 +5,8 @@ What changed in each release of Ikago, newest first. Add changes under **Unrelea
 
 ## Unreleased
 
+## 0.6.0 — 2026-11-17
+
 - **Bookmarks:** the Bookmarks menu in the menu bar lists your bookmarks, with folders as submenus. Sidebar + Tabs
   has a bookmarks bar under the address (⇧⌘B), with folders as menus. Large collections stay fast.
 - **Import:** bookmarks keep their folders, inside an "Imported from …" folder. Safari's open tabs and Tab Groups and
