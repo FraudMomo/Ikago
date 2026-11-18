@@ -60,13 +60,13 @@ struct TabPlacementSection: View {
 
     var body: some View {
         PageSection(title: "Tab Placement") {
-            PageRow(title: "New tab position",
-                    subtitle: state.usesTabsLayout ? "Tabs above the page open on the right" : nil) {
-                SettingsMenu(selection: $state.newTabPosition, options: NewTabPosition.allCases.map { ($0, $0.title) })
-                .disabled(state.usesTabsLayout)
+            // Sidebar + Tabs always opens new tabs on the right.
+            if !state.usesTabsLayout {
+                PageRow(title: "New tab position") {
+                    SettingsMenu(selection: $state.newTabPosition, options: NewTabPosition.allCases.map { ($0, $0.title) })
+                }
+                PageDivider()
             }
-            .opacity(state.usesTabsLayout ? 0.5 : 1)
-            PageDivider()
             PageRow(title: "Links opened in new tabs") {
                 SettingsMenu(selection: $state.linkTabPosition, options: LinkTabPosition.allCases.map { ($0, $0.title) })
             }

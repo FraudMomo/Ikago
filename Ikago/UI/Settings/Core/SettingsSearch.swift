@@ -6,6 +6,8 @@ struct SettingsSearchEntry: Identifiable, Hashable {
     let category: SettingsCategory
     let section: String
     var keywords = ""
+    /// The one layout this setting shows in (nil: both); search leaves it out in the other.
+    var layout: LayoutChoice? = nil
     var id: String { "\(category.rawValue)/\(section)/\(title)" }
 
     func matches(_ terms: [String]) -> Bool {
@@ -25,11 +27,11 @@ enum SettingsSearch {
         }
     }
 
-    /// Matches every term, titles that start with the query first.
-    static func results(for query: String) -> [SettingsSearchEntry] {
+    /// Matches every term, titles that start with the query first. With a `layout`, settings hidden in it are left out.
+    static func results(for query: String, layout: LayoutChoice? = nil) -> [SettingsSearchEntry] {
         let terms = query.lowercased().split(whereSeparator: \.isWhitespace).map(String.init)
         guard !terms.isEmpty else { return [] }
-        let found = index.filter { $0.matches(terms) }
+        let found = index.filter { $0.matches(terms) && (layout == nil || $0.layout == nil || $0.layout == layout) }
         let lead = query.lowercased().trimmingCharacters(in: .whitespaces)
         return found.filter { $0.title.lowercased().hasPrefix(lead) } + found.filter { !$0.title.lowercased().hasPrefix(lead) }
     }
@@ -54,19 +56,19 @@ enum SettingsSearch {
         .init(title: "Window border", category: .appearance, section: "Window and Sidebar", keywords: "inset margin"),
         .init(title: "Sidebar style", category: .appearance, section: "Window and Sidebar", keywords: "full icons rail hidden"),
         .init(title: "Sidebar gap", category: .appearance, section: "Window and Sidebar", keywords: "spacing"),
-        .init(title: "Move from the page's top edge", category: .appearance, section: "Moving the Window", keywords: "drag window grab title bar header"),
-        .init(title: "Edge height", category: .appearance, section: "Moving the Window", keywords: "drag window grab thin"),
-        .init(title: "Double-click to zoom", category: .appearance, section: "Moving the Window", keywords: "maximize fill window"),
+        .init(title: "Move from the page's top edge", category: .appearance, section: "Moving the Window", keywords: "drag window grab title bar header", layout: .sidebar),
+        .init(title: "Edge height", category: .appearance, section: "Moving the Window", keywords: "drag window grab thin", layout: .sidebar),
+        .init(title: "Double-click to zoom", category: .appearance, section: "Moving the Window", keywords: "maximize fill window", layout: .sidebar),
         .init(title: "Use the area beside the camera", category: .appearance, section: "Full Screen", keywords: "notch"),
         .init(title: "Light or dark mode", category: .appearance, section: "Color & Theme", keywords: "appearance system"),
         .init(title: "Space colors", category: .appearance, section: "Color & Theme", keywords: "theme tint"),
         .init(title: "Liquid Glass", category: .appearance, section: "Materials", keywords: "transparency"),
         .init(title: "Translucent sidebar", category: .appearance, section: "Materials", keywords: "frosted vibrancy"),
-        .init(title: "Tab group labels", category: .appearance, section: "Tab Groups", keywords: "minimal color pill folder"),
-        .init(title: "Groups in the sidebar", category: .appearance, section: "Tab Groups", keywords: "cards folders tree indent"),
-        .init(title: "Address bar", category: .appearance, section: "Sidebar + Tabs", keywords: "url centered centred full width wide title dia chrome"),
+        .init(title: "Tab group labels", category: .appearance, section: "Tab Groups", keywords: "minimal color pill folder", layout: .sidebar),
+        .init(title: "Groups in the sidebar", category: .appearance, section: "Tab Groups", keywords: "cards folders tree indent", layout: .sidebar),
+        .init(title: "Address bar", category: .appearance, section: "Sidebar + Tabs", keywords: "url centered centred full width wide title dia chrome", layout: .sidebarTabs),
         .init(title: "Reveal sidebar at the window edge", category: .appearance, section: "Window and Sidebar", keywords: "peek hover edge hidden sidebar slide"),
-        .init(title: "Groups in Sidebar + Tabs", category: .appearance, section: "Tab Groups", keywords: "tab row top bar chips icon sidebar rail where placement"),
+        .init(title: "Where groups show", category: .appearance, section: "Tab Groups", keywords: "tab row top bar chips icon sidebar rail where placement groups", layout: .sidebarTabs),
         .init(title: "Show tab counts", category: .appearance, section: "Tab Groups"),
         .init(title: "Instant tab switching", category: .appearance, section: "Tab Animations", keywords: "fade motion"),
         .init(title: "Tab highlight animation", category: .appearance, section: "Tab Animations", keywords: "slide spring motion"),
@@ -77,10 +79,10 @@ enum SettingsSearch {
         .init(title: "Peek search results", category: .tabs, section: "Peek", keywords: "automatic google"),
         .init(title: "Peek links that open a new tab", category: .tabs, section: "Peek", keywords: "automatic target blank"),
         .init(title: "Page thumbnail in previews", category: .tabs, section: "Tab Previews", keywords: "hover screenshot image"),
-        .init(title: "Space header and shortcuts", category: .toolbar, section: "Sidebar", keywords: "space name assistant bookmarks history navigation"),
-        .init(title: "Keep pinned tabs and groups in view", category: .toolbar, section: "Sidebar", keywords: "pinned pins fixed sticky scroll top"),
+        .init(title: "Space header and shortcuts", category: .toolbar, section: "Sidebar", keywords: "space name assistant bookmarks history navigation", layout: .sidebar),
+        .init(title: "Keep pinned tabs and groups in view", category: .toolbar, section: "Sidebar", keywords: "pinned pins fixed sticky scroll top", layout: .sidebar),
         .init(title: "Pinned-tab grid", category: .toolbar, section: "Sidebar Essentials", keywords: "essentials pins"),
-        .init(title: "Grid columns", category: .toolbar, section: "Sidebar Essentials", keywords: "pinned tabs size count"),
+        .init(title: "Grid columns", category: .toolbar, section: "Sidebar Essentials", keywords: "pinned tabs size count", layout: .sidebar),
         .init(title: "Show bookmarks bar", category: .toolbar, section: "Bookmarks Bar"),
         .init(title: "Switch to an open tab", category: .toolbar, section: "Opening Bookmarks", keywords: "bookmarks"),
         .init(title: "Customize toolbar", category: .toolbar, section: "Customize", keywords: "buttons controls sidebar"),
@@ -90,7 +92,7 @@ enum SettingsSearch {
 
         .init(title: "New tabs open", category: .tabs, section: "New Tab", keywords: "homepage command bar extension"),
         .init(title: "Focus address bar on new tabs", category: .tabs, section: "New Tab"),
-        .init(title: "New tab position", category: .tabs, section: "Tab Placement", keywords: "top bottom"),
+        .init(title: "New tab position", category: .tabs, section: "Tab Placement", keywords: "top bottom", layout: .sidebar),
         .init(title: "Links opened in new tabs", category: .tabs, section: "Tab Placement"),
         .init(title: "Load new tabs in the background", category: .tabs, section: "Background Tabs"),
         .init(title: "Memory approach", category: .performance, section: "Memory", keywords: "conservative balanced responsive resources pressure ram inactive tabs hibernate sleep"),

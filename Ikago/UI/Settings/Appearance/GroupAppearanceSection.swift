@@ -5,32 +5,36 @@ struct GroupAppearanceSection: View {
     let state: BrowserState
 
     var body: some View {
-        PageSection(title: "Tab Groups", footer: "Change a group's color from its context menu. Hide Group keeps a group saved but out of the way; show it again from the tab row's hidden-groups button, the icon sidebar or Tab ▸ Show Hidden Group.") {
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .top, spacing: 14) { cards(minimumWidth: 180) }
-                VStack(spacing: 14) { cards(minimumWidth: 0) }
+        PageSection(title: "Tab Groups", footer: "Right-click a group to change its color or hide it.") {
+            // The label styles dress the full sidebar's group headers; Sidebar + Tabs has chips and tiles instead.
+            if !state.usesTabsLayout {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: 14) { cards(minimumWidth: 180) }
+                    VStack(spacing: 14) { cards(minimumWidth: 0) }
+                }
+                .padding(.vertical, 16)
+                PageDivider()
             }
-            .padding(.vertical, 16)
-            PageDivider()
-            PageRow(title: "Groups in the sidebar", subtitle: "Tinted cards or an indented folder list") {
-                SettingsSegmented(selection: Binding(
-                    get: { state.sidebarGroupStyle },
-                    set: { style in withAnimation(.ikago) { state.browserPreferences.sidebarGroupStyle = style == .cards ? nil : style } }), options: SidebarGroupStyle.allCases.map { ($0, $0.name) })
+            // The full sidebar's group style in the Sidebar layout; where groups show in Sidebar + Tabs.
+            if state.usesTabsLayout {
+                PageRow(title: "Where groups show", subtitle: "Chips in the tab row, tiles in the icon sidebar, or both",
+                        figure: AnyView(GroupPlacementFigure(placement: state.groupPlacement, colors: state.palette))) {
+                    SettingsSegmented(selection: Binding(
+                        get: { state.groupPlacement },
+                        set: { placement in withAnimation(.ikago) { state.browserPreferences.groupPlacement = placement == .both ? nil : placement } }),
+                        options: GroupPlacement.allCases.map { ($0, $0.name) })
+                }
+            } else {
+                PageRow(title: "Groups in the sidebar", subtitle: "Tinted cards or an indented folder list",
+                        figure: AnyView(GroupStyleFigure(style: state.sidebarGroupStyle, colors: state.palette))) {
+                    SettingsSegmented(selection: Binding(
+                        get: { state.sidebarGroupStyle },
+                        set: { style in withAnimation(.ikago) { state.browserPreferences.sidebarGroupStyle = style == .cards ? nil : style } }), options: SidebarGroupStyle.allCases.map { ($0, $0.name) })
+                }
             }
             PageDivider()
-            // Only Sidebar + Tabs has both places; the Sidebar layout always lists groups in the sidebar.
-            PageRow(title: "Groups in Sidebar + Tabs",
-                    subtitle: state.usesTabsLayout ? "Chips in the tab row, tiles in the icon sidebar, or both"
-                                                   : "Applies to the Sidebar + Tabs layout") {
-                SettingsSegmented(selection: Binding(
-                    get: { state.groupPlacement },
-                    set: { placement in withAnimation(.ikago) { state.browserPreferences.groupPlacement = placement == .both ? nil : placement } }),
-                    options: GroupPlacement.allCases.map { ($0, $0.name) })
-                .disabled(!state.usesTabsLayout)
-                .opacity(state.usesTabsLayout ? 1 : 0.5)
-            }
-            PageDivider()
-            PageRow(title: "Show tab counts", subtitle: "On collapsed groups") {
+            PageRow(title: "Show tab counts", subtitle: "On collapsed groups",
+                    figure: AnyView(TabCountFigure(on: state.showsGroupTabCounts, colors: state.palette))) {
                 Toggle("Show tab counts", isOn: Binding(
                     get: { state.showsGroupTabCounts },
                     set: { on in withAnimation(.ikago) { state.showsGroupTabCounts = on } }))

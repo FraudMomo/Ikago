@@ -16,6 +16,9 @@ Working list for the next builds. Tick items off as they land; move finished the
   - [x] Setting for where groups show: **both (default)**, sidebar/icon sidebar only, or Top Bar only.
 - [x] **Hide (close) a tab group**: it stays saved but is hidden. This is separate from collapse.
   - [x] Bring it back from the icon sidebar, or a clean "Show tab groups" button/menu.
+- [x] **Pinned tabs in Sidebar + Tabs**: the pinned grid setting moves them between the icon sidebar and the tab row.
+- [x] **Option to stop the hidden sidebar revealing at the window edge.**
+- [x] **Address bar styles in Sidebar + Tabs**: Centered, Full Width (Chrome) or Page Title (Dia).
 - [x] **Toolbar placement in four zones**: far left, left of the URL bar, right of the URL bar, far right.
 - [x] **Bug: closing a tab animates over the tab before it** Fixed: the closing tab fades out under its neighbours. (the transition overlaps).
 - [x] **Bug: a new tab opened from the command bar sometimes disappears**, or opens but isn't shown as selected
@@ -103,10 +106,13 @@ Working list for the next builds. Tick items off as they land; move finished the
 
 ## Settings
 
-- [ ] **Visual settings**: an image, figure or looping clip beside each option showing what it changes
+- [x] **Visual settings**: an image, figure or looping clip beside each option showing what it changes
   (e.g. what the grid looks like). Clear for first-time users and people new to sidebars.
-  - [ ] Window-moving settings show the drag edge height visually.
-- [ ] **Hide or gray out settings that no longer apply**, e.g. after changing the layout.
+  - [x] Drawings for the layout and appearance options (`SettingFigures.swift`), with looping clips for the tab
+    animations.
+  - [x] Window-moving settings show the drag edge height visually.
+- [x] **Hide settings that no longer apply**, e.g. after changing the layout (hidden, not grayed out, to keep
+  Settings clean).
 
 ## Find in page (Cmd+F)
 

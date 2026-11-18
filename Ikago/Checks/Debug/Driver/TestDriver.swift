@@ -279,18 +279,20 @@ enum TestDriver {
             send(.leftMouseDown); send(.leftMouseUp)
             try? await Task.sleep(for: .milliseconds(500))
             print("IKTEST siteinfoclick shown=\(c.chrome.showSiteInfo) palette=\(c.chrome.showPalette) editing=\(c.chrome.inlineAddress)")
-        case "settingsshot":  // <category>[/<section page>]|<png>: Settings drawn offscreen at a window's size
+        case "settingsshot":  // <category>[/<section page>][@<w>[x<h>]]|<png>: Settings drawn offscreen at a window's size
             let parts = arg.split(separator: "|", maxSplits: 1).map(String.init)
             guard parts.count == 2 else { break }
             let sized = parts[0].split(separator: "@").map(String.init)
             let names = sized[0].split(separator: "/").map(String.init)
-            let width = CGFloat(Double(sized.dropFirst().first ?? "") ?? 1180)
+            // @<width> or @<width>x<height>, for long pages.
+            let size = (sized.dropFirst().first ?? "").split(separator: "x").compactMap { Double($0) }
+            let width = CGFloat(size.first ?? 1180), height = CGFloat(size.count > 1 ? size[1] : 820)
             if let category = SettingsCategory(rawValue: names[0]) { state.settingsCategory = category }
             if names.count > 1 { state.settingsSubpage[state.settingsCategory] = names[1] }
             let colors = state.palette
             let host = NSHostingView(rootView: SettingsPage(state: state, commands: c)
                 .environment(\.colorScheme, colors.isDark ? .dark : .light).environment(\.pagePalette, colors).tint(colors.accent))
-            host.frame = NSRect(x: 0, y: 0, width: width, height: 820)
+            host.frame = NSRect(x: 0, y: 0, width: width, height: height)
             let window = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
             window.contentView = host
             try? await Task.sleep(for: .milliseconds(600))

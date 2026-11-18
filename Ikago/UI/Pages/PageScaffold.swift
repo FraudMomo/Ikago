@@ -184,6 +184,8 @@ struct PageSection<Content: View>: View {
 struct PageRow<Trailing: View>: View {
     let title: String
     var subtitle: String? = nil
+    /// A drawing of what the setting changes, in the same place on every row: before the title (`SettingFigures`).
+    var figure: AnyView? = nil
     @ViewBuilder let trailing: Trailing
     @Environment(\.settingsSurface) private var settingsSurface
 
@@ -207,9 +209,12 @@ struct PageRow<Trailing: View>: View {
     }
 
     private var label: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(title).font(.system(size: 13, weight: settingsSurface ? .medium : .regular))
-            if let subtitle { Text(subtitle).font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
+        HStack(spacing: 14) {
+            if let figure { figure }
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.system(size: 13, weight: settingsSurface ? .medium : .regular))
+                if let subtitle { Text(subtitle).font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
+            }
         }
     }
 }
@@ -223,9 +228,11 @@ struct SliderRow: View {
     let defaultValue: Double
     var step = 1.0
     var format: (Double) -> String = { "\(Int($0)) pt" }
+    /// A drawing of what the value changes (Settings), before the slider.
+    var figure: AnyView? = nil
 
     var body: some View {
-        PageRow(title: title, subtitle: subtitle) {
+        PageRow(title: title, subtitle: subtitle, figure: figure) {
             HStack(spacing: 10) {
                 Slider(value: Binding(get: { value }, set: { value = ($0 / step).rounded() * step }), in: range)
                     .frame(minWidth: 140, maxWidth: 240)

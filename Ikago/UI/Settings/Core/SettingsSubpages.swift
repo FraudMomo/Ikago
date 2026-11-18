@@ -24,7 +24,7 @@ extension SettingsCategory {
                     page("Layout", "Layout", "Sidebar + Tabs", "Window and Sidebar", "Moving the Window", "Full Screen"),
                     page("Details", "Tab Groups", "Tab Animations")]
         case .toolbar:
-            return [page("Sidebar", "Sidebar", "Sidebar Essentials", "Bookmarks Bar"),
+            return [page("Sidebar", "Sidebar", "Sidebar Essentials", "Pinned Tabs", "Bookmarks Bar"),
                     page("Toolbar", "Customize")]
         case .tabs:
             return [page("New Tabs", "New Tab", "Tab Placement", "Background Tabs", "Opening Bookmarks"),

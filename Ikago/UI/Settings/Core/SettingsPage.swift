@@ -96,7 +96,7 @@ struct SettingsPage: View {
                 if query.trimmingCharacters(in: .whitespaces).isEmpty {
                     categories
                 } else {
-                    SettingsSearchResults(results: SettingsSearch.results(for: query), colors: state.palette, open: open)
+                    SettingsSearchResults(results: SettingsSearch.results(for: query, layout: state.usesTabsLayout ? .sidebarTabs : .sidebar), colors: state.palette, open: open)
                 }
             }
             .scrollIndicators(.never)

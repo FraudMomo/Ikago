@@ -4,7 +4,10 @@ struct EssentialsSettingsSection: View {
     @Bindable var state: BrowserState
 
     var body: some View {
+        // Sidebar + Tabs has no full sidebar: its settings aren't shown there.
+        let full = !state.usesTabsLayout
         Group {
+            if full {
             PageSection(title: "Sidebar") {
                 PageRow(title: "Space header and shortcuts", subtitle: "The Space's name and rows for the places you choose") {
                     Toggle("Space header and shortcuts", isOn: Binding(get: { state.browserPreferences.sidebarShortcuts == true },
@@ -30,7 +33,7 @@ struct EssentialsSettingsSection: View {
                                 set: { above in withAnimation(.ikago) { state.browserPreferences.pinnedGridAboveShortcuts = above ? true : nil } }
                             ), options: [(false, "Below shortcuts"), (true, "Above shortcuts")])
                         }
-                    }
+                        }
                 }
                 PageDivider()
                 PageRow(title: "Keep pinned tabs and groups in view", subtitle: "Pinned tabs and groups stay in place; only the tabs below them scroll") {
@@ -39,18 +42,17 @@ struct EssentialsSettingsSection: View {
                         .labelsHidden().toggleStyle(.switch)
                 }
             }
-            PageSection(title: "Sidebar Essentials") {
+            }
+            PageSection(title: full ? "Sidebar Essentials" : "Pinned Tabs") {
                 PageRow(title: full ? "Show pinned-tab grid" : "Pinned tabs in the icon sidebar",
                         subtitle: full ? "Pinned tabs as a grid at the top of the sidebar; off, as rows in the list"
-                                       : "Tiles in the icon sidebar; off, icon tabs at the start of the tab row") {
-                    HStack(spacing: 12) {
-                        PinnedTabsFigure(shown: state.showsPinnedGrid, tabsLayout: !full, colors: state.palette)
-                        Toggle("Show pinned-tab grid", isOn: Binding(get: { state.showsPinnedGrid },
-                            set: { on in withAnimation(.ikago) { state.browserPreferences.showPinnedGrid = on } }))
-                            .labelsHidden().toggleStyle(.switch)
-                    }
+                                       : "Tiles in the icon sidebar; off, icon tabs at the start of the tab row",
+                        figure: AnyView(PinnedTabsFigure(shown: state.showsPinnedGrid, tabsLayout: !full, colors: state.palette))) {
+                    Toggle("Show pinned-tab grid", isOn: Binding(get: { state.showsPinnedGrid },
+                        set: { on in withAnimation(.ikago) { state.browserPreferences.showPinnedGrid = on } }))
+                        .labelsHidden().toggleStyle(.switch)
                 }
-                if state.showsPinnedGrid {
+                if state.showsPinnedGrid && full {
                     PageDivider()
                     PageRow(title: "Grid columns", subtitle: "Maximum columns for pinned tabs") {
                         SettingsMenu(selection: Binding(
@@ -62,7 +64,7 @@ struct EssentialsSettingsSection: View {
             }
         }
         PageSection(title: "Bookmarks Bar", footer: "Toggle with ⇧⌘B.") {
-            PageRow(title: "Show bookmarks", subtitle: "A drawer at the bottom of the sidebar") {
+            PageRow(title: "Show bookmarks", subtitle: state.usesTabsLayout ? "A bar under the address bar" : "A drawer at the bottom of the sidebar") {
                 Toggle("Show bookmarks bar", isOn: $state.showsBookmarksBar.animation(.ikago)).labelsHidden().toggleStyle(.switch)
             }
         }

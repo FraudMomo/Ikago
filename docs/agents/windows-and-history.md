@@ -54,3 +54,12 @@
   so the list re-reads only when a file's date changes, and a device's own date is a day (Safari stores no time). Nothing goes back to Safari, since iCloud Tabs has no API. Debug builds
   read `IKAGO_SAFARI_FOLDER` instead (the `devices` test action). Handoff: `HandoffAdvertiser` offers the key window's
   http(s) page as `NSUserActivityTypeBrowsingWeb` (never private windows) and opens continued pages in a new tab.
+- Settings stay uncluttered: a setting that does nothing in the current layout is not shown at all (no dimmed rows or
+  "applies to" notes), and Settings search leaves it out (`SettingsSearchEntry.layout`). A section with nothing left
+  goes too; a renamed section must be listed in its sub-page (`SettingsSubpage.sections`) or it never shows. Options
+  that change how the window looks get one small live drawing of the current choice, always in the same place: before
+  the row's title (`PageRow.figure`, `FigureWindow`, 80×52 pt, `SettingFigures.swift`). Drawings of the whole window
+  carry its traffic lights; drawings of one part (group headers, the tab highlight) don't. In a section that uses them,
+  every row gets one, so titles line up. Covered: spacing, sidebar state and side, the edge reveal, the page edge
+  (style, height to scale, zoom), full screen, pinned tabs, group style, placement and counts, and looping clips of
+  the tab highlight and page switch (still with Reduce Motion). Address bar styles are picture cards.
