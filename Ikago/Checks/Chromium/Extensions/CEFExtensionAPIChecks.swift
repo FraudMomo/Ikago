@@ -45,10 +45,14 @@ enum CEFExtensionAPIChecks {
         try Data("chrome.tabs.query({active:true,currentWindow:true}).then(tabs=>chrome.storage.local.set({fixturePopup:tabs[0]?.id}));setTimeout(()=>window.close(),1500);".utf8)
             .write(to: directory.appending(path: "popup.js"))
         let content = """
-        chrome.runtime.sendMessage('ikago-api-fixture', response => {
-          const error = chrome.runtime.lastError?.message || response?.error;
-          document.documentElement.dataset.ikagoExtensionAPI = JSON.stringify(error ? {error} : response);
-        });
+        // Right after a reload the service worker may not be listening yet: retry that one error for a few seconds.
+        (function ask(tries) {
+          chrome.runtime.sendMessage('ikago-api-fixture', response => {
+            const error = chrome.runtime.lastError?.message || response?.error;
+            if (error?.includes('Receiving end does not exist') && tries > 0) return setTimeout(() => ask(tries - 1), 100);
+            document.documentElement.dataset.ikagoExtensionAPI = JSON.stringify(error ? {error} : response);
+          });
+        })(40);
         document.addEventListener('ikago-fixture-open-popup',()=>{
           chrome.runtime.sendMessage('ikago-popup-fixture', response=>{
             document.documentElement.dataset.ikagoExtensionPopup=JSON.stringify(response || {error:chrome.runtime.lastError?.message});
