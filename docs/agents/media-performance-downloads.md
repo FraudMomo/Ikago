@@ -60,3 +60,8 @@
   page-state world) is taken out of Chromium's PiP into the panel. Videos Chromium can't play (H.264 files) fall back to
   AVKit for direct addresses. A tab moving windows ends the panel first (`WebTab.endPictureInPicture`). Check with
   `pipchecks` (WebKit) and `CEFPictureInPictureChecks`.
+- Animation cost (`animationprobe`, debug): CPU of Ikago, WindowServer and WebKit page processes per phase from `ps`
+  (idle before and after, tab switches, groups, sidebar forms, Spaces, command bar, find bar, Settings at rest), and
+  `pageResizes`/`pageFrames` for how often the page got a new size. Anything moving at rest shows in the idle phases:
+  keep them at ~1% Ikago and the idle WindowServer level. Looping illustrations play only on hover (`SettingFigures`).
+

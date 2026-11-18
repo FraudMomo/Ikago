@@ -153,7 +153,10 @@ Working list for the next builds. Tick items off as they land; move finished the
 
 ## Performance
 
-- [ ] **Animations and transitions on weaker Macs**: high CPU seen on an M1 MacBook Air. Measure, then optimize
-  or reduce effects there.
+- [x] **Animations and transitions on weaker Macs**: high CPU seen on an M1 MacBook Air. Measured (`animationprobe`):
+  at rest Ikago uses ~1%; tab switches and groups ~1–2%. The sidebar changing form resized the page every frame (page
+  process 37–50%); the page now resizes once (page process ~22%, Ikago 43→31%). Settings' looping drawings kept Ikago at
+  ~10% and WindowServer at ~37% while idle; they now play only on hover. Space switches (~0.15 s CPU each) and the command
+  bar are within what their redraw needs. WindowServer's share during any motion is compositing at the display's rate.
 - [x] **Tab memory for WebKit and Chromium**: study how Chrome discards/sleeps tabs. Make Conservative vs
   Responsive modes clearly different in memory use.

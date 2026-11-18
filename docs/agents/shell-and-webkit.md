@@ -70,3 +70,9 @@
     derive them from the sidebar's top row. `addressShowsReload`/`addressShowsSiteInfo` take those buttons out of both
     address fields, and `.siteInfo` opens the site card from any toolbar (`toggleSiteInfo(fromToolbar:)`). New controls get a `ChromeItem` case so users can place them. "Chrome" in
     these names means the browser's own UI, not Google Chrome.
+- The page never follows an animated layout frame by frame (`ContentHost`, `ContentContainerView`): when the chrome beside
+  it animates (sidebar forms, the page assistant), the update that starts the animation tells the host the final width
+  (`sideChrome` change); the page takes it at once if it grows (and is uncovered) or keeps its size if it shrinks (and is
+  covered), stays still on screen, and is clipped to the page card's corners; it fills the host again 0.12 s after the
+  size stops changing. One resize per change on both engines (`sidebarmotionchecks`).
+

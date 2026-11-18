@@ -202,7 +202,10 @@ struct BrowserRootView: View {
     var radius: CGFloat { inset == 0 ? 0 : Radius.card }
 
     var contentCard: some View {
-        ContentHost(view: content, state: state)
+        ContentHost(view: content, state: state,
+                    sideChrome: pageLeadingOffset + (state.sidebarOnRight && docksSidebar ? sidebarShownWidth + CGFloat(state.sidebarGap) : 0)
+                        + ((chrome.showPageAssistant && state.browserPreferences.pageIntelligence == true) ? PageAssistantView.width : 0),
+                    anchorTrailing: !state.sidebarOnRight)
             .anchorPreference(key: DownloadsAnchorKey.self, value: .bounds) { DownloadAnchors(page: $0) }
             .recordLayout("content")
             .overlay { SplitDropOverlay(state: state, chrome: chrome) }
