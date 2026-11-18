@@ -5,6 +5,11 @@ What changed in each release of Ikago, newest first. Add changes under **Unrelea
 
 ## Unreleased
 
+
+## 0.6.1 — 2026-11-18
+
+- **Chromium 156.0.8078.100:** the latest security and stability fixes from the Chromium project.
+
 ## 0.6.0 — 2026-11-17
 
 - **Bookmarks:** the Bookmarks menu in the menu bar lists your bookmarks, with folders as submenus. Sidebar + Tabs
