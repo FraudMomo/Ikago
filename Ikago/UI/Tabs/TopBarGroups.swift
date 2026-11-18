@@ -143,16 +143,25 @@ struct TopBarGroupLine: ViewModifier {
     var groupBefore = false
     var groupAfter = false
 
+    static let activeOpacity = 0.45
+
     func body(content: Content) -> some View {
         let flare = AttachedTabShape().flare
         content.overlay(alignment: .bottom) {
             if let group {
-                Rectangle().fill(group.chipColor ?? colors.text.opacity(0.25))
-                    .frame(height: 2)
-                    .padding(.leading, active && groupBefore ? -flare : 0)
-                    .padding(.trailing, active && groupAfter ? -flare : 0)
-                    .padding(.bottom, 1)
-                    .allowsHitTesting(false)
+                let color = group.chipColor ?? colors.text.opacity(0.25)
+                // Under the active tab's body the line is fainter, so the tab still reads as the one on screen; under
+                // its flares it stays full, joining the neighbours' lines.
+                HStack(spacing: 0) {
+                    if active && groupBefore { Rectangle().fill(color).frame(width: flare) }
+                    Rectangle().fill(color).opacity(active ? Self.activeOpacity : 1)
+                    if active && groupAfter { Rectangle().fill(color).frame(width: flare) }
+                }
+                .frame(height: 2)
+                .padding(.leading, active && groupBefore ? -flare : 0)
+                .padding(.trailing, active && groupAfter ? -flare : 0)
+                .padding(.bottom, 1)
+                .allowsHitTesting(false)
             }
         }
     }
