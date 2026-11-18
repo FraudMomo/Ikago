@@ -63,8 +63,8 @@ struct TabListView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Heights for "Keep pinned tabs and groups in view": the pinned/groups part and the whole list.
     @State private var topHeight: CGFloat = 0
-    /// Room for the scroll bar beside the rows, taken from the sidebar's 10 pt edge padding.
-    static let scrollGutter: CGFloat = 8
+    /// Room for the scroll bar beside the rows: the whole of the sidebar's 10 pt edge padding: the scroll bar sits near the sidebar's edge, the rows don't move.
+    static let scrollGutter: CGFloat = 10
     @State private var totalHeight: CGFloat = 0
 
     var body: some View {

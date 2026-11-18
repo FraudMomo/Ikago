@@ -316,7 +316,9 @@ final class SlimScroller: NSScroller {
         let knob = rect(for: .knob)
         guard knob.height > 0 else { return }
         let width: CGFloat = 3
-        let bar = NSRect(x: bounds.maxX - width - 2, y: knob.minY + 2, width: width, height: max(0, knob.height - 4))
+        // Inside the knob's own rect: AppKit clips the knob to it, and a bar placed from the scroller's edge lost the
+        // right half of its rounding (measured: 2 of 3 pt showed, square on the right).
+        let bar = NSRect(x: knob.midX - width / 2, y: knob.minY + 2, width: width, height: max(0, knob.height - 4))
         NSColor.labelColor.withAlphaComponent(0.28).setFill()
         NSBezierPath(roundedRect: bar, xRadius: width / 2, yRadius: width / 2).fill()
     }
