@@ -133,37 +133,55 @@ struct TopBarGroupChip: View {
     }
 }
 
-/// The line under a group's tabs in the row, in the group's color, the active tab included. The active tab's sheet
-/// flares out over its neighbours (`AttachedTabShape.flare`) and covered their lines' ends, so its own line reaches
-/// under the flares toward neighbours of the same group, and the line runs on unbroken.
+/// A group's color in the row, like Chrome: a 2 pt line along the bottom of its tabs, and around the active tab an
+/// outline in the same color that follows its arch (`AttachedTabOutline`) and meets the line at both flares, so the tab
+/// you are on rises out of its group's line.
 struct TopBarGroupLine: ViewModifier {
     let group: TabFolder?
     let active: Bool
     let colors: Palette
-    var groupBefore = false
-    var groupAfter = false
 
-    static let activeOpacity = 0.45
+    static let width: CGFloat = 2
 
     func body(content: Content) -> some View {
-        let flare = AttachedTabShape().flare
-        content.overlay(alignment: .bottom) {
-            if let group {
-                let color = group.chipColor ?? colors.text.opacity(0.25)
-                // Under the active tab's body the line is fainter, so the tab still reads as the one on screen; under
-                // its flares it stays full, joining the neighbours' lines.
-                HStack(spacing: 0) {
-                    if active && groupBefore { Rectangle().fill(color).frame(width: flare) }
-                    Rectangle().fill(color).opacity(active ? Self.activeOpacity : 1)
-                    if active && groupAfter { Rectangle().fill(color).frame(width: flare) }
+        let color = group.map { $0.chipColor ?? colors.text.opacity(0.25) }
+        content
+            .overlay(alignment: .bottom) {
+                if let color, !active {
+                    Rectangle().fill(color).frame(height: Self.width).allowsHitTesting(false)
                 }
-                .frame(height: 2)
-                .padding(.leading, active && groupBefore ? -flare : 0)
-                .padding(.trailing, active && groupAfter ? -flare : 0)
-                .padding(.bottom, 1)
-                .allowsHitTesting(false)
             }
+            .overlay {
+                if let color, active {
+                    // Inset by half the stroke, so its flares end on the same line as the neighbours' lines.
+                    AttachedTabOutline()
+                        .stroke(color, style: StrokeStyle(lineWidth: Self.width, lineCap: .butt, lineJoin: .round))
+                        .padding(.vertical, Self.width / 2)
+                        .allowsHitTesting(false)
+                }
+            }
+    }
+}
+
+/// The active tab's arch (`AttachedTabShape`) without its bottom edge, for the group outline.
+struct AttachedTabOutline: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = AttachedTabShape().path(in: rect)
+        // The shape closes along its bottom; drawing it open leaves only the flares, sides and top.
+        path = Path { open in
+            var first = true
+            path.forEach { element in
+                switch element {
+                case .move(let to): open.move(to: to); first = false
+                case .line(let to): open.addLine(to: to)
+                case .quadCurve(let to, let control): open.addQuadCurve(to: to, control: control)
+                case .curve(let to, let c1, let c2): open.addCurve(to: to, control1: c1, control2: c2)
+                case .closeSubpath: break
+                }
+            }
+            _ = first
         }
+        return path
     }
 }
 

@@ -34,7 +34,7 @@
    the sidebar is a secondary rail of pins and groups below the tab row, or hidden (its peek is the rail). Tab groups
    lead their tabs in the row as Chrome-style chips (`TopBarGroupChip`, `TopRowEntry`): top-level groups in order, then
    the ungrouped tabs; a chip in the group's color (dark text on yellow and orange) collapses and expands the group (the
-   same `isOpen` as the sidebar), a 2 pt line in the color runs under its tabs (at 45 % under the active tab, full under its flares), and a
+   same `isOpen` as the sidebar), a 2 pt line in the color runs along the bottom of its tabs and, like Chrome, outlines the active tab's arch (`AttachedTabOutline`) to meet the line at both flares, and a
    collapsed group keeps only the active tab beside its chip. Chips take tab drops, drag like sidebar headers (left 30 %
    before, middle inside, right 30 % of a shut group after; `FolderHeaderDropDelegate(horizontal:)`), and their menu is
    the group's. `GroupPlacement` (Settings ▸ Appearance ▸ Tab Groups) shows groups in both places (unset), the tab row

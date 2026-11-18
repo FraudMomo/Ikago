@@ -71,9 +71,7 @@ struct SidebarTopTabs: View {
                                     .tabSlot()
                             case .item(let item, let group):
                                 itemView(item, width: width * Self.slots(of: item), colors: colors,
-                                         divider: showsDivider(after: item, next: entries[safe: index + 1]?.item), group: group,
-                                         groupBefore: group != nil && entries[safe: index - 1]?.group?.id == group?.id,
-                                         groupAfter: group != nil && entries[safe: index + 1]?.group?.id == group?.id)
+                                         divider: showsDivider(after: item, next: entries[safe: index + 1]?.item), group: group)
                                     .tabSlot()
                             }
                         }
@@ -151,11 +149,9 @@ struct SidebarTopTabs: View {
         next != nil && !isRaised(item) && !isRaised(next)
     }
 
-    @ViewBuilder private func itemView(_ item: TabListItem, width: CGFloat, colors: Palette, divider: Bool, group: TabFolder?,
-                                       groupBefore: Bool, groupAfter: Bool) -> some View {
+    @ViewBuilder private func itemView(_ item: TabListItem, width: CGFloat, colors: Palette, divider: Bool, group: TabFolder?) -> some View {
         itemBody(item, width: width, colors: colors, divider: divider)
-            .modifier(TopBarGroupLine(group: group, active: item.containsTab(state.activeTabID), colors: colors,
-                                      groupBefore: groupBefore, groupAfter: groupAfter))
+            .modifier(TopBarGroupLine(group: group, active: item.containsTab(state.activeTabID), colors: colors))
     }
 
     @ViewBuilder private func itemBody(_ item: TabListItem, width: CGFloat, colors: Palette, divider: Bool) -> some View {
