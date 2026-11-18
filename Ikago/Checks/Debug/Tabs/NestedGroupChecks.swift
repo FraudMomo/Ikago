@@ -31,6 +31,25 @@ enum NestedGroupChecks {
               "deleting a middle group moves its groups and tabs up")
         state.moveFolder(inner.id, into: nil)
         check(state.childFolders(of: nil).contains { $0.id == inner.id }, "moving out returns a group to the top level")
+        // Dragging groups by their headers: before, after, inside, and to the end of the list.
+        let x = state.createFolder(named: "X"), y = state.createFolder(named: "Y")
+        func top() -> [String] { state.childFolders(of: nil).map(\.id) }
+        state.placeFolder(y.id, relativeTo: outer.id, after: false)
+        check(top().firstIndex(of: y.id)! + 1 == top().firstIndex(of: outer.id)!, "a group drops before another")
+        state.placeFolder(y.id, relativeTo: x.id, after: true)
+        check(top().firstIndex(of: x.id)! + 1 == top().firstIndex(of: y.id)!, "a group drops after another")
+        state.moveFolder(x.id, into: outer.id)
+        check(state.childFolders(of: outer.id).last?.id == x.id, "a group dropped inside goes last among its groups")
+        state.placeFolder(y.id, relativeTo: x.id, after: false)
+        check(state.folders.first { $0.id == y.id }?.parentID == outer.id
+              && state.childFolders(of: outer.id).map(\.id).suffix(2) == [y.id, x.id], "placing beside a nested group nests it there")
+        check(!state.canPlaceFolder(outer.id, relativeTo: y.id) && !state.canPlaceFolder(outer.id, relativeTo: outer.id),
+              "a group can't be dropped into or beside its own groups")
+        state.placeFolder(outer.id, relativeTo: y.id, after: false)
+        check(state.folders.first { $0.id == outer.id }?.parentID == nil, "a refused drop changes nothing")
+        state.moveFolder(y.id, into: nil)
+        check(top().last == y.id && state.folders.first { $0.id == y.id }?.parentID == nil, "the list's end takes a group to the top level, last")
+        for id in [x.id, y.id] { state.deleteFolder(id) }
         for id in [a.id, b.id, c.id] { state.closeTab(id) }
         for id in [outer.id, inner.id] { state.deleteFolder(id) }
         print("IKTEST nestedgroupchecks \(failures == 0 ? "PASS" : "FAIL") failures=\(failures)")

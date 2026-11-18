@@ -20,6 +20,9 @@ struct SidebarFolderSection<Content: View>: View {
     @ViewBuilder let content: () -> Content
     @State private var hovering = false
     @State private var targeted = false
+    /// Where a dragged group would land on this header (`GroupDropZone`).
+    @State private var groupZone: GroupDropZone?
+    @State private var headerHeight = MeasuredLength()
     /// What is drawn. It follows `folder.isOpen` from inside the list's own view graph: the list renders in a separate
     /// host, where an animation started in the sidebar's (or by a menu command) doesn't arrive.
     @State private var open: Bool?
@@ -158,25 +161,32 @@ struct SidebarFolderSection<Content: View>: View {
             TabSelectionHighlight(shape: RoundedRectangle(cornerRadius: Radius.row, style: .continuous),
                                   active: showSelection && containsActiveTab && !folder.isOpen, color: colors.selected,
                                   selection: selection, id: "active-tab")
-            if targeted || (hovering && !(showSelection && containsActiveTab && !folder.isOpen)) {
-                RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(targeted ? colors.selected : colors.hover)
+            let into = targeted || groupZone == .into
+            if into || (hovering && !(showSelection && containsActiveTab && !folder.isOpen)) {
+                RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(into ? colors.selected : colors.hover)
             }
         }
         .sidebarHover($hovering)
         .animation(.ikagoQuick, value: hovering)
         .animation(.ikagoQuick, value: targeted)
-        .dropDestination(for: TabDrag.self) { drags, _ in
-            chrome.endTabDrag()
-            guard let id = drags.first?.id else { return false }
-            // The dragged tab and every selected tab with it (`TabDrag.companions`), from this window or another.
-            let ids = TabDrag.travelling(with: id)
-            for tab in ids { BrowserWindows.bring(tab, into: state) }
-            let moving = ids.filter { state.tab($0) != nil }
-            guard !moving.isEmpty else { return false }
-            withAnimation(.ikago) { for tab in moving { state.moveToFolder(tab, folderID: folder.id) } }
-            chrome.selectedTabIDs = []
-            return true
-        } isTargeted: { targeted = $0 }
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { headerHeight.value = $0 }
+        .opacity(chrome.draggingFolderID == folder.id ? 0.5 : 1)
+        .overlay(alignment: groupZone == .after ? .bottom : .top) {
+            if groupZone == .before || groupZone == .after {
+                GroupInsertionLine(colors: colors).offset(y: groupZone == .after ? 1 : -1).transition(.opacity)
+            }
+        }
+        .animation(.ikagoQuick, value: groupZone)
+        .onDrag {
+            chrome.beginFolderDrag(folder.id)
+            return GroupDrag.provider(folder.id)
+        } preview: {
+            GroupDragPreview(folder: folder, colors: colors)
+        }
+        .onDrop(of: [.ikagoTab, .ikagoGroup], delegate: FolderHeaderDropDelegate(
+            folder: folder, state: state, chrome: chrome, length: headerHeight,
+            tabTargeted: $targeted, zone: $groupZone))
+        .onChange(of: chrome.draggingFolderID) { _, id in if id == nil { groupZone = nil } }
         .contextMenu { FolderContextMenu(folder: folder, state: state, commands: commands) }
         .accessibilityLabel(folder.name)
         .accessibilityValue(folder.disclosureValue(count: count, showsCount: state.showsGroupTabCounts))

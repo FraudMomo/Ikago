@@ -63,6 +63,8 @@ Working list for the next builds. Tick items off as they land; move finished the
 
 - [x] **Move tabs and groups into other Spaces**: Move to Space in the tab, selection and group menus, and drop tabs
   on a Space's dot. Groups take their nested groups and tabs along.
+- [x] **Drag groups**: by the header, before or after another group, inside it (nested), to the list's end (top
+  level), or onto a Space's dot.
 - [x] **Sidebar Space swipe follows the fingers**: the list tracks the swipe point for point and the release keeps its
   speed; the Spaces swap only while both lists are faded out, so nothing pops.
 

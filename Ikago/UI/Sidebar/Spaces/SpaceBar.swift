@@ -1,7 +1,8 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// One dot per Space (click to switch, right-click to rename or delete). The active Space's
-/// highlight slides between dots. The sidebar's "Spaces" item. Dropping tabs on another Space's dot moves them there.
+/// highlight slides between dots. The sidebar's "Spaces" item. Dropping tabs or a group on another Space's dot moves them there.
 struct SpaceBar: View {
     let state: BrowserState
     let colors: Palette
@@ -35,21 +36,29 @@ struct SpaceBar: View {
                         .animation(.ikagoQuick, value: dropTarget)
                 }
                 .buttonStyle(.plain)
-                .dropDestination(for: TabDrag.self) { drags, _ in
-                    (commands as? BrowserWindowController)?.chrome.endTabDrag()
-                    guard !active, let id = drags.first?.id else { return false }
-                    // The dragged tab and every selected tab with it (`TabDrag.companions`), from any window.
-                    let ids = TabDrag.travelling(with: id)
-                    for tab in ids { BrowserWindows.bring(tab, into: state) }
-                    let moving = ids.filter { state.tab($0) != nil }
-                    guard !moving.isEmpty else { return false }
-                    withAnimation(.ikago) { state.moveTabs(moving, toSpace: space.id) }
-                    (commands as? BrowserWindowController)?.chrome.selectedTabIDs = []
+                .onDrop(of: [.ikagoTab, .ikagoGroup], isTargeted: Binding(
+                    get: { dropTarget == space.id },
+                    set: { targeted in
+                        if targeted, !active { dropTarget = space.id } else if dropTarget == space.id { dropTarget = nil }
+                    })) { providers in
+                    guard !active, let provider = providers.first else { return false }
+                    let chrome = (commands as? BrowserWindowController)?.chrome
+                    if provider.hasItemConformingToTypeIdentifier(UTType.ikagoGroup.identifier) {
+                        // A group with its nested groups and their tabs.
+                        GroupDrag.load(provider) { id in
+                            chrome?.endFolderDrag()
+                            withAnimation(.ikago) { state.moveFolder(id, toSpace: space.id) }
+                        }
+                    } else {
+                        // The dragged tab and every selected tab with it (`TabDrag.companions`), from any window.
+                        TabDrag.load(provider, into: state) { id in
+                            chrome?.endTabDrag()
+                            withAnimation(.ikago) { state.moveTab(id, toSpace: space.id) }
+                            chrome?.selectedTabIDs = []
+                        }
+                    }
                     return true
-                } isTargeted: { targeted in
-                    if targeted, !active { dropTarget = space.id } else if dropTarget == space.id { dropTarget = nil }
                 }
-                .help(space.isolated ? "\(space.name) · separate logins" : space.name)
                 .contextMenu {
                     Button("Rename…") { commands?.renameSpace(space.id) }
                     Button(space.isolated ? "Use Shared Logins" : "Use Separate Logins") {

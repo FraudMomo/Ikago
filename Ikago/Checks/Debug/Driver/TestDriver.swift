@@ -45,6 +45,35 @@ enum TestDriver {
             fflush(stdout)
             try? await Task.sleep(for: .seconds(Double(arg) ?? 8))
             print("IKTEST dragafter order=\(s.regularTabs.map(\.url).joined(separator: " ")) selected=\(c.chrome.selectedTabIDs.count)")
+        case "groupdragprobe":  // <seconds>: three groups; prints screen points to drag the last group's header onto the
+                                // first one's top edge (before) and onto the middle one's centre (inside), for posted drags
+            let s = c.state
+            let groups = ["GA", "GB", "GC"].map { name in
+                let folder = s.createFolder(named: name)
+                _ = s.newTab(url: "https://example.com/?\(name)", select: false, folderID: folder.id)
+                s.toggleFolder(folder.id)  // shut, so headers sit one under another
+                return folder
+            }
+            try? await Task.sleep(for: .seconds(1.5))
+            func point(_ id: String, dy: CGFloat) -> String {
+                guard let f = LayoutChecks.frames["sidebar-folder-\(id)"], let w = c.window, let content = w.contentView else { return "none" }
+                let y = f.minY + dy
+                let p = w.convertPoint(toScreen: content.convert(NSPoint(x: f.midX, y: content.isFlipped ? y : content.bounds.height - y), to: nil))
+                return "\(Int(p.x)),\(Int(NSScreen.screens[0].frame.height - p.y))"
+            }
+            NSApp.activate(ignoringOtherApps: true); c.window?.makeKeyAndOrderFront(nil)
+            func describe() -> String {
+                s.orderedSpaceFolders.map { f in f.name + (f.parentID.flatMap { p in s.folders.first { $0.id == p }?.name }.map { "<" + $0 } ?? "") }
+                    .joined(separator: " ")
+            }
+            print("IKTEST groupdrag from \(point(groups[2].id, dy: 17)) before \(point(groups[0].id, dy: 4)) into \(point(groups[1].id, dy: 17)) order=\(describe())")
+            fflush(stdout)
+            var sawDrag = false
+            for _ in 0..<Int((Double(arg) ?? 8) * 10) {
+                try? await Task.sleep(for: .milliseconds(100))
+                if c.chrome.draggingFolderID != nil { sawDrag = true }
+            }
+            print("IKTEST groupdragafter order=\(describe()) dragStarted=\(sawDrag) window=\(c.window?.frame ?? .zero)")
         case "perfstats":
             // Shows the performance overlay and prints what it reads after a few seconds.
             c.togglePerformanceStats(nil)

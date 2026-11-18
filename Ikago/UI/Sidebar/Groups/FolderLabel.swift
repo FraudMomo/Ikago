@@ -123,8 +123,8 @@ struct FolderContextMenu: View {
         }
         if folder.parentID != nil {
             Button("Move Out of Group") {
-                let grandparent = state.folders.first { $0.id == folder.parentID }?.parentID
-                withAnimation(.ikago) { state.moveFolder(folder.id, into: grandparent) }
+                // Right after the group it leaves, one level up.
+                if let parent = folder.parentID { withAnimation(.ikago) { state.placeFolder(folder.id, relativeTo: parent, after: true) } }
             }
         }
         if state.spaces.count > 1 {

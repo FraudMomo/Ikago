@@ -83,7 +83,7 @@ final class ChromeModel {
     /// The pointer is over the revealed sidebar.
     @ObservationIgnored var peekHovered = false
     /// Something in the revealed chrome is in use (typing an address, the downloads list, a tab drag): it stays.
-    var holdsPeek: Bool { inlineAddress || showDownloads || draggingTabID != nil }
+    var holdsPeek: Bool { inlineAddress || showDownloads || draggingTabID != nil || draggingFolderID != nil }
 
     func peek() {
         peekHide?.cancel()
@@ -125,5 +125,30 @@ final class ChromeModel {
     func endTabDrag() {
         dragWatch?.cancel()
         draggingTabID = nil
+    }
+
+    /// A group being dragged by its header (`GroupDrag`): its header dims and drop targets for groups show.
+    var draggingFolderID: String?
+
+    /// Starts a group drag; like tab drags, the mouse button tells when it ended without a drop.
+    func beginFolderDrag(_ id: String) {
+        draggingFolderID = id
+        dragWatch?.cancel()
+        dragWatch = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(60))
+                if NSEvent.pressedMouseButtons & 1 == 0 {
+                    try? await Task.sleep(for: .milliseconds(250))
+                    guard !Task.isCancelled else { return }
+                    self?.draggingFolderID = nil
+                    return
+                }
+            }
+        }
+    }
+
+    func endFolderDrag() {
+        dragWatch?.cancel()
+        draggingFolderID = nil
     }
 }

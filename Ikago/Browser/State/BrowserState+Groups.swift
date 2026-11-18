@@ -138,7 +138,8 @@ extension BrowserState {
         return orderedSpaceFolders.filter { !excluded.contains($0.id) && $0.id != current }
     }
 
-    /// Moves a group inside another (nil: the top level). Refuses a move into itself or its own groups.
+    /// Moves a group inside another (nil: the top level), as its last group. Refuses a move into itself or its own
+    /// groups.
     func moveFolder(_ id: String, into parentID: String?) {
         guard let index = folders.firstIndex(where: { $0.id == id }) else { return }
         if let parentID {
@@ -147,7 +148,26 @@ extension BrowserState {
             else { return }
             folders[parent].isOpen = true
         }
-        folders[index].parentID = parentID
+        var folder = folders.remove(at: index)
+        folder.parentID = parentID
+        folders.append(folder)
+        scheduleSave()
+    }
+
+    /// Whether a dragged group can go before, after or into `targetID`: same Space, and never into its own subtree.
+    func canPlaceFolder(_ id: String, relativeTo targetID: String) -> Bool {
+        guard id != targetID, let moving = folders.first(where: { $0.id == id }),
+              let target = folders.first(where: { $0.id == targetID }) else { return false }
+        return moving.spaceID == target.spaceID && !folderSubtreeIDs(id).contains(targetID)
+    }
+
+    /// Puts a group right before or after another, beside it (the target's parent becomes its parent).
+    func placeFolder(_ id: String, relativeTo targetID: String, after: Bool) {
+        guard canPlaceFolder(id, relativeTo: targetID), let from = folders.firstIndex(where: { $0.id == id }) else { return }
+        var folder = folders.remove(at: from)
+        guard let target = folders.firstIndex(where: { $0.id == targetID }) else { folders.insert(folder, at: from); return }
+        folder.parentID = folders[target].parentID
+        folders.insert(folder, at: after ? target + 1 : target)
         scheduleSave()
     }
 }

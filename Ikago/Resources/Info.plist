@@ -102,6 +102,16 @@
 				<string>public.data</string>
 			</array>
 		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>app.ikago.group</string>
+			<key>UTTypeDescription</key>
+			<string>Ikago Tab Group</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+		</dict>
 	</array>
 	<key>NSSupportsAutomaticGraphicsSwitching</key>
 	<true/>

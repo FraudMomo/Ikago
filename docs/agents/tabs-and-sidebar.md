@@ -89,6 +89,12 @@
   tabs on a Space's dot in the Space bar (`moveTab`, `moveTabs`, `moveFolder(_:toSpace:)`). A group takes the groups
   inside it and their tabs, arrives at the top level after the target's groups, and its tabs keep their groups. Between
   Spaces with different storage the pages reopen there (no closed-tab entry). The view stays in the current Space.
+- Groups drag by their header (`GroupDrag`, type `app.ikago.group`, declared in Info.plist): on another header the top
+  30% drops before it, the middle inside it (last), and the bottom 30% of a shut group after it, beside it at its level
+  (`placeFolder`, `canPlaceFolder` refuses its own subtree); the list's end takes it to the top level, last; a Space's dot
+  moves it there with its groups and tabs. Header drops for tabs and groups share one delegate
+  (`FolderHeaderDropDelegate`). A new drag type only reaches drop targets once Launch Services knows the app: a debug
+  binary run directly needs `lsregister -f build/debug/Ikago.app` first. Measure with `groupdragprobe` and a posted drag.
 - The Bookmarks page selects like Finder (Shift-click a range, ⌘-click one more, or Select mode); the bar moves or deletes
   the selection in one change (`moveBookmarks`, `removeBookmarks`), deleting only after a confirmation. Imported bookmarks
   are copies (imports read private snapshots, read only), so edits never reach Safari or another browser.
