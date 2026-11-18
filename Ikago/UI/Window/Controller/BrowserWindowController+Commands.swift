@@ -157,7 +157,11 @@ extension BrowserWindowController: BrowserCommands, NSMenuItemValidation {
         if state.webApp != nil { return window?.performClose(sender) ?? () }
         if let id = state.activeTabID { closeTab(id) } else { window?.performClose(sender) }
     }
-    @objc func reopenClosedTab(_ sender: Any?) { state.reopenClosedTab() }
+    /// Chrome's ⌘⇧T: whatever closed last, one of this window's tabs or a whole window.
+    @objc func reopenClosedTab(_ sender: Any?) {
+        if state.reopensWindowNext, BrowserWindows.reopenClosedWindow() { return }
+        state.reopenClosedTab()
+    }
     @objc func stopLoadingPage(_ sender: Any?) { activeController?.page?.stopLoading() }
     @objc func reloadPage(_ sender: Any?) { activeController?.page?.reload() }
     @objc func hardReloadPage(_ sender: Any?) { activeController?.page?.reloadIgnoringCache() }
@@ -265,7 +269,7 @@ extension BrowserWindowController: BrowserCommands, NSMenuItemValidation {
         case #selector(navigateBack(_:)): return tab?.canGoBack == true
         case #selector(stopLoadingPage(_:)): return tab?.isLoading == true
         case #selector(navigateForward(_:)): return tab?.canGoForward == true
-        case #selector(reopenClosedTab(_:)): return !state.closed.isEmpty
+        case #selector(reopenClosedTab(_:)): return !state.closed.isEmpty || (!state.isPrivate && !(state.primary ?? state).closedWindows.isEmpty)
         case #selector(moveTabToNewWindow(_:)): return state.activeTabID.map { BrowserWindows.canMoveOut($0, from: self) } == true
         case #selector(unsplitView(_:)), #selector(toggleSplitOrientation(_:)): return state.visibleTabIDs.count > 1
         case #selector(splitView(_:)): return tab != nil && state.visibleTabIDs.count < 4

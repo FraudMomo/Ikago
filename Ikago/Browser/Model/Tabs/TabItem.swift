@@ -99,6 +99,8 @@ struct SavedTab: Codable, Equatable {
     /// Closed tabs only: the tab it followed in its Space, so ⌘⇧T puts it back in its place.
     var after: String? = nil
     var history: TabHistory? = nil
+    /// Closed tabs only: when it closed (seconds since 1970), so ⌘⇧T can tell it from a window closed since.
+    var closedAt: Double? = nil
 }
 
 struct Visit: Codable, Equatable {

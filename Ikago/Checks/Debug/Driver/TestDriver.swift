@@ -138,6 +138,7 @@ enum TestDriver {
         case "preset": if let p = SpaceColors.presets.first(where: { $0.name.lowercased() == arg }) { state.setColors(p.colors, for: state.activeSpaceID) }
         case "peek": c.chrome.peek()
         case "movetowindow": if let id = state.activeTabID { c.moveToNewWindow(id) }  // Move Tab to New Window
+        case "closewindow": BrowserWindows.others.last?.window?.close()  // the most recent window after the first
         case "windows":  // every regular window: its tabs and frame
             for (i, w) in BrowserWindows.all.enumerated() {
                 print("IKTEST window \(i) tabs=\(w.state.tabs.map(\.url)) active=\(w.state.activeTab?.url ?? "-") frame=\(w.window.map { NSStringFromRect($0.frame) } ?? "-")")

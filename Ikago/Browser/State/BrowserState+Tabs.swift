@@ -40,6 +40,7 @@ extension BrowserState {
            !isUntouchedNewTab(tab) {
             var saved = tab.saved
             saved.after = previous
+            saved.closedAt = Date().timeIntervalSince1970
             closed = Array(([saved] + closed).prefix(Session.maxClosed))
         }
         removeFromSplits([id])

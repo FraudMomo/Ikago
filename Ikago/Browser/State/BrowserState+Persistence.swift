@@ -64,6 +64,7 @@ extension BrowserState {
         session.lastActiveTab = remembered.filter { savedIDs.contains($0.value) }
         session.folders = folders
         if primary == nil, !windowStates.isEmpty { session.windows = windowStates.filter { !$0.isFrozen && $0.webApp == nil }.map { $0.windowSnapshot() } }
+        if primary == nil, !closedWindows.isEmpty { session.closedWindows = closedWindows }
         return session
     }
 
@@ -108,6 +109,8 @@ extension BrowserState {
         })
         closed = s.closed
         pendingWindows = s.windows ?? []
+        // A closed window whose saved form no longer checks out is dropped, not the session.
+        closedWindows = (s.closedWindows ?? []).filter { $0.isValid(besides: []) }
         history = s.history
         bookmarks = s.bookmarks ?? []
         bookmarkFolders = s.bookmarkFolders ?? []

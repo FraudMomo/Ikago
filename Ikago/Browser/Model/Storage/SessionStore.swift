@@ -31,6 +31,8 @@ struct Session: Codable, Equatable {
     var bookmarkFolders: [BookmarkFolder]? = nil
     /// The other regular windows and their tabs (`WindowSession`); this session's own tabs are the first window's.
     var windows: [WindowSession]? = nil
+    /// Recently closed windows, newest first (`WindowSession.closedAt`), for ⌘⇧T.
+    var closedWindows: [WindowSession]? = nil
 
     static let maxTabs = 100, maxClosed = 20, maxHistory = 1000
 
@@ -56,7 +58,8 @@ struct Session: Codable, Equatable {
         try BookmarkFolder.validate(bookmarkFolders ?? [], bookmarks: bookmarks ?? [])
         guard SearchEngine(rawValue: search) != nil else { throw Invalid() }
         if let active, !tabs.contains(where: { $0.id == active }) { throw Invalid() }
-        guard (spaces ?? []).count <= 50, (folders ?? []).count <= 500, (windows ?? []).count <= WindowSession.maxWindows else { throw Invalid() }
+        guard (spaces ?? []).count <= 50, (folders ?? []).count <= 500, (windows ?? []).count <= WindowSession.maxWindows,
+              (closedWindows ?? []).count <= WindowSession.maxClosedWindows else { throw Invalid() }
         for folder in folders ?? [] where !Self.isValidID(folder.id) || folder.name.utf8.count > 256 { throw Invalid() }
     }
 

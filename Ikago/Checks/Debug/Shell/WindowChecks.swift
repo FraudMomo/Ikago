@@ -2,7 +2,8 @@
 import AppKit
 
 /// Several regular windows (`BrowserWindows`): moving a tab keeps its live page, settings and bookmarks are shared,
-/// the session saves every window, tearing off, dropping into another window, and closing the first window.
+/// the session saves every window, tearing off, dropping into another window, closing the first window, and ⌘⇧T
+/// bringing a closed window back whole.
 @MainActor
 enum WindowChecks {
     static func run(_ browser: BrowserWindowController) async {
@@ -81,21 +82,44 @@ enum WindowChecks {
             check(state.tab(second.id) != nil && state.tab(first.id) == nil, "it shows the other window's tabs")
             check(browser.content.controller(for: second.id)?.page === page, "with their live pages")
             check(browser.window?.frame == place, "where the other window was")
-            check(state.closed.contains { $0.id == first.id }, "its own tabs can be reopened with ⌘⇧T")
+            check(state.closedWindows.first?.tabs.contains { $0.id == first.id } == true, "the window it closed is remembered whole for ⌘⇧T")
         } else {
             check(false, "tearing off opens a window")
         }
 
-        // A closed second window's tabs join recently closed.
+        // ⌘⇧T brings a closed window back whole, and whatever closed last comes first.
+        state.closedWindows = []
         _ = state.newTab(url: "https://example.com/three")
         await settle()
         if let active = state.activeTabID { browser.moveToNewWindow(active) }
         await settle()
-        let movedID = BrowserWindows.others.last?.state.activeTabID
-        BrowserWindows.others.last?.window?.close()
+        guard let closing = BrowserWindows.others.last, let movedID = closing.state.activeTabID else {
+            check(false, "a second window opens for the closed-window checks")
+            return finish(failures)
+        }
+        let extra = closing.state.newTab(url: "https://example.com/four")!
+        let group = closing.state.createFolder(named: "Kept", with: extra.id)
         await settle()
-        check(BrowserWindows.others.isEmpty && state.closed.first?.id == movedID, "closing another window lists its tabs as recently closed")
-        check(state.snapshot().windows == nil, "a closed window leaves the session")
+        closing.window?.close()
+        await settle()
+        check(BrowserWindows.others.isEmpty && state.closedWindows.count == 1, "a closed window is remembered, not split into tabs")
+        check(state.closed.first?.id != movedID, "its tabs don't join this window's closed tabs")
+        check(state.snapshot().windows == nil && state.snapshot().closedWindows?.count == 1, "the session saves it as closed, not open")
+        let later = state.newTab(url: "https://example.com/later")!
+        await settle()
+        state.closeTab(later.id)
+        browser.reopenClosedTab(nil)
+        await settle()
+        check(state.tab(later.id) != nil && BrowserWindows.others.isEmpty, "a tab closed after the window comes back first")
+        browser.reopenClosedTab(nil)
+        await settle(700)
+        let back = BrowserWindows.others.last
+        check(back?.state.tab(movedID) != nil && back?.state.tab(extra.id) != nil, "the next ⌘⇧T reopens the window with all its tabs")
+        check(back?.state.tab(extra.id)?.folderID == group.id, "with its groups")
+        check(back?.window?.isKeyWindow == true || back?.window?.isVisible == true, "in front")
+        check(state.closedWindows.isEmpty, "and it leaves the closed list")
+        back?.window?.close()
+        await settle()
         finish(failures)
     }
 

@@ -21,6 +21,7 @@ extension BrowserState {
         session.folders = window?.folders
         session.sidebar = window?.sidebar ?? primary.sidebarVisible
         apply(session)
+        closedWindows = []  // the first window's state keeps them
         systemIsDark = primary.systemIsDark
         windowFrame = window?.screenFrame
         saveTask?.cancel()
@@ -99,8 +100,9 @@ extension BrowserState {
     /// Takes over another window's tabs, groups and split views; this window's own tabs go to recently closed.
     func takeWindow(from other: BrowserState) {
         guard !isFrozen else { return }
-        let mine = tabs.filter { AddressResolver.isPageURL($0.url) || Self.isReopenableInternalPage($0.url) }.map(\.saved)
-        closed = Array((other.closed + mine + closed).prefix(Session.maxClosed))
+        // The window the person closed is this one: it is remembered whole, its closed tabs with it, for ⌘⇧T.
+        recordClosedWindow(windowSnapshot())
+        closed = other.closed
         folders = other.folders
         tabs = other.tabs
         splits = other.splits
@@ -112,3 +114,25 @@ extension BrowserState {
         scheduleSave()
     }
 }
+
+// MARK: - Closed windows
+/// Chrome's ⌘⇧T: a closed window comes back whole, with its tabs, groups, splits and its own closed tabs. The first
+/// window's state keeps the list (and saves it with the session); whichever was closed last, tab or window, comes first.
+extension BrowserState {
+    func recordClosedWindow(_ window: WindowSession) {
+        // Quitting closes windows too; the session already saved them as open windows.
+        guard primary == nil, !isPrivate, !isFrozen, !window.tabs.isEmpty else { return }
+        var window = window
+        window.closedAt = Date().timeIntervalSince1970
+        window.frame = window.frame ?? windowFrame.map { [$0.minX, $0.minY, $0.width, $0.height] }
+        closedWindows = Array(([window] + closedWindows).prefix(WindowSession.maxClosedWindows))
+        scheduleSave()
+    }
+
+    /// Whether ⌘⇧T in this window should bring back a window rather than one of this window's own closed tabs.
+    var reopensWindowNext: Bool {
+        guard !isPrivate, let window = (primary ?? self).closedWindows.first else { return false }
+        return (window.closedAt ?? 0) > (closed.first?.closedAt ?? 0)
+    }
+}
+

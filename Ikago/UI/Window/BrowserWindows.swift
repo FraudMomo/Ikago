@@ -47,6 +47,27 @@ enum BrowserWindows {
         return controller
     }
 
+    /// ⌘⇧T after closing a window: the most recently closed window, as it was, in front. Tabs whose identity is in use
+    /// again are left out; a window with none left is dropped. Returns false when nothing could be reopened.
+    @discardableResult
+    static func reopenClosedWindow() -> Bool {
+        guard let primary, !primary.state.isFrozen else { return false }
+        while var window = primary.state.closedWindows.first {
+            primary.state.closedWindows.removeFirst()
+            let taken = Set(all.flatMap { $0.state.tabs.map(\.id) })
+            window.tabs.removeAll { taken.contains($0.id) }
+            guard !window.tabs.isEmpty else { continue }
+            if let active = window.active, !window.tabs.contains(where: { $0.id == active }) { window.active = window.tabs.first?.id }
+            window.closedAt = nil
+            primary.state.scheduleSave()
+            guard let controller = open(window) else { return false }
+            controller.window?.makeKeyAndOrderFront(nil)
+            return true
+        }
+        primary.state.scheduleSave()
+        return false
+    }
+
     /// A web app's window (`WebApps`): this app's page alone, on the Space it was installed from.
     @discardableResult
     static func open(webApp app: WebApp) -> BrowserWindowController? {
@@ -154,16 +175,15 @@ enum BrowserWindows {
         return true
     }
 
-    /// A window after the first closed: its tabs, and the ones it had closed, join recently closed, so ⌘⇧T can bring
-    /// them back.
+    /// A window after the first closed: it is remembered whole (tabs, groups, splits, its own closed tabs), so ⌘⇧T can
+    /// bring it back as it was.
     static func closed(_ controller: BrowserWindowController) {
         guard let index = others.firstIndex(where: { $0 === controller }) else { return }
         others.remove(at: index)
         guard let primary else { return }
         primary.state.windowStates = others.map(\.state)
         if handedOver.remove(ObjectIdentifier(controller)) == nil, controller.state.webApp == nil {
-            let saved = controller.state.tabs.filter { AddressResolver.isPageURL($0.url) }.map(\.saved) + controller.state.closed
-            primary.state.closed = Array((saved + primary.state.closed).prefix(Session.maxClosed))
+            primary.state.recordClosedWindow(controller.state.windowSnapshot())
         }
         primary.state.scheduleSave()
     }

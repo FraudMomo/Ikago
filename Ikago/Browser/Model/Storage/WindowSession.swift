@@ -14,8 +14,12 @@ struct WindowSession: Codable, Equatable {
     var sidebar: Bool? = nil
     /// x, y, width, height in screen coordinates.
     var frame: [Double]? = nil
+    /// Closed windows only: when it closed (seconds since 1970), for ⌘⇧T's order.
+    var closedAt: Double? = nil
 
     static let maxWindows = 20
+    /// Recently closed windows ⌘⇧T can bring back, newest first.
+    static let maxClosedWindows = 5
 
     var screenFrame: CGRect? {
         guard let frame, frame.count == 4, frame[2] >= 200, frame[3] >= 200 else { return nil }

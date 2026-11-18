@@ -88,6 +88,8 @@ final class BrowserState {
     @ObservationIgnored var windowFrame: CGRect?
     /// Windows a restored session had beyond the first; the app opens them after the first window.
     @ObservationIgnored var pendingWindows: [WindowSession] = []
+    /// Recently closed windows, newest first; kept by the first window's state only (`recordClosedWindow`).
+    var closedWindows: [WindowSession] = []
 
     @ObservationIgnored let store: SessionStore
     /// The session last handed to the store, so an unchanged scheduled save is skipped.
@@ -116,6 +118,7 @@ final class BrowserState {
         session.splits = nil; session.folders = []; session.lastActiveTab = nil
         session.spaces = [main.activeSpace]; session.activeSpace = main.activeSpaceID
         apply(session)
+        closedWindows = []
         colorMode = .dark  // private windows always look dark, so they're easy to tell apart
         history = []
         systemIsDark = main.systemIsDark

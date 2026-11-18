@@ -65,7 +65,10 @@
   another tab is chosen), then its split partner, then the tab to the right, then the left. ⌘⇧T reopens a tab in its
   Space, group and place (`SavedTab.after`) and selects it. Like Chrome, a tab still on its new-tab page (an extension's
   new-tab page or the homepage, nowhere to go back to) is not recorded when closed (`isUntouchedNewTab`); blank tabs
-  never are.
+  never are. A closed window is remembered whole (`closedWindows` on the first window's state, at most
+  `WindowSession.maxClosedWindows`, saved in `Session.closedWindows`); ⌘⇧T reopens whatever closed last, tab or window
+  (`SavedTab.closedAt`, `WindowSession.closedAt`, `reopensWindowNext`). Closing the first window records it the same
+  way before it takes over another. Windows closing while the app quits are never recorded (the state is frozen).
 - Ikago never opens a fixed site by itself: the first tab of a launch and Split View's new pane open `startPageURL`
   (the homepage when new tabs open it, else the chosen engine's `homeURL`); a new private window opens like ⌘N.
 - If ⌘T's blank tab has no page view yet when Return is pressed, `open` sets the tab's address so the page starts there. Closing a top tab with the mouse keeps the others' width until
