@@ -85,7 +85,7 @@
    `SettingsSubnav`; the chosen one rides a sliding pill). A sub-page lists the `PageSection` titles it shows
    (`settingsVisibleSections`): a new section must be added to one, or it never appears. Search results open the sub-page holding
    their section. Inside Settings (`settingsSurface`), `PageSection` is a card (`SettingsColors.card`, 14 pt corners, hairline rim,
-   soft shadow) with its 13 pt semibold heading inside and rows divided by hairlines; its footer sits under the card. Elsewhere
+   soft shadow) with rows divided by hairlines; its heading sits above the card (15 pt semibold, so a page scans by its headings) and its footer under it. Elsewhere
    `PageSection` keeps its soft 12 pt panel. Keep visual previews where a choice is about looks (layout cards, color mode, group
    label style, the sidebar and toolbar editor's figure). `PageRow`:
    56 pt rows with 13 pt medium titles and 12 pt subtitles in Settings (44 pt elsewhere), no decorative per-row icons; an engine logo

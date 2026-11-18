@@ -104,17 +104,19 @@ struct PageSection<Content: View>: View {
         } else if settingsSurface { card } else { panel }
     }
 
-    /// Settings: a card lifted off the page, its heading inside, rows divided by hairlines; the footer under it.
+    /// Settings: a heading above a card lifted off the page, rows divided by hairlines inside it; the footer under it.
+    /// The headings sit outside the cards, larger than the rows, so a page can be scanned by them.
     private var card: some View {
         let dark = scheme == .dark
         let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
-        return VStack(alignment: .leading, spacing: 6) {
+        return VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(.system(size: 15, weight: .semibold)).foregroundStyle(.primary)
+                .padding(.leading, 4)
+                .accessibilityAddTraits(.isHeader)
             VStack(alignment: .leading, spacing: 0) {
-                Text(title).font(.system(size: 13, weight: .semibold)).foregroundStyle(.primary)
-                    .padding(.top, 14).padding(.bottom, 2)
                 VStack(spacing: 0) { content }
             }
-            .padding(.horizontal, 18).padding(.bottom, 4)
+            .padding(.horizontal, 18).padding(.vertical, 2)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(shape.fill(palette.map(SettingsColors.card) ?? (dark ? Color(hex: 0x222325) : .white)))
             .overlay(shape.strokeBorder(dark ? Color.white.opacity(0.06) : Color.black.opacity(0.06), lineWidth: 0.5))
@@ -123,9 +125,10 @@ struct PageSection<Content: View>: View {
             .animation(.easeOut(duration: 0.6), value: highlight == title)
             if let footer {
                 Text(footer).font(.system(size: 12)).foregroundStyle(.secondary).lineSpacing(1)
-                    .fixedSize(horizontal: false, vertical: true).padding(.horizontal, 18)
+                    .fixedSize(horizontal: false, vertical: true).padding(.horizontal, 4)
             }
         }
+        .padding(.top, 4)
         .id(title)
     }
 
