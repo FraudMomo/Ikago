@@ -39,3 +39,6 @@ google-api-key
 *.certSigningRequest
 *.mobileprovision
 *.provisionprofile
+
+# Local planning notes
+TODO.md
