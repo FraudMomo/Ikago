@@ -122,8 +122,9 @@ extension BrowserWindowController {
     /// field, so it uses the floating one.
     private var canUseInlineAddress: Bool {
         guard state.addressStyle == .integrated else { return false }
-        // Top Tabs edits in its address bar above the page.
-        if state.showsSidebarTopTabs { return true }
+        // Top Tabs edits in its address bar above the page; in split view each pane has its own bar, and the command bar
+        // floats instead.
+        if state.showsSidebarTopTabs { return !state.showsPaneBars }
         return state.sidebarVisible && !state.showsSidebarRail && state.chromeLayout.sidebarShowsAddress
     }
 }

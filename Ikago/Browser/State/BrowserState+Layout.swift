@@ -46,6 +46,9 @@ extension BrowserState {
     /// the window's edge. They lead the tab row as icon tabs only when essentials are off, or when the sidebar is hidden
     /// and can't slide in (edge peek off), so they are never out of reach.
     var pinsInTabRow: Bool { !showsPinnedGrid || (!showsSidebarRail && !sidebarEdgePeek) }
+    /// Top Tabs in split view: each pane has its own bar (back, forward, reload, its address, close) instead of the one
+    /// address bar above the page (`PaneBar`).
+    var showsPaneBars: Bool { showsSidebarTopTabs && activeTabID.flatMap { splitGroup(of: $0) } != nil }
     /// Pins show in one place: the rail has them whenever the tab row doesn't.
     var pinsInRail: Bool { showsPinnedGrid && !(usesTabsLayout && pinsInTabRow) }
 

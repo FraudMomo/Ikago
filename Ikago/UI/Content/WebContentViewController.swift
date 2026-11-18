@@ -156,6 +156,9 @@ final class WebContentViewController: NSViewController {
         memoryManagement.markVisible()
         for id in state.visibleTabIDs { controllers[id]?.startIfNeeded() }
         for id in state.visibleTabIDs { controllers[id]?.refreshSplitHeader() }
+        // Top Tabs in split view: a bar on each visible pane; every other tab's page fills its pane again.
+        let paneBars = state.showsPaneBars, visibleIDs = Set(state.visibleTabIDs)
+        for controller in controllers.values { controller.showPaneBar(paneBars && visibleIDs.contains(controller.tab.id)) }
         surface.setPaneBackground(state.isDark ? NSColor(hex: 0x1C1C1E) : .white)
         let switchedTab = state.activeTabID != lastActiveID
         let radius: CGFloat = state.pageCornerRadius

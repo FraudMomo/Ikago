@@ -23,8 +23,10 @@ final class TabController: NSObject, WebTabDelegate {
     let hostView = TabHostView()
     /// Split view: strip over the pane on hover (move, remove from split).
     private(set) var header: PaneHeaderView?
+    /// The pane's own bar in Top Tabs split view (`PaneBar`).
+    var paneBar: NSView?
     weak var host: TabHost?
-    private weak var state: BrowserState?
+    private(set) weak var state: BrowserState?
     var browserState: BrowserState? { state }
     /// Set by `attach`, cleared on close or when the tab moves to another window (`releasePage`).
     var page: WebTab?
@@ -147,7 +149,8 @@ final class TabController: NSObject, WebTabDelegate {
     /// The header shows while the pointer is near the pane's top edge (or on the header itself), and fades away otherwise.
     private func pointerMoved(to point: NSPoint) {
         let band = PaneHeaderView.topGap + PaneHeaderView.height + 22
-        let nearTop = hostView.bounds.contains(point) && point.y >= hostView.bounds.height - band
+        let top = hostView.pageFrame.maxY
+        let nearTop = hostView.bounds.contains(point) && point.y >= top - band && point.y <= top
         setHeaderVisible(nearTop)
     }
     func setHeaderVisible(_ visible: Bool) {
@@ -173,7 +176,7 @@ final class TabController: NSObject, WebTabDelegate {
         header.handle.title.stringValue = tab.displayTitle
         let width = header.preferredWidth(in: hostView.bounds.width)
         header.frame = NSRect(x: ((hostView.bounds.width - width) / 2).rounded(),
-                              y: hostView.bounds.height - PaneHeaderView.topGap - PaneHeaderView.height,
+                              y: hostView.pageFrame.maxY - PaneHeaderView.topGap - PaneHeaderView.height,
                               width: width, height: PaneHeaderView.height)
         header.autoresizingMask = [.minXMargin, .maxXMargin, .minYMargin]
         if header.superview !== hostView || hostView.subviews.last !== header {

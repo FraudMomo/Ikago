@@ -62,7 +62,7 @@ IKAGO_TEST_ACTIONS="open:http://127.0.0.1:$port/;wait:2;new:http://127.0.0.1:$po
 # Split fixtures exercise native pane controls in a separate window/profile so their
 # temporary tab/session state cannot influence the long-running chrome geometry fixtures.
 IKAGO_TEST_MODE=1 IKAGO_TEST_PROFILE="$work/split-profile" \
-IKAGO_TEST_ACTIONS="glass:off;page:settings;wait:1;engine:chromium;wait:1;engine:webkit;wait:1;glass:on;wait:1;engine:chromium;wait:1;engine:webkit;wait:1;downloadpopupchecks;extensionstoragechecks;faviconstabilitychecks;sidebarinteractionchecks;tabreorderingchecks;essentialschecks;bookmarknavigationchecks;protectedaddresschecks;bookmarkbarchecks;splitinteractionchecks;quit" \
+IKAGO_TEST_ACTIONS="glass:off;page:settings;wait:1;engine:chromium;wait:1;engine:webkit;wait:1;glass:on;wait:1;engine:chromium;wait:1;engine:webkit;wait:1;downloadpopupchecks;extensionstoragechecks;faviconstabilitychecks;sidebarinteractionchecks;tabreorderingchecks;essentialschecks;bookmarknavigationchecks;protectedaddresschecks;bookmarkbarchecks;splitinteractionchecks;panebarchecks;quit" \
     "build/debug/Ikago.app/Contents/MacOS/Ikago" >> "$work/checks.log" 2>&1
 IKAGO_TEST_MODE=1 IKAGO_TEST_PROFILE="$work/background-profile" \
 IKAGO_TEST_ACTIONS="backgroundtabchecks:http://127.0.0.1:$port;quit" \

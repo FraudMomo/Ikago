@@ -96,6 +96,12 @@
   cover the page at rest; they use native independent drag handles/buttons; page focus must not interrupt header controls.
   Switching tabs moves page views straight between panes and the hidden parking view, never out of the window: a Chromium page taken out of the window is resized to 0×0, and ChatGPT lost its scroll position and blinked on return (`CEFTabSwitchChecks`). Never call `removeArrangedSubview` (it removes the view from the window; split views arrange all their subviews, so moving one is enough), and a parked view goes back to autoresizing (a split view put it on Auto Layout, which sized it 0×0 in parking). A Chromium page gets one fresh resize the first time it shows (`CEFWebTab.visibilityChanged`), since an adopted link tab could stay blank. Each split keeps its panes' shares across resizes (`PaneSplitView.layout`): Auto Layout alone gave a resize to one pane, and a layout switch collapsed a grid's column to 0 pt (measure with the `panes` test action). Dropping the active unsplit tab creates a `ikago://split-empty` slot. Filling the slot
   preserves its side/layout and removes the placeholder; sessions retain empty slots.
+- Top Tabs in split view (`state.showsPaneBars`): the address bar above the page gives way to a bar on each visible pane
+  (`PaneBar`, an `NSHostingView` with `safeAreaRegions = []`, or the title bar's safe area pushes it down): back, forward,
+  reload for that pane's page, its "site / title" opening the command bar (which floats; `canUseInlineAddress` is off
+  then), and close. `TabHostView.barHeight`/`pageFrame` keep every view that fills the pane's height below the bar; the
+  hover pill, engine badge and header band measure from `pageFrame`. The page is resized once when bars come or go.
+  `panebarchecks`.
 - Page-switch fades and tab-highlight motion are independent Settings ▸ Appearance options.
   Instant mode removes in-flight layer fades; shared TabSelectionHighlight implements None,
   Slide, Fade, Scale and Spring for all layouts, pins and split groups. Respect Reduce Motion.

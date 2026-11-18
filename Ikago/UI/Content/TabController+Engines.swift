@@ -140,7 +140,7 @@ extension TabController {
         let badge = PassThroughHostingView(rootView: EngineBadge(engine: engine, palette: state.palette))
         badge.sizingOptions = [.intrinsicContentSize]
         let size = badge.fittingSize
-        badge.frame = NSRect(x: 12, y: hostView.bounds.height - size.height - 12, width: size.width, height: size.height)
+        badge.frame = NSRect(x: 12, y: hostView.pageFrame.maxY - size.height - 12, width: size.width, height: size.height)
         badge.autoresizingMask = [.minYMargin, .maxXMargin]
         badge.setAccessibilityLabel("Opened in \(engine.title)")
         hostView.addSubview(badge, positioned: .above, relativeTo: nil)

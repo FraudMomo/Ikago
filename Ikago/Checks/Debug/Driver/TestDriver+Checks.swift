@@ -110,6 +110,7 @@ extension TestDriver {
         case "chromiumremovalchecks": await ChromiumRemovalChecks.run()
         case "findchecks": await FindChecks.run(c, base: arg)
         case "tabscrollprobe": await TabRowScrollChecks.scrollProbe(c)
+        case "panebarchecks": await PaneBarChecks.run(c)
         case "railhoverchecks": await RailHoverChecks.run(c)
         case "tabrowscrollchecks": await TabRowScrollChecks.run(c)
         case "findtrailprobe": await FindChecks.trailProbe(c, base: arg)

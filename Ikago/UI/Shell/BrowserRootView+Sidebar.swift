@@ -29,6 +29,8 @@ extension BrowserRootView {
                 .frame(height: SidebarTopTabs.height(state))
                 .padding(.trailing, trailing)
                 .transition(.opacity.combined(with: .offset(y: -8)))
+                // In split view each pane has its own bar (`PaneBar`); this one gives way to them.
+                if !state.showsPaneBars {
                 IsolatedHost(chrome: chrome) {
                     TabsToolbar(state: state, chrome: chrome, palette: palette, commands: commands)
                 }
@@ -42,6 +44,7 @@ extension BrowserRootView {
                 // straight down into the page.
                 .padding(.trailing, trailing)
                 .transition(.opacity)
+                }
                 if state.showsBookmarksBar {
                     IsolatedHost(chrome: chrome) { TopBookmarksBar(state: state, commands: commands) }
                         .frame(height: TopBookmarksBar.height)
