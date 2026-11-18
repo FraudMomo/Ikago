@@ -49,7 +49,7 @@ Ikago/
 ├── Extensions/  WebKit/ (WKWebExtension manager, tab bridge, Web Store), Chromium/ (hidden manager, popups)
 ├── Import/      Browser data import
 ├── UI/          Window/ (Controller/ holds BrowserWindowController and its extensions), Content/ (tab panes, Reader/),
-│                Shell/ (root view), Toolbar/ (customizable controls), Tabs/ (Sidebar + Tabs row),
+│                Shell/ (root view), Toolbar/ (customizable controls), Tabs/ (Top Tabs row),
 │                Sidebar/ (TabList/, Groups/, Bookmarks/, Media/, Spaces/), Address/,
 │                Overlays/ (Site/, Passwords/, Performance/, Assistant/, Peek/), Pages/ (ikago:// pages; Welcome/,
 │                History/, Bookmarks/), Settings/ (Core/, General/, Appearance/, Privacy/, Extensions/), Downloads/,

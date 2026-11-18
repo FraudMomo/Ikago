@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Settings ▸ Customize: a live mockup of the current layout. The sidebar's top row and bottom bar each have a left,
-/// centre and right place; Sidebar + Tabs has the toolbar's left and right instead. Below them sit the icons-only
+/// centre and right place; Top Tabs has the toolbar's left and right instead. Below them sit the icons-only
 /// sidebar's foot and the address field's own buttons. Drag items into any place, reorder within one, hover and click −
 /// to remove, drag (or click) from Available to add.
 struct CustomizeSection: View {

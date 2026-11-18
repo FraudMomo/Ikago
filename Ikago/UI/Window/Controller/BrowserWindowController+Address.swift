@@ -122,7 +122,7 @@ extension BrowserWindowController {
     /// field, so it uses the floating one.
     private var canUseInlineAddress: Bool {
         guard state.addressStyle == .integrated else { return false }
-        // Sidebar + Tabs edits in its address bar above the page.
+        // Top Tabs edits in its address bar above the page.
         if state.showsSidebarTopTabs { return true }
         return state.sidebarVisible && !state.showsSidebarRail && state.chromeLayout.sidebarShowsAddress
     }

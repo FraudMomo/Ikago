@@ -15,7 +15,7 @@ extension BrowserRootView {
         .background(WindowDragArea())
     }
 
-    /// The page. In Sidebar + Tabs the tab row (`SidebarTopTabs`) and the address bar (`TabsToolbar`) sit above it, each
+    /// The page. In Top Tabs the tab row (`SidebarTopTabs`) and the address bar (`TabsToolbar`) sit above it, each
     /// in its own host like the sidebar; the address bar is the top of the page's card, and the active tab arches into
     /// it, so tab, address and page read as one sheet. One content card either way, so switching never moves the page
     /// between hosts.
@@ -76,7 +76,7 @@ extension BrowserRootView {
         }
         .frame(width: sidebarShownWidth, alignment: .leading)
         .padding(.top, state.isImmersive ? state.immersiveChromeTop : 0)
-        // Sidebar + Tabs: the rail starts under the tab row, level with the address bar.
+        // Top Tabs: the rail starts under the tab row, level with the address bar.
         .padding(.top, state.showsSidebarTopTabs ? SidebarTopTabs.height(state) - inset : 0)
         .clipped()
         // Joined to the window (glass off), the sidebar draws nothing of its own: it and the tab row above the page are

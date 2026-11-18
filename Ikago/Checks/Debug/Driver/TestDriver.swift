@@ -215,7 +215,7 @@ enum TestDriver {
         case "updatecard":  // security | features | download | off: a sample update card in the frontmost window
             let notes = arg == "security" ? ["**Chromium 157.0.8123.45:** the latest security and stability fixes from the Chromium project."]
                 : arg == "download" ? ["**Download needed:** copies before 0.5.1 can't install this update by themselves. [Download Ikago 0.5.1 from GitHub](https://github.com/FraudMomo/Ikago/releases/latest), open the DMG and drag Ikago to Applications to replace your copy."]
-                : ["**Sidebar + Tabs:** the toolbar has its own controls, and the bar's height is yours to choose.",
+                : ["**Top Tabs:** the toolbar has its own controls, and the bar's height is yours to choose.",
                    "**Downloads:** Download Image and Download Linked File work in every page's menu."]
             let summary = UpdateSummary(version: arg == "security" ? "0.4.2" : "0.5.0", security: arg == "security",
                                         chromium: arg == "security" ? "157.0.8123.45" : nil, notes: notes,
@@ -263,7 +263,7 @@ enum TestDriver {
             let web = samples.dropFirst().map { $0.rows.filter { $0.name.contains("WebContent") }.reduce(0) { $0 + $1.cpu } }
             func avg(_ v: [Double]) -> Int { v.isEmpty ? 0 : Int(v.reduce(0, +) / Double(v.count)) }
             print("IKTEST scrollprobe total avg=\(avg(cpu))% max=\(Int(cpu.max() ?? 0))% app=\(avg(app))% webcontent=\(avg(web))%")
-        case "siteinfoclick":  // hovers the Sidebar + Tabs address bar, clicks its site button, reports the card
+        case "siteinfoclick":  // hovers the Top Tabs address bar, clicks its site button, reports the card
             guard let window = c.window, let field = c.chrome.addressFieldFrame, let height = window.contentView?.bounds.height else {
                 print("IKTEST siteinfoclick no address frame"); break
             }
@@ -484,7 +484,7 @@ enum TestDriver {
         case "sidebartranslucency": state.browserPreferences.translucentSidebar = arg == "on"
         case "glass": state.useGlass = arg != "off"
         case "inset": state.frameInset = Double(arg) ?? 8
-        case "tabsbar": state.browserPreferences.tabsBarHeight = Double(arg)  // Sidebar + Tabs bar height, points
+        case "tabsbar": state.browserPreferences.tabsBarHeight = Double(arg)  // Top Tabs bar height, points
         case "addressbuttons":  // <reload|site>:<on|off>
             let p = arg.split(separator: ":").map(String.init)
             if p.first == "reload" { state.chromeLayout.addressShowsReload = p.last == "on" }

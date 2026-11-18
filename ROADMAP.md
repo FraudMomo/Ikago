@@ -13,7 +13,7 @@ statement of direction, not a schedule.
 
 A complete everyday browser on Apple's WebKit, written in Swift 6 with AppKit and SwiftUI.
 
-- The sidebar, with an optional row of tabs and an address bar above the page (Sidebar + Tabs)
+- The sidebar, with an optional row of tabs and an address bar above the page (Top Tabs)
 - Spaces, each with its own tabs, pinned tabs, groups, colors and optionally its own website data
 - Split view with up to four panes as columns, rows or a grid, built by dragging tabs onto the page
 - Tab groups, pinned essentials, a bookmarks bar, and nested bookmark folders

@@ -6,7 +6,7 @@ struct GroupAppearanceSection: View {
 
     var body: some View {
         PageSection(title: "Tab Groups", footer: "Right-click a group to change its color or hide it.") {
-            // The label styles dress the full sidebar's group headers; Sidebar + Tabs has chips and tiles instead.
+            // The label styles dress the full sidebar's group headers; Top Tabs has chips and tiles instead.
             if !state.usesTabsLayout {
                 ViewThatFits(in: .horizontal) {
                     HStack(alignment: .top, spacing: 14) { cards(minimumWidth: 180) }
@@ -15,7 +15,7 @@ struct GroupAppearanceSection: View {
                 .padding(.vertical, 16)
                 PageDivider()
             }
-            // The full sidebar's group style in the Sidebar layout; where groups show in Sidebar + Tabs.
+            // The full sidebar's group style in the Sidebar layout; where groups show in Top Tabs.
             if state.usesTabsLayout {
                 PageRow(title: "Where groups show", subtitle: "Chips in the tab row, tiles in the icon sidebar, or both",
                         figure: AnyView(GroupPlacementFigure(placement: state.groupPlacement, colors: state.palette))) {

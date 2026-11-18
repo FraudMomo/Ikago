@@ -60,12 +60,12 @@ enum ChromeItem: String, Codable, CaseIterable, Identifiable {
 
 /// The places items can go: the left, centre and right of the sidebar's top row and of its bottom bar (`sidebarTop` is
 /// the top row's right and `sidebarBottom` the bottom bar's centre, where every control sat before rows had three
-/// places); the left and right of the Sidebar + Tabs toolbar; and the foot of the icons-only sidebar (the rail).
+/// places); the left and right of the Top Tabs toolbar; and the foot of the icons-only sidebar (the rail).
 /// Each layout has its own places, so an item can sit in the sidebar and in the toolbar at once.
 enum ChromeZone: String, Codable, CaseIterable {
     case sidebarTopLeading, sidebarTopCenter, sidebarTop
     case sidebarBottomLeading, sidebarBottom, sidebarBottomTrailing
-    /// Sidebar + Tabs: the window's left and right edges, and either side of the address field.
+    /// Top Tabs: the window's left and right edges, and either side of the address field.
     case toolbarLeading, toolbarNearLeading, toolbarNearTrailing, toolbarTrailing
     case rail
 
@@ -105,10 +105,10 @@ struct ChromeLayout: Codable, Equatable {
     var topCenter: [ChromeItem] = []
     var bottomLeading: [ChromeItem] = []
     var bottomTrailing: [ChromeItem] = []
-    /// Sidebar + Tabs: the toolbar's two sides, the address centred between them.
+    /// Top Tabs: the toolbar's two sides, the address centred between them.
     var toolbarLeading: [ChromeItem] = Self.navigation
     var toolbarTrailing: [ChromeItem] = []
-    /// Sidebar + Tabs: controls right beside the address field, on its left and right (empty by default).
+    /// Top Tabs: controls right beside the address field, on its left and right (empty by default).
     var toolbarNearLeading: [ChromeItem] = []
     var toolbarNearTrailing: [ChromeItem] = []
     /// The controls at the foot of the icons-only sidebar.
@@ -119,7 +119,7 @@ struct ChromeLayout: Codable, Equatable {
     var addressShowsReload = true
     var addressShowsSiteInfo = true
 
-    /// Controls the Sidebar + Tabs toolbar keeps left of the address when taken from an older sidebar layout.
+    /// Controls the Top Tabs toolbar keeps left of the address when taken from an older sidebar layout.
     static let navigation: [ChromeItem] = [.sidebarToggle, .back, .forward, .reload]
 
     init() {}

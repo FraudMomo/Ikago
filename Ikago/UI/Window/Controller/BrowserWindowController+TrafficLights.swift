@@ -1,7 +1,7 @@
 import AppKit
 
 extension BrowserWindowController {
-    /// Collapsed sidebar: no traffic lights over the page until the sidebar peeks in (or the Sidebar + Tabs row holds
+    /// Collapsed sidebar: no traffic lights over the page until the sidebar peeks in (or the Top Tabs row holds
     /// them). Full screen: only with the revealed sidebar.
     var showsTrafficLights: Bool {
         if state.webApp != nil { return !state.isImmersive }
@@ -10,7 +10,7 @@ extension BrowserWindowController {
     }
 
     /// The icon rail stacks the lights in a column, which the titlebar has no room for.
-    /// Not under the Sidebar + Tabs row, which holds the lights itself.
+    /// Not under the Top Tabs row, which holds the lights itself.
     private var railLights: Bool {
         state.webApp == nil && state.showsSidebarRail && !state.showsSidebarTopTabs && (!state.sidebarOnRight || state.sidebarLightsFollow)
     }
@@ -56,7 +56,7 @@ extension BrowserWindowController {
             // At the start of the tab row, whichever side the rail is on.
             center = state.sidebarRowCenter; x = 19
         } else if state.sidebarOnRight && !state.sidebarLightsFollow {
-            // In the window's top-left corner: on the Sidebar + Tabs row, or in their own small capsule.
+            // In the window's top-left corner: on the Top Tabs row, or in their own small capsule.
             center = state.showsSidebarTopTabs ? state.sidebarRowCenter : 23
             x = state.showsSidebarTopTabs ? 14 : 21
         } else if state.sidebarVisible || state.showsSidebarTopTabs {

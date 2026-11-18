@@ -41,7 +41,7 @@ extension BrowserWindowController {
         LayoutSwitch.set(tabs: argument(sender) == "tabs", state: state)
     }
 
-    /// full | icons | hidden. Sidebar + Tabs has no full sidebar, so there it shows the icons.
+    /// full | icons | hidden. Top Tabs has no full sidebar, so there it shows the icons.
     @objc func setSidebarStyleNamed(_ sender: Any?) {
         chrome.peeking = false
         let style = argument(sender)

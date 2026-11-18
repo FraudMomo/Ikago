@@ -47,7 +47,7 @@ struct BrowserRootView: View {
                 GeometryReader { geometry in
                     let anchor = chrome.hoverTabAnchor
                     let width = TabPeek.width
-                    // Beside the tab (rows in the sidebar), or under it (the Sidebar + Tabs row).
+                    // Beside the tab (rows in the sidebar), or under it (the Top Tabs row).
                     let below = state.showsSidebarTopTabs && geometry.size.height - anchor.maxY < SidebarTopTabs.height(state)
                     let x = below ? min(max(8, anchor.minX), geometry.size.width - width - 8)
                         : anchor.maxX + width + 12 < geometry.size.width ? anchor.maxX + 8 : max(8, anchor.minX - width - 8)

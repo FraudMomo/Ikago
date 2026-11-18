@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// Switching between Sidebar and Sidebar + Tabs. The new layout is built in one frame without animating any geometry,
+/// Switching between Sidebar and Top Tabs. The new layout is built in one frame without animating any geometry,
 /// and the window cross-fades from the old picture to the new one (a Core Animation transition on the window's layer,
 /// done by the GPU). Animating it instead resized every page and rebuilt the sidebar's list on each frame: measured
 /// 5–9 missed frames per switch (`layoutprobe`).

@@ -6,7 +6,7 @@ final class TabHostView: NSView {
     var onHover: ((Bool) -> Void)?
     /// The pointer moved inside the pane, in this view's coordinates (the split header follows the top edge).
     var onMove: ((NSPoint) -> Void)?
-    /// The pane runs along the content's top edge (Sidebar + Tabs squares those tops under the address bar).
+    /// The pane runs along the content's top edge (Top Tabs squares those tops under the address bar).
     var touchesTop = true
 
     init() {

@@ -16,16 +16,16 @@ struct SidebarRail: View {
     var body: some View {
         let colors = state.palette
         VStack(spacing: 8) {
-            // Under the Sidebar + Tabs row the lights stay in that row, beside the tabs.
+            // Under the Top Tabs row the lights stay in that row, beside the tabs.
             Color.clear.frame(height: state.showsSidebarTopTabs ? 4 : state.sidebarOnRight && !state.sidebarLightsFollow ? 10 : Self.lightsHeight)
             // Essentials: pinned tabs as tiles at the top (Settings ▸ Show essentials). Off, they are ordinary tiles in the
-            // list, or in Sidebar + Tabs icon tabs at the start of the tab row.
+            // list, or in Top Tabs icon tabs at the start of the tab row.
             if !state.pinnedTabs.isEmpty && state.pinsInRail {
                 VStack(spacing: 6) {
                     ForEach(state.pinnedTabs) { tab in tabTile(tab, colors: colors, essential: true) }
                 }
             }
-            // Sidebar + Tabs: loose tabs and the + live in the tab row; the rail keeps pins and groups.
+            // Top Tabs: loose tabs and the + live in the tab row; the rail keeps pins and groups.
             if !state.showsSidebarTopTabs {
                 tile(symbol: "plus", label: "New Tab", colors: colors) { commands?.newTab() }
             }
@@ -34,7 +34,7 @@ struct SidebarRail: View {
             }
             SidebarScrollView {
                 VStack(spacing: 4) {
-                    // Sidebar + Tabs can keep groups in the tab row only (Settings ▸ Appearance ▸ Tab Groups).
+                    // Top Tabs can keep groups in the tab row only (Settings ▸ Appearance ▸ Tab Groups).
                     if !state.showsPinnedGrid && !state.showsSidebarTopTabs {
                         ForEach(state.pinnedTabs) { tab in tabTile(tab, colors: colors) }
                     }

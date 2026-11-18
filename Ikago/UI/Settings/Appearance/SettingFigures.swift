@@ -230,7 +230,7 @@ struct EdgeHeightFigure: View {
 
 // MARK: - Pinned tabs and groups
 
-/// Where pinned tabs sit: a grid at the top of the sidebar, or (off) rows in the list; in Sidebar + Tabs tiles in the
+/// Where pinned tabs sit: a grid at the top of the sidebar, or (off) rows in the list; in Top Tabs tiles in the
 /// icon sidebar, or icon tabs at the start of the tab row.
 struct PinnedTabsFigure: View {
     let shown: Bool
@@ -265,7 +265,7 @@ struct PinnedTabsFigure: View {
     }
 }
 
-/// Sidebar + Tabs drawn small: the lights and a tab row on top (with `row` before the tab), the rail (`rail` above its
+/// Top Tabs drawn small: the lights and a tab row on top (with `row` before the tab), the rail (`rail` above its
 /// icons) beside the page.
 private struct TabsWindow<Row: View, Rail: View>: View {
     let colors: Palette
@@ -318,7 +318,7 @@ struct GroupStyleFigure: View {
     }
 }
 
-/// Sidebar + Tabs: group chips in the tab row, tiles in the icon sidebar, or both.
+/// Top Tabs: group chips in the tab row, tiles in the icon sidebar, or both.
 struct GroupPlacementFigure: View {
     let placement: GroupPlacement
     let colors: Palette

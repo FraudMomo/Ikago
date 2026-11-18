@@ -66,7 +66,7 @@ final class ChromeModel {
     /// The Downloads button's frame in the shell's coordinates when it sits in a separately hosted part of the window
     /// (the sidebar, `IsolatedHost`), where the shell can't read its anchor.
     var downloadsButtonFrame: CGRect?
-    /// Sidebar + Tabs: the address field's frame in the shell's coordinates, for the suggestions under it.
+    /// Top Tabs: the address field's frame in the shell's coordinates, for the suggestions under it.
     var addressFieldFrame: CGRect?
     @ObservationIgnored private var peekHide: Task<Void, Never>?
     /// Watches the pointer while a tab's hover card is up (`BrowserWindowController.showTabHover`).

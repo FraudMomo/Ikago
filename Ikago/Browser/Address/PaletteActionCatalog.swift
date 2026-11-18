@@ -43,7 +43,7 @@ extension PaletteAction {
         .init("dark", "Dark Mode", "moon", "", "dark appearance theme night", "setColorModeNamed:", argument: "dark"),
         .init("system", "Match System Appearance", "circle.lefthalf.filled", "", "system auto appearance theme light dark", "setColorModeNamed:", argument: "system"),
         .init("layoutSidebar", "Sidebar Layout", "sidebar.left", "", "layout sidebar vertical tabs", "setLayoutNamed:", argument: "sidebar"),
-        .init("layoutTabs", "Sidebar + Tabs Layout", "menubar.rectangle", "", "layout top tabs horizontal", "setLayoutNamed:", argument: "tabs"),
+        .init("layoutTabs", "Top Tabs Layout", "menubar.rectangle", "", "layout top tabs horizontal", "setLayoutNamed:", argument: "tabs"),
         .init("sidebarFull", "Full Sidebar", "sidebar.left", "", "sidebar show full expand", "setSidebarStyleNamed:", argument: "full"),
         .init("sidebarIcons", "Icon Sidebar", "sidebar.squares.left", "⌃⌘S", "sidebar compact icons rail", "setSidebarStyleNamed:", argument: "icons"),
         .init("sidebarHide", "Hide Sidebar", "rectangle", "⇧⌘S", "sidebar hide collapse", "setSidebarStyleNamed:", argument: "hidden"),

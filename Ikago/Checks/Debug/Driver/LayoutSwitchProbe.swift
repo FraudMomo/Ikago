@@ -2,7 +2,7 @@
 import AppKit
 import SwiftUI
 
-/// Measures switching between Sidebar and Sidebar + Tabs as Settings does: the main thread's synchronous cost of the
+/// Measures switching between Sidebar and Top Tabs as Settings does: the main thread's synchronous cost of the
 /// switch, then every frame for 600 ms (the slowest and how many missed 60 Hz). `layoutprobe:<switches>`.
 @MainActor
 final class LayoutSwitchProbe: NSObject {

@@ -24,7 +24,7 @@ struct Palette: Equatable {
     let nsAccent: NSColor
     /// Behind web pages before they paint.
     let pageBackground: Color
-    /// The active tab in Sidebar + Tabs and the address bar under it. In dark mode a darker Space color has the page's
+    /// The active tab in Top Tabs and the address bar under it. In dark mode a darker Space color has the page's
     /// own dark gray as its sheet; a near-black one gets a raised gray instead, or the active tab would barely show.
     let tabSheet: Color
 

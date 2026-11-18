@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Settings ▸ Customize in Sidebar + Tabs: the tab row, then the toolbar with its four places (the window's edges and
+/// Settings ▸ Customize in Top Tabs: the tab row, then the toolbar with its four places (the window's edges and
 /// either side of the address field), above the page.
 struct TabsMockup: View {
     let state: BrowserState
@@ -39,7 +39,7 @@ struct TabsMockup: View {
     }
 }
 
-/// Below the mockup: the icons-only sidebar's foot, the address field's own buttons and, in Sidebar + Tabs, the bar's
+/// Below the mockup: the icons-only sidebar's foot, the address field's own buttons and, in Top Tabs, the bar's
 /// height.
 struct CustomizeExtras: View {
     let state: BrowserState

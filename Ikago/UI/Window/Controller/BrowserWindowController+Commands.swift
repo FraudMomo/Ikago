@@ -176,7 +176,7 @@ extension BrowserWindowController: BrowserCommands, NSMenuItemValidation {
         chrome.showDownloads = false
         chrome.peeking = false
         withAnimation(.ikago) {
-            // Sidebar + Tabs has no full sidebar: the button shows and hides the rail.
+            // Top Tabs has no full sidebar: the button shows and hides the rail.
             if state.usesTabsLayout {
                 state.sidebarVisible.toggle()
             } else if !state.sidebarVisible {

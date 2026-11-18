@@ -4,7 +4,7 @@ struct EssentialsSettingsSection: View {
     @Bindable var state: BrowserState
 
     var body: some View {
-        // Sidebar + Tabs has no full sidebar: its settings aren't shown there.
+        // Top Tabs has no full sidebar: its settings aren't shown there.
         let full = !state.usesTabsLayout
         Group {
             if full {

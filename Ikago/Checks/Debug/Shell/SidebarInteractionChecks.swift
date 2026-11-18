@@ -75,7 +75,7 @@ enum SidebarInteractionChecks {
                 }
             }
         }
-        // Sidebar + Tabs: the strip above the tabs moves the window; the tabs themselves stay tabs.
+        // Top Tabs: the strip above the tabs moves the window; the tabs themselves stay tabs.
         state.browserPreferences.sidebarTopTabs = true
         state.frameInset = 8
         window.setContentSize(NSSize(width: 1100, height: 750))

@@ -159,7 +159,7 @@ final class WebContentViewController: NSViewController {
         surface.setPaneBackground(state.isDark ? NSColor(hex: 0x1C1C1E) : .white)
         let switchedTab = state.activeTabID != lastActiveID
         let radius: CGFloat = state.pageCornerRadius
-        // Under the Sidebar + Tabs address bar the page's top corners are square: the bar is the card's top.
+        // Under the Top Tabs address bar the page's top corners are square: the bar is the card's top.
         let squareTop = state.showsSidebarTopTabs
         if WebTabContainerView.cornerRadius != radius || WebTabContainerView.squareTop != squareTop {
             WebTabContainerView.cornerRadius = radius

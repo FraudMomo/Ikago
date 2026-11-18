@@ -15,7 +15,7 @@ enum SidebarGroupStyle: String, Codable, CaseIterable, Identifiable {
     var name: String { self == .cards ? "Cards" : "Folders" }
 }
 
-/// Where Sidebar + Tabs shows tab groups: as chips in the tab row, as tiles in the icon sidebar, or both.
+/// Where Top Tabs shows tab groups: as chips in the tab row, as tiles in the icon sidebar, or both.
 enum GroupPlacement: String, Codable, CaseIterable, Identifiable {
     case both, topBar, sidebar
     var id: String { rawValue }
@@ -28,7 +28,7 @@ enum GroupPlacement: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-/// Sidebar + Tabs: how the address bar sits under the tabs. Centered shows the site in the middle (unset); Full Width
+/// Top Tabs: how the address bar sits under the tabs. Centered shows the site in the middle (unset); Full Width
 /// spans the bar with the address at its start, like Chrome; Title spans it too but shows the page's title and site,
 /// with the full address on hover, like Dia.
 enum TabsAddressStyle: String, Codable, CaseIterable, Identifiable {

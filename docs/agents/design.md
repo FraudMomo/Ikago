@@ -14,12 +14,12 @@
    `glassControl`, which adds nothing inside a group. Don't merge separate glass circles in a container: they melt together with visible necks.
    Don't switch styles with an `if` around large subtrees: `glassButtons` is one style that decides inside, because
    an `if` at the root rebuilds the window on change and overflowed the stack when a page inserted a button.
-3. **Space colors tint the full chrome**, including flat sidebars and the Sidebar + Tabs row. Use
+3. **Space colors tint the full chrome**, including flat sidebars and the Top Tabs row. Use
    `state.palette` and `.surface`; glass surfaces retain the Space tint. Keep page contents
    neutral, provide readable ink for arbitrary custom colors, and let website theme colors
    blend subtly rather than replace the Space's identity. Margins follow `state.frameInset`.
 4. **The tab row moves; everything else stays immediate.** `TabMotion` (`TabSlotMotion.swift`, a 200 ms ease-out)
-   animates the Sidebar + Tabs row's *structure*: an opened tab's slot grows in while neighbours and the + button slide;
+   animates the Top Tabs row's *structure*: an opened tab's slot grows in while neighbours and the + button slide;
    a closed tab (closed at once, no delay) shrinks out; reorders reflow. A settled slot isn't clipped, so an attached
    tab's flares reach into the page. The row animates only on `TabMotionKey` (item ids) through `tabStripMotion`, which
    blocks callers' transactions. Selection, address editing, window resizes and Space switches stay immediate, and so does
@@ -27,7 +27,7 @@
    field eases its focus fill/ring. Respect Reduce Motion. Other changes animate quickly: `Animation.ikago`
    (0.2s) or `.ikagoQuick` (0.12s). Sidebar selection highlights follow the configured `TabSelectionHighlight` style.
 5. **One layout, the sidebar, with an optional tab row.** Settings ▸ Appearance ▸ Layout (`LayoutChoice`) picks Sidebar or
-   Sidebar + Tabs (`browserPreferences.sidebarTopTabs`, `state.usesTabsLayout`, `state.showsSidebarTopTabs`): `SidebarTopTabs` (its own
+   Top Tabs (`browserPreferences.sidebarTopTabs`, `state.usesTabsLayout`, `state.showsSidebarTopTabs`): `SidebarTopTabs` (its own
    `IsolatedHost`) shows the Space's ungrouped tabs above the page as arched, attached tabs (`AttachedTabShape`), and
    `TabsToolbar` (its own host) is the top of the page card: navigation left, the centred address field, other controls right;
    the page's top corners are square under it (`WebTabContainerView.squareTop`). The address bar is 36 pt with no rule under it; the active tab and the bar share `tabSheetColor` (`Palette.tabSheet`: the page color, or a raised 0x2C2C2E in dark mode when the Space color is near-black so the active tab still shows; when frosted, a see-through page color in light mode and a 12% white veil in dark mode, which a darker veil all but vanished into), so tab and bar read as one lighter sheet that settles into the solid page. There is no full sidebar in this layout:
@@ -40,7 +40,7 @@
    the group's. `GroupPlacement` (Settings ▸ Appearance ▸ Tab Groups) shows groups in both places (unset), the tab row
    only, or the rail only. Hidden groups (`hideFolder`, `TabFolder.isClosed`) leave the row: their pages unload, and
    they come back from the row's hidden-groups button (`HiddenGroupsButton`), the rail (a faded tile with a mark) or
-   Tab ▸ Show Hidden Group; selecting one of their tabs shows them too. The address bar has three styles (`TabsAddressStyle`, Settings ▸ Appearance ▸ Layout ▸ Sidebar + Tabs):
+   Tab ▸ Show Hidden Group; selecting one of their tabs shows them too. The address bar has three styles (`TabsAddressStyle`, Settings ▸ Appearance ▸ Layout ▸ Top Tabs):
    Centered (unset; the site over the middle, max 680 pt), Full Width (spans the bar between the controls, the whole
    `shortAddress` from its start, like Chrome) and Page Title (spans it too, the page title and site, the address on
    hover, like Dia). Pinned tabs sit in the rail while it shows and the pinned grid setting is on, otherwise they lead
@@ -51,7 +51,7 @@
    Switching layouts goes through `LayoutSwitch.set`: the new layout is built in one frame with animations disabled and
    the window cross-fades (a `CATransition` on its layer); never animate the switch's geometry, which resized every page
    and rebuilt the sidebar list each frame (measure with `layoutprobe`). The Top Bar
-   layout was removed; sessions saved with it (or the older Chrome layout) open as Sidebar + Tabs, and their saved Top Bar
+   layout was removed; sessions saved with it (or the older Chrome layout) open as Top Tabs, and their saved Top Bar
    fields are ignored. Sidebar groups are tinted cards or an indented folder list (`SidebarGroupStyle`); group
    headers line up with tab rows (icon where favicons sit), with semibold names and the chevron right after the name (a pill keeps
    it at the far end). Groups nest (`TabFolder.parentID`, optional; `BrowserState+Groups`, `GroupEntry.tree`): nested
@@ -59,13 +59,13 @@
    and the active tab cover the subtree; deleting a group moves its tabs and groups up a level; moves into a group's own
    subtree are refused (`nestedgroupchecks`). The rail shows top-level groups only, and the Color pill label fills the header like a book's bookmark: a light wash of the group's color, a solid 3 pt spine on the leading edge, `Radius.control` corners; a group whose tabs are all closed or asleep fades to half until hovered (rail tiles too); closed groups stack 4 pt apart, and a hairline separates pinned rows from groups. Titles that don't fit fade out at their trailing edge (`fadeTruncated`) instead of ending in
    "…": tab row tabs, sidebar rows, split chips and group chips. With glass off the
-   docked sidebar joins the window (`sidebarJoinsWindow`; always for the Sidebar + Tabs rail, whose controls alone are glass): it draws no card, so sidebar and tab row are one surface and only the
+   docked sidebar joins the window (`sidebarJoinsWindow`; always for the Top Tabs rail, whose controls alone are glass): it draws no card, so sidebar and tab row are one surface and only the
    page is rounded. The traffic lights, the sidebar's top row and the tab row share one centre (`sidebarRowCenter`);
    `positionTrafficLights` sets both axes in every layout. Top-row controls that don't fit beside the lights move to a second
    row (`SidebarView.topRowCapacity`), never under them. An optional Space header and shortcut rows (`SidebarShortcuts`,
    `sidebarShortcuts`) sit under the top row.
 6. **Extensions live in the site-and-extensions popover** in the address field. It is Ikago's own card over the window
-   (`SiteInfoOverlay`, `ChromeModel.showSiteInfo`, centred under its button, from the address bar's frame in Sidebar + Tabs; a click outside or Esc closes
+   (`SiteInfoOverlay`, `ChromeModel.showSiteInfo`, centred under its button, from the address bar's frame in Top Tabs; a click outside or Esc closes
    it; the button sits beside the address button, never inside its label or overlay, which took the first click), never an NSPopover: one hung from the hover button closed the moment it opened, and its see-through material made
    the text unreadable. The card is a `modalSurface` on the chrome palette (Liquid Glass with little Space tint when on,
    the frosted window's material with the translucent sidebar, solid otherwise) that grows out of its button on a short

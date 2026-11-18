@@ -6,7 +6,7 @@ import AppKit
 final class WebTabContainerView: NSView {
     /// Pane corner radius; 0 when the border is 0 (edge to edge).
     static var cornerRadius: CGFloat = Radius.card
-    /// Sidebar + Tabs: the address bar above is the card's top, so only the bottom corners round.
+    /// Top Tabs: the address bar above is the card's top, so only the bottom corners round.
     static var squareTop = false
     private let panes = PaneSplitView()
     private let parking = NSView()

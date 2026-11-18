@@ -112,7 +112,7 @@ enum CEFShellChecks {
         guard shell.activeController?.page is CEFWebTab else { throw CEFError.script("Engine preferences replaced a live page.") }
         print("CEF_SHELL_OK layouts rapid-layout-switch chrome-session-migration page-identity three-pane-grid drag-payload reorder window-move picture-in-picture restored-history address close-reopen multiwindow")
     }
-    /// A session saved with a retired top-tab layout (Chrome, Top Bar) restores as Sidebar + Tabs.
+    /// A session saved with a retired top-tab layout (Chrome, Top Bar) restores as Top Tabs.
     private static func migratesChromeLayoutSession(from state: BrowserState) throws {
         var saved = try JSONSerialization.jsonObject(with: JSONEncoder().encode(state.snapshot())) as! [String: Any]
         var controls = saved["chrome"] as? [String: Any] ?? [:]

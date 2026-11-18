@@ -59,7 +59,7 @@ enum PageGrabChecks {
         state.browserPreferences.pageGrab = nil
         LayoutSwitch.set(tabs: true, state: state)
         try? await Task.sleep(for: .milliseconds(400))
-        check(grab.mode == .off && !grab.starts(event(.leftMouseDown, y: 4)), "Sidebar + Tabs leaves the page's edge to the page")
+        check(grab.mode == .off && !grab.starts(event(.leftMouseDown, y: 4)), "Top Tabs leaves the page's edge to the page")
         LayoutSwitch.set(tabs: false, state: state)
         try? await Task.sleep(for: .milliseconds(400))
         state.browserPreferences.pageGrab = .off

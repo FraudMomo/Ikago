@@ -74,7 +74,7 @@ struct SidebarPeek: View {
                 .onHover { if $0 && (state.sidebarEdgePeek || state.isImmersive) { chrome.peek() } }
             if chrome.peeking {
                 IsolatedHost(chrome: chrome) {
-                    // Sidebar + Tabs has no full sidebar: its rail slides in instead, under the tab row.
+                    // Top Tabs has no full sidebar: its rail slides in instead, under the tab row.
                     if state.usesTabsLayout { SidebarRail(state: state, commands: commands) }
                     else { SidebarView(state: state, chrome: chrome, palette: palette, commands: commands) }
                 }

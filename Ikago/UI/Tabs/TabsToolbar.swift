@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Sidebar + Tabs: the bar between the tab row and the page, the top of the page's own card. The address sits centred
+/// Top Tabs: the bar between the tab row and the page, the top of the page's own card. The address sits centred
 /// in a quiet field between the controls placed on its left and right (Settings ▸ Sidebar & Toolbar ▸ Customize). It sits in its own host (`IsolatedHost`):
 /// it follows the active page's address and progress, which the rest of the window doesn't need to hear about.
 struct TabsToolbar: View {

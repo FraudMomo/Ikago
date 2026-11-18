@@ -14,9 +14,9 @@ enum CEFPageGrabChecks {
                 windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: clicks, pressure: 1) else { throw CEFError.noResult }
             return event
         }
-        // Sidebar + Tabs moves the window from its tab row; the page's edge stays the page's.
+        // Top Tabs moves the window from its tab row; the page's edge stays the page's.
         if shell.state.usesTabsLayout {
-            guard try !grab.starts(event(y: 2)) else { throw CEFError.script("Sidebar + Tabs grabbed the page's edge.") }
+            guard try !grab.starts(event(y: 2)) else { throw CEFError.script("Top Tabs grabbed the page's edge.") }
             return print("CEF_PAGE_GRAB_OK tabs-layout-off")
         }
         guard try grab.starts(event(y: 2)),

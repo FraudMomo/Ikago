@@ -54,7 +54,7 @@ enum EssentialsChecks {
         check(!choice.pinned && !state.sidebarGridPinnedTabs.contains { $0.id == choice.id }, "Remove from Essentials leaves an ordinary tab")
         state.togglePin(choice.id)  // Pin Tab
         check(choice.pinned && choice.pinAsRow, "Pin Tab still pins as a row while essentials show")
-        // Sidebar + Tabs: pins sit in the tab row or in the rail, never both.
+        // Top Tabs: pins sit in the tab row or in the rail, never both.
         let savedLayout = state.browserPreferences.sidebarTopTabs, savedVisible = state.sidebarVisible
         state.browserPreferences.sidebarTopTabs = true
         let savedPeek = state.browserPreferences.sidebarEdgePeek

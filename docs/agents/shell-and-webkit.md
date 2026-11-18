@@ -12,7 +12,7 @@
    the page.
 5. **Overlays live in the window's SwiftUI tree** (`BrowserRootView`), not child windows, so
    Liquid Glass samples the page behind them. Show/hide them through `ChromeModel`.
-   The sidebar and the Sidebar + Tabs row run in their own `NSHostingView`s (`IsolatedHost`) so their updates don't walk the
+   The sidebar and the Top Tabs row run in their own `NSHostingView`s (`IsolatedHost`) so their updates don't walk the
    whole window's graph; anchors can't cross hosts, so the Downloads button's frame reaches the shell through
    `ChromeModel.downloadsButtonFrame`, published after layout (never during it).
    Sidebar lists scroll in AppKit's `NSScrollView` (`SidebarScrollView`), never SwiftUI's `ScrollView`.
@@ -64,7 +64,7 @@
     (`BrowserWindow.typeAhead`), and the field selects all only while nothing has been typed (`palette.edited`,
     `selectsAllOnFocus`), or a late re-focus selects the first letters and the next keystroke replaces them (`typefast`).
 13. **Toolbar controls come from `state.chromeLayout`** (`ChromeLayout`: the sidebar's top row and bottom bar, the
-    Sidebar + Tabs toolbar's left and right (`toolbarLeading`/`toolbarTrailing`), and the rail's foot (`rail`), lists of
+    Top Tabs toolbar's left and right (`toolbarLeading`/`toolbarTrailing`), and the rail's foot (`rail`), lists of
     `ChromeItem`), drawn by `ChromeItemView`. Each `ChromeZone.family` is separate, so one item can sit in the sidebar and
     the toolbar at once; `add(_:)` places a control in both layouts. Layouts saved before the toolbar had its own places
     derive them from the sidebar's top row. `addressShowsReload`/`addressShowsSiteInfo` take those buttons out of both

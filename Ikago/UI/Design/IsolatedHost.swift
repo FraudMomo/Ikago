@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// Runs a part of the window (the sidebar, the Sidebar + Tabs row) in its own `NSHostingView` with its own view graph.
+/// Runs a part of the window (the sidebar, the Top Tabs row) in its own `NSHostingView` with its own view graph.
 ///
 /// The window is otherwise one SwiftUI tree, so a change anywhere made SwiftUI walk everything: measured, a third of
 /// the main thread went to that bookkeeping while browsing. A separate host keeps sidebar updates in the sidebar and

@@ -6,7 +6,7 @@ import WebKit
 enum LayoutChoice: String, CaseIterable, Identifiable {
     case sidebar, sidebarTabs
     var id: String { rawValue }
-    var name: String { self == .sidebar ? "Sidebar" : "Sidebar + Tabs" }
+    var name: String { self == .sidebar ? "Sidebar" : "Top Tabs" }
 
     @MainActor func isSelected(in state: BrowserState) -> Bool {
         (state.browserPreferences.sidebarTopTabs == true) == (self == .sidebarTabs)

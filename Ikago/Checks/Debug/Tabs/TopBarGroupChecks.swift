@@ -1,7 +1,7 @@
 #if DEBUG
 import Foundation
 
-/// Tab groups in the Sidebar + Tabs row (`TopRowEntry`), where groups show (`GroupPlacement`), and hiding a group.
+/// Tab groups in the Top Tabs row (`TopRowEntry`), where groups show (`GroupPlacement`), and hiding a group.
 @MainActor
 enum TopBarGroupChecks {
     static func run() {

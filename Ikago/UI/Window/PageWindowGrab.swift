@@ -3,7 +3,7 @@ import WebKit
 import IKCEFBridge
 
 /// In the Sidebar layout the page's top edge moves the window (`PageGrabMode`, Settings ▸ Appearance ▸ Layout ▸ Moving the
-/// Window); Sidebar + Tabs has its tab row for that.
+/// Window); Top Tabs has its tab row for that.
 /// Press and hold: a local event monitor only watches the mouse, never consumes a single press: the page gets every
 /// press at once, so clicks, selection and scrolling stay immediate, and no view, padding or overlay is added. After a
 /// brief `hold` (0.12 s) without moving, the page's press ends away from what was pressed and becomes a native window
@@ -24,7 +24,7 @@ final class PageWindowGrab {
     private var swallowsUp = false
     private(set) lazy var header = PageGrabHeader(state: state)
 
-    /// Sidebar + Tabs has its tab row for moving the window, so the page's edge stays the page's there.
+    /// Top Tabs has its tab row for moving the window, so the page's edge stays the page's there.
     var mode: PageGrabMode { state.usesTabsLayout ? .off : state.browserPreferences.pageGrab ?? .hold }
     /// How far down from the page's top the edge reaches.
     var edge: CGFloat {

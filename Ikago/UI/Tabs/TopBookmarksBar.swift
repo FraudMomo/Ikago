@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Sidebar + Tabs: the bookmarks bar under the address row, like Chrome's. Top-level folders open as menus (their
+/// Top Tabs: the bookmarks bar under the address row, like Chrome's. Top-level folders open as menus (their
 /// folders as submenus), then the loose bookmarks as chips; the row scrolls sideways when they don't fit. Shown with
 /// Show Bookmarks Bar (⇧⌘B), in place of the sidebar's bookmarks drawer.
 struct TopBookmarksBar: View {

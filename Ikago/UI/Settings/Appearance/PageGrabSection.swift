@@ -6,7 +6,7 @@ struct PageGrabSection: View {
     @Bindable var state: BrowserState
 
     var body: some View {
-        // Sidebar + Tabs moves the window from its tab row; this is the Sidebar layout's.
+        // Top Tabs moves the window from its tab row; this is the Sidebar layout's.
         if !state.usesTabsLayout { section }
     }
 

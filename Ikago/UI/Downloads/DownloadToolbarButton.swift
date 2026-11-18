@@ -3,7 +3,7 @@ import SwiftUI
 struct DownloadAnchors {
     var toolbar: Anchor<CGRect>?
     var page: Anchor<CGRect>?
-    /// Sidebar + Tabs: the address field above the page, which its suggestions hang from.
+    /// Top Tabs: the address field above the page, which its suggestions hang from.
     var address: Anchor<CGRect>?
     /// The Devices control, which the other-devices list hangs from.
     var devices: Anchor<CGRect>?

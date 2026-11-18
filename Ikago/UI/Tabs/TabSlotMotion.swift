@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Tab row motion (Sidebar + Tabs): an opened tab grows out of its slot while its neighbours and the + button slide aside, a closed
+/// Tab row motion (Top Tabs): an opened tab grows out of its slot while its neighbours and the + button slide aside, a closed
 /// tab shrinks to nothing while they slide in, and widths reflow smoothly when tabs open, close,
 /// or reorder. Window resizes and Space switches stay immediate.
 enum TabMotion {

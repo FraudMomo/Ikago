@@ -51,13 +51,13 @@ struct TabMotionSection: View {
     }
 }
 
-/// Settings only the Sidebar + Tabs layout uses: how the address bar sits. Not shown in the Sidebar layout.
+/// Settings only the Top Tabs layout uses: how the address bar sits. Not shown in the Sidebar layout.
 struct TabsLayoutSection: View {
     let state: BrowserState
 
     var body: some View {
         if state.usesTabsLayout {
-        PageSection(title: "Sidebar + Tabs") {
+        PageSection(title: "Top Tabs") {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Address bar").font(.system(size: 13, weight: .medium))
                 HStack(spacing: 14) {
@@ -97,7 +97,7 @@ struct SpacingSection: View {
                                 if mode != 2 { state.browserPreferences.sidebarCompact = mode == 1 ? true : nil }
                             }
                         }),
-                        // Sidebar + Tabs has no full sidebar.
+                        // Top Tabs has no full sidebar.
                         options: (state.usesTabsLayout ? [] : [(0, "Full")]) + [(1, "Icons"), (2, "Hidden")])
                 }
                 PageDivider()

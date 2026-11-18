@@ -3,7 +3,7 @@ import SwiftUI
 
 // MARK: - Bar
 extension BrowserState {
-    /// Settings ▸ Appearance ▸ Layout ▸ Sidebar + Tabs: tabs and an address bar above the page, and the sidebar only as
+    /// Settings ▸ Appearance ▸ Layout ▸ Top Tabs: tabs and an address bar above the page, and the sidebar only as
     /// a rail of icons or hidden (never the full sidebar).
     var usesTabsLayout: Bool { browserPreferences.sidebarTopTabs == true }
     /// The tab row and address bar are on screen (full screen gives the page the whole display).
@@ -15,17 +15,17 @@ extension BrowserState {
     /// The address field and control groups inside it.
     var tabsFieldHeight: CGFloat { tabsToolbarHeight - 8 }
     /// The sidebar's top row (traffic lights and toolbar controls), measured from the window's top edge. Everything
-    /// that shares that line, the lights, the sidebar's controls and the Sidebar + Tabs row, centres on `sidebarRowCenter`.
+    /// that shares that line, the lights, the sidebar's controls and the Top Tabs row, centres on `sidebarRowCenter`.
     var sidebarRowTop: CGFloat { max(8, CGFloat(frameInset)) }
     static let sidebarRowHeight: CGFloat = 36
     var sidebarRowCenter: CGFloat { sidebarRowTop + Self.sidebarRowHeight / 2 }
     /// The docked sidebar is part of the window's own surface (no card of its own), so only the page is a rounded card.
     /// Liquid Glass keeps its glass panel, except with the frosted sidebar: then the window itself is the frosted surface
-    /// (`WindowBackgroundView`), and a card of its own would stack a second, flatter layer on it. In Sidebar + Tabs the
+    /// (`WindowBackgroundView`), and a card of its own would stack a second, flatter layer on it. In Top Tabs the
     /// rail is part of the window like the tab row beside it; only its controls are glass.
     var sidebarJoinsWindow: Bool { !useGlass || frostedChrome || usesTabsLayout }
     /// Settings ▸ Appearance ▸ translucent sidebar, unless macOS's Reduce Transparency is on: the window is frosted, and
-    /// in Sidebar + Tabs the active tab and the address bar are one lighter, see-through sheet over it.
+    /// in Top Tabs the active tab and the address bar are one lighter, see-through sheet over it.
     var frostedChrome: Bool {
         browserPreferences.translucentSidebar == true && !NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
     }
@@ -38,11 +38,11 @@ extension BrowserState {
     }
     var sidebarGroupStyle: SidebarGroupStyle { browserPreferences.sidebarGroupStyle ?? .cards }
     /// The sidebar's three states: full, a rail of icons, or hidden (`sidebarVisible`).
-    /// Sidebar + Tabs: how the address bar sits under the tabs.
+    /// Top Tabs: how the address bar sits under the tabs.
     var tabsAddressStyle: TabsAddressStyle { browserPreferences.tabsAddressStyle ?? .centered }
     /// A hidden sidebar slides in at the window's edge (Settings ▸ Appearance ▸ Window and Sidebar).
     var sidebarEdgePeek: Bool { browserPreferences.sidebarEdgePeek ?? true }
-    /// Sidebar + Tabs: with essentials on, pinned tabs live in the icon sidebar, also while it is hidden and slides in at
+    /// Top Tabs: with essentials on, pinned tabs live in the icon sidebar, also while it is hidden and slides in at
     /// the window's edge. They lead the tab row as icon tabs only when essentials are off, or when the sidebar is hidden
     /// and can't slide in (edge peek off), so they are never out of reach.
     var pinsInTabRow: Bool { !showsPinnedGrid || (!showsSidebarRail && !sidebarEdgePeek) }

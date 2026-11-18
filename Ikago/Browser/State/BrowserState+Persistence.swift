@@ -115,7 +115,7 @@ extension BrowserState {
         bookmarks = s.bookmarks ?? []
         bookmarkFolders = s.bookmarkFolders ?? []
         browserPreferences = (s.browser ?? BrowserPreferences()).validated
-        // The retired Top Bar (and older Chrome) layouts had their tabs on top: they continue as Sidebar + Tabs.
+        // The retired Top Bar (and older Chrome) layouts had their tabs on top: they continue as Top Tabs.
         if s.layout == "horizontal" || s.layout == "chrome", browserPreferences.sidebarTopTabs == nil {
             browserPreferences.sidebarTopTabs = true
         }

@@ -37,7 +37,7 @@ struct SiteInfoButton: View {
 }
 
 extension BrowserWindowController {
-    /// Opens the site card under its button, or closes it. Sidebar + Tabs: the button sits at the end of the address
+    /// Opens the site card under its button, or closes it. Top Tabs: the button sits at the end of the address
     /// bar, whose frame the shell knows. Elsewhere: where the pointer is (a button's action runs after its click event,
     /// so `NSApp.currentEvent` isn't the click any more); a toolbar's Site & Extensions control opens it there too.
     func toggleSiteInfo(fromToolbar: Bool = false) {

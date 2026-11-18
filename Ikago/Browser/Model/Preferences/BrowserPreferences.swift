@@ -36,7 +36,7 @@ struct BrowserPreferences: Codable, Equatable {
     var sidebarCompact: Bool? = nil
     /// Sidebar groups as tinted cards or as a plain folder tree (`SidebarGroupStyle`). Unset: cards.
     var sidebarGroupStyle: SidebarGroupStyle? = nil
-    /// Sidebar + Tabs: where tab groups show (`GroupPlacement`). Unset: both the tab row and the icon sidebar.
+    /// Top Tabs: where tab groups show (`GroupPlacement`). Unset: both the tab row and the icon sidebar.
     var groupPlacement: GroupPlacement? = nil
     /// The Sidebar layout shows ungrouped tabs as tabs above the page instead of sidebar rows. Unset: off.
     var sidebarTopTabs: Bool? = nil
@@ -68,9 +68,9 @@ struct BrowserPreferences: Codable, Equatable {
     var pageGrabHeight: Double? = nil
     /// Double-clicking the page's top edge or its header zooms the window. Unset: on.
     var pageGrabZoom: Bool? = nil
-    /// Sidebar + Tabs: the address bar's height in points (`TabsBarHeight`); unset is the standard 36.
+    /// Top Tabs: the address bar's height in points (`TabsBarHeight`); unset is the standard 36.
     var tabsBarHeight: Double? = nil
-    /// Sidebar + Tabs: how the address bar sits under the tabs (`TabsAddressStyle`). Unset: centred.
+    /// Top Tabs: how the address bar sits under the tabs (`TabsAddressStyle`). Unset: centred.
     var tabsAddressStyle: TabsAddressStyle? = nil
     /// A hidden sidebar slides in when the pointer reaches the window's edge. Unset: on.
     var sidebarEdgePeek: Bool? = nil
@@ -200,7 +200,7 @@ enum PageGrabMode: String, Codable, CaseIterable {
     }
 }
 
-/// Sidebar + Tabs: how tall the address bar under the tabs is.
+/// Top Tabs: how tall the address bar under the tabs is.
 enum TabsBarHeight: Double, CaseIterable {
     case compact = 30, standard = 36, large = 44
 

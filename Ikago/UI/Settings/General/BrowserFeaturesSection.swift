@@ -60,7 +60,7 @@ struct TabPlacementSection: View {
 
     var body: some View {
         PageSection(title: "Tab Placement") {
-            // Sidebar + Tabs always opens new tabs on the right.
+            // Top Tabs always opens new tabs on the right.
             if !state.usesTabsLayout {
                 PageRow(title: "New tab position") {
                     SettingsMenu(selection: $state.newTabPosition, options: NewTabPosition.allCases.map { ($0, $0.title) })
