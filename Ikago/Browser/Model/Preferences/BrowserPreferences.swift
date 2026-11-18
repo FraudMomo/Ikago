@@ -36,6 +36,8 @@ struct BrowserPreferences: Codable, Equatable {
     var sidebarCompact: Bool? = nil
     /// Sidebar groups as tinted cards or as a plain folder tree (`SidebarGroupStyle`). Unset: cards.
     var sidebarGroupStyle: SidebarGroupStyle? = nil
+    /// Sidebar + Tabs: where tab groups show (`GroupPlacement`). Unset: both the tab row and the icon sidebar.
+    var groupPlacement: GroupPlacement? = nil
     /// The Sidebar layout shows ungrouped tabs as tabs above the page instead of sidebar rows. Unset: off.
     var sidebarTopTabs: Bool? = nil
     /// A Space header and rows for the assistant, bookmarks and history at the top of the sidebar. Unset: off.

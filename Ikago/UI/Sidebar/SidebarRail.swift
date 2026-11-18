@@ -32,7 +32,10 @@ struct SidebarRail: View {
             }
             SidebarScrollView {
                 VStack(spacing: 4) {
-                    ForEach(state.childFolders(of: nil)) { folder in group(folder, colors: colors) }
+                    // Sidebar + Tabs can keep groups in the tab row only (Settings ▸ Appearance ▸ Tab Groups).
+                    if state.showsGroupsInSidebar {
+                        ForEach(state.childFolders(of: nil)) { folder in group(folder, colors: colors) }
+                    }
                     if !state.showsSidebarTopTabs {
                         ForEach(state.looseTabs) { tab in tabTile(tab, colors: colors) }
                     }

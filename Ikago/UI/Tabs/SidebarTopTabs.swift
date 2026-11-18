@@ -27,31 +27,47 @@ struct SidebarTopTabs: View {
 
     var body: some View {
         var seen = Set<String>()
-        let items = state.listItems(state.looseTabs, seen: &seen)
+        // Group chips and their tabs first (`TopRowEntry`, when groups show here), then the ungrouped tabs.
+        let entries = TopRowEntry.row(state: state, seen: &seen)
+        let items = entries.compactMap(\.item)
         // Without the rail, pinned tabs lead the row as icon-only tabs, so the tabs never depend on the sidebar.
         let pins = state.showsSidebarRail ? [] : state.pinnedTabs
         let pinsWidth = CGFloat(pins.count) * Self.pinnedWidth
+        let chipsWidth = entries.reduce(CGFloat(0)) { total, entry in
+            if case .chip(let folder, _) = entry { return total + Self.chipSlot(folder, state: state) }
+            return total
+        }
         let colors = state.palette
         return GeometryReader { geometry in
             let leading = leadingReserve
             let rowHeight = Self.height(state)
             let available = max(60, geometry.size.width - leading - 44)
-            let forTabs = max(60, available - pinsWidth)
+            let forTabs = max(60, available - pinsWidth - chipsWidth)
             let slots = items.reduce(CGFloat(0)) { $0 + Self.slots(of: $1) }
             // Like Chrome: tabs share the row up to a comfortable width, keep a readable minimum, then scroll.
             let fitted = min(228, max(112, (forTabs - Self.edgeInset * 2) / max(1, slots)))
             let width = heldWidth.map { min($0, 228) } ?? fitted
             let _ = lastWidth.value = width
-            let natural = items.reduce(Self.edgeInset * 2 + pinsWidth) { $0 + width * Self.slots(of: $1) }
+            let natural = items.reduce(Self.edgeInset * 2 + pinsWidth + chipsWidth) { $0 + width * Self.slots(of: $1) }
             HStack(spacing: 0) {
                 Color.clear.frame(width: leading)
                 ScrollView(.horizontal) {
                     HStack(spacing: 0) {
                         ForEach(pins) { tab in pinnedTab(tab, colors: colors).tabSlot() }
-                        ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                            itemView(item, width: width * Self.slots(of: item), colors: colors,
-                                     divider: showsDivider(after: item, next: items[safe: index + 1]))
-                                .tabSlot()
+                        ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
+                            switch entry {
+                            case .chip(let folder, let count):
+                                TopBarGroupChip(folder: folder, count: count, state: state, chrome: chrome, colors: colors, commands: commands)
+                                    .padding(.horizontal, 3)
+                                    .frame(width: Self.chipSlot(folder, state: state), height: Self.tabHeight)
+                                    .modifier(TopBarGroupLine(group: folder.isOpen ? folder : nil, active: false, colors: colors))
+                                    .recordLayout("top-chip-\(folder.id)")
+                                    .tabSlot()
+                            case .item(let item, let group):
+                                itemView(item, width: width * Self.slots(of: item), colors: colors,
+                                         divider: showsDivider(after: item, next: entries[safe: index + 1]?.item), group: group)
+                                    .tabSlot()
+                            }
                         }
                     }
                     .coordinateSpace(name: "ikago-tab-document")
@@ -89,10 +105,15 @@ struct SidebarTopTabs: View {
         .background(WindowDragArea())
         .environment(\.colorScheme, colors.isDark ? .dark : .light)
         .stripDrop(state: state, chrome: chrome)
-        .tabStripMotion(TabMotionKey(ids: pins.map(\.id) + items.map(\.id), held: heldWidth != nil), space: state.activeSpaceID, reduceMotion: reduceMotion)
+        .tabStripMotion(TabMotionKey(ids: pins.map(\.id) + entries.map(\.id), held: heldWidth != nil), space: state.activeSpaceID, reduceMotion: reduceMotion)
     }
 
     static let pinnedWidth: CGFloat = 44
+
+    /// A group chip's slot in the row, with a little room on each side.
+    static func chipSlot(_ folder: TabFolder, state: BrowserState) -> CGFloat {
+        folder.chipWidth(showsCount: state.showsGroupTabCounts) + 6
+    }
 
     private func pinnedTab(_ tab: TabItem, colors: Palette) -> some View {
         let active = tab.id == state.activeTabID
@@ -122,7 +143,12 @@ struct SidebarTopTabs: View {
         next != nil && !isRaised(item) && !isRaised(next)
     }
 
-    @ViewBuilder private func itemView(_ item: TabListItem, width: CGFloat, colors: Palette, divider: Bool) -> some View {
+    @ViewBuilder private func itemView(_ item: TabListItem, width: CGFloat, colors: Palette, divider: Bool, group: TabFolder?) -> some View {
+        itemBody(item, width: width, colors: colors, divider: divider)
+            .modifier(TopBarGroupLine(group: group, active: item.containsTab(state.activeTabID), colors: colors))
+    }
+
+    @ViewBuilder private func itemBody(_ item: TabListItem, width: CGFloat, colors: Palette, divider: Bool) -> some View {
         let hover: (Bool) -> Void = { on in hoveredID = on ? item.id : (hoveredID == item.id ? nil : hoveredID) }
         switch item {
         case .tab(let tab):

@@ -8,6 +8,13 @@ extension BrowserState {
         set { browserPreferences.groupLabelStyle = newValue.rawValue }
     }
 
+    /// Sidebar + Tabs: where groups show. The Sidebar layout always lists them in the sidebar.
+    var groupPlacement: GroupPlacement { browserPreferences.groupPlacement ?? .both }
+    /// Group chips lead their tabs in the tab row (`TopBarGroupChip`).
+    var showsGroupsInTopBar: Bool { showsSidebarTopTabs && groupPlacement != .sidebar }
+    /// The icon sidebar (and the full sidebar) list groups.
+    var showsGroupsInSidebar: Bool { !usesTabsLayout || groupPlacement != .topBar }
+
     var showsGroupTabCounts: Bool {
         get { browserPreferences.showGroupTabCounts ?? true }
         set { browserPreferences.showGroupTabCounts = newValue }

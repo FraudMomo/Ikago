@@ -15,6 +15,19 @@ enum SidebarGroupStyle: String, Codable, CaseIterable, Identifiable {
     var name: String { self == .cards ? "Cards" : "Folders" }
 }
 
+/// Where Sidebar + Tabs shows tab groups: as chips in the tab row, as tiles in the icon sidebar, or both.
+enum GroupPlacement: String, Codable, CaseIterable, Identifiable {
+    case both, topBar, sidebar
+    var id: String { rawValue }
+    var name: String {
+        switch self {
+        case .both: "Both"
+        case .topBar: "Tab Row"
+        case .sidebar: "Sidebar"
+        }
+    }
+}
+
 /// How you edit the address: in place or in a floating command bar.
 enum AddressStyle: String, Codable, CaseIterable, Identifiable {
     case integrated, floating

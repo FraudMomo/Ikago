@@ -18,6 +18,18 @@ struct GroupAppearanceSection: View {
                     set: { style in withAnimation(.ikago) { state.browserPreferences.sidebarGroupStyle = style == .cards ? nil : style } }), options: SidebarGroupStyle.allCases.map { ($0, $0.name) })
             }
             PageDivider()
+            // Only Sidebar + Tabs has both places; the Sidebar layout always lists groups in the sidebar.
+            PageRow(title: "Groups in Sidebar + Tabs",
+                    subtitle: state.usesTabsLayout ? "Chips in the tab row, tiles in the icon sidebar, or both"
+                                                   : "Applies to the Sidebar + Tabs layout") {
+                SettingsSegmented(selection: Binding(
+                    get: { state.groupPlacement },
+                    set: { placement in withAnimation(.ikago) { state.browserPreferences.groupPlacement = placement == .both ? nil : placement } }),
+                    options: GroupPlacement.allCases.map { ($0, $0.name) })
+                .disabled(!state.usesTabsLayout)
+                .opacity(state.usesTabsLayout ? 1 : 0.5)
+            }
+            PageDivider()
             PageRow(title: "Show tab counts", subtitle: "On collapsed groups") {
                 Toggle("Show tab counts", isOn: Binding(
                     get: { state.showsGroupTabCounts },
