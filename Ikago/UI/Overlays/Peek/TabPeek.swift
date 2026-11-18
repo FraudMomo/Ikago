@@ -63,7 +63,28 @@ struct TabPeek: View {
 
 extension View {
     func tabPeek(_ tab: TabItem, commands: BrowserCommands?) -> some View {
-        background(TabPeekRegion(tabID: tab.id, commands: commands))
+        modifier(TabPeekModifier(tabID: tab.id, commands: commands))
+    }
+}
+
+private struct TabHoverCardsKey: EnvironmentKey { static let defaultValue = true }
+
+extension EnvironmentValues {
+    /// Off where a tab's hover card would get in the way: the icon sidebar while a hover effect is on, and the full
+    /// sidebar it slides out (`RailHover`).
+    var tabHoverCards: Bool {
+        get { self[TabHoverCardsKey.self] }
+        set { self[TabHoverCardsKey.self] = newValue }
+    }
+}
+
+private struct TabPeekModifier: ViewModifier {
+    let tabID: String
+    weak var commands: BrowserCommands?
+    @Environment(\.tabHoverCards) private var enabled
+
+    func body(content: Content) -> some View {
+        if enabled { content.background(TabPeekRegion(tabID: tabID, commands: commands)) } else { content }
     }
 }
 

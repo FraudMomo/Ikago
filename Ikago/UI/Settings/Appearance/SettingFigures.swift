@@ -202,6 +202,60 @@ struct EdgePeekFigure: View {
     }
 }
 
+/// The icon sidebar under the pointer: Magnify reaches rows out with their names, the nearest furthest; Expand slides
+/// the full sidebar out over the page.
+struct RailHoverFigure: View {
+    let effect: RailHoverEffect?
+    let colors: Palette
+
+    var body: some View {
+        let reach: [CGFloat] = effect == .magnify ? [0, 9, 20, 9, 0] : [0, 0, 0, 0, 0]
+        FigureWindow(colors: colors) {
+            ZStack(alignment: .topLeading) {
+                FigurePage(colors: colors).padding(.leading, 13)
+                // The rail: its tiles, and with Magnify a pill on each near the pointer.
+                VStack(spacing: 2.5) {
+                    ForEach(Array(reach.enumerated()), id: \.offset) { index, extra in
+                        RoundedRectangle(cornerRadius: 1.5)
+                            .fill(extra > 0 ? colors.panel : index == 2 ? colors.selected : colors.figureLine)
+                            .frame(width: 5 + extra, height: 5)
+                            .overlay(alignment: .leading) {
+                                if extra > 0 { Capsule().fill(colors.figureLine).frame(width: extra - 3, height: 1.5).padding(.leading, 6) }
+                            }
+                            .shadow(color: .black.opacity(extra > 0 ? 0.25 : 0), radius: 1)
+                            .frame(width: 5, alignment: .leading)
+                    }
+                }
+                .padding(.top, 3)
+                .frame(width: 11)
+                .frame(maxHeight: .infinity, alignment: .top)
+                .background(RoundedRectangle(cornerRadius: 2).fill(colors.tint))
+                // Expand: the full sidebar out over the page, with names beside the icons.
+                if effect == .expand {
+                    VStack(alignment: .leading, spacing: 3) {
+                        ForEach([14, 10, 16, 9], id: \.self) { width in
+                            HStack(spacing: 2) {
+                                RoundedRectangle(cornerRadius: 1).fill(colors.figureLine).frame(width: 4, height: 4)
+                                Capsule().fill(colors.figureLine).frame(width: CGFloat(width), height: 1.5)
+                            }
+                        }
+                    }
+                    .padding(4)
+                    .frame(width: 30, alignment: .topLeading)
+                    .frame(maxHeight: .infinity, alignment: .top)
+                    .background(RoundedRectangle(cornerRadius: 2.5).fill(colors.tint).shadow(color: .black.opacity(0.3), radius: 2))
+                    .transition(.move(edge: .leading).combined(with: .opacity))
+                }
+                if effect != nil {
+                    Image(systemName: "cursorarrow").font(.system(size: 9)).foregroundStyle(colors.text.opacity(0.8))
+                        .offset(x: effect == .expand ? 18 : 6, y: 13)
+                }
+            }
+        }
+        .animation(.ikagoQuick, value: effect)
+    }
+}
+
 /// The page's top edge that moves the window, drawn to scale: a band as tall as the chosen edge height.
 struct EdgeHeightFigure: View {
     let height: Double

@@ -31,6 +31,17 @@ enum GroupPlacement: String, Codable, CaseIterable, Identifiable {
 /// Top Tabs: how the address bar sits under the tabs. Centered shows the site in the middle (unset); Full Width
 /// spans the bar with the address at its start, like Chrome; Title spans it too but shows the page's title and site,
 /// with the full address on hover, like Dia.
+/// The icon sidebar's response to the pointer (Settings ▸ Appearance ▸ Layout ▸ Window and Sidebar).
+enum RailHoverEffect: String, Codable, CaseIterable, Identifiable {
+    /// Rows near the pointer reach out past the rail with their names, the nearest furthest, like the Dock; a shut group
+    /// opens an island with its tabs.
+    case magnify
+    /// The full sidebar slides out over the page while the pointer is on the rail.
+    case expand
+    var id: String { rawValue }
+    var name: String { self == .magnify ? "Magnify" : "Expand" }
+}
+
 enum TabsAddressStyle: String, Codable, CaseIterable, Identifiable {
     case centered, wide, title
     var id: String { rawValue }

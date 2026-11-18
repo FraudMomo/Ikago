@@ -61,6 +61,8 @@ final class ChromeModel {
     var editingTabID: String?
     /// Collapsed sidebar slid in from the left edge.
     var peeking = false
+    /// The icon sidebar's hover effects (`RailHover`).
+    let rail = RailHoverModel()
     /// A sidebar tab is being dragged (drag-to-split targets appear only then).
     var draggingTabID: String?
     /// The Downloads button's frame in the shell's coordinates when it sits in a separately hosted part of the window
@@ -83,7 +85,18 @@ final class ChromeModel {
     /// The pointer is over the revealed sidebar.
     @ObservationIgnored var peekHovered = false
     /// Something in the revealed chrome is in use (typing an address, the downloads list, a tab drag): it stays.
-    var holdsPeek: Bool { inlineAddress || showDownloads || draggingTabID != nil || draggingFolderID != nil }
+    var holdsPeek: Bool {
+        inlineAddress || showDownloads || draggingTabID != nil || draggingFolderID != nil || rail.holdsSidebar
+    }
+
+    init() {
+        // The icon sidebar's effects reach past a rail that slid in from the edge (a group's island, the wider rail, the
+        // leading card): it stays while they are in use, and slides away once they let go and the pointer is elsewhere.
+        rail.onRelease = { [weak self] in
+            guard let self, self.peeking, !self.peekHovered else { return }
+            self.endPeek()
+        }
+    }
 
     func peek() {
         peekHide?.cancel()

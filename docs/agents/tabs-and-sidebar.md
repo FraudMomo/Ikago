@@ -5,7 +5,39 @@
   rail), and pinned tabs stay ordinary pinned tabs: rows in the list, plain tiles in the rail's list, or icon tabs at
   the start of the Top Tabs row (`pinsInTabRow`). In Top Tabs with essentials on, the pins live in the
   icon sidebar, also while it is hidden and slides in at the edge; only a hidden sidebar with edge peek off sends them to
-  the tab row. They never show in both places (`pinsInRail`). The grid uses a saved two-to-eight column preference (three by default),
+  the tab row. They never show in both places (`pinsInRail`).
+- The icon sidebar's hover effect (`RailHoverEffect`, Settings ▸ Appearance ▸ Layout ▸ Window and Sidebar, shown only
+  where there is an icon sidebar; off by default and under Reduce Motion): `UI/Sidebar/RailHover.swift` (model, tracking,
+  tile reports) and `RailHoverLayers.swift` (what it draws). The rail itself never changes: no tile scales, moves or
+  resizes, so nothing the pointer measures shifts under it and the effect can't feed back (scaling tiles and parting them,
+  then a swelling edge, were tried and jittered). Everything is drawn by one layer over the rail and the page in the root
+  view (`RailHoverLayers`), never by widening the dock or resizing the page. Magnify: each tab or group tile reports its
+  frame in its host's named space (`railTile`, `railSpace`: the rail, and its list's own `NSHostingView`); the space's
+  anchor `NSView` converts it to window coordinates live, so the list's scrolling is included (the anchor bumps
+  `scrolled` when the clip view moves under a still pointer). One pointer, from an AppKit tracking view over the whole rail
+  (`RailPointerTracker`), in window coordinates. The layer draws a pill per tile (icon where the tile is, then the name,
+  fading where cut; solid card, glass over a page washed white) whose length follows one raised-cosine profile of the
+  distance, sharpened so neighbours reach about a third as far (`RailHover.reachOut`: the row under the pointer always
+  reaches furthest, `profile` or its whole name), on a
+  retargeting spring. The leading row (the tile nearest the pointer, when on or beside it) is a raised card with its icon,
+  name and site (a group: its tab count); its neighbours show the same card flat and at half opacity, names dimmer
+  with distance. The card bridges rail and page: it takes clicks past its tile (`ReachShape`;
+  the tile keeps its own) and its own AppKit tracking view holds the rows still while the pointer is on it
+  (`pillHover`), releasing `leaveGrace` after the pointer is off both. A click on a shut group opens its island (`RailIsland`, `toggleIsland`): its name over the tile and,
+  beside the rail, a card with its tabs and the groups inside it as a tree; it stays while the pointer is on it and closes
+  `leaveGrace` after the pointer leaves it and the tile; pills give way while it is open. Tabs' hover cards are off on
+  the rail and in Expand's sidebar while an effect is on (`tabHoverCards`): they covered the names. Expand: resting `expandDelay` on the rail
+  widens the rail itself: `RailExpandPanel` draws `SidebarRail(expanded: true)` over the rail and the page, the same items
+  in the same order and places (every item sits in the rail's 64 pt column, tiles `tileInset` in, so only names grow out
+  beside the icons; the traffic lights keep their column), never the full sidebar, and the docked full and Icons sidebars
+  are untouched. It is laid out at `expandedWidth` the whole time and only its clip moves from the rail's width out and
+  back, so nothing reflows; at the rail's width it looks exactly like the rail, so it shows at once and hides only after
+  the edge is back. It stays mounted and hidden (opacity 0, no hit testing) while Expand is on, its list is scrolled to
+  the rail's as it opens (and back as it closes), it takes the rail's frame from the rail's anchor view in window
+  coordinates (right in any host), and its own AppKit tracking view keeps it out while the pointer is on it (SwiftUI's
+  `onHover` missed moves there). Group clicks follow the effect: Off and Expand open a group in place, Magnify keeps every
+  group shut in the rail and toggles its island. A rail that slid in from the window's edge stays while an island, the wider rail or the
+  leading card is in use (`holdsSidebar` in `holdsPeek`), and slides away when they let go (`onRelease`). `railhoverchecks` covers both. The grid uses a saved two-to-eight column preference (three by default),
   adapting down with the sidebar's available width, with bounded scrolling and an
   empty drop target during tab drags. Split drops accept live tabs only. Tab rows use SwiftUI's
   drag/drop lifecycle with before/after insertion markers, without native overlays intercepting

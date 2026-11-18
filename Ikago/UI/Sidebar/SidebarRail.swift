@@ -6,8 +6,15 @@ import SwiftUI
 /// placed controls (the sidebar button by default, which moves on to the next sidebar state). Titles show on hover; the active tab's highlight slides between tiles.
 struct SidebarRail: View {
     let state: BrowserState
+    let chrome: ChromeModel
     weak var commands: BrowserCommands?
+    /// Expand's wider rail (`RailHover`): the same items in the same places, each with its name beside its icon. Drawn
+    /// over the rail and the page by `RailExpandPanel`, never in the dock.
+    var expanded = false
     @Namespace private var selection
+    /// Where the rail's tiles measure themselves for Magnify (`RailHover`): the rail, and its list's own host.
+    @State private var railSpace = RailSpace("rail")
+    @State private var listSpace = RailSpace("rail.list")
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Room for the three traffic lights in a column.
@@ -15,7 +22,10 @@ struct SidebarRail: View {
 
     var body: some View {
         let colors = state.palette
-        VStack(spacing: 8) {
+        let model = chrome.rail
+        // Leading-aligned, with every item in the rail's 64 pt column (tiles 14 pt in), so the wider rail keeps each icon
+        // exactly where the rail has it and only the names grow out.
+        VStack(alignment: .leading, spacing: 8) {
             // Under the Top Tabs row the lights stay in that row, beside the tabs.
             Color.clear.frame(height: state.showsSidebarTopTabs ? 4 : state.sidebarOnRight && !state.sidebarLightsFollow ? 10 : Self.lightsHeight)
             // Essentials: pinned tabs as tiles at the top (Settings ▸ Show essentials). Off, they are ordinary tiles in the
@@ -24,16 +34,18 @@ struct SidebarRail: View {
                 VStack(spacing: 6) {
                     ForEach(state.pinnedTabs) { tab in tabTile(tab, colors: colors, essential: true) }
                 }
+                .padding(.leading, Self.tileInset)
             }
             // Top Tabs: loose tabs and the + live in the tab row; the rail keeps pins and groups.
             if !state.showsSidebarTopTabs {
                 tile(symbol: "plus", label: "New Tab", colors: colors) { commands?.newTab() }
+                    .padding(.leading, Self.tileInset)
             }
             if (!state.pinnedTabs.isEmpty && state.pinsInRail) || !state.showsSidebarTopTabs {
-                Capsule().fill(colors.separator).frame(width: 20, height: 1)
+                Capsule().fill(colors.separator).frame(width: 20, height: 1).frame(width: BrowserState.sidebarRailWidth)
             }
             SidebarScrollView {
-                VStack(spacing: 4) {
+                VStack(alignment: .leading, spacing: 4) {
                     // Top Tabs can keep groups in the tab row only (Settings ▸ Appearance ▸ Tab Groups).
                     if !state.showsPinnedGrid && !state.showsSidebarTopTabs {
                         ForEach(state.pinnedTabs) { tab in tabTile(tab, colors: colors) }
@@ -46,26 +58,60 @@ struct SidebarRail: View {
                     }
                 }
                 .padding(.vertical, 2)
+                .padding(.leading, Self.tileInset)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .railSpace(listSpace) { model.listScrolled() }
                 // The rows live in the scroll view's own host: an animation set out here never reaches them.
                 .animation(reduceMotion ? nil : .ikagoQuick, value: state.childFolders(of: nil).map(\.id))
             }
             .frame(maxHeight: .infinity)
-            if state.spaces.count > 1 { spaces(colors) }
-            ForEach(footItems) { item in
-                if item == .sidebarToggle {
-                    tile(symbol: "sidebar.left", label: "Hide Sidebar", colors: colors) { commands?.cycleSidebar() }
-                } else {
-                    ChromeItemView(item: item, state: state, colors: colors, commands: commands, size: 32)
+            // The foot stays a column of icons, wider or not.
+            Group {
+                if state.spaces.count > 1 { spaces(colors) }
+                ForEach(footItems) { item in
+                    if item == .sidebarToggle {
+                        tile(symbol: "sidebar.left", label: "Hide Sidebar", colors: colors, named: false) { commands?.cycleSidebar() }
+                    } else {
+                        ChromeItemView(item: item, state: state, colors: colors, commands: commands, size: 32)
+                    }
                 }
             }
+            .frame(width: BrowserState.sidebarRailWidth)
         }
         .padding(.bottom, 10)
-        .frame(width: BrowserState.sidebarRailWidth)
+        .frame(width: width, alignment: .leading)
+        .railSpace(railSpace)
+        .environment(\.railHover, effect == .magnify && !expanded ? model : nil)
+        // Tabs' hover cards would cover the effects' names.
+        .environment(\.tabHoverCards, effect == nil)
+        .background(RailPointerTracker { point in
+            if expanded {
+                // The wider rail stays out while the pointer is on it.
+                if model.expanded { model.panelHover(point != nil) { chrome.holdsPeek } }
+            } else {
+                model.pointerMoved(point, effect: effect)
+            }
+        })
+        .onAppear { if expanded { model.expandedList = listSpace } else { model.rail = railSpace; model.list = listSpace } }
+        .onChange(of: effect) { if !expanded { model.reset() } }
+        .onDisappear { if !expanded { model.reset() } }
         .frame(maxHeight: .infinity, alignment: .top)
         .background(SidebarSpaceSwipe(state: state))
-        .background(WindowDragArea())
-        .ignoresSafeArea(.container, edges: .top)
+        .background { if !expanded { WindowDragArea() } }
+        // The wider rail is sized to the rail's own frame, which already reaches under the title bar.
+        .ignoresSafeArea(.container, edges: expanded ? [] : .top)
         .animation(.ikagoQuick, value: state.activeTabID)
+    }
+
+    /// Tiles sit this far in from the rail's leading edge: a 36 pt tile centred in its 64 pt column.
+    static let tileInset: CGFloat = (BrowserState.sidebarRailWidth - 36) / 2
+    private var width: CGFloat { expanded ? RailHover.expandedWidth : BrowserState.sidebarRailWidth }
+    /// A row's width: the tile, or with the rail wider the tile and its name, up to the same inset from the far edge.
+    private var rowWidth: CGFloat { expanded ? RailHover.expandedWidth - 2 * Self.tileInset : 36 }
+
+    /// The hover effect in use: none under Reduce Motion.
+    private var effect: RailHoverEffect? {
+        reduceMotion ? nil : state.browserPreferences.railHover
     }
 
     /// The controls at the rail's foot (Settings ▸ Sidebar & Toolbar ▸ Customize ▸ Icons-only sidebar). Downloads join
@@ -81,21 +127,34 @@ struct SidebarRail: View {
     @ViewBuilder private func group(_ folder: TabFolder, colors: Palette) -> some View {
         let tabs = state.tabs(inSubtree: folder)
         let hidden = folder.isClosed == true
-        let open = folder.isOpen && !hidden
+        // Magnify shows a group's tabs in its island, never in the rail; Off and Expand open it in place.
+        let open = folder.isOpen && !hidden && effect != .magnify
         let tint = folder.tagValue?.color ?? colors.secondary
         VStack(spacing: 0) {
             // The same open state as the full sidebar's group, so switching between them keeps it.
             // A hidden group shows faded with a mark; a click brings it back with its tabs.
-            Button { if hidden { state.reopenFolder(folder.id) } else { state.toggleFolder(folder.id) } } label: {
-                FolderIcon(folder: folder, colors: colors, size: 15)
-                .opacity(hidden ? 0.35 : TabListView.isSleeping(tabs, activeID: state.activeTabID) && !open ? 0.45 : 1)
-                .overlay(alignment: .topTrailing) {
-                    if hidden {
-                        Image(systemName: "eye.slash.fill").font(.system(size: 7.5, weight: .bold))
-                            .foregroundStyle(colors.secondary).offset(x: 8, y: -7)
+            // With Magnify a shut group opens as an island beside the rail instead (`RailHover`).
+            Button {
+                if hidden { state.reopenFolder(folder.id) }
+                else if effect == .magnify && state.railIslandOpens(folder.id) { chrome.rail.toggleIsland(folder.id) }
+                else { state.toggleFolder(folder.id) }
+            } label: {
+                railIcon(folder.name, colors: colors) {
+                    FolderIcon(folder: folder, colors: colors, size: 15)
+                    .opacity(hidden ? 0.35 : TabListView.isSleeping(tabs, activeID: state.activeTabID) && !open ? 0.45 : 1)
+                    .overlay(alignment: .topTrailing) {
+                        if hidden {
+                            Image(systemName: "eye.slash.fill").font(.system(size: 7.5, weight: .bold))
+                                .foregroundStyle(colors.secondary).offset(x: 8, y: -7)
+                        }
+                    }
+                    .frame(width: 36, height: 36)
+                    .overlay(alignment: .bottomTrailing) {
+                        // How many tabs it holds, as a small badge that never covers the icon (Settings ▸ Show tab counts).
+                        if state.showsGroupTabCounts && !hidden { badge(tabs.count, colors: colors, open: open) }
                     }
                 }
-                .frame(width: 36, height: 36)
+                .frame(height: 36)
                 .background {
                     // An active tab hidden in a closed group still shows where it is.
                     if !open, tabs.contains(where: { $0.id == state.activeTabID }) {
@@ -103,19 +162,16 @@ struct SidebarRail: View {
                             .matchedGeometryEffect(id: "rail-active", in: selection)
                     }
                 }
-                .overlay(alignment: .bottomTrailing) {
-                    // How many tabs it holds, as a small badge that never covers the icon (Settings ▸ Show tab counts).
-                    if state.showsGroupTabCounts && !hidden { badge(tabs.count, colors: colors, open: open) }
-                }
                 .contentShape(RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
             }
             .buttonStyle(RailButtonStyle(colors: colors))
+            .railTile(.folder(folder.id))
             .help(hidden ? "\(folder.name) · hidden — click to show" : "\(folder.name) · \(tabs.count) \(tabs.count == 1 ? "tab" : "tabs")")
             .contextMenu { FolderContextMenu(folder: folder, state: state, commands: commands) }
             // Opens and closes like the full sidebar's groups: the rows' measured height grows on the same spring and
             // the clip reveals them, so the tiles below move with it.
             RailDisclosure(isOpen: open) {
-                VStack(spacing: 4) {
+                VStack(alignment: .leading, spacing: 4) {
                     ForEach(tabs) { tab in tabTile(tab, colors: colors) }
                 }
                 .padding(.top, 4).padding(.bottom, 3)
@@ -143,9 +199,12 @@ struct SidebarRail: View {
     private func tabTile(_ tab: TabItem, colors: Palette, essential: Bool = false) -> some View {
         let active = tab.id == state.activeTabID
         return Button { if NSEvent.modifierFlags.contains(.option) { commands?.peekTab(tab.id) } else { state.select(tab.id) } } label: {
-            FaviconView(tab: tab, size: essential ? 18 : 16)
-                .opacity(tab.isUnloaded && !active ? 0.55 : 1)
-                .frame(width: 36, height: 36)
+            railIcon(tab.displayTitle, colors: colors) {
+                FaviconView(tab: tab, size: essential ? 18 : 16)
+                    .opacity(tab.isUnloaded && !active ? 0.55 : 1)
+                    .frame(width: 36, height: 36)
+            }
+                .frame(height: 36)
                 .background {
                     if essential && !colors.glass {
                         RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(colors.text.opacity(0.06))
@@ -169,6 +228,21 @@ struct SidebarRail: View {
         }
         .tabPeek(tab, commands: commands)
         .contextMenu { TabContextMenu(tab: tab, state: state, commands: commands) }
+        .railTile(.tab(tab.id))
+    }
+
+    /// A tile's icon in its 36 pt box, and in the wider rail its name beside it (Magnify draws names over the page
+    /// instead: `RailMagnifyLayer`).
+    private func railIcon<Icon: View>(_ name: String? = nil, colors: Palette, @ViewBuilder _ icon: () -> Icon) -> some View {
+        HStack(spacing: 2) {
+            icon().frame(width: 36)
+            if expanded, let name {
+                Text(name).font(.system(size: 13)).foregroundStyle(colors.text).lineLimit(1)
+                    .fadeTruncated()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .frame(width: name == nil ? 36 : rowWidth, alignment: .leading)
     }
 
     private func spaces(_ colors: Palette) -> some View {
@@ -188,12 +262,15 @@ struct SidebarRail: View {
         }
     }
 
-    private func tile(symbol: String, label: String, colors: Palette, action: @escaping () -> Void) -> some View {
+    private func tile(symbol: String, label: String, colors: Palette, named: Bool = true, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(colors.secondary)
-                .frame(width: 36, height: 32)
+            railIcon(named ? label : nil, colors: colors) {
+                Image(systemName: symbol)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(colors.secondary)
+                    .frame(width: 36, height: 32)
+            }
+                .frame(height: 32)
                 .contentShape(RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
                 .glassControl(RoundedRectangle(cornerRadius: Radius.row, style: .continuous), colors)
         }

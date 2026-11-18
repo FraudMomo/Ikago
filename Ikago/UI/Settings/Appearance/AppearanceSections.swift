@@ -108,6 +108,17 @@ struct SpacingSection: View {
                         set: { on in withAnimation(.ikago) { state.browserPreferences.sidebarEdgePeek = on ? nil : false } }))
                         .labelsHidden().toggleStyle(.switch)
                 }
+                // Only where there is an icon sidebar: Top Tabs, or the Sidebar layout's Icons.
+                if state.usesTabsLayout || state.browserPreferences.sidebarCompact == true {
+                    PageDivider()
+                    PageRow(title: "Icon sidebar on hover", subtitle: "Show the names near the pointer, like the Dock, or slide out the full sidebar",
+                            figure: AnyView(RailHoverFigure(effect: state.browserPreferences.railHover, colors: state.palette))) {
+                        SettingsMenu(selection: Binding(
+                            get: { state.browserPreferences.railHover },
+                            set: { state.browserPreferences.railHover = $0 }
+                        ), options: [(nil, "Off")] + RailHoverEffect.allCases.map { (Optional($0), $0.name) })
+                    }
+                }
                 PageDivider()
                 PageRow(title: "Sidebar side", subtitle: "Left or right of the page",
                         figure: AnyView(WindowSpacingFigure(inset: state.frameInset, gap: state.sidebarGap, onRight: state.sidebarOnRight, colors: state.palette))) {

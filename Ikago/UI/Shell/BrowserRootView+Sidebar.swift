@@ -68,7 +68,7 @@ extension BrowserRootView {
 
     private var sidebarDock: some View {
         Group {
-            if state.showsSidebarRail { SidebarRail(state: state, commands: commands).transition(.opacity) }
+            if state.showsSidebarRail { SidebarRail(state: state, chrome: chrome, commands: commands).transition(.opacity) }
             else {
                 IsolatedHost(chrome: chrome) { SidebarView(state: state, chrome: chrome, palette: palette, commands: commands) }
                     .frame(width: state.sidebarWidth).transition(.opacity)
@@ -96,3 +96,4 @@ private struct SidebarDockSurface: ViewModifier {
         else { content.sidebarPanel(state.palette, radius: radius, translucent: state.browserPreferences.translucentSidebar == true) }
     }
 }
+

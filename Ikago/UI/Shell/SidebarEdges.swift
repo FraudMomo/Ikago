@@ -75,7 +75,7 @@ struct SidebarPeek: View {
             if chrome.peeking {
                 IsolatedHost(chrome: chrome) {
                     // Top Tabs has no full sidebar: its rail slides in instead, under the tab row.
-                    if state.usesTabsLayout { SidebarRail(state: state, commands: commands) }
+                    if state.usesTabsLayout { SidebarRail(state: state, chrome: chrome, commands: commands) }
                     else { SidebarView(state: state, chrome: chrome, palette: palette, commands: commands) }
                 }
                     .frame(width: state.usesTabsLayout ? BrowserState.sidebarRailWidth : state.sidebarWidth)

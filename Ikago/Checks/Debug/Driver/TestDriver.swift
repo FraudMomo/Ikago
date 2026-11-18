@@ -551,6 +551,17 @@ enum TestDriver {
             print("IKTEST chip at \(Int(p.x)),\(Int(NSScreen.screens[0].frame.height - p.y)) open=\(work.isOpen)"); fflush(stdout)
             try? await Task.sleep(for: .seconds(Double(arg) ?? 5))
             print("IKTEST chipafter open=\(state.folders.first { $0.id == work.id }?.isOpen ?? false)")
+        case "railhover": state.browserPreferences.railHover = RailHoverEffect(rawValue: arg)  // magnify | expand | off
+        case "railpointer":  // y in window points from the top, over the rail's middle; "off" lets the real pointer back
+            RailHoverChecks.point(arg == "off" ? nil : Double(arg).map { CGFloat($0) }, browser: c)
+        case "railpointtile": RailHoverChecks.pointTile(arg, browser: c)  // <index from the top> | folder
+        case "raildemo": RailHoverChecks.seed(c, base: arg)  // <fixture base URL>
+        case "hitat":  // x,y in window points from the top-left: which view takes the click there
+            let parts = arg.split(separator: ",").compactMap { Double($0) }
+            if parts.count == 2, let view = c.window?.contentView {
+                let hit = view.hitTest(NSPoint(x: parts[0], y: view.bounds.height - parts[1]))
+                print("IKTEST hitat \(arg) \(hit.map { String(describing: type(of: $0)) } ?? "nil")")
+            }
         case "tabsaddress": state.browserPreferences.tabsAddressStyle = TabsAddressStyle(rawValue: arg)  // centered | wide | title
         case "edgepeek": state.browserPreferences.sidebarEdgePeek = arg == "off" ? false : nil
         case "pingrid": state.browserPreferences.showPinnedGrid = arg != "off"

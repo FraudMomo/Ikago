@@ -74,6 +74,8 @@ struct BrowserPreferences: Codable, Equatable {
     var tabsAddressStyle: TabsAddressStyle? = nil
     /// A hidden sidebar slides in when the pointer reaches the window's edge. Unset: on.
     var sidebarEdgePeek: Bool? = nil
+    /// How the icon sidebar responds to the pointer (`RailHoverEffect`). Unset: no effect.
+    var railHover: RailHoverEffect? = nil
     /// On by default. Sessions from before that default get it once (`httpsDefaultApplied`), after which
     /// the setting is the person's own.
     var forceHTTPS: Bool? = true
