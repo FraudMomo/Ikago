@@ -568,6 +568,14 @@ enum TestDriver {
                 cg.location = CGPoint(x: screen.x, y: (NSScreen.screens.first?.frame.height ?? 0) - screen.y)
                 if let event = NSEvent(cgEvent: cg) { (view.hitTest(view.convert(center, from: nil)) ?? view).scrollWheel(with: event) }
             }
+        case "exportdemo":  // <zip path>: exports this profile's bookmarks and history like Settings ▸ Export
+            let zip = BrowserExport.archive(bookmarks: BrowserExport.bookmarksHTML(state.bookmarks, folders: state.bookmarkFolders),
+                                            history: BrowserExport.historyJSON(state.history), passwords: nil)
+            try? BrowserExport.save(zip, to: URL(fileURLWithPath: arg))
+        case "importfile":  // <path>: imports a file the way Import an Exported File does, then prints the report
+            await state.importer.importFile(URL(fileURLWithPath: arg), into: state)
+            for item in state.importer.report?.items ?? [] { print("IKTEST importreport \(item.kind): \(item.summary)") }
+            print("IKTEST importresult \(state.importer.result ?? "-")")
         case "groupplacement": state.browserPreferences.groupPlacement = GroupPlacement(rawValue: arg)  // both | topBar | sidebar
         case "folder": state.createFolder(named: arg, with: state.activeTabID)
         case "nestfolder":  // <child index>:<parent index> among the Space's groups

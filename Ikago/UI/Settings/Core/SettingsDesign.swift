@@ -132,7 +132,7 @@ extension SettingsCategory {
         case .performance: "Memory, sleeping tabs and what Ikago is using"
         case .security: "Connections, permissions and browsing data"
         case .passwords: "Sign in with your preferred password source"
-        case .imports: "Choose what to bring from another browser"
+        case .imports: "Bring your data in, or take it with you"
         case .about: "Version, updates and developer tools"
         }
     }

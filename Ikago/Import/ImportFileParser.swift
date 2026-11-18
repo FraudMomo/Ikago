@@ -6,6 +6,9 @@ enum ImportFileParser {
     static func read(_ url: URL, chromiumGroupNamespace: String? = nil) throws -> BrowserImportData {
         guard (try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0) <= 64_000_000 else { throw error("Choose an export smaller than 64 MB.") }
         var data = try Data(contentsOf: url)
+        // An export archive (Safari's, Ikago's): each file by its kind, as Safari and Chrome read it.
+        if data.starts(with: [0x50, 0x4B, 0x03, 0x04]) || data.starts(with: [0x50, 0x4B, 0x05, 0x06]) { return try archive(data) }
+        if url.pathExtension.lowercased() == "csv" { return try passwordsCSV(data) }
         if data.starts(with: Array("mozLz40\0".utf8)) { data = try decompressFirefox(data) }
         if data.starts(with: Array("SNSS".utf8)) { return BrowserImportData(tabs: try ChromiumSessionParser.read(data, groupNamespace: chromiumGroupNamespace ?? url.standardizedFileURL.path)) }
         if ["html", "htm"].contains(url.pathExtension.lowercased()) { return try bookmarksHTML(data) }
@@ -19,7 +22,41 @@ enum ImportFileParser {
             return result
         }
         if let text = String(data: data, encoding: .utf8), text.contains("\t") { return cookiesText(text) }
-        throw error("Choose a bookmarks HTML/JSON/plist file, a browser session JSON/jsonlz4 file, a Chromium Session file, or a cookie JSON/Netscape text export.")
+        throw error("Choose a browser’s export (ZIP, bookmarks HTML, history JSON, passwords CSV), a browser session file, or a cookie export.")
+    }
+
+    /// Safari's export archive (and Ikago's, which uses its format): bookmarks HTML, history JSON and passwords CSV, each
+    /// found by extension like Chrome does. Files it doesn't know (extensions, payment cards) are left alone.
+    static func archive(_ data: Data) throws -> BrowserImportData {
+        var result = BrowserImportData()
+        var known = 0
+        for entry in try ZipArchive.read(data) {
+            let name = entry.name.lowercased()
+            do {
+                if name.hasSuffix(".html") || name.hasSuffix(".htm") {
+                    result.merge(try bookmarksHTML(entry.data)); known += 1
+                } else if name.hasSuffix(".csv") {
+                    result.merge(try passwordsCSV(entry.data)); known += 1
+                } else if name.hasSuffix(".json"), let object = try? JSONSerialization.jsonObject(with: entry.data) {
+                    let part = json(object)
+                    if part.hasData { result.merge(part); known += 1 }
+                }
+            } catch {
+                result.notes.append("\(entry.name): \(error.localizedDescription)")
+            }
+        }
+        guard known > 0 || !result.notes.isEmpty else { throw error("This archive has no bookmarks, history or passwords Ikago can read.") }
+        return result
+    }
+
+    /// A passwords export (Apple Passwords, Safari, Chrome, Firefox, password managers): columns found by name.
+    static func passwordsCSV(_ data: Data) throws -> BrowserImportData {
+        guard let text = String(data: data, encoding: .utf8) else { throw error("The passwords file is not UTF-8.") }
+        let parsed = try PasswordImport.parse(text)
+        var result = BrowserImportData()
+        result.passwords = parsed.logins
+        result.passwordsSkipped = parsed.skipped
+        return result
     }
 
     static func json(_ object: Any) -> BrowserImportData {
@@ -49,10 +86,17 @@ enum ImportFileParser {
                 result.tabs.append(ImportTab(url: url, title: String((entries[index]["title"] as? String ?? url).prefix(512)), pinned: tab["pinned"] as? Bool ?? false))
             }
         }
-        if let visits = root["history"] as? [[String: Any]] {
+        // Safari's export ("history", times in microseconds), Chrome's data portability format ("history_visits"), and
+        // Ikago's older sessions ("history", "time" in milliseconds).
+        if let visits = (root["history"] ?? root["history_visits"]) as? [[String: Any]] {
             result.history = visits.compactMap { row in
                 guard let url = row["url"] as? String, AddressResolver.isWebURL(url) else { return nil }
-                return Visit(url: url, title: String((row["title"] as? String ?? url).prefix(512)), time: (row["time"] as? NSNumber)?.uint64Value ?? 0)
+                func number(_ key: String) -> UInt64? { (row[key] as? NSNumber).map { UInt64(max(0, $0.doubleValue)) } }
+                let time = number("time") ?? number("time_usec").map { $0 / 1000 } ?? number("visit_time_unix_epoch_usec").map { $0 / 1000 } ?? 0
+                let title = (row["title"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? url
+                return Visit(url: url, title: String(title.prefix(512)), time: time,
+                             visits: number("visit_count").map { Int(min($0, 1_000_000)) } ?? number("visits").map { Int(min($0, 1_000_000)) },
+                             typed: number("typed_count").map { Int(min($0, 1_000_000)) } ?? number("typed").map { Int(min($0, 1_000_000)) })
             }
         }
         return result
@@ -208,15 +252,30 @@ enum ImportFileParser {
                                                          folders: stack.filter { !$0.isEmpty }))
             }
         }
+        result.fromIkago = text.contains(BrowserExport.ikagoMarker)
         return result
     }
 
-    private static func entities(_ value: String) -> String {
+    /// Named and numeric character references (`&amp;`, `&#233;`, `&#x27;`), with `&amp;` last so it never makes a new one.
+    static func entities(_ value: String) -> String {
+        guard value.contains("&") else { return value }
         var result = value
-        for (encoded, plain) in [("&quot;", "\""), ("&#39;", "'"), ("&lt;", "<"), ("&gt;", ">"), ("&amp;", "&")] {
+        for (encoded, plain) in [("&quot;", "\""), ("&apos;", "'"), ("&nbsp;", "\u{00A0}"), ("&lt;", "<"), ("&gt;", ">")] {
             result = result.replacingOccurrences(of: encoded, with: plain)
         }
-        return result
+        if result.contains("&#"), let expression = try? NSRegularExpression(pattern: "&#([xX][0-9a-fA-F]{1,6}|[0-9]{1,7});") {
+            let ns = result as NSString
+            var output = "", last = 0
+            for match in expression.matches(in: result, range: NSRange(location: 0, length: ns.length)) {
+                output += ns.substring(with: NSRange(location: last, length: match.range.location - last))
+                let digits = ns.substring(with: match.range(at: 1))
+                let code = digits.lowercased().hasPrefix("x") ? UInt32(digits.dropFirst(), radix: 16) : UInt32(digits)
+                output += code.flatMap(Unicode.Scalar.init).map { String(Character($0)) } ?? ns.substring(with: match.range)
+                last = match.range.location + match.range.length
+            }
+            result = output + ns.substring(from: last)
+        }
+        return result.replacingOccurrences(of: "&amp;", with: "&")
     }
 
     private static func decompressFirefox(_ data: Data) throws -> Data {

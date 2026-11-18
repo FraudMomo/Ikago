@@ -12,6 +12,8 @@ final class BrowserImportModel {
     private(set) var importingID: String?
     private(set) var completed: Set<String> = []
     private(set) var result: String?
+    /// The last import's report, one line per kind of data (`ImportReport`).
+    private(set) var report: ImportReport?
     private(set) var notes: [String] = []
     private(set) var failed = false
     private(set) var accessNeededFor: DetectedBrowserProfile?
@@ -48,7 +50,7 @@ final class BrowserImportModel {
         guard importingID == nil, !state.isFrozen else { return }
         let destination = state.activeSpace
         importingID = source.id
-        result = nil; notes = []; failed = false; accessNeededFor = nil
+        result = nil; report = nil; notes = []; failed = false; accessNeededFor = nil
         defer { importingID = nil }
         do {
             let grant = try await prepareAccess(source, requestAccess)
@@ -65,9 +67,14 @@ final class BrowserImportModel {
             }
             var selection = ImportSelection()
             selection.cookies = true // The Import action explicitly includes available website logins.
-            let summary = await state.applyImport(data, selection: selection, to: destination.id)
-            guard !state.isFrozen, state.spaces.contains(where: { $0.id == destination.id }) else {
+            let imported = await state.applyImport(data, selection: selection, to: destination.id)
+            let summary = imported.summary
+            guard imported.failure == nil, !state.isFrozen, state.spaces.contains(where: { $0.id == destination.id }) else {
                 failed = true; result = summary; return
+            }
+            report = imported
+            if source.kind == .file, imported.items.contains(where: { $0.kind == "Passwords" && $0.imported > 0 }) {
+                notes.append("“\(source.name)” holds passwords in plain text. Delete it now that they’re in Ikago.")
             }
             if data.accessIssues.isEmpty { completed.insert(source.id) }
             else { showAccessRequired(source) }

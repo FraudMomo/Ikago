@@ -52,16 +52,23 @@ Working list for the next builds. Tick items off as they land; move finished the
   - [x] Safari open tabs (Tab Groups → groups) and website logins (cookies) are read; Full Disk Access is explained.
   - [x] Chrome: a profile without bookmarks no longer reports an error.
   - [ ] Chrome cookies depend on the Keychain prompt ("Chrome Safe Storage"); confirm in a real import.
-  - [ ] Passwords: Chrome's Login Data (Keychain), Firefox (key4.db), Safari (needs its CSV export).
-  - [ ] Cookies for an engine not running this launch are lost; keep them until that engine starts.
+  - [ ] Passwords: Chrome's Login Data (Keychain), Firefox (key4.db). Exported files work: a passwords CSV
+    (Apple Passwords, Safari, Chrome, Firefox, password managers) or Safari's export ZIP. Reading the browsers'
+    own stores needs a Keychain prompt (Chrome) or a real Firefox profile to test against.
+  - [x] Cookies for an engine not running this launch: imported logins always go into WebKit's store too (any launch can
+    reach it), and the next Chromium launch copies them across.
   - [x] Read databases from a snapshot copy so an open browser never blocks or hides recent data.
   - [ ] History: Ikago keeps 1,000 entries in total (`Session.maxHistory`), so imports can't add more. Decide on a
     larger history store before raising it.
-  - [x] Importing again moves earlier flat bookmarks into their folders, without duplicates ("Import Again").
-  - [ ] One clear report per item (found, imported, skipped and why) instead of one summary line.
+  - [x] Importing again moves earlier flat bookmarks into their folders, without duplicates ("Import Again"), but
+    never moves bookmarks already on Ikago's Bookmarks Bar.
+  - [x] One clear report per item (found, imported, skipped and why) instead of one summary line.
+  - [x] Safari's export ZIP (and Ikago's), Safari history JSON, Chrome's data portability history, passwords CSV.
+  - [x] Re-importing an unchanged password doesn't count it or reset its dates and exported mark.
 - [x] **Import keeps bookmark folders.**
-- [ ] **Export**: bookmarks, history and passwords in formats Chrome, Safari and others can import, so people can
-  leave Ikago.
+- [x] **Export**: bookmarks, history and passwords in formats Chrome, Safari and others can import, so people can
+  leave Ikago. Bookmarks as Netscape HTML (every browser); bookmarks, history and optionally passwords as Safari's
+  export ZIP (Safari and Chrome import it). Ikago restores its own export as it was.
 
 ## Tabs
 

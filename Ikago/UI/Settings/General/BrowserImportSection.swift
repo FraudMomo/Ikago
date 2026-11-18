@@ -32,7 +32,19 @@ struct BrowserImportSection: View {
         .task { await model.refresh() }
         if let result = model.result {
             PageSection(title: model.accessNeededFor != nil ? "Allow Browser Access" : model.failed ? "Import Needs Attention" : "Import Complete") {
-                Text(result).frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 14)
+                if let report = model.report, !report.items.isEmpty {
+                    // One line per kind of data: what came in, and why anything didn't.
+                    ForEach(Array(report.items.enumerated()), id: \.element.id) { index, item in
+                        if index > 0 { PageDivider() }
+                        PageRow(title: item.kind, subtitle: item.summary) {
+                            Image(systemName: item.imported == item.found ? "checkmark.circle.fill" : "checkmark.circle")
+                                .foregroundStyle(item.imported > 0 ? Color.settingsAccent : .secondary)
+                                .accessibilityHidden(true)
+                        }
+                    }
+                } else {
+                    Text(result).frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 14)
+                }
                 if model.accessNeededFor != nil {
                     HStack {
                         Button("Allow Access & Retry") { Task { await model.retryWithAccess(into: state) } }
@@ -64,7 +76,7 @@ struct BrowserImportSection: View {
     private func chooseFile() {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = false
-        panel.message = "Choose bookmarks, a browser session, or a cookie export"
+        panel.message = "Choose a browser’s export: a ZIP, bookmarks, history, passwords or a session file"
         guard panel.runModal() == .OK, let url = panel.url else { return }
         showDetails = false
         Task { await model.importFile(url, into: state) }

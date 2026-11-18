@@ -15,7 +15,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable {
         case .history: "History"
         case .security: "Privacy & Security"
         case .passwords: "Passwords"
-        case .imports: "Import"
+        case .imports: "Import & Export"
         case .about: "About"
         }
     }
@@ -229,6 +229,7 @@ struct SettingsPage: View {
             PasswordSettingsSection(state: state)
         case .imports:
             BrowserImportSection(state: state)
+            BrowserExportSection(state: state)
         case .about: AboutSettingsSection(state: state)
         }
     }

@@ -41,7 +41,7 @@ enum ChromiumGroupImportChecks {
             let state = BrowserState(store: store), spaceID = state.activeSpaceID
             let original = state.newTab(url: "https://groups.example/1")!
             let unrelated = state.createFolder(named: "Research 🧭")
-            let summary = await state.applyImport(imported, selection: ImportSelection(), to: spaceID)
+            let summary = await state.applyImport(imported, selection: ImportSelection(), to: spaceID).summary
             let grouped = state.spaceFolders.filter { $0.id != unrelated.id }
             check(grouped.count == 4 && summary.contains("4 groups"), "only groups with imported live tabs become folders")
             let purpleFolder = grouped.first { $0.tag == "purple" }, orangeFolder = grouped.first { $0.tag == "orange" }
@@ -84,7 +84,7 @@ enum ChromiumGroupImportChecks {
                   "one-click browser import includes group conversion without extra configuration")
             let full = BrowserState(store: SessionStore(directory: root.appending(path: "Full")))
             full.tabs = (0..<Session.maxTabs).map { TabItem(url: "https://full.example/\($0)", spaceID: full.activeSpaceID) }
-            let limitedSummary = await full.applyImport(imported, selection: ImportSelection(), to: full.activeSpaceID)
+            let limitedSummary = await full.applyImport(imported, selection: ImportSelection(), to: full.activeSpaceID).summary
             check(full.folders.isEmpty && full.tabs.count == Session.maxTabs && limitedSummary.contains("limit was reached"),
                   "tab limit is reported without empty folders or replacing existing tabs")
             let expected = ["gray", "blue", "red", "yellow", "green", "pink", "purple", "teal", "orange"]
