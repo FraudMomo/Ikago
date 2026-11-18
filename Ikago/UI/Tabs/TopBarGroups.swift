@@ -133,7 +133,7 @@ struct TopBarGroupChip: View {
     }
 }
 
-/// The line under a group's tabs in the row, in the group's color (none under the active tab, which meets the page).
+/// The line under a group's tabs in the row, in the group's color, the active tab included.
 struct TopBarGroupLine: ViewModifier {
     let group: TabFolder?
     let active: Bool
@@ -141,7 +141,8 @@ struct TopBarGroupLine: ViewModifier {
 
     func body(content: Content) -> some View {
         content.overlay(alignment: .bottom) {
-            if let group, !active {
+            // Under the active tab too: it belongs to the group like the others.
+            if let group {
                 Rectangle().fill(group.chipColor ?? colors.text.opacity(0.25))
                     .frame(height: 2)
                     .padding(.bottom, 1)
