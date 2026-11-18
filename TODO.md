@@ -36,6 +36,9 @@ Working list for the next builds. Tick items off as they land; move finished the
 
 ## Bookmarks
 
+- [x] **Hotfix: delete bookmarks in batches**: Select, Select All, Shift-click and ⌘-click on the Bookmarks page, then
+  Delete or Move To for the whole selection.
+
 - [x] **Folders** fully supported, including in imports.
 - [x] **Large bookmark lists stay fast**: the page filters once and shows 200 rows at a time; the bar shows 40 chips.
 

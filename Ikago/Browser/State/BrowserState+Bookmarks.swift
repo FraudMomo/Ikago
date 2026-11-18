@@ -58,6 +58,20 @@ extension BrowserState {
         scheduleSave()
     }
 
+    /// Removes several bookmarks in one change (one save, one redraw).
+    func removeBookmarks(_ ids: Set<String>) {
+        guard !ids.isEmpty else { return }
+        bookmarks.removeAll { ids.contains($0.id) }
+        scheduleSave()
+    }
+
+    /// Moves several bookmarks into one folder (nil: the Bookmarks Bar).
+    func moveBookmarks(_ ids: Set<String>, to folderID: String?) {
+        guard !ids.isEmpty, folderID == nil || bookmarkFolders.contains(where: { $0.id == folderID }) else { return }
+        for index in bookmarks.indices where ids.contains(bookmarks[index].id) { bookmarks[index].folderID = folderID }
+        scheduleSave()
+    }
+
     func updateBookmark(_ id: String, title: String, url: String, folderID: String?) {
         guard AddressResolver.isWebURL(url), !title.isEmpty,
               let index = bookmarks.firstIndex(where: { $0.id == id }),

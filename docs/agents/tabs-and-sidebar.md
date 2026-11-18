@@ -82,6 +82,8 @@
 - Closed tab groups (`TabFolder.isClosed`, `BrowserState+Groups`) came from the retired Top Bar's Close Group. Their
   pages stay unloaded until reopened from Tab ▸ Reopen Closed Group or by selecting one of their tabs; the sidebar lists
   them, and `navigationOrder` is the sidebar's order.
+- The Bookmarks page selects like Finder (Shift-click a range, ⌘-click one more, or Select mode); the bar moves or deletes
+  the selection in one change (`moveBookmarks`, `removeBookmarks`), deleting only after a confirmation.
 - Bookmarks show in an optional upward-expanding drawer at the bottom of the sidebar. ⇧⌘B and Settings ▸ Sidebar &
   Toolbar toggle the same saved preference. Bookmarks and
   nested `BookmarkFolder`s are shared across Spaces and independent of live tab groups; keep
