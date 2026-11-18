@@ -53,16 +53,17 @@ extension BrowserState {
         scheduleSave()
     }
 
-    /// Moves a tab to another Space, out of any folder. Between Spaces that share storage
-    /// the page moves as is; into or out of an isolated Space it reopens with that Space's logins.
-    func moveTab(_ id: String, toSpace spaceID: UUID) {
+    /// Moves a tab to another Space, out of any folder (or into `folderID`, a group already moved there). Between
+    /// Spaces that share storage the page moves as is; into or out of an isolated Space it reopens with that Space's
+    /// logins.
+    func moveTab(_ id: String, toSpace spaceID: UUID, folderID: String? = nil) {
         guard let tab = tab(id), tab.spaceID != spaceID,
               let target = spaces.first(where: { $0.id == spaceID }) else { return }
         let sameStorage = spaces.first { $0.id == tab.spaceID }?.profileID == target.profileID
         guard sameStorage else {
             closeTab(id, removingPin: true)
             if closed.first?.url == tab.url { closed.removeFirst() }
-            tabs.append(TabItem(url: tab.url, title: tab.title, pinned: tab.pinned, spaceID: spaceID))
+            tabs.append(TabItem(url: tab.url, title: tab.title, pinned: tab.pinned, spaceID: spaceID, folderID: folderID))
             tabs = tabs.filter(\.pinned) + tabs.filter { !$0.pinned }
             scheduleSave()
             return
@@ -75,7 +76,37 @@ extension BrowserState {
         }
         removeFromSplits([id])
         tab.spaceID = spaceID
-        tab.folderID = nil
+        tab.folderID = folderID
+        tab.pinAfterFolderID = nil
+        scheduleSave()
+    }
+
+    /// Moves several tabs to another Space, keeping their order.
+    func moveTabs(_ ids: [String], toSpace spaceID: UUID) {
+        for id in ids { moveTab(id, toSpace: spaceID) }
+    }
+
+    /// Moves a group to another Space with the groups inside it and all their tabs, at the end of that Space's
+    /// groups. It arrives at the top level there; its tabs keep their places inside it.
+    func moveFolder(_ id: String, toSpace spaceID: UUID) {
+        guard let folder = folders.first(where: { $0.id == id }), folder.spaceID != spaceID,
+              spaces.contains(where: { $0.id == spaceID }) else { return }
+        let subtree = folderSubtreeIDs(id)
+        let moving = tabs.filter { $0.spaceID == folder.spaceID && $0.folderID.map(subtree.contains) == true }
+            .map { ($0.id, $0.folderID) }
+        // Folders first, so the tabs land in groups that already belong to the target Space.
+        var moved = folders.filter { subtree.contains($0.id) }
+        folders.removeAll { subtree.contains($0.id) }
+        for index in moved.indices {
+            moved[index].spaceID = spaceID
+            if moved[index].id == id { moved[index].parentID = nil }
+        }
+        folders.append(contentsOf: moved)
+        for (tabID, folderID) in moving { moveTab(tabID, toSpace: spaceID, folderID: folderID) }
+        // Pins placed after the group in its old Space go back above the groups.
+        for tab in tabs where tab.pinAfterFolderID.map(subtree.contains) == true && tab.spaceID != spaceID {
+            tab.pinAfterFolderID = nil
+        }
         scheduleSave()
     }
 

@@ -104,6 +104,7 @@ extension TestDriver {
         case "pagegrabchecks": await PageGrabChecks.run(c, base: arg)
         case "extensionaccesschecks": await ExtensionAccessChecks.run(c, base: arg)
         case "tabplacementchecks": await TabPlacementChecks.run()
+        case "spacemovechecks": SpaceMoveChecks.run()
         case "middleclickchecks": await MiddleClickChecks.run(c, base: arg)
         case "passwordautofillchecks": await PasswordAutoFillChecks.run(c, base: arg)
         case "pagetoolshots": await PageToolChecks.shots(c, base: arg.components(separatedBy: "|")[0], dir: arg.components(separatedBy: "|").last ?? "/tmp")

@@ -109,7 +109,9 @@ struct TabContextMenu: View {
         if state.spaces.count > 1 {
             Menu("Move to Space") {
                 ForEach(state.spaces.filter { $0.id != tab.spaceID }) { space in
-                    Button(space.name) { state.moveTab(tab.id, toSpace: space.id) }
+                    Button { withAnimation(.ikago) { state.moveTab(tab.id, toSpace: space.id) } } label: {
+                        Label(space.name, systemImage: space.symbol)
+                    }
                 }
             }
         }
@@ -136,6 +138,15 @@ private struct SelectedTabsMenu: View {
                 Button(folder.name) { withAnimation(.ikago) { commands?.moveTabs(ids, toFolder: folder.id) } }
             }
             Button("Remove from Group") { withAnimation(.ikago) { commands?.moveTabs(ids, toFolder: nil) } }
+        }
+        if state.spaces.count > 1 {
+            Menu("Move \(ids.count) Tabs to Space") {
+                ForEach(state.spaces.filter { $0.id != state.activeSpaceID }) { space in
+                    Button { withAnimation(.ikago) { state.moveTabs(ids, toSpace: space.id) } } label: {
+                        Label(space.name, systemImage: space.symbol)
+                    }
+                }
+            }
         }
         Divider()
         Button("Close \(ids.count) Tabs") { withAnimation(.ikago) { commands?.closeTabs(ids) } }

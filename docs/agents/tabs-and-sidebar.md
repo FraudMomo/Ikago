@@ -82,6 +82,10 @@
 - Closed tab groups (`TabFolder.isClosed`, `BrowserState+Groups`) came from the retired Top Bar's Close Group. Their
   pages stay unloaded until reopened from Tab ▸ Reopen Closed Group or by selecting one of their tabs; the sidebar lists
   them, and `navigationOrder` is the sidebar's order.
+- Tabs and groups move between Spaces from their menus (Move to Space, also for several selected tabs) or by dropping
+  tabs on a Space's dot in the Space bar (`moveTab`, `moveTabs`, `moveFolder(_:toSpace:)`). A group takes the groups
+  inside it and their tabs, arrives at the top level after the target's groups, and its tabs keep their groups. Between
+  Spaces with different storage the pages reopen there (no closed-tab entry). The view stays in the current Space.
 - The Bookmarks page selects like Finder (Shift-click a range, ⌘-click one more, or Select mode); the bar moves or deletes
   the selection in one change (`moveBookmarks`, `removeBookmarks`), deleting only after a confirmation.
 - Bookmarks show in an optional upward-expanding drawer at the bottom of the sidebar. ⇧⌘B and Settings ▸ Sidebar &

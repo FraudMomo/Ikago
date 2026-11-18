@@ -61,6 +61,9 @@ Working list for the next builds. Tick items off as they land; move finished the
 
 ## Tabs
 
+- [x] **Move tabs and groups into other Spaces**: Move to Space in the tab, selection and group menus, and drop tabs
+  on a Space's dot. Groups take their nested groups and tabs along.
+
 - [x] **Bug: Cmd+Shift+T (reopen closed tab) doesn't behave like Chromium.** Match Chrome: reopen in the original
   order, at the same position in the same Space, group and window, with back/forward history kept. Reopening a
   closed window brings back all its tabs. Repeated presses go further back through the list. Fixed: a run of

@@ -127,6 +127,15 @@ struct FolderContextMenu: View {
                 withAnimation(.ikago) { state.moveFolder(folder.id, into: grandparent) }
             }
         }
+        if state.spaces.count > 1 {
+            Menu("Move to Space") {
+                ForEach(state.spaces.filter { $0.id != folder.spaceID }) { space in
+                    Button { withAnimation(.ikago) { state.moveFolder(folder.id, toSpace: space.id) } } label: {
+                        Label(space.name, systemImage: space.symbol)
+                    }
+                }
+            }
+        }
         Button("Delete Group") { withAnimation(.ikago) { state.deleteFolder(folder.id) } }
         Divider()
         Button("Close Tabs in Group") {
