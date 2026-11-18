@@ -74,3 +74,10 @@
   API key. No Quad9 or OpenPhish.
 - Runtime checks use disposable profiles, a mock keychain and fake devices. Never enter credentials, weaken production
   encryption or raise a system permission prompt to make a check pass. They must not show a Chromium window.
+- Remove Chromium (`ChromiumRemoval`, Settings ▸ General ▸ Advanced): WebKit becomes the default and every site rule to
+  Chromium goes, `EngineCookieSync.forgetChromium` drops its cookie claims and pending clears, and the session folder's
+  `Chromium`, `Chromium Extensions` and old `CEF` folders are deleted: at once when this launch doesn't run Chromium,
+  otherwise flagged and deleted at the next launch that doesn't, before the app runs (`main.swift`). The CEF framework
+  stays in the bundle (it is loaded only when Chromium starts, `LoadInMain`): deleting from a signed app breaks its
+  seal. Checks use a temporary folder and never set the flag (debug builds share Ikago's defaults).
+

@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// Choose your engine: WebKit or Chromium, as two cards.
@@ -38,6 +39,7 @@ struct EngineSettingsSection: View {
                         MediaTranslation.apply(on)
                     })).labelsHidden().toggleStyle(.switch).controlSize(.small)
                 }
+                ChromiumRemovalRow(state: state)
             }
         }
     }
@@ -108,3 +110,49 @@ private extension BrowserEngine {
         }
     }
 }
+
+/// General ▸ Advanced ▸ Remove Chromium (`ChromiumRemoval`): shown while Chromium has data on this Mac, or its removal
+/// waits for a launch without it.
+private struct ChromiumRemovalRow: View {
+    let state: BrowserState
+    @State private var size: Int64?
+    @State private var removed = false
+    @State private var pending = ChromiumRemoval.isPending
+
+    var body: some View {
+        Group {
+            if pending {
+                PageDivider()
+                PageRow(title: "Chromium will be removed", subtitle: "Its data goes the next time Ikago opens. WebKit is your engine.") {
+                    Button("Quit Ikago") { NSApp.terminate(nil) }
+                }
+            } else if removed {
+                PageDivider()
+                PageRow(title: "Chromium removed", subtitle: "WebKit is your engine. Choose Chromium above to use it again.") {
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.settingsAccent)
+                }
+            } else if ChromiumRemoval.hasData(in: ChromiumRemoval.root) {
+                PageDivider()
+                PageRow(title: "Remove Chromium",
+                        subtitle: "Its website data, extensions and cache\(size.map { " (" + ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) + ")" } ?? ""). WebKit becomes your engine, and Chromium won’t start unless you choose it again.") {
+                    Button("Remove…") { confirm() }
+                }
+            }
+        }
+        .task { size = await ChromiumRemoval.size(in: ChromiumRemoval.root) }
+    }
+
+    private func confirm() {
+        let alert = NSAlert()
+        alert.messageText = "Remove Chromium?"
+        alert.informativeText = "WebKit becomes your engine, also for sites you set to Chromium. Chromium’s website data, extensions and cache are removed, so you’ll be signed out of sites you only used there. Your tabs, history, bookmarks and passwords stay."
+        alert.addButton(withTitle: "Remove")
+        alert.addButton(withTitle: "Cancel")
+        alert.buttons.first?.hasDestructiveAction = true
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        withAnimation(.ikago) {
+            if ChromiumRemoval.remove(state: state) { removed = true } else { pending = true }
+        }
+    }
+}
+

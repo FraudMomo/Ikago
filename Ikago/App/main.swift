@@ -88,6 +88,8 @@ do {
         app.setActivationPolicy(.prohibited)
         try IKCEFRuntime.shutdown()
     } else {
+        // Chromium's data removed while it was running goes now, before anything opens (Settings ▸ Remove Chromium).
+        ChromiumRemoval.applyPendingAtLaunch()
         app.run()
         app.reply(toApplicationShouldTerminate: true)
     }

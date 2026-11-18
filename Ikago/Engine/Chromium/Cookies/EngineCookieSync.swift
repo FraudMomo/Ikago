@@ -27,6 +27,15 @@ enum EngineCookieSync {
 
     // MARK: Launch and quit
 
+    /// Chromium's data was removed (`ChromiumRemoval`): nothing of it is authoritative any more, and nothing is left
+    /// to clear. A later Chromium launch then copies WebKit's cookies across, adding rather than mirroring.
+    static func forgetChromium() {
+        guard usesRealStores else { return }
+        owners = owners.filter { $0.value != BrowserEngine.chromium.rawValue }
+        UserDefaults.standard.removeObject(forKey: pendingClearKey)
+        UserDefaults.standard.removeObject(forKey: "CEFProfilesToDelete")
+    }
+
     /// A WebKit launch can't export Chromium's cookies, so a leftover Chromium claim means the last
     /// export didn't finish. Forget it: the next copy then merges rather than deletes.
     static func noteWebKitLaunch() {

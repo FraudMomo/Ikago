@@ -146,6 +146,10 @@ Working list for the next builds. Tick items off as they land; move finished the
 ## Engines, first run and downloads
 
 - [ ] **WebKit-only option at download or first start**: Chromium isn't downloaded unless it's needed later.
+  - [x] Settings ▸ General ▸ Advanced ▸ Remove Chromium: WebKit becomes the engine (sites set to Chromium too) and
+    Chromium's profiles, extensions and cache are removed. The framework itself stays in the signed app until Chromium
+    is a separate download (removing it would break the signature, and updates would restore it); it never loads
+    unless chosen.
 
 ## Performance
 

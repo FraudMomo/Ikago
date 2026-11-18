@@ -127,6 +127,7 @@ enum SettingsSearch {
         .init(title: "Saved passwords", category: .passwords, section: "Saved in Ikago", keywords: "vault logins"),
 
         .init(title: "Import browser data", category: .imports, section: "Import", keywords: "bookmarks history tabs chrome firefox"),
+        .init(title: "Remove Chromium", category: .general, section: "Advanced", keywords: "uninstall delete engine space disk webkit only"),
         .init(title: "Export bookmarks", category: .imports, section: "Export", keywords: "html backup leave chrome safari firefox"),
         .init(title: "Export bookmarks and history", category: .imports, section: "Export", keywords: "zip backup safari chrome passwords leave"),
 
