@@ -66,12 +66,15 @@ struct SidebarTopTabs: View {
                                 TopBarGroupChip(folder: folder, count: count, state: state, chrome: chrome, colors: colors, commands: commands)
                                     .padding(.horizontal, 3)
                                     .frame(width: Self.chipSlot(folder, state: state), height: Self.tabHeight)
-                                    .modifier(TopBarGroupLine(group: folder.isOpen ? folder : nil, active: false, colors: colors))
+                                    .modifier(TopBarGroupLine(group: folder.isOpen ? folder : nil, active: false, colors: colors,
+                                                              activeAfter: entries[safe: index + 1]?.item?.containsTab(state.activeTabID) == true))
                                     .recordLayout("top-chip-\(folder.id)")
                                     .tabSlot()
                             case .item(let item, let group):
                                 itemView(item, width: width * Self.slots(of: item), colors: colors,
-                                         divider: showsDivider(after: item, next: entries[safe: index + 1]?.item), group: group)
+                                         divider: showsDivider(after: item, next: entries[safe: index + 1]?.item), group: group,
+                                         activeBefore: entries[safe: index - 1]?.item?.containsTab(state.activeTabID) == true,
+                                         activeAfter: entries[safe: index + 1]?.item?.containsTab(state.activeTabID) == true)
                                     .tabSlot()
                             }
                         }
@@ -149,9 +152,11 @@ struct SidebarTopTabs: View {
         next != nil && !isRaised(item) && !isRaised(next)
     }
 
-    @ViewBuilder private func itemView(_ item: TabListItem, width: CGFloat, colors: Palette, divider: Bool, group: TabFolder?) -> some View {
+    @ViewBuilder private func itemView(_ item: TabListItem, width: CGFloat, colors: Palette, divider: Bool, group: TabFolder?,
+                                       activeBefore: Bool, activeAfter: Bool) -> some View {
         itemBody(item, width: width, colors: colors, divider: divider)
-            .modifier(TopBarGroupLine(group: group, active: item.containsTab(state.activeTabID), colors: colors))
+            .modifier(TopBarGroupLine(group: group, active: item.containsTab(state.activeTabID), colors: colors,
+                                      activeBefore: activeBefore, activeAfter: activeAfter))
     }
 
     @ViewBuilder private func itemBody(_ item: TabListItem, width: CGFloat, colors: Palette, divider: Bool) -> some View {

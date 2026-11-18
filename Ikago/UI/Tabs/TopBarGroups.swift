@@ -140,15 +140,23 @@ struct TopBarGroupLine: ViewModifier {
     let group: TabFolder?
     let active: Bool
     let colors: Palette
+    /// The active tab is right before / after this one: its outline's flare ends `AttachedTabShape.flare` into this
+    /// slot, so this line starts there (running under the curve, it showed as a foot below the outline).
+    var activeBefore = false
+    var activeAfter = false
 
     static let width: CGFloat = 2
 
     func body(content: Content) -> some View {
         let color = group.map { $0.chipColor ?? colors.text.opacity(0.25) }
+        let flare = AttachedTabShape().flare
         content
             .overlay(alignment: .bottom) {
                 if let color, !active {
-                    Rectangle().fill(color).frame(height: Self.width).allowsHitTesting(false)
+                    Rectangle().fill(color).frame(height: Self.width)
+                        .padding(.leading, activeBefore ? flare : 0)
+                        .padding(.trailing, activeAfter ? flare : 0)
+                        .allowsHitTesting(false)
                 }
             }
             .overlay {
