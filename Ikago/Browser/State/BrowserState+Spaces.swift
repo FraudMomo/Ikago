@@ -110,6 +110,13 @@ extension BrowserState {
         scheduleSave()
     }
 
+    /// The page for a tab that must show something before anything is typed (the first tab of a launch, a new split
+    /// pane): the homepage when new tabs open it, otherwise the chosen search engine's start page. Never a fixed site.
+    var startPageURL: String {
+        if newTabMode == .homepage, let home = try? AddressResolver.resolve(homepage, engine: searchEngine) { return home }
+        return searchEngine.homeURL
+    }
+
     func setColors(_ colors: SpaceColors, for id: UUID) {
         guard let index = spaces.firstIndex(where: { $0.id == id }) else { return }
         spaces[index].colors = colors

@@ -123,7 +123,8 @@ Working list for the next builds. Tick items off as they land; move finished the
   (e.g. a drop zone on Gmail or Drive). Drops on the page should go to the page first. Only open the file
   when the page doesn't take the drop, or when it's dropped on the tab strip or sidebar. Check both engines.
   Fixed for WebKit (Chromium already gave drops to the page).
-- [ ] **Bug: DuckDuckGo sometimes shows as a plain page** (not loading properly or not styled).
+- [x] **Bug: DuckDuckGo opens without being chosen.** The first tab of a launch, Split View's new pane and new
+  private windows opened duckduckgo.com; they now follow the search engine, homepage and new-tab settings.
 - [x] **Empty state when all tabs are closed**: a nice Ikago screen, not a blank page with the Space name.
 - [x] **Extension popup "Allow on every website"** should look like a button, not a label.
 

@@ -15,6 +15,18 @@ enum SearchEngine: String, Codable, CaseIterable, Identifiable {
         }
     }
 
+    /// The engine's own start page, for a tab that needs a page before anything is typed.
+    var homeURL: String {
+        switch self {
+        case .duckduckgo: "https://duckduckgo.com"
+        case .google: "https://www.google.com"
+        case .bing: "https://www.bing.com"
+        case .brave: "https://search.brave.com"
+        case .ecosia: "https://www.ecosia.org"
+        case .yahoo: "https://search.yahoo.com"
+        }
+    }
+
     func searchURL(_ query: String) -> String {
         let q = query.addingPercentEncoding(withAllowedCharacters: .urlQueryValueAllowed) ?? query
         switch self {

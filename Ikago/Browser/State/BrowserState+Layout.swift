@@ -87,10 +87,10 @@ extension BrowserState {
     }
 
     /// Cmd+Shift+D or "Open in Split View": add `other` (or a new tab) beside the active tab.
-    func splitActive(with other: String? = nil, newTabURL: String = "https://duckduckgo.com") {
+    func splitActive(with other: String? = nil, newTabURL: String? = nil) {
         guard let active = activeTabID else { return }
         guard (splitGroup(of: active)?.count ?? 1) < 4 else { return }
-        let partner = other ?? newTab(url: newTabURL, select: false, after: active)?.id
+        let partner = other ?? newTab(url: newTabURL ?? startPageURL, select: false, after: active)?.id
         guard let partner, partner != active else { return }
         join(partner, to: active, leading: false)
     }

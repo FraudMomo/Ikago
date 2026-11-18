@@ -71,7 +71,7 @@ final class AppDelegate: NSObject, IKCEFApplicationDelegate {
         if state.browserPreferences.handoff == true { pendingURLs += pendingHandoff }
         pendingHandoff = []
         if state.tabs.isEmpty, pendingURLs.isEmpty {
-            state.newTab(url: state.pendingWelcome ? InternalPage.welcome.url : "https://duckduckgo.com")
+            state.newTab(url: state.pendingWelcome ? InternalPage.welcome.url : state.startPageURL)
         }
         installInputMonitors()
         let controller = BrowserWindowController(state: state)
@@ -142,14 +142,16 @@ final class AppDelegate: NSObject, IKCEFApplicationDelegate {
     }
 
     /// A private window: no history, no saved session, in-memory website data, no extensions.
-    func openPrivateWindow(url: String = "https://duckduckgo.com") {
+    /// Without a `url` it opens like ⌘N: whatever new tabs open (the command bar, the homepage or a new-tab page).
+    func openPrivateWindow(url: String? = nil) {
         guard let state else { return }
         let privateState = BrowserState(privateFrom: state)
-        privateState.newTab(url: url)
+        if let url { privateState.newTab(url: url) }
         let controller = BrowserWindowController(state: privateState)
         privateWindows.append(controller)
         if let frame = windowController?.window?.frame { controller.window?.setFrame(frame.offsetBy(dx: 28, dy: -28), display: false) }
         controller.showWindow(nil)
+        if url == nil { controller.newTab() }
     }
 
     func privateWindowClosed(_ controller: BrowserWindowController) {
