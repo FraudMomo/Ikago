@@ -105,6 +105,8 @@ extension TestDriver {
         case "extensionaccesschecks": await ExtensionAccessChecks.run(c, base: arg)
         case "tabplacementchecks": await TabPlacementChecks.run()
         case "spacemovechecks": SpaceMoveChecks.run()
+        case "findchecks": await FindChecks.run(c, base: arg)
+        case "findtrailprobe": await FindChecks.trailProbe(c, base: arg)
         case "importexportchecks": await ImportExportChecks.run()
         case "topbargroupchecks": TopBarGroupChecks.run()
         case "startpagechecks": await StartPageChecks.run(c)

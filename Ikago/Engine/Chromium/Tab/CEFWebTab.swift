@@ -237,7 +237,10 @@ final class CEFWebTab: WebTab {
             delegate?.webTab(self, didChangeThemeColor: NSColor(srgbRed: Double((argb >> 16) & 255)/255,
                 green: Double((argb >> 8) & 255)/255, blue: Double(argb & 255)/255, alpha: Double(argb >> 24)/255))
         case "failure": delegate?.webTab(self, didFailLoad: "The page could not load (CEF error \(payload["code"] ?? 0)).", url: payload["url"] as? String)
-        case "find": delegate?.webTab(self, didFind: payload["found"] as? Bool ?? false)
+        case "find":
+            let total = payload["count"] as? Int, active = payload["active"] as? Int
+            delegate?.webTab(self, didFind: FindResult(found: payload["found"] as? Bool ?? false, total: total,
+                                                       active: active.flatMap { $0 > 0 ? $0 : nil }))
         case "closed": delegate?.webTabDidClose(self)
         case "crash":
             passwordKeyState.context = nil; passwordKeyState.injectedGeneration = -1; passwordKeyState.frames = [:]

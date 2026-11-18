@@ -137,8 +137,10 @@ class PDFCallback : public CefPdfPrintCallback {
 - (void)focusPage { if (self.ready) _browser->GetHost()->SetFocus(true); }
 - (void)findText:(NSString *)text forward:(BOOL)forward matchCase:(BOOL)matchCase {
   if (!self.ready) return;
-  BOOL next = [_lastFind isEqualToString:text];
+  // The same text and options steps to the next match; anything else starts a new search.
+  BOOL next = [_lastFind isEqualToString:text] && _lastFindMatchCase == matchCase;
   _lastFind = [text copy];
+  _lastFindMatchCase = matchCase;
   _browser->GetHost()->Find(text.UTF8String, forward, matchCase, next);
 }
 - (void)clearFind {

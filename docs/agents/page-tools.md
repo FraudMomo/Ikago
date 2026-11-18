@@ -46,3 +46,15 @@ Phase 7's everyday features. Each works the same on WebKit and Chromium, and all
   Dock as a shortcut and shows in Launchpad and Spotlight.
 
 Checks: `PageToolChecks` (WebKit, `pagetoolchecks`), `CEFPageToolChecks` (Chromium smoke).
+- Find in page (`FindBarView`, `FindBarModel`, `BrowserWindowController` find handlers): results arrive as `FindResult`
+  (found, total, active). Chromium reports them itself (`OnFindResult`; the selected match often comes in an interim
+  update and the count in the final one, so both are passed on), and a new search that selects nothing gets one step so
+  it reads "1 of N". WebKit's find says only whether it found one: `FindHighlights.detailsBody` counts the matches, finds
+  the selected one from the DOM selection, marks them (Highlight All) and returns tick positions for `FindTicksView` on
+  the tab's host view. Match Case works on both engines (Chromium starts a new search when the text or Match Case
+  changes). Find belongs to each tab, as in Chrome: its own text (`findTexts`) and whether its bar is open
+  (`findOpenTabs`). A tab never starts from another tab's search (no shared find pasteboard); switching tabs hides the
+  bar or brings back that tab's own, and ⌘G with the bar closed opens the tab's find. WebKit repaints only what a new
+  highlight covers, so the old Highlight All marks are deleted before new ones are set, or earlier letters' marks stay.
+  A search issued twice counts as Find Next on both engines. `findchecks` covers both engines.
+

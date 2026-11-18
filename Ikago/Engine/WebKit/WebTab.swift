@@ -182,7 +182,7 @@ final class WebKitTab: NSObject, WebTab {
         config.wraps = true
         webView.find(text, configuration: config) { [weak self] result in
             guard let self else { return }
-            self.delegate?.webTab(self, didFind: result.matchFound)
+            self.delegate?.webTab(self, didFind: FindResult(found: result.matchFound))
         }
     }
 

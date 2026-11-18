@@ -9,7 +9,7 @@ protocol TabHost: AnyObject {
                        url: String, background: Bool) -> WKWebView?
     func tabController(_ tab: TabController, openInNewTab url: String, background: Bool)
     func tabController(_ tab: TabController, requestsPermission request: PermissionRequest)
-    func tabController(_ tab: TabController, didFind found: Bool)
+    func tabController(_ tab: TabController, didFind result: FindResult)
     func tabControllerDidClose(_ tab: TabController)
     /// The user started dragging this pane's header (shows the split drop zones).
     func tabControllerEndedDrag(_ tab: TabController)
@@ -36,6 +36,8 @@ final class TabController: NSObject, WebTabDelegate {
     var engineBadge: NSView?
     /// The hovered link's address (`LinkStatusView`), created on the first hover.
     var linkStatus: LinkStatusView?
+    /// Find in page's marks along the page's edge (WebKit).
+    var findTicks: FindTicksView?
     var errorView: NSView?
     /// Reader mode over this page (`ReaderOverlay`).
     var reader: ReaderOverlay?

@@ -39,7 +39,7 @@ protocol WebTabDelegate: AnyObject {
     func webTab(_ page: WebTab, navigateToExtension url: String)
     func webTab(_ page: WebTab, openInNewTab url: String, background: Bool)
     func webTab(_ page: WebTab, requestsPermission request: PermissionRequest)
-    func webTab(_ page: WebTab, didFind found: Bool)
+    func webTab(_ page: WebTab, didFind result: FindResult)
     /// Audible media, camera or microphone use changed (a capture is `.active`, `.muted` or `.none`).
     func webTab(_ page: WebTab, didChangeMedia audible: Bool, camera: WKMediaCaptureState, microphone: WKMediaCaptureState)
     func webTab(_ page: WebTab, didChangePlayback playback: MediaPlaybackState)
@@ -57,4 +57,12 @@ protocol WebTabDelegate: AnyObject {
 extension WebTabDelegate {
     func webTab(_ page: WebTab, perform action: PageContextAction) {}
     func webTab(_ page: WebTab, notification json: String) {}
+}
+
+/// What a find in page found: whether anything matched and, when the engine says, how many and which one is selected
+/// (1-based). Chromium reports both; WebKit only whether it found one, and Ikago counts the rest (`FindHighlights`).
+struct FindResult: Equatable, Sendable {
+    var found: Bool
+    var total: Int? = nil
+    var active: Int? = nil
 }

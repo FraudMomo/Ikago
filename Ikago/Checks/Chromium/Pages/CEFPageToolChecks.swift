@@ -36,7 +36,7 @@ enum CEFPageToolChecks {
         func webTab(_ page: WebTab, navigateToExtension url: String) {}
         func webTab(_ page: WebTab, openInNewTab url: String, background: Bool) {}
         func webTab(_ page: WebTab, requestsPermission request: PermissionRequest) { request.resolve(.deny) }
-        func webTab(_ page: WebTab, didFind found: Bool) {}
+        func webTab(_ page: WebTab, didFind result: FindResult) {}
         func webTab(_ page: WebTab, didChangeMedia audible: Bool, camera: WKMediaCaptureState, microphone: WKMediaCaptureState) {}
         func webTab(_ page: WebTab, didChangePlayback playback: MediaPlaybackState) {}
         func webTabDidClose(_ page: WebTab) {}

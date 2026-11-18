@@ -15,6 +15,12 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
     private var popoverObservers: [NSObjectProtocol] = []
     let palette: CommandPaletteModel
     let find = FindBarModel()
+    /// Find belongs to each tab, as in Chrome: its own search text, and whether its find bar is open. A tab never
+    /// starts from another tab's search, and switching tabs shows or hides the bar with the tab.
+    var findTexts: [String: String] = [:]
+    var findOpenTabs: Set<String> = []
+    /// The tab whose search the find bar holds now.
+    private var findTabID: String?
     let content: WebContentViewController
     let background = WindowBackgroundView()
     private var permissionQueue: [(tab: TabController, request: PermissionRequest)] = []
@@ -109,7 +115,9 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
         }
         // Switching tabs ends address editing (the field would show the old tab's address).
         observeState { [weak self] in _ = self?.state.activeTabID } onChange: { [weak self] in
-            guard let self, self.isEditingAddress, self.state.activeTabID != self.chrome.editingTabID else { return }
+            guard let self else { return }
+            self.activeTabChangedForFind()
+            guard self.isEditingAddress, self.state.activeTabID != self.chrome.editingTabID else { return }
             self.dismissCommandPalette()
         }
         observeState { [weak self] in
@@ -180,20 +188,34 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
         }
         palette.onDismiss = { [weak self] in self?.dismissCommandPalette() }
         palette.onAction = { [weak self] action in action.perform(in: self?.window) }
-        find.onSearch = { [weak self] text, forward, _ in
-            guard let self, let page = self.activeController?.page else { return }
-            guard !text.isEmpty else { page.clearFindSelection(); return }
-            page.find(text, forward: forward, matchCase: false)
-            self.updateFindHighlights(page, text: text)
+        find.onSearch = { [weak self] text, forward, next in
+            guard let self, let controller = self.activeController, let page = controller.page else { return }
+            guard !text.isEmpty else {
+                page.clearFindSelection()
+                controller.showFindTicks([], active: nil)
+                return
+            }
+            // The count and the selected match arrive with the result (`tabController(_:didFind:)`).
+            // A new search (typing, not Next/Previous) may come back from Chromium with every match marked and none
+            // selected; it then gets one step, so it reads "1 of N" at once like Chrome.
+            self.find.selectsFirstMatch = !next && page is CEFWebTab
+            page.find(text, forward: forward, matchCase: self.find.matchCase)
         }
         find.onHighlightAllChanged = { [weak self] in
-            guard let self, let page = self.activeController?.page else { return }
-            self.updateFindHighlights(page, text: self.find.text)
+            guard let self, let controller = self.activeController else { return }
+            self.refreshFindDetails(controller)
         }
         find.onClose = { [weak self] in self?.closeFindBar() }
     }
     func showFindBar() {
-        guard state.activeTab != nil else { return }
+        guard let id = state.activeTabID else { return }
+        // Each tab remembers its last search; a tab without one starts from the Mac's shared find text (⌘E).
+        if !chrome.showFind {
+            let remembered = findTexts[id] ?? ""
+            if find.text != remembered { find.text = remembered }
+        }
+        findTabID = id
+        findOpenTabs.insert(id)
         // Chromium marks every match itself, so the toggle is only for WebKit.
         find.offersHighlightAll = !(activeController?.page is CEFWebTab)
         withAnimation(.ikago) { chrome.showFind = true }
@@ -219,17 +241,54 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
         // Again once the bar's appearance has settled (it is inserted with an animation).
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { focus() }
     }
-    /// Highlight All (WebKit): marks every match, or removes the marks when it is off.
-    private func updateFindHighlights(_ page: WebTab, text: String) {
-        guard !(page is CEFWebTab) else { return }
-        guard find.highlightAll, !text.isEmpty else {
+    /// WebKit's find says only whether it found one: count the matches, find which one it selected, mark them all
+    /// (Highlight All) and place the tick marks. Chromium reports the count itself and draws its own ticks.
+    func refreshFindDetails(_ controller: TabController) {
+        guard let page = controller.page, !(page is CEFWebTab) else { return }
+        let text = find.text, matchCase = find.matchCase
+        guard !text.isEmpty else {
             Task { _ = try? await page.evaluate(FindHighlights.clearScript) }
+            controller.showFindTicks([], active: nil)
             return
         }
-        Task { [weak self] in
-            let count = (try? await page.callAsync(FindHighlights.markBody(text, matchCase: false))) as? Int
-            guard let self, let count, count >= 0, self.find.text == text, self.chrome.showFind else { return }
-            self.find.totalMatches = count
+        Task { [weak self, weak controller] in
+            let details = (try? await page.callAsync(FindHighlights.detailsBody(text, matchCase: matchCase, mark: self?.find.highlightAll ?? false))) as? [String: Any]
+            guard let self, let controller, let details, self.find.text == text, self.chrome.showFind, controller === self.activeController else { return }
+            let total = (details["total"] as? NSNumber)?.intValue ?? 0
+            self.find.totalMatches = total
+            self.find.activeMatch = (details["active"] as? NSNumber)?.intValue ?? 0
+            self.find.matchCount = total
+            let activeTick = (details["activeTick"] as? NSNumber)?.doubleValue ?? -1
+            controller.showFindTicks((details["ticks"] as? [NSNumber])?.map(\.doubleValue) ?? [], active: activeTick >= 0 ? activeTick : nil)
+        }
+    }
+
+    /// Switching tabs: the tab left behind keeps its search (its marks go), and the newly selected tab brings back its
+    /// own find bar if it had one open, with its own text; otherwise the bar hides.
+    private func activeTabChangedForFind() {
+        for controller in content.controllers.values where controller !== activeController { controller.showFindTicks([], active: nil) }
+        let id = state.activeTabID
+        if let previous = findTabID, previous != id {
+            findTexts[previous] = find.text.isEmpty ? nil : find.text
+            content.controllers[previous]?.page?.clearFindSelection()
+            findTabID = nil
+        }
+        findOpenTabs = findOpenTabs.filter { state.tab($0) != nil }
+        findTexts = findTexts.filter { state.tab($0.key) != nil }
+        find.matchCount = 0; find.activeMatch = 0; find.totalMatches = nil
+        guard let id, findOpenTabs.contains(id) else {
+            if chrome.showFind { withAnimation(.ikagoQuick) { chrome.showFind = false } }
+            return
+        }
+        findTabID = id
+        find.offersHighlightAll = !(activeController?.page is CEFWebTab)
+        let text = findTexts[id] ?? ""
+        if chrome.showFind && find.text != text {
+            find.text = text  // the open field searches as its text changes
+        } else {
+            if find.text != text { find.text = text }
+            if !chrome.showFind { withAnimation(.ikagoQuick) { chrome.showFind = true } }
+            find.search()
         }
     }
     /// After the access card allowed something: reload the tab that asked (in split view, its own pane).
@@ -238,8 +297,15 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
         controller?.page?.reload()
     }
     func closeFindBar() {
+        if let id = state.activeTabID {
+            findTexts[id] = find.text.isEmpty ? nil : find.text
+            findOpenTabs.remove(id)
+        }
+        findTabID = nil
         activeController?.page?.clearFindSelection()
+        activeController?.showFindTicks([], active: nil)
         find.matchCount = 0
+        find.activeMatch = 0
         find.totalMatches = nil
         withAnimation(.ikagoQuick) { chrome.showFind = false }
         activeController?.focus()
@@ -364,10 +430,21 @@ extension BrowserWindowController: TabHost {
         presentNextPermission()
     }
 
-    func tabController(_ tab: TabController, didFind found: Bool) {
-        guard tab === activeController else { return }
-        find.matchCount = found ? 1 : 0
-        find.activeMatch = found ? 1 : 0
+    func tabController(_ tab: TabController, didFind result: FindResult) {
+        guard tab === activeController, chrome.showFind else { return }
+        if result.total != nil || result.active != nil {
+            // Chromium: the count (final) and the selected match (often an earlier update) can come separately.
+            if let total = result.total { find.matchCount = total; find.totalMatches = total }
+            if let active = result.active { find.activeMatch = active; find.selectsFirstMatch = false }
+            else if result.total == 0 { find.activeMatch = 0 }
+            if find.selectsFirstMatch, (result.total ?? 0) > 0, result.active == nil, let page = tab.page {
+                find.selectsFirstMatch = false
+                page.find(find.text, forward: true, matchCase: find.matchCase)
+            }
+        } else {
+            find.matchCount = result.found ? max(1, find.matchCount) : 0
+            refreshFindDetails(tab)
+        }
     }
 
     func tabControllerEndedDrag(_ tab: TabController) { chrome.endTabDrag() }

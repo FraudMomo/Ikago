@@ -16,6 +16,9 @@ HTML
 cat > "$work/fixtures/icon.svg" <<'SVG'
 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" fill="green"/></svg>
 SVG
+cat > "$work/fixtures/find.html" <<'HTML'
+<!doctype html><title>Find fixture</title><p>apple banana Apple</p><p>pineapple</p><div style="height:3000px"></div><p>apple at the end</p>
+HTML
 cat > "$work/fixtures/focus.html" <<'HTML'
 <!doctype html><title>New tab focus fixture</title><input id="site-focus" autofocus><script>addEventListener('load', () => setTimeout(() => document.getElementById('site-focus').focus(), 100));</script>
 HTML
@@ -54,7 +57,7 @@ done
 port="$(cat "$work/port")"
 python3 scripts/build.py --flavor debug --jobs 4 > /dev/null
 IKAGO_TEST_MODE=1 IKAGO_TEST_AUTO_APPROVE=1 IKAGO_TEST_PROFILE="$work/profile" \
-IKAGO_TEST_ACTIONS="open:http://127.0.0.1:$port/;wait:2;new:http://127.0.0.1:$port/?second;wait:2;chromechecks;featurechecks;importchecks;storebridgechecks;downloadchecks:http://127.0.0.1:$port;tabanimationchecks;securitychecks:http://127.0.0.1:$port;privacychecks:http://127.0.0.1:$port;defaultbrowserchecks;autocompletechecks;addresstypingchecks;safariscanchecks;shiftpeekchecks:http://127.0.0.1:$port;pagegrabchecks:http://127.0.0.1:$port;extensionaccesschecks:http://127.0.0.1:$port;tabplacementchecks;spacemovechecks;importexportchecks;topbargroupchecks;startpagechecks;middleclickchecks:http://127.0.0.1:$port;passwordautofillchecks:http://127.0.0.1:$port;passwordsavechecks:http://127.0.0.1:$port;pagetoolchecks:http://127.0.0.1:$port;newtabfocuschecks:http://127.0.0.1:$port;sizingchecks;quit" \
+IKAGO_TEST_ACTIONS="open:http://127.0.0.1:$port/;wait:2;new:http://127.0.0.1:$port/?second;wait:2;chromechecks;featurechecks;importchecks;storebridgechecks;downloadchecks:http://127.0.0.1:$port;tabanimationchecks;securitychecks:http://127.0.0.1:$port;privacychecks:http://127.0.0.1:$port;defaultbrowserchecks;autocompletechecks;addresstypingchecks;safariscanchecks;shiftpeekchecks:http://127.0.0.1:$port;pagegrabchecks:http://127.0.0.1:$port;extensionaccesschecks:http://127.0.0.1:$port;tabplacementchecks;findchecks:http://127.0.0.1:$port;spacemovechecks;importexportchecks;topbargroupchecks;startpagechecks;middleclickchecks:http://127.0.0.1:$port;passwordautofillchecks:http://127.0.0.1:$port;passwordsavechecks:http://127.0.0.1:$port;pagetoolchecks:http://127.0.0.1:$port;newtabfocuschecks:http://127.0.0.1:$port;sizingchecks;quit" \
     "build/debug/Ikago.app/Contents/MacOS/Ikago" > "$work/checks.log" 2>&1
 # Split fixtures exercise native pane controls in a separate window/profile so their
 # temporary tab/session state cannot influence the long-running chrome geometry fixtures.

@@ -6,6 +6,8 @@ final class FindBarModel {
     var text = ""
     var matchCount = 0
     var activeMatch = 0
+    /// A new search is waiting for its first match to be selected (Chromium marks them all, selects none).
+    @ObservationIgnored var selectsFirstMatch = false
     /// Every match on the page, when Highlight All counted them (WebKit); nil otherwise.
     var totalMatches: Int?
     /// Highlight All is offered (WebKit; Chromium always marks every match).
@@ -15,6 +17,13 @@ final class FindBarModel {
             UserDefaults.standard.set(highlightAll, forKey: "findHighlightAll")
             if !highlightAll { totalMatches = nil }
             onHighlightAllChanged()
+        }
+    }
+    /// Match Case, remembered like Highlight All. Both engines support it.
+    var matchCase = UserDefaults.standard.bool(forKey: "findMatchCase") {
+        didSet {
+            UserDefaults.standard.set(matchCase, forKey: "findMatchCase")
+            search()
         }
     }
     @ObservationIgnored var onHighlightAllChanged: () -> Void = {}
@@ -34,7 +43,7 @@ final class FindBarModel {
 }
 
 /// ⌘F find-in-page: a card floating over the top-right of the page, in the Space's colors like the other floating
-/// surfaces: the field, the match count, Highlight All, then Previous/Next in one glass group and Close.
+/// surfaces: the field with "3 of 12", Match Case, Highlight All, then Previous/Next in one glass group and Close.
 struct FindBarView: View {
     @Bindable var model: FindBarModel
     let colors: Palette
@@ -58,6 +67,7 @@ struct FindBarView: View {
             .frame(height: 30)
             .background(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).fill(colors.selected.opacity(0.6)))
 
+            matchCaseToggle
             if model.offersHighlightAll { highlightToggle }
 
             GlassControlGroup(colors: colors, height: 30) {
@@ -77,6 +87,7 @@ struct FindBarView: View {
         .fixedSize()
         .animation(.ikagoQuick, value: model.matchCount)
         .animation(.ikagoQuick, value: model.totalMatches)
+        .animation(.ikagoQuick, value: model.activeMatch)
         .onAppear { focused = true }
     }
 
@@ -85,9 +96,31 @@ struct FindBarView: View {
         if !model.text.isEmpty && model.matchCount == 0 {
             Text("Not found").font(.system(size: 11)).foregroundStyle(colors.secondary).fixedSize().transition(.opacity)
         } else if !model.text.isEmpty, let total = model.totalMatches, total > 0 {
-            Text(total == 1 ? "1 match" : "\(total) matches").font(.system(size: 11)).monospacedDigit()
+            // "3 of 12" once the selected match is known, like Chrome and Safari.
+            Text(model.activeMatch > 0 ? "\(model.activeMatch) of \(total)" : total == 1 ? "1 match" : "\(total) matches")
+                .font(.system(size: 11)).monospacedDigit()
                 .foregroundStyle(colors.secondary).fixedSize().transition(.opacity)
+                .contentTransition(.numericText())
         }
+    }
+
+    /// Match Case as a small "Aa" toggle, filled while on.
+    private var matchCaseToggle: some View {
+        Button { model.matchCase.toggle() } label: {
+            Text("Aa").font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(model.matchCase ? colors.text : colors.secondary)
+                .frame(width: 30, height: 30)
+                .background(RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                    .fill(model.matchCase ? colors.selected : .clear))
+                .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                    .strokeBorder(colors.separator, lineWidth: model.matchCase ? 0 : 1))
+                .contentShape(RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .help(model.matchCase ? "Match Case: On" : "Match Case: Off")
+        .accessibilityLabel("Match Case")
+        .accessibilityValue(model.matchCase ? "On" : "Off")
+        .animation(.ikagoQuick, value: model.matchCase)
     }
 
     /// Highlight All as a labeled pill: filled while on, like a selected row.

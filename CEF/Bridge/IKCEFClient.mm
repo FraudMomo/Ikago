@@ -241,8 +241,11 @@ class Client final : public CefClient, public CefLifeSpanHandler,
     callback->Continue(CEF_PERMISSION_RESULT_DENY);
     return true;
   }
-  void OnFindResult(CefRefPtr<CefBrowser>, int, int count, const CefRect&, int, bool final) override {
-    if (final) [page_ emit:@"find" payload:@{@"found": @(count > 0)}];
+  // Chromium reports the selected match in an interim update and the count in the final one (which can leave the
+  // selection out), so both kinds are passed on: the count only when it is final.
+  void OnFindResult(CefRefPtr<CefBrowser>, int, int count, const CefRect&, int active, bool final) override {
+    if (final) [page_ emit:@"find" payload:@{@"found": @(count > 0), @"count": @(count), @"active": @(active)}];
+    else if (active > 0) [page_ emit:@"find" payload:@{@"found": @YES, @"active": @(active)}];
   }
   void OnDevToolsMethodResult(CefRefPtr<CefBrowser>, int identifier, bool success,
       const void *result, size_t size) override {

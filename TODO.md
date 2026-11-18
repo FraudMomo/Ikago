@@ -126,10 +126,11 @@ Working list for the next builds. Tick items off as they land; move finished the
 - [x] **Bug: Esc doesn't close the find bar** Fixed, plus Cmd+F always focuses the field., and the matches stay highlighted after closing. Closing should
   clear all highlights on both engines.
 - [x] **Find bar redesign** in Ikago's style, with a labeled **Highlight All** toggle (WebKit) and match count.
-- [ ] **Better Cmd+F**: current match position ("3 of 12"), next/previous (Cmd+G / Shift+Cmd+G, Return /
+- [x] **Better Cmd+F**: current match position ("3 of 12"), next/previous (Cmd+G / Shift+Cmd+G, Return /
   Shift+Return), and the last search remembered per tab.
-- [ ] **Advanced options**: match case, whole words, maybe regex. Show where matches are along the scroll bar,
-  and search across all open tabs.
+- [x] **Advanced options**: match case, and where matches are along the page's edge (WebKit; Chromium draws its own).
+  - [ ] Whole words and regex: Chromium's find has neither, so they'd work on WebKit only. Left out for now.
+  - [ ] Search across all open tabs.
 
 ## Pages and polish
 

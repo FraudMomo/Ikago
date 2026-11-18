@@ -30,8 +30,8 @@ extension TabController {
         guard page === self.page else { return }
         WebNotifications.shared.receive(json, from: self)
     }
-    func webTab(_ page: WebTab, didFind found: Bool) {
-        host?.tabController(self, didFind: found)
+    func webTab(_ page: WebTab, didFind result: FindResult) {
+        host?.tabController(self, didFind: result)
     }
 }
 
@@ -54,6 +54,17 @@ extension TabController {
         view.show(url.map(Self.statusText), in: hostView)
     }
 
+    /// Find in page's tick marks (`FindTicksView`); empty hides them.
+    func showFindTicks(_ ticks: [Double], active: Double?) {
+        guard !ticks.isEmpty || findTicks != nil else { return }
+        let view = findTicks ?? FindTicksView()
+        findTicks = view
+        if view.superview !== hostView || hostView.subviews.last !== view {
+            hostView.addSubview(view, positioned: .above, relativeTo: nil)
+        }
+        view.show(ticks, active: active, in: hostView)
+    }
+
     /// The address exactly as the page gave it (never decoded: decoded text could imitate another address).
     static func statusText(_ url: String) -> String { String(url.prefix(512)) }
 }
@@ -73,6 +84,7 @@ extension TabController {
         page = nil
         tearDownParked()
         linkStatus?.removeFromSuperview()
+        findTicks?.removeFromSuperview()
         if !inWindow { hostView.removeFromSuperview() }
         return released
     }

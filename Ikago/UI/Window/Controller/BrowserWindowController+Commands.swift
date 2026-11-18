@@ -201,8 +201,9 @@ extension BrowserWindowController: BrowserCommands, NSMenuItemValidation {
         }
     }
     @objc func findInPage(_ sender: Any?) { showFindBar() }
-    @objc func findNextMatch(_ sender: Any?) { find.search(forward: true, next: true) }
-    @objc func findPreviousMatch(_ sender: Any?) { find.search(forward: false, next: true) }
+    /// ⌘G with the bar closed opens this tab's own find (another tab's search never carries over).
+    @objc func findNextMatch(_ sender: Any?) { chrome.showFind ? find.search(forward: true, next: true) : showFindBar() }
+    @objc func findPreviousMatch(_ sender: Any?) { chrome.showFind ? find.search(forward: false, next: true) : showFindBar() }
     @objc func printCurrentPage(_ sender: Any?) { activeController?.page?.printPage() }
     @objc func toggleReader(_ sender: Any?) { activeController?.toggleReader() }
     @objc func savePageAs(_ sender: Any?) {

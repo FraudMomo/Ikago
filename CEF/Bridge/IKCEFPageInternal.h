@@ -25,6 +25,7 @@ NSError *IKCEFError(NSString *message);
   NSString *_queuedURL;
   BOOL _registeringScript;
   NSString *_lastFind;
+  BOOL _lastFindMatchCase;
   NSString *_approvedFilePath;
   CGFloat _topInset;
   NSMutableDictionary<NSNumber *, IKCEFPage *> *_pendingPopups;
