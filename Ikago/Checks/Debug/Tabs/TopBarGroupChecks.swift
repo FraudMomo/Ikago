@@ -50,6 +50,21 @@ enum TopBarGroupChecks {
         state.reopenFolder(work.id)
         check(state.folders.first { $0.id == work.id }?.isClosed == nil && state.activeTabID.map { [a.id, b.id].contains($0) } == true,
               "showing a group selects one of its tabs")
+        // Top Bar options: where pins sit, the edge peek, and the address bar's styles.
+        state.sidebarVisible = true
+        check(!state.pinsInTabRow, "with the icon sidebar shown, pins sit in it")
+        state.browserPreferences.showPinnedGrid = false
+        check(state.pinsInTabRow, "with the pinned grid off, pins lead the tab row")
+        state.browserPreferences.showPinnedGrid = nil
+        state.sidebarVisible = false
+        check(state.pinsInTabRow, "with the sidebar hidden, pins lead the tab row")
+        check(state.sidebarEdgePeek, "the hidden sidebar reveals at the edge by default")
+        state.browserPreferences.sidebarEdgePeek = false
+        check(!state.sidebarEdgePeek, "the edge reveal can be turned off")
+        check(state.tabsAddressStyle == .centered, "the address bar is centred by default")
+        let address = TabItem(url: "https://www.example.com/docs/a%20b?x=1")
+        check(address.shortAddress == "example.com/docs/a b?x=1", "Full Width shows the address without scheme or www")
+        check(TabItem(url: "https://example.com/").shortAddress == "example.com", "a lone trailing slash is dropped")
         print("IKTEST topbargroupchecks \(failures == 0 ? "PASS" : "FAIL") failures=\(failures)")
     }
 }

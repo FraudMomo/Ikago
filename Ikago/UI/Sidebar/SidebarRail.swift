@@ -18,7 +18,8 @@ struct SidebarRail: View {
         VStack(spacing: 8) {
             // Under the Sidebar + Tabs row the lights stay in that row, beside the tabs.
             Color.clear.frame(height: state.showsSidebarTopTabs ? 4 : state.sidebarOnRight && !state.sidebarLightsFollow ? 10 : Self.lightsHeight)
-            if !state.pinnedTabs.isEmpty {
+            // Sidebar + Tabs can move pins to the tab row (Settings ▸ Show pinned-tab grid off).
+            if !state.pinnedTabs.isEmpty && (!state.usesTabsLayout || state.showsPinnedGrid) {
                 VStack(spacing: 6) {
                     ForEach(state.pinnedTabs) { tab in tabTile(tab, colors: colors, essential: true) }
                 }
@@ -27,7 +28,7 @@ struct SidebarRail: View {
             if !state.showsSidebarTopTabs {
                 tile(symbol: "plus", label: "New Tab", colors: colors) { commands?.newTab() }
             }
-            if !state.pinnedTabs.isEmpty || !state.showsSidebarTopTabs {
+            if (!state.pinnedTabs.isEmpty && (!state.usesTabsLayout || state.showsPinnedGrid)) || !state.showsSidebarTopTabs {
                 Capsule().fill(colors.separator).frame(width: 20, height: 1)
             }
             SidebarScrollView {

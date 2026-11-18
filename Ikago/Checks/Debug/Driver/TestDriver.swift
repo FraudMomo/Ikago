@@ -549,6 +549,9 @@ enum TestDriver {
             print("IKTEST chip at \(Int(p.x)),\(Int(NSScreen.screens[0].frame.height - p.y)) open=\(work.isOpen)"); fflush(stdout)
             try? await Task.sleep(for: .seconds(Double(arg) ?? 5))
             print("IKTEST chipafter open=\(state.folders.first { $0.id == work.id }?.isOpen ?? false)")
+        case "tabsaddress": state.browserPreferences.tabsAddressStyle = TabsAddressStyle(rawValue: arg)  // centered | wide | title
+        case "edgepeek": state.browserPreferences.sidebarEdgePeek = arg == "off" ? false : nil
+        case "pingrid": state.browserPreferences.showPinnedGrid = arg != "off"
         case "groupplacement": state.browserPreferences.groupPlacement = GroupPlacement(rawValue: arg)  // both | topBar | sidebar
         case "folder": state.createFolder(named: arg, with: state.activeTabID)
         case "nestfolder":  // <child index>:<parent index> among the Space's groups

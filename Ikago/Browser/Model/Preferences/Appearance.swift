@@ -28,6 +28,28 @@ enum GroupPlacement: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+/// Sidebar + Tabs: how the address bar sits under the tabs. Centered shows the site in the middle (unset); Full Width
+/// spans the bar with the address at its start, like Chrome; Title spans it too but shows the page's title and site,
+/// with the full address on hover, like Dia.
+enum TabsAddressStyle: String, Codable, CaseIterable, Identifiable {
+    case centered, wide, title
+    var id: String { rawValue }
+    var name: String {
+        switch self {
+        case .centered: "Centered"
+        case .wide: "Full Width"
+        case .title: "Page Title"
+        }
+    }
+    var summary: String {
+        switch self {
+        case .centered: "The site, centred over the page"
+        case .wide: "The whole address across the bar, like Chrome"
+        case .title: "The page's title and site; the address on hover, like Dia"
+        }
+    }
+}
+
 /// How you edit the address: in place or in a floating command bar.
 enum AddressStyle: String, Codable, CaseIterable, Identifiable {
     case integrated, floating

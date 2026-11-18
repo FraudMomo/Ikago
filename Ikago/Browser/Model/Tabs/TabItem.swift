@@ -78,6 +78,18 @@ final class TabItem: Identifiable {
         return host.isEmpty ? displayTitle : host
     }
 
+    /// The address as Chrome shows it at rest: no scheme, no "www.", no lone trailing slash. Ikago's own pages and
+    /// extension pages show their label.
+    var shortAddress: String {
+        guard AddressResolver.isWebURL(url), var components = URLComponents(string: url) else { return addressLabel }
+        components.scheme = nil
+        if let host = components.host, host.hasPrefix("www.") { components.host = String(host.dropFirst(4)) }
+        var text = components.string ?? url
+        if text.hasPrefix("//") { text.removeFirst(2) }
+        if text.hasSuffix("/") && components.query == nil && components.fragment == nil { text.removeLast() }
+        return text.removingPercentEncoding ?? text
+    }
+
     var saved: SavedTab {
         SavedTab(id: id, url: url, title: title, pinned: pinned, space: spaceID.uuidString, folder: folderID, favicon: faviconURL?.absoluteString, unloaded: isHibernating, pinAsRow: pinAsRow, pinAfterFolderID: pinAfterFolderID, history: history?.isEmpty == false ? history : nil)
     }

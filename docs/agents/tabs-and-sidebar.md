@@ -118,7 +118,8 @@
   Full screen is Ikago's own (`BrowserWindow.toggleFullScreen` → `BrowserWindowController+FullScreen`), because macOS's slides
   a titlebar strip over the bars whenever the menu bar shows: the window covers the display, Dock and menu bar auto-hide while
   it is key, the shell starts below a black camera band (`fullScreenTopBand`), the page goes edge to edge (`state.isImmersive`), the
-  sidebar peeks from the left edge, staying while `chrome.holdsPeek`,
+  sidebar peeks from the left edge (always, even with Settings ▸ Reveal at the window edge off, which stops the
+  hidden sidebar's edge peek elsewhere: `sidebarEdgePeek`), staying while `chrome.holdsPeek`,
   and `FullScreenWindowControls` draws the traffic lights with the revealed chrome. Settings ▸ Appearance can drop the band
   (`fullScreenUnderNotch`). The sidebar has three states: full, a rail of icons (`SidebarRail`, `sidebarCompact`, ⌃⌘S),
   hidden (`sidebarVisible`, ⇧⌘S); the sidebar button cycles all three (`cycleSidebar`). The rail stacks Ikago-drawn traffic

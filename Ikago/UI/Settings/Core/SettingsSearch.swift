@@ -64,6 +64,8 @@ enum SettingsSearch {
         .init(title: "Translucent sidebar", category: .appearance, section: "Materials", keywords: "frosted vibrancy"),
         .init(title: "Tab group labels", category: .appearance, section: "Tab Groups", keywords: "minimal color pill folder"),
         .init(title: "Groups in the sidebar", category: .appearance, section: "Tab Groups", keywords: "cards folders tree indent"),
+        .init(title: "Address bar", category: .appearance, section: "Sidebar + Tabs", keywords: "url centered centred full width wide title dia chrome"),
+        .init(title: "Reveal sidebar at the window edge", category: .appearance, section: "Window and Sidebar", keywords: "peek hover edge hidden sidebar slide"),
         .init(title: "Groups in Sidebar + Tabs", category: .appearance, section: "Tab Groups", keywords: "tab row top bar chips icon sidebar rail where placement"),
         .init(title: "Show tab counts", category: .appearance, section: "Tab Groups"),
         .init(title: "Instant tab switching", category: .appearance, section: "Tab Animations", keywords: "fade motion"),

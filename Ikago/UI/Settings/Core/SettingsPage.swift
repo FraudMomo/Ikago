@@ -183,6 +183,7 @@ struct SettingsPage: View {
                     }
                 }.padding(.vertical, 16)
             }
+            TabsLayoutSection(state: state)
             SpacingSection(state: state)
             AppearanceSection(state: state)
             GroupAppearanceSection(state: state)

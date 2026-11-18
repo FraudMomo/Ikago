@@ -25,17 +25,24 @@ struct TabsToolbar: View {
         let pad: CGFloat = colors.glass ? 8 : 0
         let side = CGFloat(max(leading.count, trailing.count)) * 30 + pad
         let near = nearLeading.isEmpty && nearTrailing.isEmpty ? 0 : CGFloat(max(nearLeading.count, nearTrailing.count)) * 30 + pad
+        // Centered keeps the address over the middle of the page; Full Width and Page Title let it span the bar between
+        // the controls, each side only as wide as its own controls.
+        let centered = state.tabsAddressStyle == .centered
         return HStack(spacing: 10) {
-            controls(leading, colors).frame(width: side, alignment: .leading)
+            controls(leading, colors).frame(width: centered ? side : nil, alignment: .leading)
             HStack(spacing: 8) {
-                if near > 0 { controls(nearLeading, colors).frame(width: near, alignment: .trailing) }
+                if !nearLeading.isEmpty || (centered && near > 0) {
+                    controls(nearLeading, colors).frame(width: centered ? near : nil, alignment: .trailing)
+                }
                 TabsAddressField(state: state, chrome: chrome, palette: palette, commands: commands)
-                    .frame(maxWidth: 680)
-                if near > 0 { controls(nearTrailing, colors).frame(width: near, alignment: .leading) }
+                    .frame(maxWidth: centered ? 680 : .infinity)
+                if !nearTrailing.isEmpty || (centered && near > 0) {
+                    controls(nearTrailing, colors).frame(width: centered ? near : nil, alignment: .leading)
+                }
             }
-            .frame(maxWidth: 680 + 2 * (near + 8))
+            .frame(maxWidth: centered ? 680 + 2 * (near + 8) : .infinity)
             .frame(maxWidth: .infinity)
-            controls(trailing, colors).frame(width: side, alignment: .trailing)
+            controls(trailing, colors).frame(width: centered ? side : nil, alignment: .trailing)
         }
         .padding(.horizontal, 8)
         .frame(height: state.tabsToolbarHeight)
@@ -63,7 +70,8 @@ struct TabsToolbar: View {
     }
 }
 
-/// The address, centred: the site and its security at rest, the full field while editing.
+/// The address: at rest the site centred (Centered), the whole address from the start (Full Width), or the page's title
+/// and site with the address on hover (Page Title); the full field while editing.
 private struct TabsAddressField: View {
     let state: BrowserState
     let chrome: ChromeModel
@@ -87,13 +95,13 @@ private struct TabsAddressField: View {
                     HStack(spacing: 6) {
                         PrivateBadge(state: state, colors: colors)
                         if let tab { SecurityBadge(tab: tab, colors: colors) }
-                        Text(tab?.addressLabel ?? "Search or enter address").lineLimit(1).truncationMode(.middle)
-                            .foregroundStyle(tab == nil ? colors.tertiary : colors.text.opacity(0.88))
-                            .contentTransition(.opacity)
+                        restingLabel(tab, colors: colors)
                     }
                     .font(.system(size: 13))
-                    .padding(.horizontal, 64)  // clear of the buttons on the right, and still centred
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    // Centered: clear of the buttons on the right, and still centred. Otherwise from the field's start.
+                    .padding(.leading, style == .centered ? 64 : 12)
+                    .padding(.trailing, 64)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: style == .centered ? .center : .leading)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -134,5 +142,52 @@ private struct TabsAddressField: View {
         .animation(.easeOut(duration: hovering ? 0.1 : 0.2), value: hovering)
         .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: editing)
         .recordLayout("tabs-address")
+    }
+
+    private var style: TabsAddressStyle { state.tabsAddressStyle }
+
+    @ViewBuilder private func restingLabel(_ tab: TabItem?, colors: Palette) -> some View {
+        if let tab {
+            switch style {
+            case .centered:
+                Text(tab.addressLabel).lineLimit(1).truncationMode(.middle)
+                    .foregroundStyle(colors.text.opacity(0.88))
+                    .contentTransition(.opacity)
+            case .wide:
+                addressText(tab, colors: colors)
+            case .title:
+                // Dia's way: who and what at rest, the address itself while the pointer is over the field.
+                if hovering || !AddressResolver.isWebURL(tab.url) {
+                    addressText(tab, colors: colors)
+                } else {
+                    HStack(spacing: 7) {
+                        Text(tab.displayTitle).foregroundStyle(colors.text.opacity(0.92)).fadeTruncated()
+                            .layoutPriority(0)
+                        Text(tab.addressLabel).foregroundStyle(colors.secondary).lineLimit(1).fixedSize()
+                            .layoutPriority(1)
+                    }
+                    .transition(.opacity)
+                }
+            }
+        } else {
+            Text("Search or enter address").lineLimit(1).foregroundStyle(colors.tertiary)
+        }
+    }
+
+    /// The whole address, the site strong and the rest quieter, fading out where it doesn't fit.
+    private func addressText(_ tab: TabItem, colors: Palette) -> some View {
+        let full = tab.shortAddress
+        let host = AddressResolver.hostname(tab.url)
+        let range = host.isEmpty ? nil : full.range(of: host)
+        return Group {
+            if let range {
+                Text(full[..<range.upperBound]).foregroundStyle(colors.text.opacity(0.92))
+                    + Text(full[range.upperBound...]).foregroundStyle(colors.secondary)
+            } else {
+                Text(full).foregroundStyle(colors.text.opacity(0.88))
+            }
+        }
+        .fadeTruncated()
+        .transition(.opacity)
     }
 }

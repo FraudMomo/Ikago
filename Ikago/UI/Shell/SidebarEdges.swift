@@ -66,11 +66,12 @@ struct SidebarPeek: View {
 
     var body: some View {
         ZStack(alignment: state.sidebarOnRight ? .topTrailing : .topLeading) {
-            // Hovering the edge brings the sidebar in; pressing it moves the window, like the margin it sits on.
+            // Hovering the edge brings the sidebar in (unless that's turned off; full screen always does, since its
+            // window controls come with it); pressing it moves the window, like the margin it sits on.
             WindowDragArea()
                 .frame(width: 10)
                 .frame(maxHeight: .infinity)
-                .onHover { if $0 { chrome.peek() } }
+                .onHover { if $0 && (state.sidebarEdgePeek || state.isImmersive) { chrome.peek() } }
             if chrome.peeking {
                 IsolatedHost(chrome: chrome) {
                     // Sidebar + Tabs has no full sidebar: its rail slides in instead, under the tab row.

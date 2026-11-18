@@ -70,6 +70,10 @@ struct BrowserPreferences: Codable, Equatable {
     var pageGrabZoom: Bool? = nil
     /// Sidebar + Tabs: the address bar's height in points (`TabsBarHeight`); unset is the standard 36.
     var tabsBarHeight: Double? = nil
+    /// Sidebar + Tabs: how the address bar sits under the tabs (`TabsAddressStyle`). Unset: centred.
+    var tabsAddressStyle: TabsAddressStyle? = nil
+    /// A hidden sidebar slides in when the pointer reaches the window's edge. Unset: on.
+    var sidebarEdgePeek: Bool? = nil
     /// On by default. Sessions from before that default get it once (`httpsDefaultApplied`), after which
     /// the setting is the person's own.
     var forceHTTPS: Bool? = true

@@ -40,9 +40,15 @@ struct EssentialsSettingsSection: View {
                 }
             }
             PageSection(title: "Sidebar Essentials") {
-                PageRow(title: "Show pinned-tab grid", subtitle: "Pinned tabs as a grid at the top of the sidebar") {
-                    Toggle("Show pinned-tab grid", isOn: Binding(get: { state.showsPinnedGrid },
-                        set: { state.browserPreferences.showPinnedGrid = $0 })).labelsHidden().toggleStyle(.switch)
+                PageRow(title: full ? "Show pinned-tab grid" : "Pinned tabs in the icon sidebar",
+                        subtitle: full ? "Pinned tabs as a grid at the top of the sidebar; off, as rows in the list"
+                                       : "Tiles in the icon sidebar; off, icon tabs at the start of the tab row") {
+                    HStack(spacing: 12) {
+                        PinnedTabsFigure(shown: state.showsPinnedGrid, tabsLayout: !full, colors: state.palette)
+                        Toggle("Show pinned-tab grid", isOn: Binding(get: { state.showsPinnedGrid },
+                            set: { on in withAnimation(.ikago) { state.browserPreferences.showPinnedGrid = on } }))
+                            .labelsHidden().toggleStyle(.switch)
+                    }
                 }
                 if state.showsPinnedGrid {
                     PageDivider()

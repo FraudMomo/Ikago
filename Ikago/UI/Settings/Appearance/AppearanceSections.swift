@@ -49,6 +49,32 @@ struct TabMotionSection: View {
     }
 }
 
+/// Settings only the Sidebar + Tabs layout uses: how the address bar sits. Shown dimmed in the Sidebar layout, so the
+/// choice can be made ahead and is easy to find.
+struct TabsLayoutSection: View {
+    let state: BrowserState
+
+    var body: some View {
+        let tabs = state.usesTabsLayout
+        PageSection(title: "Sidebar + Tabs", footer: tabs ? "The bar's height and its buttons are in Sidebar & Toolbar ▸ Customize."
+                                                          : "Applies to the Sidebar + Tabs layout.") {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Address bar").font(.system(size: 13, weight: .medium))
+                HStack(spacing: 14) {
+                    ForEach(TabsAddressStyle.allCases) { style in
+                        TabsAddressCard(style: style, selected: state.tabsAddressStyle == style, colors: state.palette) {
+                            withAnimation(.ikago) { state.browserPreferences.tabsAddressStyle = style == .centered ? nil : style }
+                        }
+                    }
+                }
+                Text(state.tabsAddressStyle.summary).font(.system(size: 12)).foregroundStyle(.secondary)
+            }
+            .padding(.vertical, 14)
+            .settingApplies(tabs)
+        }
+    }
+}
+
 /// Layout-specific dimensions; Chrome keeps its reference proportions.
 struct SpacingSection: View {
     @Bindable var state: BrowserState
@@ -70,6 +96,17 @@ struct SpacingSection: View {
                         }),
                         // Sidebar + Tabs has no full sidebar.
                         options: (state.usesTabsLayout ? [] : [(0, "Full")]) + [(1, "Icons"), (2, "Hidden")])
+                }
+                PageDivider()
+                PageRow(title: "Reveal at the window edge",
+                        subtitle: "A hidden sidebar slides in when the pointer reaches the window's edge. Full screen always does.") {
+                    HStack(spacing: 12) {
+                        EdgePeekFigure(on: state.sidebarEdgePeek, colors: state.palette)
+                        Toggle("Reveal at the window edge", isOn: Binding(
+                            get: { state.sidebarEdgePeek },
+                            set: { on in state.browserPreferences.sidebarEdgePeek = on ? nil : false }))
+                            .labelsHidden().toggleStyle(.switch)
+                    }
                 }
                 PageDivider()
                 PageRow(title: "Sidebar side") {

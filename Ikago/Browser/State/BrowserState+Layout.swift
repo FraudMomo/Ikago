@@ -38,6 +38,14 @@ extension BrowserState {
     }
     var sidebarGroupStyle: SidebarGroupStyle { browserPreferences.sidebarGroupStyle ?? .cards }
     /// The sidebar's three states: full, a rail of icons, or hidden (`sidebarVisible`).
+    /// Sidebar + Tabs: how the address bar sits under the tabs.
+    var tabsAddressStyle: TabsAddressStyle { browserPreferences.tabsAddressStyle ?? .centered }
+    /// A hidden sidebar slides in at the window's edge (Settings ▸ Appearance ▸ Window and Sidebar).
+    var sidebarEdgePeek: Bool { browserPreferences.sidebarEdgePeek ?? true }
+    /// Sidebar + Tabs: pinned tabs sit in the icon sidebar while it shows and the pinned grid is on; otherwise they lead
+    /// the tab row as icon tabs, so they are never out of reach.
+    var pinsInTabRow: Bool { !showsSidebarRail || !showsPinnedGrid }
+
     var showsSidebarRail: Bool { sidebarVisible && (browserPreferences.sidebarCompact == true || usesTabsLayout) }
     /// The rail's width: room for the traffic lights side by side, and a 36 pt tile.
     static let sidebarRailWidth: CGFloat = 64

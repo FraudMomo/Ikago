@@ -21,7 +21,7 @@ extension SettingsCategory {
                     page("Advanced", "Advanced")]
         case .appearance:
             return [page("Theme", "Color & Theme", "Materials"),
-                    page("Layout", "Layout", "Window and Sidebar", "Moving the Window", "Full Screen"),
+                    page("Layout", "Layout", "Sidebar + Tabs", "Window and Sidebar", "Moving the Window", "Full Screen"),
                     page("Details", "Tab Groups", "Tab Animations")]
         case .toolbar:
             return [page("Sidebar", "Sidebar", "Sidebar Essentials", "Bookmarks Bar"),

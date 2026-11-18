@@ -31,7 +31,7 @@ struct SidebarTopTabs: View {
         let entries = TopRowEntry.row(state: state, seen: &seen)
         let items = entries.compactMap(\.item)
         // Without the rail, pinned tabs lead the row as icon-only tabs, so the tabs never depend on the sidebar.
-        let pins = state.showsSidebarRail ? [] : state.pinnedTabs
+        let pins = state.pinsInTabRow ? state.pinnedTabs : []
         let pinsWidth = CGFloat(pins.count) * Self.pinnedWidth
         let chipsWidth = entries.reduce(CGFloat(0)) { total, entry in
             if case .chip(let folder, _) = entry { return total + Self.chipSlot(folder, state: state) }
