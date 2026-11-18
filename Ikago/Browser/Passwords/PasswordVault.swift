@@ -128,7 +128,8 @@ final class PasswordVault {
         var savedHere = false
     }
 
-    /// Adds logins, replacing any with the same site and username. Returns how many were stored.
+    /// Adds logins, replacing any with the same site and username. One already saved with the same password is left as
+    /// it is (its dates and exported mark kept) and not counted. Returns how many were stored.
     @discardableResult
     func add(_ new: [NewLogin]) throws -> Int {
         try requireReadable()
@@ -138,9 +139,10 @@ final class PasswordVault {
         for entry in new {
             let site = Self.site(URL(string: entry.url)?.host ?? entry.url)
             guard !site.isEmpty, !entry.password.isEmpty else { continue }
-            let secret = try Self.encrypt(entry.password, to: publicKey, site: site, username: entry.username)
             let print = try? SealedStorage.fingerprint(Self.fingerprintText(site: site, username: entry.username, password: entry.password))
             let previous = updated.first { $0.site == site && $0.username == entry.username }
+            if let print, let previous, previous.fingerprint == print, !entry.savedHere || previous.savedHere == true { continue }
+            let secret = try Self.encrypt(entry.password, to: publicKey, site: site, username: entry.username)
             updated.removeAll { $0.site == site && $0.username == entry.username }
             var login = Login(id: UUID(), site: site, title: entry.title ?? previous?.title, username: entry.username, secret: secret,
                               created: Date().timeIntervalSince1970, lastUsed: previous?.lastUsed, fingerprint: print)
