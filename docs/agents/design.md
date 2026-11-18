@@ -42,10 +42,10 @@
    they come back from the row's hidden-groups button (`HiddenGroupsButton`), the rail (a faded tile with a mark) or
    Tab ▸ Show Hidden Group; selecting one of their tabs shows them too. The address bar has three styles (`TabsAddressStyle`, Settings ▸ Appearance ▸ Layout ▸ Top Tabs):
    Centered (unset; the site over the middle, max 680 pt), Full Width (spans the bar between the controls, the whole
-   `shortAddress` from its start, like Chrome) and Page Title (spans it too, the page title and site, the address on
-   hover, like Dia). Pinned tabs sit in the rail while it shows and the pinned grid setting is on, otherwise they lead
-   the tab row (`pinsInTabRow`). While the sidebar is hidden, pinned
-   tabs lead the tab row as 44 pt icon tabs. The bar's height is `browserPreferences.tabsBarHeight` (`TabsBarHeight`,
+   `shortAddress` from its start) and Page Title (spans it too; "site / title" on the bar itself with no field at rest,
+   a soft fill on hover, the address on hover; its controls are plain icons with no glass capsule, and the tab row's +
+   has no glass circle). With essentials on, pinned tabs sit in the rail, also while it is hidden and slides in;
+   otherwise, or when the hidden sidebar can't slide in, they lead the tab row as 44 pt icon tabs (`pinsInTabRow`). The bar's height is `browserPreferences.tabsBarHeight` (`TabsBarHeight`,
    read through `state.tabsToolbarHeight` and `tabsFieldHeight`). New tabs open on the right
    (`effectiveNewTabPosition`); the address frame reaches the shell through `ChromeModel.addressFieldFrame`. There is one `ContentHost`, so turning the row on or off never moves the page.
    Switching layouts goes through `LayoutSwitch.set`: the new layout is built in one frame with animations disabled and

@@ -105,7 +105,7 @@ struct SidebarTopTabs: View {
                 .frame(width: min(natural, available), height: Self.tabHeight)
                 .frame(height: rowHeight, alignment: .bottom)
                 .recordLayout("sidebar-top-tabs")
-                SidebarTopNewTabButton(colors: colors, divider: entries.last.map { $0.item == nil || !isRaised($0.item) } ?? false) { commands?.newTab() }
+                SidebarTopNewTabButton(colors: colors, plain: state.tabsAddressStyle == .title, divider: entries.last.map { $0.item == nil || !isRaised($0.item) } ?? false) { commands?.newTab() }
                     .padding(.top, rowHeight - Self.tabHeight)
                 Spacer(minLength: 0)
             }
@@ -297,6 +297,8 @@ private struct AttachedTabLabel: View {
 /// close to the tabs; the strip's end padding still leaves room for the last tab's flare.
 private struct SidebarTopNewTabButton: View {
     let colors: Palette
+    /// Page Title's quiet bar: no glass circle, only the hover fill.
+    var plain = false
     var divider = true
     let action: () -> Void
 
@@ -317,7 +319,7 @@ private struct SidebarTopNewTabButton: View {
                 .frame(width: 26, height: 26).contentShape(Circle())
         }
         .buttonStyle(CircleHoverButtonStyle(colors: colors))
-        .glassControl(Circle(), colors)
+        .glassControl(Circle(), colors, active: !plain)
         .foregroundStyle(colors.secondary)
         .help("New Tab (⌘T)")
     }

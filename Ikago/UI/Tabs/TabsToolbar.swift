@@ -56,13 +56,14 @@ struct TabsToolbar: View {
     /// One glass capsule per side with Liquid Glass on, like the sidebar's controls; plain icons with a soft hover fill
     /// on the flat sheet otherwise.
     @ViewBuilder private func controls(_ items: [ChromeItem], _ colors: Palette) -> some View {
-        let row = HStack(spacing: 2) {
+        let row = HStack(spacing: state.tabsAddressStyle == .title ? 8 : 2) {
             ForEach(items) { item in
                 ChromeItemView(item: item, state: state, colors: colors, commands: commands, size: min(28, state.tabsFieldHeight))
                     .transition(.opacity.combined(with: .scale(scale: 0.8)))
             }
         }
-        if colors.glass && !items.isEmpty {
+        // Page Title keeps the bar one quiet surface: plain icons, no capsule around them.
+        if colors.glass && !items.isEmpty && state.tabsAddressStyle != .title {
             GlassControlGroup(colors: colors, height: state.tabsFieldHeight) { row }
         } else {
             row.environment(\.inGlassGroup, true)
@@ -99,7 +100,7 @@ private struct TabsAddressField: View {
                     }
                     .font(.system(size: 13))
                     // Centered: clear of the buttons on the right, and still centred. Otherwise from the field's start.
-                    .padding(.leading, style == .centered ? 64 : 12)
+                    .padding(.leading, style == .centered ? 64 : style == .title ? 8 : 12)
                     .padding(.trailing, 64)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: style == .centered ? .center : .leading)
                     .contentShape(Rectangle())
@@ -124,12 +125,17 @@ private struct TabsAddressField: View {
         }
         .frame(height: state.tabsFieldHeight)
         .background {
-            if editing || !colors.glass {
-                shape.fill(editing ? colors.pageBackground : colors.text.opacity(hovering ? 0.08 : 0.05))
+            if editing {
+                shape.fill(colors.pageBackground)
+            } else if style == .title {
+                // Page Title: no field at rest, just the words on the bar; a soft fill shows it can be clicked.
+                shape.fill(colors.text.opacity(hovering ? 0.06 : 0))
+            } else if !colors.glass {
+                shape.fill(colors.text.opacity(hovering ? 0.08 : 0.05))
             }
         }
         // At rest with Liquid Glass on, the field is a piece of glass like the controls beside it.
-        .glassControl(shape, colors, active: !editing)
+        .glassControl(shape, colors, active: !editing && style != .title)
         .overlay {
             // A soft accent ring while typing.
             shape.strokeBorder(colors.accent.opacity(editing ? 0.55 : 0), lineWidth: 1.5)
@@ -156,15 +162,19 @@ private struct TabsAddressField: View {
             case .wide:
                 addressText(tab, colors: colors)
             case .title:
-                // Dia's way: who and what at rest, the address itself while the pointer is over the field.
+                // The site, then the page's title, read as one line ("site / title"); the address itself while the
+                // pointer is over the field.
                 if hovering || !AddressResolver.isWebURL(tab.url) {
                     addressText(tab, colors: colors)
                 } else {
-                    HStack(spacing: 7) {
-                        Text(tab.displayTitle).foregroundStyle(colors.text.opacity(0.92)).fadeTruncated()
-                            .layoutPriority(0)
-                        Text(tab.addressLabel).foregroundStyle(colors.secondary).lineLimit(1).fixedSize()
+                    HStack(spacing: 5) {
+                        Text(tab.addressLabel).foregroundStyle(colors.text.opacity(0.92)).lineLimit(1).fixedSize()
                             .layoutPriority(1)
+                        if tab.displayTitle != tab.addressLabel {
+                            Text("/").foregroundStyle(colors.tertiary).fixedSize()
+                            Text(tab.displayTitle).foregroundStyle(colors.secondary).fadeTruncated()
+                                .layoutPriority(0)
+                        }
                     }
                     .transition(.opacity)
                 }

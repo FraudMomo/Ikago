@@ -55,7 +55,8 @@ private struct TabsAddressFigure: View {
             HStack(spacing: 4) {
                 ForEach(0..<3, id: \.self) { _ in Circle().fill(line).frame(width: 4, height: 4) }
                 ZStack(alignment: style == .centered ? .center : .leading) {
-                    RoundedRectangle(cornerRadius: 3).fill(colors.text.opacity(0.07))
+                    // Page Title has no field at rest: the words sit on the bar.
+                    RoundedRectangle(cornerRadius: 3).fill(colors.text.opacity(style == .title ? 0 : 0.07))
                     switch style {
                     case .centered:
                         Capsule().fill(strong).frame(width: 22, height: 3)
@@ -65,10 +66,11 @@ private struct TabsAddressFigure: View {
                             Capsule().fill(line.opacity(1.6)).frame(width: 34, height: 3)
                         }.padding(.leading, 5)
                     case .title:
+                        // The site, then its title, quieter.
                         HStack(spacing: 4) {
-                            Capsule().fill(strong).frame(width: 30, height: 3.5)
-                            Capsule().fill(line.opacity(1.4)).frame(width: 14, height: 3)
-                        }.padding(.leading, 5)
+                            Capsule().fill(strong).frame(width: 14, height: 3.5)
+                            Capsule().fill(line.opacity(1.4)).frame(width: 34, height: 3)
+                        }.padding(.leading, 3)
                     }
                 }
                 .frame(maxWidth: style == .centered ? 70 : .infinity)
