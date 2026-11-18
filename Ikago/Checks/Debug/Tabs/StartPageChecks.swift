@@ -3,7 +3,7 @@ import AppKit
 import Foundation
 
 /// Pages Ikago opens on its own follow the person's choices, never a fixed site: the first tab, Split View's new pane
-/// and a new private window.
+/// and a new private window. ⌘⇧T skips new tabs closed untouched.
 @MainActor
 enum StartPageChecks {
     static func run(_ browser: BrowserWindowController) async {
@@ -26,6 +26,20 @@ enum StartPageChecks {
         state.splitActive()
         let pane = state.splitGroup(of: first.id)?.first { $0 != first.id }.flatMap(state.tab)
         check(pane?.url == "https://www.google.com", "Split View's new pane opens the start page, not a fixed site")
+
+        // ⌘⇧T skips new tabs that were closed untouched, like Chrome's New Tab page.
+        state.newTabMode = .homepage
+        let untouched = state.newTab(url: state.startPageURL)!
+        state.closeTab(untouched.id)
+        check(state.closed.first?.url != untouched.url, "an untouched homepage tab leaves nothing to reopen")
+        let used = state.newTab(url: state.startPageURL)!
+        used.canGoBack = true
+        state.closeTab(used.id)
+        check(state.closed.first?.url == used.url, "a homepage tab that was used is reopened")
+        let page = state.newTab(url: "https://example.net/page")!
+        state.closeTab(page.id)
+        check(state.closed.first?.url == page.url, "ordinary pages are still reopened")
+        state.newTabMode = .commandBar
 
         // A private window opens like ⌘N: with the command bar, no page loads by itself.
         let main = browser.state

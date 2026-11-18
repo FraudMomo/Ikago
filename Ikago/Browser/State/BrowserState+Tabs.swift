@@ -36,7 +36,8 @@ extension BrowserState {
         let partner = splitGroup(of: id)?.first { $0 != id }
         let previous = tabs[..<index].last { $0.spaceID == tab.spaceID }?.id
         tabs.remove(at: index)
-        if !detaching, AddressResolver.isPageURL(tab.url) || ExtensionURL.isExtension(tab.url) || Self.isReopenableInternalPage(tab.url) {
+        if !detaching, AddressResolver.isPageURL(tab.url) || ExtensionURL.isExtension(tab.url) || Self.isReopenableInternalPage(tab.url),
+           !isUntouchedNewTab(tab) {
             var saved = tab.saved
             saved.after = previous
             closed = Array(([saved] + closed).prefix(Session.maxClosed))
@@ -235,5 +236,24 @@ extension BrowserState {
         let anchors = Dictionary(grouping: rows) { tab in tab.pinAfterFolderID.flatMap { folderIDs.contains($0) ? $0 : nil } ?? "" }
         let grid = presentsSidebarPinGrid ? sidebarGridPinnedTabs : []
         return grid + (anchors[""] ?? []) + orderedSpaceFolders.flatMap { tabs(in: $0) + (anchors[$0.id] ?? []) } + looseTabs
+    }
+}
+
+// MARK: - Untouched new tabs
+extension BrowserState {
+    /// A tab still on the page it opened with as a new tab (an extension's new-tab page such as Momentum's, or the
+    /// homepage when new tabs open it), with nowhere to go back to. Like Chrome's New Tab page, closing one leaves
+    /// nothing for ⌘⇧T, which goes straight to the last real page. Blank tabs are never recorded at all.
+    func isUntouchedNewTab(_ tab: TabItem) -> Bool {
+        guard !tab.canGoBack, tab.history?.back?.isEmpty ?? true else { return false }
+        if ExtensionURL.isExtension(tab.url), let page = URL(string: tab.url) {
+            return NewTabProviders.current.contains { provider in
+                provider.url.host?.lowercased() == page.host?.lowercased() && provider.url.path == page.path
+            }
+        }
+        if newTabMode == .homepage, let home = try? AddressResolver.resolve(homepage, engine: searchEngine) {
+            return Self.pageKey(tab.url) == Self.pageKey(home)
+        }
+        return false
     }
 }

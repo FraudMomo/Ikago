@@ -63,7 +63,9 @@
   Slide, Fade, Scale and Spring for all layouts, pins and split groups. Respect Reduce Motion.
 - Closing the active tab follows Chrome: back to its opener (`TabItem.openerID`, set for link tabs and forgotten once
   another tab is chosen), then its split partner, then the tab to the right, then the left. ⌘⇧T reopens a tab in its
-  Space, group and place (`SavedTab.after`) and selects it.
+  Space, group and place (`SavedTab.after`) and selects it. Like Chrome, a tab still on its new-tab page (an extension's
+  new-tab page or the homepage, nowhere to go back to) is not recorded when closed (`isUntouchedNewTab`); blank tabs
+  never are.
 - Ikago never opens a fixed site by itself: the first tab of a launch and Split View's new pane open `startPageURL`
   (the homepage when new tabs open it, else the chosen engine's `homeURL`); a new private window opens like ⌘N.
 - If ⌘T's blank tab has no page view yet when Return is pressed, `open` sets the tab's address so the page starts there. Closing a top tab with the mouse keeps the others' width until

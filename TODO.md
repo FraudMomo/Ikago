@@ -74,6 +74,7 @@ Working list for the next builds. Tick items off as they land; move finished the
   closed window brings back all its tabs. Repeated presses go further back through the list. Fixed: a run of
   closed tabs comes back in its order and place (pins after groups too).
   - [ ] Still open: reopening a closed window with all its tabs.
+  - [x] Tabs closed while still on their new-tab page aren't reopened (Chrome skips its New Tab page too).
 
 ## Extensions
 
