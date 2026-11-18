@@ -102,7 +102,7 @@ enum MainMenu {
             $0.item("Next Space", #selector(BrowserWindowController.nextSpace(_:)), "]", [.command, .control])
             $0.item("Previous Space", #selector(BrowserWindowController.previousSpace(_:)), "[", [.command, .control])
             $0.separator()
-            let groups = $0.addSubmenu("Reopen Closed Group") { _ in }
+            let groups = $0.addSubmenu("Show Hidden Group") { _ in }
             groups.delegate = ClosedGroupsMenu.shared
             $0.separator()
             $0.item("Pin Tab", #selector(BrowserWindowController.togglePinTab(_:)))
@@ -141,7 +141,7 @@ enum ShortcutRouter {
     }
 }
 
-/// Fills Tab ▸ Reopen Closed Group with the key window's closed groups each time it opens.
+/// Fills Tab ▸ Show Hidden Group with the key window's hidden groups each time it opens.
 @MainActor
 final class ClosedGroupsMenu: NSObject, NSMenuDelegate {
     static let shared = ClosedGroupsMenu()
@@ -151,7 +151,7 @@ final class ClosedGroupsMenu: NSObject, NSMenuDelegate {
         let state = (NSApp.keyWindow?.windowController as? BrowserWindowController)?.state
         let folders = state?.closedFolders ?? []
         if folders.isEmpty {
-            let empty = NSMenuItem(title: "No Closed Groups", action: nil, keyEquivalent: "")
+            let empty = NSMenuItem(title: "No Hidden Groups", action: nil, keyEquivalent: "")
             empty.isEnabled = false
             menu.addItem(empty)
         }

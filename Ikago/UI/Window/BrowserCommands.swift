@@ -18,6 +18,8 @@ protocol BrowserCommands: AnyObject {
     func closeTab(_ id: String)
     func unloadTab(_ id: String)
     func unloadGroup(_ id: String)
+    /// Hides a group: saved, its pages asleep, out of the tab row until shown again.
+    func hideGroup(_ id: String)
     func toggleMute(_ id: String)
     func pictureInPicture(_ id: String)
     func controlMedia(_ id: String, action: MediaPlaybackAction)

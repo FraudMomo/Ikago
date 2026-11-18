@@ -527,7 +527,7 @@ enum TestDriver {
             state.createSpace(name: p[0], symbol: p.count > 1 ? p[1] : "star", isolated: p.count > 2 && p[2] == "1")
         case "switchspace": if let i = Int(arg), state.spaces.indices.contains(i - 1) { state.switchSpace(state.spaces[i - 1].id) }
         case "deletespace": if let i = Int(arg), state.spaces.indices.contains(i - 1) { state.deleteSpace(state.spaces[i - 1].id) }
-        case "groupdemo":  // groups for screenshots: Work (blue, open), Reading (orange, collapsed), Old (green), loose tabs
+        case "groupdemo":  // groups for screenshots: Work (blue, open), Reading (orange, collapsed), Old (green, hidden), loose tabs
             func group(_ name: String, _ tag: FolderTag, _ pages: [String]) -> TabFolder {
                 let folder = state.createFolder(named: name)
                 state.setFolderTag(folder.id, to: tag)
@@ -539,7 +539,7 @@ enum TestDriver {
             state.toggleFolder(reading.id)
             let old = group("Old", .green, ["archive"])
             for page in ["one", "two", "three"] { _ = state.newTab(url: "https://example.com/?\(page)", select: false) }
-            _ = old
+            c.hideGroup(old.id)
             if let first = state.tabs(in: state.folders.first { $0.name == "Work" }!).dropFirst().first { state.select(first.id) }
         case "chipprobe":  // <seconds>: prints the Work chip's screen point (for a posted click), then whether it collapsed
             guard let work = state.folders.first(where: { $0.name == "Work" }), let w = c.window, let content = w.contentView,

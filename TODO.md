@@ -14,8 +14,8 @@ Working list for the next builds. Tick items off as they land; move finished the
 - [x] **Bookmarks in the macOS menu bar**: a Bookmarks menu with folders as submenus.
 - [x] **Tab groups in the Top Bar**: Chrome-style group chips that collapse and expand.
   - [x] Setting for where groups show: **both (default)**, sidebar/icon sidebar only, or Top Bar only.
-- [ ] **Hide (close) a tab group**: it stays saved but is hidden. This is separate from collapse.
-  - [ ] Bring it back from the icon sidebar, or a clean "Show tab groups" button/menu.
+- [x] **Hide (close) a tab group**: it stays saved but is hidden. This is separate from collapse.
+  - [x] Bring it back from the icon sidebar, or a clean "Show tab groups" button/menu.
 - [x] **Toolbar placement in four zones**: far left, left of the URL bar, right of the URL bar, far right.
 - [x] **Bug: closing a tab animates over the tab before it** Fixed: the closing tab fades out under its neighbours. (the transition overlaps).
 - [x] **Bug: a new tab opened from the command bar sometimes disappears**, or opens but isn't shown as selected

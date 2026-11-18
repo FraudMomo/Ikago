@@ -75,13 +75,21 @@ struct SidebarRail: View {
 
     @ViewBuilder private func group(_ folder: TabFolder, colors: Palette) -> some View {
         let tabs = state.tabs(inSubtree: folder)
-        let open = folder.isOpen
+        let hidden = folder.isClosed == true
+        let open = folder.isOpen && !hidden
         let tint = folder.tagValue?.color ?? colors.secondary
         VStack(spacing: 0) {
             // The same open state as the full sidebar's group, so switching between them keeps it.
-            Button { state.toggleFolder(folder.id) } label: {
+            // A hidden group shows faded with a mark; a click brings it back with its tabs.
+            Button { if hidden { state.reopenFolder(folder.id) } else { state.toggleFolder(folder.id) } } label: {
                 FolderIcon(folder: folder, colors: colors, size: 15)
-                .opacity(TabListView.isSleeping(tabs, activeID: state.activeTabID) && !open ? 0.45 : 1)
+                .opacity(hidden ? 0.35 : TabListView.isSleeping(tabs, activeID: state.activeTabID) && !open ? 0.45 : 1)
+                .overlay(alignment: .topTrailing) {
+                    if hidden {
+                        Image(systemName: "eye.slash.fill").font(.system(size: 7.5, weight: .bold))
+                            .foregroundStyle(colors.secondary).offset(x: 8, y: -7)
+                    }
+                }
                 .frame(width: 36, height: 36)
                 .background {
                     // An active tab hidden in a closed group still shows where it is.
@@ -92,12 +100,13 @@ struct SidebarRail: View {
                 }
                 .overlay(alignment: .bottomTrailing) {
                     // How many tabs it holds, as a small badge that never covers the icon (Settings ▸ Show tab counts).
-                    if state.showsGroupTabCounts { badge(tabs.count, colors: colors, open: open) }
+                    if state.showsGroupTabCounts && !hidden { badge(tabs.count, colors: colors, open: open) }
                 }
                 .contentShape(RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
             }
             .buttonStyle(RailButtonStyle(colors: colors))
-            .help("\(folder.name) · \(tabs.count) \(tabs.count == 1 ? "tab" : "tabs")")
+            .help(hidden ? "\(folder.name) · hidden — click to show" : "\(folder.name) · \(tabs.count) \(tabs.count == 1 ? "tab" : "tabs")")
+            .contextMenu { FolderContextMenu(folder: folder, state: state, commands: commands) }
             // Opens and closes like the full sidebar's groups: the rows' measured height grows on the same spring and
             // the clip reveals them, so the tiles below move with it.
             RailDisclosure(isOpen: open) {

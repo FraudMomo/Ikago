@@ -38,7 +38,9 @@
    collapsed group keeps only the active tab beside its chip. Chips take tab drops, drag like sidebar headers (left 30 %
    before, middle inside, right 30 % of a shut group after; `FolderHeaderDropDelegate(horizontal:)`), and their menu is
    the group's. `GroupPlacement` (Settings ▸ Appearance ▸ Tab Groups) shows groups in both places (unset), the tab row
-   only, or the rail only.; while it is hidden, pinned
+   only, or the rail only. Hidden groups (`hideFolder`, `TabFolder.isClosed`) leave the row: their pages unload, and
+   they come back from the row's hidden-groups button (`HiddenGroupsButton`), the rail (a faded tile with a mark) or
+   Tab ▸ Show Hidden Group; selecting one of their tabs shows them too. While the sidebar is hidden, pinned
    tabs lead the tab row as 44 pt icon tabs. The bar's height is `browserPreferences.tabsBarHeight` (`TabsBarHeight`,
    read through `state.tabsToolbarHeight` and `tabsFieldHeight`). New tabs open on the right
    (`effectiveNewTabPosition`); the address frame reaches the shell through `ChromeModel.addressFieldFrame`. There is one `ContentHost`, so turning the row on or off never moves the page.

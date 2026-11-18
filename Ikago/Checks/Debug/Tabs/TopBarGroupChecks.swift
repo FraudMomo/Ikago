@@ -1,7 +1,7 @@
 #if DEBUG
 import Foundation
 
-/// Tab groups in the Sidebar + Tabs row (`TopRowEntry`) and where groups show (`GroupPlacement`).
+/// Tab groups in the Sidebar + Tabs row (`TopRowEntry`), where groups show (`GroupPlacement`), and hiding a group.
 @MainActor
 enum TopBarGroupChecks {
     static func run() {
@@ -37,6 +37,19 @@ enum TopBarGroupChecks {
         state.browserPreferences.groupPlacement = nil
         check(state.showsGroupsInTopBar && state.showsGroupsInSidebar, "both by default")
 
+        // Hiding: saved, asleep, out of the row; selecting a tab of it shows it again.
+        state.select(b.id)
+        state.hideFolder(work.id)
+        check(state.folders.first { $0.id == work.id }?.isClosed == true && a.isHibernating && b.isHibernating, "a hidden group's pages unload")
+        check(state.activeTabID == loose.id, "the selection leaves a hidden group")
+        check(row() == [loose.id] && state.closedFolders.map(\.id) == [work.id], "a hidden group leaves the tab row and is listed as hidden")
+        check(state.tab(a.id) != nil && state.folders.contains { $0.id == inner.id }, "its tabs and inner groups stay saved")
+        state.select(b.id)
+        check(state.folders.first { $0.id == work.id }?.isClosed == nil, "selecting a tab inside a hidden group shows the group again")
+        state.hideFolder(work.id)
+        state.reopenFolder(work.id)
+        check(state.folders.first { $0.id == work.id }?.isClosed == nil && state.activeTabID.map { [a.id, b.id].contains($0) } == true,
+              "showing a group selects one of its tabs")
         print("IKTEST topbargroupchecks \(failures == 0 ? "PASS" : "FAIL") failures=\(failures)")
     }
 }

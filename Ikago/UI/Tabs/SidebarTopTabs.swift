@@ -37,11 +37,12 @@ struct SidebarTopTabs: View {
             if case .chip(let folder, _) = entry { return total + Self.chipSlot(folder, state: state) }
             return total
         }
+        let hiddenGroups = state.showsGroupsInTopBar && !state.closedFolders.isEmpty
         let colors = state.palette
         return GeometryReader { geometry in
             let leading = leadingReserve
             let rowHeight = Self.height(state)
-            let available = max(60, geometry.size.width - leading - 44)
+            let available = max(60, geometry.size.width - leading - 44 - (hiddenGroups ? HiddenGroupsButton.width : 0))
             let forTabs = max(60, available - pinsWidth - chipsWidth)
             let slots = items.reduce(CGFloat(0)) { $0 + Self.slots(of: $1) }
             // Like Chrome: tabs share the row up to a comfortable width, keep a readable minimum, then scroll.
@@ -51,6 +52,11 @@ struct SidebarTopTabs: View {
             let natural = items.reduce(Self.edgeInset * 2 + pinsWidth + chipsWidth) { $0 + width * Self.slots(of: $1) }
             HStack(spacing: 0) {
                 Color.clear.frame(width: leading)
+                if hiddenGroups {
+                    HiddenGroupsButton(state: state, colors: colors)
+                        .padding(.top, rowHeight - Self.tabHeight)
+                        .transition(.opacity)
+                }
                 ScrollView(.horizontal) {
                     HStack(spacing: 0) {
                         ForEach(pins) { tab in pinnedTab(tab, colors: colors).tabSlot() }

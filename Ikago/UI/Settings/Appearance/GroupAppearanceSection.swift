@@ -5,7 +5,7 @@ struct GroupAppearanceSection: View {
     let state: BrowserState
 
     var body: some View {
-        PageSection(title: "Tab Groups", footer: "Change a group's color from its context menu.") {
+        PageSection(title: "Tab Groups", footer: "Change a group's color from its context menu. Hide Group keeps a group saved but out of the way; show it again from the tab row's hidden-groups button, the icon sidebar or Tab ▸ Show Hidden Group.") {
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .top, spacing: 14) { cards(minimumWidth: 180) }
                 VStack(spacing: 14) { cards(minimumWidth: 0) }

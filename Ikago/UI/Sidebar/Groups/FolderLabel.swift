@@ -104,7 +104,9 @@ struct FolderContextMenu: View {
         Button("Rename Group…") { commands?.renameFolder(folder.id) }
         Button("Icon and Color…") { commands?.customizeFolder(folder.id) }
         if folder.isClosed == true {
-            Button("Reopen Group") { state.reopenFolder(folder.id) }
+            Button("Show Group") { withAnimation(.ikago) { state.reopenFolder(folder.id) } }
+        } else {
+            Button("Hide Group") { withAnimation(.ikago) { commands?.hideGroup(folder.id) } }
         }
         if state.tabs(in: folder).contains(where: { !$0.isHibernating }) {
             Button("Unload Group") { commands?.unloadGroup(folder.id) }

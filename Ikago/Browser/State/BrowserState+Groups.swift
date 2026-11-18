@@ -189,19 +189,55 @@ extension BrowserState {
     /// Tab order for next/previous tab and close-neighbour selection: the sidebar's, which lists every group.
     var navigationOrder: [TabItem] { sidebarOrder }
 
+    /// Hides a group: it stays saved with its tabs (and the groups inside it), but its pages unload and it leaves the
+    /// tab row until it is shown again (the hidden-groups button, the icon sidebar, Tab ▸ Show Hidden Group). Separate
+    /// from collapsing. Returns the unloaded tabs, so the window can put their pages to sleep.
+    @discardableResult
+    func hideFolder(_ id: String) -> [String] {
+        guard !isFrozen, let index = folders.firstIndex(where: { $0.id == id }) else { return [] }
+        let members = tabs(inSubtree: folders[index])
+        let ids = Set(members.map(\.id))
+        if let active = activeTab, ids.contains(active.id) {
+            if let next = navigationOrder.first(where: { !ids.contains($0.id) && !$0.isHibernating && !isInClosedFolder($0) })?.id {
+                select(next)
+            } else {
+                activeTabID = nil
+            }
+        }
+        removeFromSplits(ids)
+        for member in members { member.isHibernating = true }
+        folders[index].isClosed = true
+        scheduleSave()
+        return members.map(\.id)
+    }
+
+    /// The tab sits in a hidden group, or in a group inside one.
+    func isInClosedFolder(_ tab: TabItem) -> Bool {
+        var next = tab.folderID, steps = 0
+        while let id = next, steps < 16, let folder = folders.first(where: { $0.id == id }) {
+            if folder.isClosed == true { return true }
+            next = folder.parentID; steps += 1
+        }
+        return false
+    }
+
     /// Reopens a closed group, expanded, and selects its first tab.
     func reopenFolder(_ id: String, selecting: Bool = true) {
         guard let index = folders.firstIndex(where: { $0.id == id }) else { return }
         folders[index].isClosed = nil
         folders[index].isOpen = true
-        if selecting, let first = tabs(in: folders[index]).first { activeTabID = first.id }
+        if selecting, let first = tabs(inSubtree: folders[index]).first { select(first.id) }
         scheduleSave()
     }
 
-    /// Selecting a tab of a closed group (from history, the omnibox or the sidebar) reopens the group.
+    /// Selecting a tab of a closed group (from history, the omnibox or the sidebar) reopens the group, and any hidden
+    /// group around it.
     func reopenFolderIfClosed(containing tabID: String) {
-        guard let folderID = tab(tabID)?.folderID, folders.first(where: { $0.id == folderID })?.isClosed == true else { return }
-        reopenFolder(folderID, selecting: false)
+        var next = tab(tabID)?.folderID, steps = 0
+        while let id = next, steps < 16, let folder = folders.first(where: { $0.id == id }) {
+            if folder.isClosed == true { reopenFolder(id, selecting: false) }
+            next = folder.parentID; steps += 1
+        }
     }
 }
 

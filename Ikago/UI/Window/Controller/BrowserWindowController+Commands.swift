@@ -49,7 +49,11 @@ extension BrowserWindowController: BrowserCommands, NSMenuItemValidation {
         for member in state.unloadFolder(id) { content.controller(for: member)?.hibernate() }
     }
 
-    /// Tab ▸ Reopen Closed Group.
+    func hideGroup(_ id: String) {
+        for member in state.hideFolder(id) { content.controller(for: member)?.hibernate() }
+    }
+
+    /// Tab ▸ Show Hidden Group.
     @objc func reopenGroup(_ sender: NSMenuItem) {
         guard let id = sender.representedObject as? String else { return }
         state.reopenFolder(id)

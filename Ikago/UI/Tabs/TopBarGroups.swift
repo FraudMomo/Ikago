@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// Tab groups in the Sidebar + Tabs row, like Chrome's: a chip in the group's color leads its tabs, a click collapses or
-/// expands them (the same open state as the sidebar's), and a line in the color runs under the group's tabs. Where
-/// groups show is `GroupPlacement`.
+/// expands them (the same open state as the sidebar's), and a line in the color runs under the group's tabs. Hidden
+/// groups leave the row and come back from `HiddenGroupsButton`. Where groups show is `GroupPlacement`.
 enum TopRowEntry: Identifiable {
     case chip(TabFolder, count: Int)
     case item(TabListItem, group: TabFolder?)
@@ -27,7 +27,7 @@ enum TopRowEntry: Identifiable {
     @MainActor static func row(state: BrowserState, seen: inout Set<String>) -> [TopRowEntry] {
         var entries: [TopRowEntry] = []
         if state.showsGroupsInTopBar {
-            for folder in state.childFolders(of: nil) {
+            for folder in state.childFolders(of: nil) where folder.isClosed != true {
                 let members = state.tabs(inSubtree: folder)
                 entries.append(.chip(folder, count: members.count))
                 let shown = folder.isOpen ? members : members.filter { $0.id == state.activeTabID }
@@ -148,5 +148,40 @@ struct TopBarGroupLine: ViewModifier {
                     .allowsHitTesting(false)
             }
         }
+    }
+}
+
+/// Lists the Space's hidden groups in the tab row; choosing one shows it again with its tabs.
+struct HiddenGroupsButton: View {
+    let state: BrowserState
+    let colors: Palette
+
+    static let width: CGFloat = 34
+
+    var body: some View {
+        let hidden = state.closedFolders
+        Menu {
+            Section("Hidden Groups") {
+                ForEach(hidden) { folder in
+                    let count = state.tabs(inSubtree: folder).count
+                    Button("\(folder.name.isEmpty ? "Group" : folder.name) (\(count) \(count == 1 ? "tab" : "tabs"))") {
+                        withAnimation(.ikagoQuick) { state.reopenFolder(folder.id) }
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 2) {
+                Image(systemName: "square.stack.3d.down.right").font(.system(size: 12, weight: .medium))
+                Text("\(hidden.count)").font(.system(size: 9.5, weight: .bold).monospacedDigit())
+            }
+            .foregroundStyle(colors.secondary)
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .tint(colors.secondary)
+        .fixedSize()
+        .frame(width: Self.width, height: SidebarTopTabs.tabHeight)
+        .help("Hidden groups: \(hidden.map(\.name).joined(separator: ", "))")
+        .accessibilityLabel("Hidden groups")
     }
 }

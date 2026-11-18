@@ -90,9 +90,10 @@
   unlike AppKit's index (middle = 2); middle-click opens in the background, Shift selects it.
 - Newly opened background tabs load by default (configurable in Tabs & Memory), without selecting
   them. Restored session tabs and unloaded pins remain lazy; never preload a restored session.
-- Closed tab groups (`TabFolder.isClosed`, `BrowserState+Groups`) came from the retired Top Bar's Close Group. Their
-  pages stay unloaded until reopened from Tab ▸ Reopen Closed Group or by selecting one of their tabs; the sidebar lists
-  them, and `navigationOrder` is the sidebar's order.
+- Hidden tab groups (`TabFolder.isClosed`, Hide Group, `hideFolder`, `BrowserState+Groups`) stay saved with their
+  nested groups; their pages unload until shown again (the group's menu, Tab ▸ Show Hidden Group, the tab row's
+  hidden-groups button, the rail, or selecting one of their tabs, which also shows hidden groups around it). The full
+  sidebar still lists them; `navigationOrder` is the sidebar's order.
 - Tabs and groups move between Spaces from their menus (Move to Space, also for several selected tabs) or by dropping
   tabs on a Space's dot in the Space bar (`moveTab`, `moveTabs`, `moveFolder(_:toSpace:)`). A group takes the groups
   inside it and their tabs, arrives at the top level after the target's groups, and its tabs keep their groups. Between
