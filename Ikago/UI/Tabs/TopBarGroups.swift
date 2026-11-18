@@ -133,18 +133,24 @@ struct TopBarGroupChip: View {
     }
 }
 
-/// The line under a group's tabs in the row, in the group's color, the active tab included.
+/// The line under a group's tabs in the row, in the group's color, the active tab included. The active tab's sheet
+/// flares out over its neighbours (`AttachedTabShape.flare`) and covered their lines' ends, so its own line reaches
+/// under the flares toward neighbours of the same group, and the line runs on unbroken.
 struct TopBarGroupLine: ViewModifier {
     let group: TabFolder?
     let active: Bool
     let colors: Palette
+    var groupBefore = false
+    var groupAfter = false
 
     func body(content: Content) -> some View {
+        let flare = AttachedTabShape().flare
         content.overlay(alignment: .bottom) {
-            // Under the active tab too: it belongs to the group like the others.
             if let group {
                 Rectangle().fill(group.chipColor ?? colors.text.opacity(0.25))
                     .frame(height: 2)
+                    .padding(.leading, active && groupBefore ? -flare : 0)
+                    .padding(.trailing, active && groupAfter ? -flare : 0)
                     .padding(.bottom, 1)
                     .allowsHitTesting(false)
             }
