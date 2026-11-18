@@ -108,8 +108,9 @@ struct SplitChip: View {
         HStack(spacing: 6) {
             FaviconView(tab: tab, size: 14)
             if !compact || focused {
-                Text(tab.displayTitle).lineLimit(1).font(.system(size: 12, weight: focused ? .semibold : .regular))
+                Text(tab.displayTitle).font(.system(size: 12, weight: focused ? .semibold : .regular))
                     .foregroundStyle(focused ? colors.text : colors.secondary)
+                    .fadeTruncated(fade: 14)
             }
             if focused && tab.isLoading { PageLoadButton(tab: tab, colors: colors, commands: commands) }
         }

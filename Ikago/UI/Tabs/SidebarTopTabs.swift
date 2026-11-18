@@ -266,7 +266,8 @@ private struct AttachedTabLabel: View {
                 if tab.isLoading { ProgressView().controlSize(.mini).scaleEffect(0.6) }
             }
             .frame(width: 16, height: 16)
-            Text(tab.displayTitle).font(.system(size: 12.5, weight: active ? .medium : .regular)).lineLimit(1)
+            Text(tab.displayTitle).font(.system(size: 12.5, weight: active ? .medium : .regular))
+                .fadeTruncated()
                 .frame(maxWidth: .infinity, alignment: .leading)
             TabMediaIndicators(tab: tab, colors: colors, commands: commands)
             // Resting tabs give the close button's room to their titles.

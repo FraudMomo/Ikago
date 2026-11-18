@@ -84,7 +84,7 @@ struct TopBarGroupChip: View {
                         .frame(width: 14)
                 }
                 if !folder.name.isEmpty {
-                    Text(folder.name).font(.system(size: 11.5, weight: .semibold)).lineLimit(1)
+                    Text(folder.name).font(.system(size: 11.5, weight: .semibold)).fadeTruncated(fade: 12)
                 }
                 if showsCount {
                     Text(count, format: .number).font(.system(size: 10, weight: .bold).monospacedDigit())

@@ -53,7 +53,8 @@
    it at the far end). Groups nest (`TabFolder.parentID`, optional; `BrowserState+Groups`, `GroupEntry.tree`): nested
    groups sit inside the top-level group's card as plain, indented headers, listed before the group's own tabs; counts, sleep
    and the active tab cover the subtree; deleting a group moves its tabs and groups up a level; moves into a group's own
-   subtree are refused (`nestedgroupchecks`). The rail shows top-level groups only, and the Color pill label fills the header like a book's bookmark: a light wash of the group's color, a solid 3 pt spine on the leading edge, `Radius.control` corners; a group whose tabs are all closed or asleep fades to half until hovered (rail tiles too); closed groups stack 4 pt apart, and a hairline separates pinned rows from groups. With glass off the
+   subtree are refused (`nestedgroupchecks`). The rail shows top-level groups only, and the Color pill label fills the header like a book's bookmark: a light wash of the group's color, a solid 3 pt spine on the leading edge, `Radius.control` corners; a group whose tabs are all closed or asleep fades to half until hovered (rail tiles too); closed groups stack 4 pt apart, and a hairline separates pinned rows from groups. Titles that don't fit fade out at their trailing edge (`fadeTruncated`) instead of ending in
+   "…": tab row tabs, sidebar rows, split chips and group chips. With glass off the
    docked sidebar joins the window (`sidebarJoinsWindow`; always for the Sidebar + Tabs rail, whose controls alone are glass): it draws no card, so sidebar and tab row are one surface and only the
    page is rounded. The traffic lights, the sidebar's top row and the tab row share one centre (`sidebarRowCenter`);
    `positionTrafficLights` sets both axes in every layout. Top-row controls that don't fit beside the lights move to a second

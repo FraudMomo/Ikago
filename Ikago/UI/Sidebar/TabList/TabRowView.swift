@@ -91,8 +91,8 @@ struct TabRowView: View {
             .frame(width: 16, height: 16)
 
             Text(tab.displayTitle)
-                .lineLimit(1)
                 .foregroundStyle(isActive ? colors.text : colors.text.opacity(0.85))
+                .fadeTruncated()
 
             Spacer(minLength: 4)
             if tab.isUnloaded {
