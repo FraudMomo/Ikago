@@ -69,8 +69,11 @@
   `topCenter`, `sidebarTop` = right; `bottomLeading`, `sidebarBottom` = centre, `bottomTrailing`), filled by dragging in
   Settings ▸ Sidebar & Toolbar ▸ Customize; the centre stays centred, and left/centre top groups start after the traffic
   lights. Too many for one row wrap to a second row on the right as before. Readers of a whole row use `topItems`/`bottomItems`. A two-finger swipe over the sidebar pages between Spaces live (`SpaceSwipe`):
-  pins and tabs follow the fingers, and the next Space comes in on release past a third or after a flick; otherwise it
-  springs back. With Liquid Glass on, every chrome control is glass: toolbar groups, the Sidebar + Tabs controls and
+  pins and tabs follow the fingers point for point and fade out by half the sidebar's width (`SpaceSwipe.fadeSpan`); on
+  release past a third, or after a flick that way (over 300 pt/s, measured over the last 80 ms), the list carries on at the
+  fingers' speed to that invisible point, the Spaces swap there, and the next list springs in from the mirrored point
+  with the same speed. A flick back, or a short drag, springs home from the fingers' speed. Gestures that start while
+  it animates are left to the list. Never swap Spaces while a list is visible: that was the pop. With Liquid Glass on, every chrome control is glass: toolbar groups, the Sidebar + Tabs controls and
   address field, the tab row's +, rail tiles and pinned tiles.
 - New-tab placement is configurable (top/bottom); links can open before/after their opener or
   follow the new-tab setting. Preserve manual order and other Spaces; adjacent links inherit the

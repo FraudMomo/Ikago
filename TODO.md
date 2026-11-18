@@ -63,6 +63,8 @@ Working list for the next builds. Tick items off as they land; move finished the
 
 - [x] **Move tabs and groups into other Spaces**: Move to Space in the tab, selection and group menus, and drop tabs
   on a Space's dot. Groups take their nested groups and tabs along.
+- [x] **Sidebar Space swipe follows the fingers**: the list tracks the swipe point for point and the release keeps its
+  speed; the Spaces swap only while both lists are faded out, so nothing pops.
 
 - [x] **Bug: Cmd+Shift+T (reopen closed tab) doesn't behave like Chromium.** Match Chrome: reopen in the original
   order, at the same position in the same Space, group and window, with back/forward history kept. Reopening a
