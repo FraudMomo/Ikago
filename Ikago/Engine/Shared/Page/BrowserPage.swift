@@ -71,7 +71,10 @@ extension WebTab {
         Task { @MainActor in
             // Answer first, then go: navigating right away ends the script before it can answer, which read as a
             // failure and loaded the page a second time, stacking an entry.
-            if (try? await callAsync("setTimeout(() => location.replace(\(literal)), 0); return true")) == nil { load(url) }
+            if (try? await callAsync("setTimeout(() => location.replace(\(literal)), 0); return true")) != nil { return }
+            // No answer can still mean the replace ran (the frame went away mid-reply). Load only if it didn't start.
+            try? await Task.sleep(for: .milliseconds(250))
+            if !isLoading, currentURL != url { load(url) }
         }
     }
     func pauseForHistory() { Task { @MainActor in await controlMedia(.pause) } }
