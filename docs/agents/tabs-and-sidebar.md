@@ -90,7 +90,8 @@
   inside it and their tabs, arrives at the top level after the target's groups, and its tabs keep their groups. Between
   Spaces with different storage the pages reopen there (no closed-tab entry). The view stays in the current Space.
 - The Bookmarks page selects like Finder (Shift-click a range, ⌘-click one more, or Select mode); the bar moves or deletes
-  the selection in one change (`moveBookmarks`, `removeBookmarks`), deleting only after a confirmation.
+  the selection in one change (`moveBookmarks`, `removeBookmarks`), deleting only after a confirmation. Imported bookmarks
+  are copies (imports read private snapshots, read only), so edits never reach Safari or another browser.
 - Bookmarks show in an optional upward-expanding drawer at the bottom of the sidebar. ⇧⌘B and Settings ▸ Sidebar &
   Toolbar toggle the same saved preference. Bookmarks and
   nested `BookmarkFolder`s are shared across Spaces and independent of live tab groups; keep

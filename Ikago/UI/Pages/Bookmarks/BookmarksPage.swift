@@ -114,7 +114,7 @@ struct BookmarksPage: View {
             Button("Delete", role: .destructive) { deleteSelection() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This can't be undone. Folders and open tabs are not affected.")
+            Text("This can't be undone. It changes only Ikago: imported bookmarks are copies, so Safari and other browsers keep theirs. Folders and open tabs stay.")
         }
     }
 
