@@ -74,6 +74,35 @@ enum TestDriver {
                 if c.chrome.draggingFolderID != nil { sawDrag = true }
             }
             print("IKTEST groupdragafter order=\(describe()) dragStarted=\(sawDrag) window=\(c.window?.frame ?? .zero)")
+        case "newtabprobe":  // ⌘T, type an address and press Return in every layout and address style, fast and slow;
+                             // prints whether the new tab exists, is selected, is in the Top Bar row, and shows its page
+            let s = c.state
+            s.newTabMode = .commandBar
+            var n = 0
+            for layout in ["tabs", "sidebar"] {
+                LayoutSwitch.set(tabs: layout == "tabs", state: s)
+                for style in [AddressStyle.integrated, .floating] {
+                    s.addressStyle = style
+                    try? await Task.sleep(for: .milliseconds(600))
+                    for delay in [0, 30, 400] {
+                        n += 1
+                        let url = "https://example.com/?newtab\(n)"
+                        let before = Set(s.tabs.map(\.id))
+                        c.newTab()
+                        if delay > 0 { try? await Task.sleep(for: .milliseconds(delay)) }
+                        c.palette.query = url
+                        c.palette.commit()
+                        try? await Task.sleep(for: .milliseconds(1500))
+                        let added = s.tabs.filter { !before.contains($0.id) }
+                        let target = s.tabs.first { $0.url.contains("newtab\(n)") }
+                        let active = s.activeTab
+                        let inRow = target.map { t in s.looseTabs.contains { $0.id == t.id } } ?? false
+                        let shown = c.activeController?.tab.id == active?.id && c.activeController?.page != nil
+                        print("IKTEST newtab layout=\(layout) style=\(style.rawValue) delay=\(delay) added=\(added.count) found=\(target != nil) selected=\(target?.id == active?.id) inRow=\(inRow) shown=\(shown) activeURL=\(active?.url ?? "nil") blanks=\(s.tabs.filter { $0.url == "about:blank" }.count)")
+                        fflush(stdout)
+                    }
+                }
+            }
         case "perfstats":
             // Shows the performance overlay and prints what it reads after a few seconds.
             c.togglePerformanceStats(nil)
@@ -122,6 +151,7 @@ enum TestDriver {
         case "mute": c.toggleMuteTab(nil)
         case "zoomin": c.zoomInPage(nil)
         case "palette": c.showCommandPalette(newTab: arg == "new")
+        case "palettecommit": c.palette.query = arg; c.palette.commit()  // <text>: types into the open address field and presses Return
         case "palettequery": c.palette.userEdited(arg)
         case "palettecommit": c.palette.commit()
         case "palettescope": _ = c.palette.toggleScope(Int(arg) ?? 0)

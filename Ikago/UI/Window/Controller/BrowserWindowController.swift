@@ -253,6 +253,11 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
             withAnimation(.ikago) { _ = state.newTab(url: url) }
         } else if let controller = activeController {
             controller.load(url)
+        } else if let tab = state.activeTab {
+            // Its page isn't made yet (⌘T then Return straight away): it starts at this address when it is. Dropping
+            // the address here left an empty tab, as if the new tab had vanished.
+            tab.url = url
+            state.scheduleSave()
         }
     }
 
