@@ -554,6 +554,20 @@ enum TestDriver {
         case "tabsaddress": state.browserPreferences.tabsAddressStyle = TabsAddressStyle(rawValue: arg)  // centered | wide | title
         case "edgepeek": state.browserPreferences.sidebarEdgePeek = arg == "off" ? false : nil
         case "pingrid": state.browserPreferences.showPinnedGrid = arg != "off"
+        case "flashscrollers":  // shows every scroll bar in the window (the sidebar's overlay ones hide at rest), for a windowshot
+            func flash(_ view: NSView) {
+                if let scroll = view as? NSScrollView { scroll.flashScrollers(); scroll.verticalScroller?.alphaValue = 1 }
+                view.subviews.forEach(flash)
+            }
+            if let root = c.window?.contentView { flash(root) }
+            // A web page keeps its scroll bar inside; a small scroll makes WebKit show it.
+            if let view = c.activeController?.page?.contentView, let window = c.window,
+               let cg = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: Int32(arg.isEmpty ? -40 : Int(arg) ?? -40), wheel2: 0, wheel3: 0) {
+                let center = view.convert(NSPoint(x: view.bounds.midX, y: view.bounds.midY), to: nil)
+                let screen = window.convertPoint(toScreen: center)
+                cg.location = CGPoint(x: screen.x, y: (NSScreen.screens.first?.frame.height ?? 0) - screen.y)
+                if let event = NSEvent(cgEvent: cg) { (view.hitTest(view.convert(center, from: nil)) ?? view).scrollWheel(with: event) }
+            }
         case "groupplacement": state.browserPreferences.groupPlacement = GroupPlacement(rawValue: arg)  // both | topBar | sidebar
         case "folder": state.createFolder(named: arg, with: state.activeTabID)
         case "nestfolder":  // <child index>:<parent index> among the Space's groups

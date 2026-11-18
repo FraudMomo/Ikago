@@ -1,7 +1,11 @@
 # Tabs, sidebar, pins, groups, split view and window dragging
 
-- Sidebar essentials contain pinned tabs in both docked and peeked sidebars. Hidden pin
-  grids fall back to tab-list rows so pinned tabs stay reachable. The grid uses a saved two-to-eight column preference (three by default),
+- Sidebar essentials contain pinned tabs in both docked and peeked sidebars. Settings ▸ Show essentials
+  (`showPinnedGrid`) is one switch for every layout: off, no sidebar shows essentials (no grid, no essential tiles in the
+  rail), and pinned tabs stay ordinary pinned tabs: rows in the list, plain tiles in the rail's list, or icon tabs at
+  the start of the Sidebar + Tabs row (`pinsInTabRow`). In Sidebar + Tabs with essentials on, the pins live in the
+  icon sidebar, also while it is hidden and slides in at the edge; only a hidden sidebar with edge peek off sends them to
+  the tab row. They never show in both places (`pinsInRail`). The grid uses a saved two-to-eight column preference (three by default),
   adapting down with the sidebar's available width, with bounded scrolling and an
   empty drop target during tab drags. Split drops accept live tabs only. Tab rows use SwiftUI's
   drag/drop lifecycle with before/after insertion markers, without native overlays intercepting
@@ -13,7 +17,9 @@
   Pin Tab creates a standalone sidebar row. Dragging into the essentials grid makes it a tile;
   fixed section-boundary targets place standalone pins above or below groups (`pinAfterFolderID`, optional on saved tabs).
   Dropping on a regular row or at the normal list end unpins. Keep drop geometry mounted so starting a drag never shifts rows.
-  Use one Pin/Unpin action; placement is drag-driven.
+  Placement is drag-driven, and the tab menu offers it too while the Sidebar layout shows essentials (`TabContextMenu.pinItems`):
+  Pin Tab (a row) and Add to Essentials for open tabs, Add to Essentials/Unpin for rows, Move to Pinned Tabs/Remove from
+  Essentials for tiles. Elsewhere there is one Pin/Unpin action; split tabs pin as rows only.
   Closing a pin unloads its page and retains its identity; only unpinning/removal deletes it.
   Persist favicon URLs on tabs/bookmarks and retain disk icons without age expiry.
   Favicon views synchronously seed from disk/memory; never clear a working same-site image

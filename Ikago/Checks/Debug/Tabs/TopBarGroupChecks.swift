@@ -57,10 +57,11 @@ enum TopBarGroupChecks {
         check(state.pinsInTabRow, "with the pinned grid off, pins lead the tab row")
         state.browserPreferences.showPinnedGrid = nil
         state.sidebarVisible = false
-        check(state.pinsInTabRow, "with the sidebar hidden, pins lead the tab row")
+        check(!state.pinsInTabRow, "with the sidebar hidden but sliding in at the edge, pins stay in it")
         check(state.sidebarEdgePeek, "the hidden sidebar reveals at the edge by default")
         state.browserPreferences.sidebarEdgePeek = false
         check(!state.sidebarEdgePeek, "the edge reveal can be turned off")
+        check(state.pinsInTabRow, "with the sidebar hidden and no edge reveal, pins lead the tab row")
         check(state.tabsAddressStyle == .centered, "the address bar is centred by default")
         let address = TabItem(url: "https://www.example.com/docs/a%20b?x=1")
         check(address.shortAddress == "example.com/docs/a b?x=1", "Full Width shows the address without scheme or www")

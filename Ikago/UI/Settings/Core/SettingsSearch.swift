@@ -81,7 +81,7 @@ enum SettingsSearch {
         .init(title: "Page thumbnail in previews", category: .tabs, section: "Tab Previews", keywords: "hover screenshot image"),
         .init(title: "Space header and shortcuts", category: .toolbar, section: "Sidebar", keywords: "space name assistant bookmarks history navigation", layout: .sidebar),
         .init(title: "Keep pinned tabs and groups in view", category: .toolbar, section: "Sidebar", keywords: "pinned pins fixed sticky scroll top", layout: .sidebar),
-        .init(title: "Pinned-tab grid", category: .toolbar, section: "Sidebar Essentials", keywords: "essentials pins"),
+        .init(title: "Show essentials", category: .toolbar, section: "Sidebar Essentials", keywords: "essentials pins pinned tabs grid hide"),
         .init(title: "Grid columns", category: .toolbar, section: "Sidebar Essentials", keywords: "pinned tabs size count", layout: .sidebar),
         .init(title: "Show bookmarks bar", category: .toolbar, section: "Bookmarks Bar"),
         .init(title: "Switch to an open tab", category: .toolbar, section: "Opening Bookmarks", keywords: "bookmarks"),

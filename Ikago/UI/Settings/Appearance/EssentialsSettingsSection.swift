@@ -27,7 +27,7 @@ struct EssentialsSettingsSection: View {
                     }
                     if state.showsPinnedGrid {
                         PageDivider()
-                        PageRow(title: "Pinned-tab grid", subtitle: "Where the grid sits next to the shortcuts") {
+                        PageRow(title: "Essentials position", subtitle: "Above or below the shortcuts") {
                             SettingsMenu(selection: Binding(
                                 get: { state.browserPreferences.pinnedGridAboveShortcuts == true },
                                 set: { above in withAnimation(.ikago) { state.browserPreferences.pinnedGridAboveShortcuts = above ? true : nil } }
@@ -43,12 +43,13 @@ struct EssentialsSettingsSection: View {
                 }
             }
             }
-            PageSection(title: full ? "Sidebar Essentials" : "Pinned Tabs") {
-                PageRow(title: full ? "Show pinned-tab grid" : "Pinned tabs in the icon sidebar",
-                        subtitle: full ? "Pinned tabs as a grid at the top of the sidebar; off, as rows in the list"
-                                       : "Tiles in the icon sidebar; off, icon tabs at the start of the tab row",
+            PageSection(title: "Sidebar Essentials") {
+                // One switch in every layout: off, the sidebar has no essentials and pinned tabs stay ordinary pinned tabs.
+                PageRow(title: "Show essentials",
+                        subtitle: full ? "Pinned tabs as a grid at the top of the sidebar. Off, they stay pinned as rows in the list"
+                                       : "Pinned tabs as tiles in the icon sidebar. Off, they stay pinned at the start of the tab row",
                         figure: AnyView(PinnedTabsFigure(shown: state.showsPinnedGrid, tabsLayout: !full, colors: state.palette))) {
-                    Toggle("Show pinned-tab grid", isOn: Binding(get: { state.showsPinnedGrid },
+                    Toggle("Show essentials", isOn: Binding(get: { state.showsPinnedGrid },
                         set: { on in withAnimation(.ikago) { state.browserPreferences.showPinnedGrid = on } }))
                         .labelsHidden().toggleStyle(.switch)
                 }

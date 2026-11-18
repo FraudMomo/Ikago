@@ -40,6 +40,35 @@ enum EssentialsChecks {
         state.move(tab.id, before: nil, pinned: true)
         state.move(tab.id, before: nil, pinned: false)
         check(!tab.pinned && tab.faviconURL == pin.faviconURL, "dragging a pin into open tabs unpins it and retains its icon")
+        // The tab menu's pin choices with essentials shown: a pinned row, an essential tile, and back.
+        let savedGrid = state.browserPreferences.showPinnedGrid
+        state.browserPreferences.showPinnedGrid = true
+        let choice = state.newTab(url: "https://pin-choice.invalid")!
+        state.movePin(choice.id, intoGrid: true)  // Add to Essentials, from an open tab
+        check(choice.pinned && state.sidebarGridPinnedTabs.contains { $0.id == choice.id }, "Add to Essentials makes an open tab an essential tile")
+        state.movePin(choice.id, intoGrid: false)  // Move to Pinned Tabs
+        check(choice.pinned && choice.pinAsRow && !state.sidebarGridPinnedTabs.contains { $0.id == choice.id }
+              && state.orderedSidebarTabs.contains { $0.id == choice.id }, "Move to Pinned Tabs makes it a pinned row in the list")
+        state.movePin(choice.id, intoGrid: true)
+        state.togglePin(choice.id)  // Remove from Essentials
+        check(!choice.pinned && !state.sidebarGridPinnedTabs.contains { $0.id == choice.id }, "Remove from Essentials leaves an ordinary tab")
+        state.togglePin(choice.id)  // Pin Tab
+        check(choice.pinned && choice.pinAsRow, "Pin Tab still pins as a row while essentials show")
+        // Sidebar + Tabs: pins sit in the tab row or in the rail, never both.
+        let savedLayout = state.browserPreferences.sidebarTopTabs, savedVisible = state.sidebarVisible
+        state.browserPreferences.sidebarTopTabs = true
+        let savedPeek = state.browserPreferences.sidebarEdgePeek
+        for (visible, peek) in [(true, true), (false, true), (true, false), (false, false)] {
+            state.sidebarVisible = visible
+            state.browserPreferences.sidebarEdgePeek = peek ? nil : false
+            let label = "sidebar \(visible ? "shown" : "hidden"), edge peek \(peek ? "on" : "off")"
+            check(state.pinsInTabRow != state.pinsInRail, "pins show once with the \(label)")
+            // Essentials stay in the mini sidebar wherever it can appear; only a sidebar that can't appear sends them to the row.
+            check(state.pinsInRail == (visible || peek), "essentials sit in the mini sidebar with the \(label) (rail \(state.pinsInRail))")
+        }
+        state.browserPreferences.sidebarEdgePeek = savedPeek
+        state.browserPreferences.sidebarTopTabs = savedLayout; state.sidebarVisible = savedVisible
+        state.browserPreferences.showPinnedGrid = savedGrid
         let iconURL = URL(string: "https://cached-icon.invalid/\(UUID()).png")!
         let key = SHA256.hash(data: Data(iconURL.absoluteString.utf8)).map { String(format: "%02x", $0) }.joined()
         let folder = SessionStore.testDirectory.appending(path: "Favicons")

@@ -42,9 +42,12 @@ extension BrowserState {
     var tabsAddressStyle: TabsAddressStyle { browserPreferences.tabsAddressStyle ?? .centered }
     /// A hidden sidebar slides in at the window's edge (Settings ▸ Appearance ▸ Window and Sidebar).
     var sidebarEdgePeek: Bool { browserPreferences.sidebarEdgePeek ?? true }
-    /// Sidebar + Tabs: pinned tabs sit in the icon sidebar while it shows and the pinned grid is on; otherwise they lead
-    /// the tab row as icon tabs, so they are never out of reach.
-    var pinsInTabRow: Bool { !showsSidebarRail || !showsPinnedGrid }
+    /// Sidebar + Tabs: with essentials on, pinned tabs live in the icon sidebar, also while it is hidden and slides in at
+    /// the window's edge. They lead the tab row as icon tabs only when essentials are off, or when the sidebar is hidden
+    /// and can't slide in (edge peek off), so they are never out of reach.
+    var pinsInTabRow: Bool { !showsPinnedGrid || (!showsSidebarRail && !sidebarEdgePeek) }
+    /// Pins show in one place: the rail has them whenever the tab row doesn't.
+    var pinsInRail: Bool { showsPinnedGrid && !(usesTabsLayout && pinsInTabRow) }
 
     var showsSidebarRail: Bool { sidebarVisible && (browserPreferences.sidebarCompact == true || usesTabsLayout) }
     /// The rail's width: room for the traffic lights side by side, and a 36 pt tile.

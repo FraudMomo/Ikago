@@ -76,7 +76,7 @@ struct TabContextMenu: View {
     }
 
     @ViewBuilder private var single: some View {
-        Button(tab.pinned ? "Unpin Tab" : "Pin Tab") { withAnimation(.ikagoQuick) { state.togglePin(tab.id) } }
+        pinItems
         Button(tab.isMuted ? "Unmute Tab" : "Mute Tab") { commands?.toggleMute(tab.id) }
         if let group = state.splitGroup(of: tab.id) {
             Button("Remove from Split") { withAnimation(.ikago) { state.separate(tab.id) } }
@@ -120,6 +120,26 @@ struct TabContextMenu: View {
             Button("Unload Tab") { commands?.unloadTab(tab.id) }
         }
         Button(tab.pinned ? "Unload Pinned Tab — Keep Pin" : "Close Tab") { commands?.closeTab(tab.id) }
+    }
+}
+
+extension TabContextMenu {
+    /// With essentials in the sidebar a tab can be pinned two ways, a row in the list or a tile in the grid, so the menu
+    /// offers both and moves between them; otherwise there is one kind of pin. Split tabs pin as rows only.
+    @ViewBuilder var pinItems: some View {
+        let offersEssentials = state.presentsSidebarPinGrid && !state.usesTabsLayout && state.splitGroup(of: tab.id) == nil
+        if !offersEssentials {
+            Button(tab.pinned ? "Unpin Tab" : "Pin Tab") { withAnimation(.ikagoQuick) { state.togglePin(tab.id) } }
+        } else if !tab.pinned {
+            Button("Pin Tab") { withAnimation(.ikagoQuick) { state.togglePin(tab.id) } }
+            Button("Add to Essentials") { withAnimation(.ikagoQuick) { state.movePin(tab.id, intoGrid: true) } }
+        } else if tab.pinAsRow {
+            Button("Add to Essentials") { withAnimation(.ikagoQuick) { state.movePin(tab.id, intoGrid: true) } }
+            Button("Unpin Tab") { withAnimation(.ikagoQuick) { state.togglePin(tab.id) } }
+        } else {
+            Button("Move to Pinned Tabs") { withAnimation(.ikagoQuick) { state.movePin(tab.id, intoGrid: false) } }
+            Button("Remove from Essentials") { withAnimation(.ikagoQuick) { state.togglePin(tab.id) } }
+        }
     }
 }
 
