@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The Sidebar layout's optional tab row (Settings ▸ Appearance ▸ Layout ▸ Sidebar + Tabs): ungrouped tabs sit above the
+/// The Sidebar layout's optional tab row (Settings ▸ Appearance ▸ Layout ▸ Top Tabs): ungrouped tabs sit above the
 /// page like folders' open documents, while the rail keeps the Space, pins and groups; with the rail hidden, pinned tabs
 /// lead the row as icon-only tabs. The active tab is drawn in the
 /// page's own color and meets the page card, so tab and page read as one sheet.
@@ -85,6 +85,8 @@ struct SidebarTopTabs: View {
                 }
                 .revealActiveTab()
                 .scrollIndicators(.never)
+                // Tabs that fit have nowhere to scroll: a swipe leaves them still instead of rubber-banding the row.
+                .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
                 .onScrollGeometryChange(for: TabScrollEdges.self) { geometry in
                     // Only fade for tabs beyond the edge, not for the strip's own end padding.
                     var value = TabScrollEdges()
@@ -103,7 +105,7 @@ struct SidebarTopTabs: View {
                 .frame(width: min(natural, available), height: Self.tabHeight)
                 .frame(height: rowHeight, alignment: .bottom)
                 .recordLayout("sidebar-top-tabs")
-                SidebarTopNewTabButton(colors: colors) { commands?.newTab() }
+                SidebarTopNewTabButton(colors: colors, divider: entries.last.map { $0.item == nil || !isRaised($0.item) } ?? false) { commands?.newTab() }
                     .padding(.top, rowHeight - Self.tabHeight)
                 Spacer(minLength: 0)
             }
@@ -291,20 +293,32 @@ private struct AttachedTabLabel: View {
     }
 }
 
+/// The + after the tabs: a short divider like the ones between tabs (hidden next to the raised last tab), then the button,
+/// close to the tabs; the strip's end padding still leaves room for the last tab's flare.
 private struct SidebarTopNewTabButton: View {
     let colors: Palette
+    var divider = true
     let action: () -> Void
 
     var body: some View {
+        HStack(spacing: 6) {
+            Rectangle().fill(colors.separator.opacity(1.8)).frame(width: 1, height: 16)
+                .opacity(divider ? 1 : 0)
+            button
+        }
+        .frame(height: SidebarTopTabs.tabHeight)
+        .padding(.leading, -10)
+    }
+
+    private var button: some View {
         Button(action: action) {
-            Image(systemName: "plus").font(.system(size: 13, weight: .medium))
-                .frame(width: 28, height: 28).contentShape(Circle())
+            // As tall as a tab's hover shape, so it sits level with the tabs rather than looming over them.
+            Image(systemName: "plus").font(.system(size: 12, weight: .medium))
+                .frame(width: 26, height: 26).contentShape(Circle())
         }
         .buttonStyle(CircleHoverButtonStyle(colors: colors))
         .glassControl(Circle(), colors)
         .foregroundStyle(colors.secondary)
-        .frame(height: SidebarTopTabs.tabHeight)
-        .padding(.leading, 2)
         .help("New Tab (⌘T)")
     }
 }
