@@ -5,6 +5,8 @@ What changed in each release of Ikago, newest first. Add changes under **Unrelea
 
 ## Unreleased
 
+## 0.7.0 — 2026-11-19
+
 - **Top Tabs:** the Sidebar + Tabs layout is now called Top Tabs. Tab groups show as chips in the tab row, in their
   color, and can be hidden without deleting them (Hide Group in any group menu). Three address bar styles (Centered,
   Full Width, and Page Title, which shows the site and the page's title), pinned tabs can lead the tab row,
