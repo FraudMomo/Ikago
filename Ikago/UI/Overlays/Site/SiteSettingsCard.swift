@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// The site popover's settings for the current site, in one card: camera and microphone (ask, allow or block; a red
-/// dot while in use), which engine opens it, tracker blocking, keeping it awake, zoom, and clearing its data.
+/// The site popover's settings for the current site, in sections: Permissions (camera, microphone and notifications,
+/// each with what it is set to and for how long, and a red note while in use), This Site (which engine opens it, tracker
+/// blocking, keeping it awake, zoom), then clearing its data.
 struct SiteSettingsCard: View {
     let state: BrowserState
     let tab: TabItem
@@ -12,44 +13,108 @@ struct SiteSettingsCard: View {
     private var host: String { URL(string: tab.url)?.host?.lowercased() ?? "" }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            VStack(spacing: 0) {
-                permissionRow(.camera, title: "Camera", symbol: "video.fill", tint: .blue, inUse: tab.cameraActive)
-                SiteCardDivider()
-                permissionRow(.microphone, title: "Microphone", symbol: "mic.fill", tint: .orange, inUse: tab.microphoneActive)
-                SiteCardDivider()
-                permissionRow(.notifications, title: "Notifications", symbol: "bell.fill", tint: .red, inUse: false)
-                if !state.isPrivate, BrowserState.siteForRule(tab.url) != nil {
-                    SiteCardDivider()
-                    SiteEngineRow(state: state, tab: tab, commands: commands)
+        let colors = state.palette
+        VStack(alignment: .leading, spacing: 12) {
+            // Only what this site has asked for (or what was set for it): every site starts at Ask for everything, so
+            // listing the whole catalog would only lengthen the card.
+            let listed = listedPermissions
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    SiteCardHeading(title: "Permissions", colors: colors)
+                    Spacer()
+                    if !listed.isEmpty && !state.isPrivate {
+                        Button("Reset") { withAnimation(.ikagoQuick) { resetPermissions() } }
+                            .buttonStyle(.plain).font(.system(size: 11, weight: .medium)).foregroundStyle(colors.secondary)
+                            .padding(.trailing, 4)
+                            .help("Forget this site's permissions: it asks again for each")
+                    }
                 }
-                SiteCardDivider()
-                SiteProtectionControl(state: state, tab: tab, commands: commands)
-                SiteCardDivider()
-                SiteSettingRow(symbol: "moon.zzz.fill", title: "Keep awake", detail: "Never unloaded to save memory", tint: .indigo) {
-                    Toggle("Keep awake", isOn: Binding(get: { state.keepsAwake(host) }, set: { state.setKeepsAwake($0, host: host) }))
-                        .labelsHidden().toggleStyle(.switch).controlSize(.mini)
+                VStack(spacing: 0) {
+                    if listed.isEmpty {
+                        Text("This site hasn't asked for any permissions.")
+                            .font(.system(size: 12)).foregroundStyle(colors.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 12).frame(minHeight: 38)
+                    }
+                    ForEach(Array(listed.enumerated()), id: \.element.rawValue) { index, kind in
+                        if index > 0 { SiteCardDivider() }
+                        permissionRow(kind, inUse: kind == .camera ? tab.cameraActive : kind == .microphone ? tab.microphoneActive : false)
+                    }
                 }
-                if let page = commands?.activeExtensionTab?.page, commands?.activeExtensionTab?.tab.id == tab.id {
-                    SiteCardDivider()
-                    ZoomRow(page: page)
-                }
+                .siteCard(colors)
             }
-            .siteCard(state.palette)
-            ClearSiteDataButton(colors: state.palette, clearing: clearing, cleared: cleared, host: host) { Task { await clearSiteData() } }
+            VStack(alignment: .leading, spacing: 6) {
+                SiteCardHeading(title: "This Site", colors: colors)
+                VStack(spacing: 0) {
+                    if !state.isPrivate, BrowserState.siteForRule(tab.url) != nil {
+                        SiteEngineRow(state: state, tab: tab, commands: commands)
+                        SiteCardDivider()
+                    }
+                    SiteProtectionControl(state: state, tab: tab, commands: commands)
+                    SiteCardDivider()
+                    SiteSettingRow(symbol: "moon.zzz.fill", title: "Keep awake", detail: "Never unloaded to save memory", tint: .indigo) {
+                        Toggle("Keep awake", isOn: Binding(get: { state.keepsAwake(host) }, set: { state.setKeepsAwake($0, host: host) }))
+                            .labelsHidden().toggleStyle(.switch).controlSize(.mini)
+                    }
+                    if let page = commands?.activeExtensionTab?.page, commands?.activeExtensionTab?.tab.id == tab.id {
+                        SiteCardDivider()
+                        ZoomRow(page: page)
+                    }
+                }
+                .siteCard(colors)
+            }
+            ClearSiteDataButton(colors: colors, clearing: clearing, cleared: cleared, host: host) { Task { await clearSiteData() } }
                 .disabled(clearing || cleared || state.isPrivate)
         }
     }
 
-    private func permissionRow(_ kind: PermissionRequest.Kinds, title: String, symbol: String, tint: Color, inUse: Bool) -> some View {
-        SiteSettingRow(symbol: symbol, title: title, detail: inUse ? "In use now" : nil, tint: tint, detailTint: .red) {
-            let current = state.sitePermission(kind, host: host)
-            CompactMenu(value: current.title, choices: SitePermission.allCases.map { choice in
-                MenuChoice(title: choice.title, isOn: choice == current) {
-                    withAnimation(.ikagoQuick) { state.setSitePermission(choice, kind, host: host) }
-                }
-            })
+    /// The kinds this site's card lists; the camera and microphone too while in use.
+    private var listedPermissions: [PermissionRequest.Kinds] {
+        var kinds = state.listedPermissions(host: host, tabID: tab.id)
+        if tab.cameraActive, !kinds.contains(.camera) { kinds.insert(.camera, at: 0) }
+        if tab.microphoneActive, !kinds.contains(.microphone) { kinds.insert(.microphone, at: kinds.contains(.camera) ? 1 : 0) }
+        return kinds
+    }
+
+    private func resetPermissions() {
+        state.visitGrants[tab.id] = nil
+        state.resetSitePermissions(host: host)
+    }
+
+    /// One permission: what it is set to, for how long, and a menu to change it (Allow Once lives only in the prompt).
+    private func permissionRow(_ kind: PermissionRequest.Kinds, inUse: Bool) -> some View {
+        let saved = state.sitePermission(kind, host: host)
+        let current = state.permission(kind, host: host, tabID: tab.id)
+        let expiry = state.sitePermissionExpiry(kind, host: host)
+        let visit = current == .allow && saved != .allow
+        return SiteSettingRow(symbol: PermissionPrompt.symbol(kind), title: PermissionPrompt.title(kind),
+                              detail: inUse ? "In use now" : status(current, expiry: expiry, visit: visit),
+                              tint: PermissionPrompt.tint(kind), detailTint: inUse ? .red : .secondary) {
+            CompactMenu(value: visit ? "Once" : expiry != nil ? "1 Day" : current.title, choices: [
+                MenuChoice(title: "Ask", isOn: current == .ask) { set(.ask, kind) },
+                MenuChoice(title: PermissionGrant.day.title, isOn: expiry != nil, separatorBefore: true) { set(.allow, kind, for: .day) },
+                MenuChoice(title: PermissionGrant.always.title, isOn: saved == .allow && expiry == nil) { set(.allow, kind) },
+                MenuChoice(title: "Block", isOn: current == .block, separatorBefore: true) { set(.block, kind) },
+            ])
             .disabled(state.isPrivate)
+        }
+    }
+
+    private func set(_ value: SitePermission, _ kind: PermissionRequest.Kinds, for grant: PermissionGrant = .always) {
+        withAnimation(.ikagoQuick) {
+            // A choice here replaces this visit's Allow Once for the kind.
+            state.visitGrants[tab.id]?.kinds.remove(kind)
+            state.setSitePermission(value, kind, host: host,
+                                    until: grant == .day ? Date().addingTimeInterval(PermissionGrant.dayLength) : nil)
+        }
+    }
+
+    private func status(_ value: SitePermission, expiry: Date?, visit: Bool) -> String {
+        if visit { return "Allowed while you stay on this site" }
+        if let expiry { return "Allowed until \(expiry.formatted(Calendar.current.isDateInToday(expiry) ? .dateTime.hour().minute() : .dateTime.weekday(.abbreviated).hour().minute()))" }
+        switch value {
+        case .ask: return "Asks each time"
+        case .allow: return "Always allowed"
+        case .block: return "Blocked"
         }
     }
 

@@ -119,7 +119,8 @@ extension BrowserState {
 }
 
 // MARK: - SitePermissions
-/// A site's camera, microphone and notification choice (the site popover): ask each time, always allow, or always block.
+/// A site's saved choice for one kind of permission (camera, microphone, notifications): ask each time, allow (for good,
+/// or until `SitePermissions.expires`), or block.
 enum SitePermission: String, Codable, CaseIterable, Identifiable {
     case ask, allow, block
     var id: String { rawValue }
@@ -132,38 +133,176 @@ enum SitePermission: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-/// Per site (host): unset kinds ask.
+/// How long an allow from the permission prompt lasts.
+enum PermissionGrant: String, CaseIterable, Identifiable {
+    /// While the tab stays on the site (not saved).
+    case visit
+    /// For 24 hours.
+    case day
+    /// Until changed.
+    case always
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .visit: "Allow Once"
+        case .day: "Allow for a Day"
+        case .always: "Always Allow"
+        }
+    }
+    static let dayLength: TimeInterval = 24 * 60 * 60
+}
+
+/// The answer to a permission prompt. Dismissing it (Esc, closing) denies only this request and saves nothing.
+enum PermissionChoice: Equatable {
+    case allow(PermissionGrant)
+    case block
+    case dismiss
+}
+
+/// Per site (host): unset kinds ask. Camera, microphone and notifications keep their own fields (saved before the
+/// rest); every other kind lives in `others`, by its catalog key (`PermissionRequest.Kinds.catalog`).
 struct SitePermissions: Codable, Equatable {
     var camera: SitePermission? = nil
     var microphone: SitePermission? = nil
     var notifications: SitePermission? = nil
+    var others: [String: SitePermission]? = nil
+    /// When a time-limited allow ends, by kind key; past it, the kind asks again.
+    var expires: [String: Date]? = nil
+    /// The kinds the site has asked for, by key: the site card lists these (and any changed), not the whole catalog.
+    var requested: [String]? = nil
+
+    subscript(key: String) -> SitePermission? {
+        get {
+            switch key {
+            case "camera": camera
+            case "microphone": microphone
+            case "notifications": notifications
+            default: others?[key]
+            }
+        }
+        set {
+            switch key {
+            case "camera": camera = newValue
+            case "microphone": microphone = newValue
+            case "notifications": notifications = newValue
+            default:
+                var all = others ?? [:]
+                all[key] = newValue
+                others = all.isEmpty ? nil : all
+            }
+        }
+    }
+}
+
+/// "Allow Once": the kinds a tab may use while it stays on `host`. Kept in memory only.
+struct VisitGrant: Equatable {
+    let host: String
+    var kinds: PermissionRequest.Kinds
 }
 
 extension BrowserState {
+    /// The site's saved choice for one kind: an allow past its expiry asks again.
     func sitePermission(_ kind: PermissionRequest.Kinds, host: String) -> SitePermission {
         let saved = browserPreferences.sitePermissions?[host.lowercased()]
-        return (kind == .camera ? saved?.camera : kind == .notifications ? saved?.notifications : saved?.microphone) ?? .ask
+        let value = saved?[kind.key] ?? .ask
+        if value == .allow, let until = saved?.expires?[kind.key], until <= Date() { return .ask }
+        return value
     }
 
-    func setSitePermission(_ value: SitePermission, _ kind: PermissionRequest.Kinds, host: String) {
+    /// When the site's allow for `kind` ends, if it is time-limited and still running.
+    func sitePermissionExpiry(_ kind: PermissionRequest.Kinds, host: String) -> Date? {
+        guard sitePermission(kind, host: host) == .allow else { return nil }
+        return browserPreferences.sitePermissions?[host.lowercased()]?.expires?[kind.key]
+    }
+
+    func setSitePermission(_ value: SitePermission, _ kind: PermissionRequest.Kinds, host: String, until: Date? = nil) {
         let host = host.lowercased()
         var all = browserPreferences.sitePermissions ?? [:]
         var entry = all[host] ?? SitePermissions()
         let stored: SitePermission? = value == .ask ? nil : value
-        if kind == .camera { entry.camera = stored } else if kind == .notifications { entry.notifications = stored } else { entry.microphone = stored }
+        entry[kind.key] = stored
+        var expires = entry.expires ?? [:]
+        expires[kind.key] = value == .allow ? until : nil
+        entry.expires = expires.isEmpty ? nil : expires
         all[host] = entry == SitePermissions() ? nil : entry
         browserPreferences.sitePermissions = all.isEmpty ? nil : all
     }
 
-    /// What the site's saved choices decide for a request: blocked if any asked-for kind is blocked, allowed if every
-    /// one is allowed, otherwise nil (ask). Private windows always ask.
-    func rememberedDecision(origin: String, kinds: PermissionRequest.Kinds) -> PermissionRequest.Decision? {
-        guard !isPrivate, let host = URL(string: origin)?.host else { return nil }
-        let asked = [PermissionRequest.Kinds.camera, .microphone, .notifications].filter { kinds.contains($0) }
-        let choices = asked.map { sitePermission($0, host: host) }
+    /// Notes that a site asked for these kinds, so its card lists them. Private windows note nothing.
+    func noteRequested(_ kinds: PermissionRequest.Kinds, origin: String) {
+        guard !isPrivate, let host = URL(string: origin)?.host?.lowercased() else { return }
+        var all = browserPreferences.sitePermissions ?? [:]
+        var entry = all[host] ?? SitePermissions()
+        let keys = kinds.parts.map(\.key).filter { !(entry.requested ?? []).contains($0) }
+        guard !keys.isEmpty else { return }
+        entry.requested = (entry.requested ?? []) + keys
+        all[host] = entry
+        browserPreferences.sitePermissions = all
+    }
+
+    /// The kinds a site's card lists: those it asked for, those set to anything but Ask, and this visit's grants.
+    func listedPermissions(host: String, tabID: String?) -> [PermissionRequest.Kinds] {
+        let entry = browserPreferences.sitePermissions?[host.lowercased()]
+        let visit = tabID.flatMap { visitGrants[$0] }.flatMap { $0.host == host.lowercased() ? $0.kinds : nil } ?? []
+        return PermissionRequest.Kinds.each.filter { kind in
+            entry?.requested?.contains(kind.key) == true || entry?[kind.key] != nil || visit.contains(kind)
+        }
+    }
+
+    /// Forgets everything saved for a site's permissions, what it asked for included.
+    func resetSitePermissions(host: String) {
+        var all = browserPreferences.sitePermissions ?? [:]
+        all[host.lowercased()] = nil
+        browserPreferences.sitePermissions = all.isEmpty ? nil : all
+    }
+
+    /// A kind's standing for a tab: its Allow Once while it is still on that site, else the site's saved choice.
+    func permission(_ kind: PermissionRequest.Kinds, host: String, tabID: String?) -> SitePermission {
+        if let tabID, let grant = visitGrants[tabID], grant.host == host.lowercased(), grant.kinds.contains(kind) { return .allow }
+        return sitePermission(kind, host: host)
+    }
+
+    /// What the site's choices decide for a request: blocked if any asked-for kind is blocked, allowed if every one is
+    /// allowed (for good, for now, or for this visit of `tabID`), otherwise nil (ask). Private windows keep nothing but
+    /// their visits' grants.
+    func rememberedDecision(origin: String, kinds: PermissionRequest.Kinds, tabID: String? = nil) -> PermissionRequest.Decision? {
+        guard let host = URL(string: origin)?.host?.lowercased() else { return nil }
+        let asked = PermissionRequest.Kinds.each.filter { kinds.contains($0) }
+        let choices = asked.map { isPrivate ? permissionForVisit($0, host: host, tabID: tabID) : permission($0, host: host, tabID: tabID) }
         if choices.contains(.block) { return .deny }
         if !choices.isEmpty, choices.allSatisfy({ $0 == .allow }) { return .allow }
         return nil
+    }
+
+    private func permissionForVisit(_ kind: PermissionRequest.Kinds, host: String, tabID: String?) -> SitePermission {
+        guard let tabID, let grant = visitGrants[tabID], grant.host == host, grant.kinds.contains(kind) else { return .ask }
+        return .allow
+    }
+
+    /// Records the prompt's answer for every kind it asked about. A private window remembers nothing past the visit.
+    func applyPermission(_ choice: PermissionChoice, kinds: PermissionRequest.Kinds, origin: String, tabID: String) {
+        guard let host = URL(string: origin)?.host?.lowercased() else { return }
+        let asked = PermissionRequest.Kinds.each.filter { kinds.contains($0) }
+        switch choice {
+        case .dismiss: return
+        case .allow(.visit):
+            var grant = visitGrants[tabID].flatMap { $0.host == host ? $0 : nil } ?? VisitGrant(host: host, kinds: [])
+            grant.kinds.formUnion(kinds)
+            visitGrants[tabID] = grant
+        case .allow(let grant):
+            guard !isPrivate else { return applyPermission(.allow(.visit), kinds: kinds, origin: origin, tabID: tabID) }
+            let until = grant == .day ? Date().addingTimeInterval(PermissionGrant.dayLength) : nil
+            asked.forEach { setSitePermission(.allow, $0, host: host, until: until) }
+        case .block:
+            guard !isPrivate else { return }
+            asked.forEach { setSitePermission(.block, $0, host: host) }
+        }
+    }
+
+    /// Allow Once lasts while the tab stays on its site: leaving it, or closing the tab, ends it.
+    func endVisitGrant(tabID: String, unless host: String? = nil) {
+        guard let grant = visitGrants[tabID], grant.host != host?.lowercased() else { return }
+        visitGrants[tabID] = nil
     }
 
     /// Settings ▸ Memory's "always keep these sites awake", for one host.

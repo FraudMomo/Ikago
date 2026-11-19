@@ -3,7 +3,7 @@ import IKCEFBridge
 import SwiftUI
 import WebKit
 /// The main browser window: a tinted translucent backdrop with the SwiftUI shell on top
-/// (the sidebar, the content card, overlays). Owns commands, permission sheets
+/// (the sidebar, the content card, overlays). Owns commands, the permission prompt queue
 /// and the traffic lights.
 @MainActor
 final class BrowserWindowController: NSWindowController, NSWindowDelegate {
@@ -23,8 +23,9 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
     private var findTabID: String?
     let content: WebContentViewController
     let background = WindowBackgroundView()
-    private var permissionQueue: [(tab: TabController, request: PermissionRequest)] = []
-    private var permissionSheet: NSWindow?
+    /// Permission requests waiting for the prompt, one entry per tab and site: a site asking again (or for another
+    /// device) while it waits joins its entry, so it is asked once.
+    private var permissionQueue: [PendingPermission] = []
     private(set) var pageWindowGrab: PageWindowGrab?
     private var systemAppearance: SystemAppearance?
     /// Ikago's own traffic lights while the window is full screen.
@@ -343,36 +344,43 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
 
     func showSettings() { openPage(.settings) }
 
-    // MARK: Permissions (one sheet at a time, fail-closed)
+    // MARK: Permissions (one prompt at a time, fail-closed)
 
     private func presentNextPermission() {
-        guard permissionSheet == nil, let window, let next = permissionQueue.first else { return }
-        let sheet = NSWindow(contentViewController: NSHostingController(rootView:
-            PermissionPromptSheet(request: next.request) { [weak self] decision in
-                self?.finishPermission(decision)
-            }))
-        permissionSheet = sheet
+        guard chrome.permissionPrompt == nil, let next = permissionQueue.first else { return }
         state.select(next.tab.tab.id)
-        window.beginSheet(sheet)
+        withAnimation(.ikago) {
+            chrome.permissionPrompt = PermissionPromptItem(origin: next.origin, kinds: next.kinds, tabID: next.tab.tab.id,
+                                                           isPrivate: state.isPrivate)
+        }
     }
 
-    func finishPermission(_ decision: PermissionRequest.Decision) {
+    /// The prompt's answer: recorded for the site (or this visit), then every request it covered is resolved.
+    func finishPermission(_ choice: PermissionChoice) {
         guard !permissionQueue.isEmpty else { return }
         let entry = permissionQueue.removeFirst()
-        entry.request.resolve(decision)
-        if let sheet = permissionSheet { window?.endSheet(sheet) }
-        permissionSheet = nil
+        state.applyPermission(choice, kinds: entry.kinds, origin: entry.origin, tabID: entry.tab.tab.id)
+        let decision: PermissionRequest.Decision
+        if case .allow = choice { decision = .allow } else { decision = .deny }
+        entry.requests.forEach { $0.resolve(decision) }
+        withAnimation(.ikagoQuick) { chrome.permissionPrompt = nil }
+        // A queued request the answer now covers (the same site in another tab, allowed for good) needs no prompt.
+        permissionQueue.removeAll { pending in
+            guard let remembered = state.rememberedDecision(origin: pending.origin, kinds: pending.kinds,
+                                                            tabID: pending.tab.tab.id) else { return false }
+            pending.requests.forEach { $0.resolve(remembered) }
+            return true
+        }
         presentNextPermission()
     }
 
     /// Drops (and thereby denies) queued requests for a tab that is going away.
     func discardPermissions(for tab: TabController) {
-        let presentingThisTab = permissionQueue.first?.tab === tab
-        permissionQueue.filter { $0.tab === tab }.forEach { $0.request.resolve(.deny) }
+        let presentingThisTab = permissionQueue.first?.tab === tab && chrome.permissionPrompt != nil
+        permissionQueue.filter { $0.tab === tab }.forEach { $0.requests.forEach { $0.resolve(.deny) } }
         permissionQueue.removeAll { $0.tab === tab }
-        if presentingThisTab, let sheet = permissionSheet {
-            window?.endSheet(sheet)
-            permissionSheet = nil
+        if presentingThisTab {
+            chrome.permissionPrompt = nil
             presentNextPermission()
         }
     }
@@ -386,7 +394,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
             browserWindow?.isIkagoFullScreen = false
             applyFullScreenPresentation()
         }
-        permissionQueue.forEach { $0.request.resolve(.deny) }
+        permissionQueue.forEach { $0.requests.forEach { $0.resolve(.deny) } }
         permissionQueue.removeAll()
         state.freezeForShutdown()
         content.shutdown()
@@ -398,6 +406,14 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
         }
         BrowserWindows.closed(self)
     }
+}
+
+/// Requests from one tab and site waiting for one prompt.
+private struct PendingPermission {
+    let tab: TabController
+    let origin: String
+    var kinds: PermissionRequest.Kinds
+    var requests: [PermissionRequest]
 }
 
 // MARK: - TabHost
@@ -422,11 +438,23 @@ extension BrowserWindowController: TabHost {
     }
 
     func tabController(_ tab: TabController, requestsPermission request: PermissionRequest) {
-        if let remembered = state.rememberedDecision(origin: request.origin, kinds: request.kinds) { return request.resolve(remembered) }
+        // The site card lists what a site has asked for, whatever the answer.
+        state.noteRequested(request.kinds, origin: request.origin)
+        if let remembered = state.rememberedDecision(origin: request.origin, kinds: request.kinds, tabID: tab.tab.id) {
+            return request.resolve(remembered)
+        }
         request.onInvalidated = { [weak self, weak tab] in
             if let tab { self?.discardPermissions(for: tab) }
         }
-        permissionQueue.append((tab, request))
+        // The same tab and site already waiting: one prompt answers both (sites often ask again, or for the camera and
+        // then the microphone). The prompt on screen widens to what both asked for.
+        if let index = permissionQueue.firstIndex(where: { $0.tab === tab && $0.origin == request.origin }) {
+            permissionQueue[index].requests.append(request)
+            permissionQueue[index].kinds.formUnion(request.kinds)
+            if index == 0, chrome.permissionPrompt != nil { chrome.permissionPrompt?.kinds = permissionQueue[0].kinds }
+            return
+        }
+        permissionQueue.append(PendingPermission(tab: tab, origin: request.origin, kinds: request.kinds, requests: [request]))
         presentNextPermission()
     }
 

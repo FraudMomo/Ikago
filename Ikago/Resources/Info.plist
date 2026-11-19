@@ -90,6 +90,10 @@
 	<string>Websites you allow can use your camera.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Websites you allow can use your microphone.</string>
+	<key>NSLocationUsageDescription</key>
+	<string>Websites you allow can know your location.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Websites you allow can know your location.</string>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>

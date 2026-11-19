@@ -186,6 +186,17 @@ extension WebKitTab: WKUIDelegate {
         if let delegate { delegate.webTab(self, requestsPermission: request) } else { request.resolve(.deny) }
     }
 
+    /// Location goes through the same prompt as every other permission (public from macOS 27; before it, WebKit denies).
+    /// Only the top frame's own site may ask.
+    @available(macOS 27.0, *)
+    func webView(_ webView: WKWebView, requestGeolocationPermissionFor origin: WKSecurityOrigin, initiatedBy frame: WKFrameInfo,
+                 decisionHandler: @escaping @MainActor @Sendable (WKPermissionDecision) -> Void) {
+        guard frame.isMainFrame else { return decisionHandler(.deny) }
+        let origin = "\(origin.protocol)://\(origin.host)\(origin.port > 0 ? ":\(origin.port)" : "")"
+        let request = PermissionRequest(origin: origin, kinds: .location, handler: decisionHandler)
+        if let delegate { delegate.webTab(self, requestsPermission: request) } else { request.resolve(.deny) }
+    }
+
     // JavaScript dialogs: native sheets on the tab's window.
 
     func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String,

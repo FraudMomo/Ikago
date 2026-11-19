@@ -30,6 +30,7 @@ NSError *IKCEFError(NSString *message);
   CGFloat _topInset;
   NSMutableDictionary<NSNumber *, IKCEFPage *> *_pendingPopups;
   NSMutableArray<IKCEFMediaRequest *> *_mediaRequests;
+  NSMutableArray<IKCEFPermissionPrompt *> *_permissionPrompts;
   BOOL _captureBlocked;
   /// A download the person asked for from the page menu, which needs no site permission.
   NSString *_requestedDownload;
@@ -37,6 +38,15 @@ NSError *IKCEFError(NSString *message);
 - (instancetype)initContainer;
 - (void)emit:(NSString *)name payload:(NSDictionary *)payload;
 - (void)attached:(CefRefPtr<CefBrowser>)browser;
+@end
+@interface IKCEFPermissionPrompt (Internal)
+- (instancetype)initWithOrigin:(NSString *)origin promptID:(uint64_t)promptID permissions:(uint32_t)permissions
+                      callback:(CefRefPtr<CefPermissionPromptCallback>)callback;
+@property(nonatomic, readonly) uint64_t promptID;
+/// Denies (if still open) and tells the handler it is gone.
+- (void)cancel;
+/// Chromium dismissed it: its callback is no longer used.
+- (void)abandon;
 @end
 @interface IKCEFMediaRequest (Internal)
 - (instancetype)initWithOrigin:(NSString *)origin permissions:(uint32_t)permissions callback:(CefRefPtr<CefMediaAccessCallback>)callback;

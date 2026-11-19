@@ -57,6 +57,9 @@
   NSArray *media = [_mediaRequests copy];
   [_mediaRequests removeAllObjects];
   for (IKCEFMediaRequest *request in media) [request cancel];
+  NSArray *prompts = [_permissionPrompts copy];
+  [_permissionPrompts removeAllObjects];
+  for (IKCEFPermissionPrompt *prompt in prompts) [prompt cancel];
   NSMutableArray *callbacks = [NSMutableArray array];
   for (NSNumber *identifier in _pending.allKeys) {
     if ([_survivors containsObject:identifier]) continue;

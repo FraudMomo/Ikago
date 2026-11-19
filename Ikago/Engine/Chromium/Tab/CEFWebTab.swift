@@ -83,6 +83,20 @@ final class CEFWebTab: WebTab {
                 delegate.webTab(self, requestsPermission: request)
             }
         }
+        // Every other permission (location, clipboard, MIDI, …) through the same prompt; bits Ikago doesn't know deny.
+        page.permissionPromptHandler = { [weak self] native in
+            MainActor.assumeIsolated {
+                guard let self, !self.isTornDown, let delegate = self.delegate,
+                      let kinds = PermissionRequest.Kinds.chromium(native.permissions) else { native.resolve(false); return }
+                let request = PermissionRequest(origin: native.origin, kinds: kinds) { decision in
+                    native.resolve(decision == .grant)
+                }
+                native.cancellationHandler = { [weak request] in
+                    MainActor.assumeIsolated { request?.invalidate() }
+                }
+                delegate.webTab(self, requestsPermission: request)
+            }
+        }
         page.externalLinkHandler = { [weak self] url, host in
             Task { @MainActor [weak self] in
                 guard let self, !self.isTornDown else { return }

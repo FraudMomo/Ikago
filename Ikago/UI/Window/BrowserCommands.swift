@@ -3,6 +3,8 @@ import AppKit
 /// Commands the SwiftUI chrome can issue; implemented by BrowserWindowController.
 @MainActor
 protocol BrowserCommands: AnyObject {
+    /// Answers the permission prompt on screen (`PermissionPrompt`).
+    func finishPermission(_ choice: PermissionChoice)
     func goBack()
     func goForward()
     func reloadOrStop()

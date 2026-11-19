@@ -34,6 +34,7 @@ class PDFCallback : public CefPdfPrintCallback {
     _pending = [NSMutableDictionary dictionary];
     _pendingPopups = [NSMutableDictionary dictionary];
     _mediaRequests = [NSMutableArray array];
+    _permissionPrompts = [NSMutableArray array];
     self.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
   }
   return self;

@@ -236,10 +236,34 @@ class Client final : public CefClient, public CefLifeSpanHandler,
   void OnMediaAccessChange(CefRefPtr<CefBrowser>, bool video, bool audio) override {
     [page_ emit:@"capture" payload:@{@"camera": @(video), @"microphone": @(audio)}];
   }
-  bool OnShowPermissionPrompt(CefRefPtr<CefBrowser>, uint64_t, const CefString&,
-      uint32_t, CefRefPtr<CefPermissionPromptCallback> callback) override {
-    callback->Continue(CEF_PERMISSION_RESULT_DENY);
+  // Every other permission a site asks for goes to Ikago's prompt (`PermissionRequest`), from the top frame's own
+  // origin only; anything else, or a page with no handler, is denied.
+  bool OnShowPermissionPrompt(CefRefPtr<CefBrowser> browser, uint64_t promptID, const CefString& origin,
+      uint32_t permissions, CefRefPtr<CefPermissionPromptCallback> callback) override {
+    IKCEFPage *page = page_;
+    NSURL *requestURL = [NSURL URLWithString:IKCEFString(origin)];
+    NSURL *top = browser ? [NSURL URLWithString:IKCEFString(browser->GetMainFrame()->GetURL())] : nil;
+    BOOL sameSite = top && requestURL && [requestURL.scheme isEqual:top.scheme] && [requestURL.host isEqual:top.host];
+    if (!page || page.isClosed || !page.permissionPromptHandler || !permissions || !sameSite) {
+      callback->Continue(CEF_PERMISSION_RESULT_DENY);
+      return true;
+    }
+    IKCEFPermissionPrompt *prompt = [[IKCEFPermissionPrompt alloc] initWithOrigin:IKCEFString(origin) promptID:promptID
+                                                                      permissions:permissions callback:callback];
+    for (IKCEFPermissionPrompt *old in [page->_permissionPrompts copy])
+      if (old.resolved) [page->_permissionPrompts removeObject:old];
+    [page->_permissionPrompts addObject:prompt];
+    page.permissionPromptHandler(prompt);
     return true;
+  }
+  void OnDismissPermissionPrompt(CefRefPtr<CefBrowser>, uint64_t promptID, cef_permission_request_result_t) override {
+    IKCEFPage *page = page_;
+    if (!page) return;
+    for (IKCEFPermissionPrompt *prompt in [page->_permissionPrompts copy]) {
+      if (prompt.promptID != promptID) continue;
+      [page->_permissionPrompts removeObject:prompt];
+      [prompt abandon];
+    }
   }
   // Chromium reports the selected match in an interim update and the count in the final one (which can leave the
   // selection out), so both kinds are passed on: the count only when it is final.

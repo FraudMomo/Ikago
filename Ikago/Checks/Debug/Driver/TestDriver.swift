@@ -209,8 +209,9 @@ enum TestDriver {
                 let sheet = c.window?.attachedSheet.map { _ in "alert" } ?? "none"
                 print("IKTEST pip after \(mode.map { "\($0)" } ?? "nil") sheet=\(sheet) windows=\(NSApp.windows.filter(\.isVisible).map { $0.title })")
             }
-        case "permission":  // answer the visible permission sheet: allow | deny
-            c.finishPermission(arg == "allow" ? .allow : .deny)
+        case "permission":  // answer the visible permission prompt: visit | day | always | block | dismiss (allow = always)
+            let grant = arg == "allow" ? .always : PermissionGrant(rawValue: arg)
+            c.finishPermission(grant.map { .allow($0) } ?? (arg == "block" ? .block : .dismiss))
         case "snapshot": snapshot(c.window, to: arg)
         case "updatecard":  // security | features | download | off: a sample update card in the frontmost window
             let notes = arg == "security" ? ["**Chromium 157.0.8123.45:** the latest security and stability fixes from the Chromium project."]

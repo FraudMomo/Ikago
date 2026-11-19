@@ -72,9 +72,10 @@
    spring. Rows have white symbols on colored circles (`SiteSettingRow`, `SettingTile`); choices are `CompactMenu`s, a
    white pill opening a real `NSMenu` (SwiftUI's `Menu` drops a custom label's background on macOS); controls answer a
    press (`SiteCardPressStyle`). Zoom moves in 10 % steps (`PageZoom`, also ⌘+/⌘−) with Reset away from 100 %. Its card
-   holds the site's settings (`SiteSettingsCard`): camera and microphone Ask/Allow/Block (`SitePermissions`, applied by
-   `rememberedDecision` before any prompt; private windows always ask), engine, tracker blocking, keep awake, zoom, and
-   Clear Site Data (that site only, both engines). An extension's page (Momentum's new tab) shows its extension's icon
+   holds the site's settings (`SiteSettingsCard`) under headings: Permissions (only the kinds the site asked for or that were set,
+   each with its standing and how long, and Reset: Asks each time, Allowed until a time, Allowed while you stay on the site, Always
+   allowed, Blocked; Ask, Allow for a Day, Always Allow or Block), This Site (engine, tracker blocking, keep awake, zoom),
+   then Clear Site Data (that site only, both engines). An extension's page (Momentum's new tab) shows its extension's icon
    (`ExtensionPageIcon`): its own icon can't be fetched outside the page. On WebKit use native
    `performAction` and popup anchors; on Chromium popups open in `ChromiumExtensionPopup`.
 7. **Settings is quiet and ordered: one sub-page at a time.** A 220 pt navigation column on a slightly quieter background: a small

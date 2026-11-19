@@ -15,6 +15,8 @@ final class ChromeModel {
     var showClearData = false
     /// The site card (`SiteInfoOverlay`) and where its button was clicked, in the shell's coordinates.
     var showSiteInfo = false
+    /// The permission prompt over the page (`PermissionPrompt`); one at a time, queued by the window.
+    var permissionPrompt: PermissionPromptItem?
     var siteInfoAnchor = CGPoint(x: 300, y: 40)
     /// Tabs picked together with Shift- or ⌘-click (`TabClick`); empty when one tab is simply open.
     var selectedTabIDs: Set<String> = []

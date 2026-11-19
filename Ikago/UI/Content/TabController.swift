@@ -264,6 +264,8 @@ final class TabController: NSObject, WebTabDelegate {
         translation = nil
         upgradedURL = nil
         state?.recordVisit(tabID: tab.id, url: url)
+        // Allow Once lasts while the tab stays on its site.
+        state?.endVisitGrant(tabID: tab.id, unless: URL(string: url)?.host)
         ExtensionAccessPresenter.shared.pageCommitted(url, engine: tab.engine ?? BrowserRuntime.engine, in: self)
     }
     func webTab(_ page: WebTab, didChangeProgress progress: Double) {

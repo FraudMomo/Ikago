@@ -29,7 +29,8 @@ final class WebNotifications: NSObject, UNUserNotificationCenterDelegate {
               let url = URL(string: page.currentURL), let host = url.host?.lowercased(),
               url.scheme == "https" || ["localhost", "127.0.0.1"].contains(host) else { return }
         let enabled = state.browserPreferences.websiteNotifications ?? true
-        let permission: SitePermission = state.isPrivate || !enabled ? .block : state.sitePermission(.notifications, host: host)
+        let permission: SitePermission = state.isPrivate || !enabled ? .block
+            : state.permission(.notifications, host: host, tabID: controller.tab.id)
         let id = message["id"] as? Int ?? 0
         func answer(_ value: [String: Any]) { page.sendNotificationMessage(value) }
         switch type {
@@ -48,19 +49,15 @@ final class WebNotifications: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 
-    /// The prompt (the window's permission sheet), then macOS's own authorization the first time.
+    /// The window's permission prompt (`PermissionPrompt`), then macOS's own authorization the first time.
     private func ask(_ controller: TabController, state: BrowserState, host: String, origin: String,
                      completion: @escaping @MainActor (Bool) -> Void) {
         guard let window = controller.host else { return completion(false) }
         let request = PermissionRequest(origin: origin, kinds: .notifications) { [weak self] decision in
             Task { @MainActor [weak self] in
-                guard decision == .grant else {
-                    state.setSitePermission(.block, .notifications, host: host)
-                    return completion(false)
-                }
-                let allowed = await self?.authorize() ?? false
-                if allowed { state.setSitePermission(.allow, .notifications, host: host) }
-                completion(allowed)
+                // The prompt records the choice and how long it lasts; macOS's own authorization comes the first time.
+                guard decision == .grant else { return completion(false) }
+                completion(await self?.authorize() ?? false)
             }
         }
         window.tabController(controller, requestsPermission: request)

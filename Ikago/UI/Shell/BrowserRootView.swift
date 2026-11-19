@@ -234,6 +234,15 @@ struct BrowserRootView: View {
     }
 
     @ViewBuilder private var overlays: some View {
+        // A site's permission request, over its own tab's page, centred on the page under the bars.
+        if let item = chrome.permissionPrompt, item.tabID == state.activeTabID {
+            PermissionPrompt(item: item, state: state) { commands?.finishPermission($0) }
+                .id(item.id)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .padding(.top, 64)
+                .padding(.leading, pageLeadingOffset)
+                .transition(.scale(scale: 0.96, anchor: .top).combined(with: .opacity))
+        }
         if chrome.showPalette {
             Color.black.opacity(state.isDark ? 0.25 : 0.08)
                 .ignoresSafeArea()

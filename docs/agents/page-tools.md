@@ -6,7 +6,8 @@ Phase 7's everyday features. Each works the same on WebKit and Chromium, and all
 ## Website notifications
 - A page-world shim (`NotificationShim`) stands in for `Notification` on both engines (Chromium shows nothing for a page's
   notification and WebKit has no public hook). It only asks; the site's saved choice decides (`WebNotifications`,
-  `BrowserState+Privacy`: Ask, Allow or Block, in the site card and Settings ▸ Security ▸ Permissions). A page can
+  `BrowserState+Privacy`: the same prompt and durations as camera and microphone, in the site card and Settings ▸
+  Security ▸ Permissions; the prompt records the choice, `WebNotifications` then asks macOS the first time). A page can
   fake the answer it reads, never a delivery. Top documents on https or loopback only; private windows never.
 - WebKit: a `.page`-world message handler (`WebNotificationBridge`). Chromium: the shim raises a DOM event that the
   page-state script (isolated world) relays through its DevTools binding, and Ikago answers with `Runtime.evaluate`.

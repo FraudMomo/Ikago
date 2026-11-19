@@ -5,6 +5,18 @@
    breaks. `WebContentViewController.adoptPopup` does this and turns the popup into a tab.
 2. **Decision handlers run exactly once.** WebKit raises if a decision/completion handler
    is dropped. Permission handlers go through `PermissionRequest` (one-shot, denies on deinit).
+   The window asks with its own prompt over the page (`PermissionPrompt`, `chrome.permissionPrompt`), never a sheet
+   window: one at a time, and a tab's site asking again while it waits joins the same prompt (`PendingPermission`), so it
+   is asked once. Answers: Allow Once (`visitGrants`, while the tab stays on the site, not saved), Allow for a Day
+   (`SitePermissions.expires`), Always Allow, Don't Allow (blocks the site); Esc or close denies just that request.
+   Private windows offer Allow Once and Don't Allow, and save nothing. `rememberedDecision(tabID:)` answers before any
+   prompt; `permissionchecks` covers it. Every kind a site can ask for is in one catalog (`PermissionKinds.swift`: key,
+   title, phrase, symbol, Chromium bits); add new kinds there, never as special cases. Chromium's general prompts
+   (`OnShowPermissionPrompt` → `IKCEFPermissionPrompt`, top frame's own site only) map onto it, and a bit Ikago doesn't
+   know denies the whole request. WebKit asks for camera and microphone, and for location from macOS 27
+   (`requestGeolocationPermissionFor`, main frame only); its clipboard reads use WebKit's own Paste callout, no permission.
+   Location needs `NSLocationUsageDescription` and the hardened runtime's location entitlement. The site card lists only
+   the kinds a site asked for (`noteRequested`, `SitePermissions.requested`) or that were set for it, with Reset.
 3. **KVO on `WKWebView` fires on the main thread.** `WebTab` uses `MainActor.assumeIsolated`
    in its observers; keep it that way.
 4. **App shortcuts beat the page.** `AppDelegate` installs a key-down monitor that sends

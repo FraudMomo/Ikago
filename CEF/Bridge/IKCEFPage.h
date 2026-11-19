@@ -10,6 +10,18 @@ NS_SWIFT_UI_ACTOR
 @property(nonatomic, copy, nullable) void (^cancellationHandler)(void);
 - (void)resolve:(BOOL)allow;
 @end
+/// A site's permission prompt from Chromium (location, clipboard, MIDI and the rest): the CEF permission bits it asks
+/// for. Fail-closed: resolved once; dropped unresolved, it denies.
+NS_SWIFT_UI_ACTOR
+@interface IKCEFPermissionPrompt : NSObject
+@property(nonatomic, readonly) NSString *origin;
+/// `cef_permission_request_types_t` bits.
+@property(nonatomic, readonly) uint32_t permissions;
+@property(nonatomic, readonly) BOOL resolved;
+/// Chromium took the prompt away itself (the page navigated, the request ended).
+@property(nonatomic, copy, nullable) void (^cancellationHandler)(void);
+- (void)resolve:(BOOL)allow;
+@end
 /// Embedded, native-view CEF page. All methods and callbacks use the main thread.
 NS_SWIFT_UI_ACTOR
 @interface IKCEFPage : NSView
@@ -22,6 +34,7 @@ NS_SWIFT_UI_ACTOR
 /// A link the person asked to open in a new tab (⌘-click, middle-click): the URL and whether it stays in the background.
 @property(nonatomic, copy, nullable) void (^newTabHandler)(NSURL *, BOOL background);
 @property(nonatomic, copy, nullable) void (^mediaPermissionHandler)(IKCEFMediaRequest *);
+@property(nonatomic, copy, nullable) void (^permissionPromptHandler)(IKCEFPermissionPrompt *);
 /// Asked before a download starts: page URL, file URL, and a reply. No reply means no download.
 @property(nonatomic, copy, nullable) void (^downloadGateHandler)(NSString *, NSString *, void (^)(BOOL));
 /// Receives the hidden DevTools window once it exists, and nil when it closes.

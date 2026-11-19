@@ -1,7 +1,7 @@
 import Foundation
 import WebKit
 
-/// A site's camera/microphone request. Fail-closed: `resolve` runs once, and a request
+/// A site's permission request (any kind in `Kinds.catalog`). Fail-closed: `resolve` runs once, and a request
 /// that is dropped unresolved (tab closed, window gone) is denied.
 @MainActor
 final class PermissionRequest {

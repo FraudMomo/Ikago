@@ -54,6 +54,8 @@ final class BrowserState {
     /// Full screen: the page goes edge to edge and the sidebar slides in from its edge on demand.
     /// Not saved; the window sets it.
     var isImmersive = false
+    /// "Allow Once" permission grants by tab (`VisitGrant`); not saved.
+    var visitGrants: [String: VisitGrant] = [:]
     /// Full screen: how far revealed bars start below the top, so the menu bar never covers them.
     var immersiveChromeTop: CGFloat = 0
     /// Split groups: tabs shown side by side (2–4 each). A group is shown whenever one of its

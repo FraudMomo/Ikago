@@ -130,6 +130,7 @@ extension TestDriver {
         case "pipchecks": await PictureInPictureChecks.run(c)
         case "historychecks": await HistoryChecks.run(c)
         case "selectionpeekchecks": await SelectionPeekChecks.run(c)
+        case "permissionchecks": await PermissionChecks.run(c)
         case "tabreorderingchecks": await TabReorderingChecks.run(c)
         case "essentialschecks": await EssentialsChecks.run(c)
         case "bookmarknavigationchecks": await BookmarkNavigationChecks.run(c)
