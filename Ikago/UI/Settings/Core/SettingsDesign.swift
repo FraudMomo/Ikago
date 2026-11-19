@@ -84,6 +84,7 @@ extension SettingsCategory {
         case .performance: Color(hex: 0x10B981)
         case .security: Color(hex: 0x22A559)
         case .passwords: Color(hex: 0x8E8E93)
+        case .autofill: Color(hex: 0x5E5CE6)
         case .imports: Color(hex: 0x06A5C9)
         case .about: Color(hex: 0x71717A)
         }
@@ -132,6 +133,7 @@ extension SettingsCategory {
         case .performance: "Memory, sleeping tabs and what Ikago is using"
         case .security: "Connections, permissions and browsing data"
         case .passwords: "Sign in with your preferred password source"
+        case .autofill: "Addresses and cards for forms"
         case .imports: "Bring your data in, or take it with you"
         case .about: "Version, updates and developer tools"
         }

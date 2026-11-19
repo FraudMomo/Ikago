@@ -99,6 +99,10 @@ struct BrowserRootView: View {
                     PasswordSaveCard(offer: offer, colors: state.palette).id(offer.id)
                         .transition(.opacity.combined(with: .move(edge: .top)))
                 }
+                if let offer = chrome.autofillSave {
+                    AutofillSaveCard(offer: offer, colors: state.palette).id(offer.id)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
                 if let job = chrome.translationJob {
                     TranslationCard(job: job, colors: state.palette,
                                     remember: { (commands as? BrowserWindowController)?.rememberTranslationTarget($0) },
@@ -118,6 +122,16 @@ struct BrowserRootView: View {
             }
             .padding(.top, 56).padding(.trailing, 16)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+            if let suggestions = chrome.autofillSuggestions {
+                GeometryReader { geometry in
+                    let frame = suggestions.frame(in: geometry.size)
+                    AutofillSuggestionsView(suggestions: suggestions, colors: state.palette)
+                        .frame(width: frame.width, height: frame.height)
+                        .offset(x: frame.minX, y: frame.minY)
+                }
+                .id(suggestions.id)
+                .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
+            }
             if let suggestions = chrome.passwordSuggestions {
                 GeometryReader { geometry in
                     let frame = suggestions.frame(in: geometry.size)
@@ -135,7 +149,7 @@ struct BrowserRootView: View {
             }
         }
         .onChange(of: state.browserPreferences.pageIntelligence) { _, enabled in if enabled != true { chrome.showPageAssistant = false } }
-        .onChange(of: state.activeTabID) { _, _ in if !chrome.peekExpanding { commands?.closePeek() }; chrome.hoverTabID = nil; chrome.showClearData = false; chrome.showSavePage = false; chrome.showSiteInfo = false; chrome.translationJob = nil; chrome.extensionAccessOffer = nil; PasswordSuggestionsPresenter.shared.dismiss() }
+        .onChange(of: state.activeTabID) { _, _ in if !chrome.peekExpanding { commands?.closePeek() }; chrome.hoverTabID = nil; chrome.showClearData = false; chrome.showSavePage = false; chrome.showSiteInfo = false; chrome.translationJob = nil; chrome.extensionAccessOffer = nil; PasswordSuggestionsPresenter.shared.dismiss(); AutofillSuggestionsPresenter.shared.dismiss() }
         .onChange(of: chrome.inlineAddress) { _, editing in if editing { chrome.hoverTabID = nil } }
         .animation(reduceMotion ? nil : .ikago, value: chrome.showNotes)
         .animation(reduceMotion ? nil : .ikago, value: chrome.showClearData)
@@ -147,6 +161,8 @@ struct BrowserRootView: View {
         .animation(reduceMotion ? nil : .ikago, value: chrome.showPageAssistant)
         .animation(reduceMotion ? nil : .ikagoQuick, value: chrome.passwordSuggestions?.id)
         .animation(reduceMotion ? nil : .ikago, value: chrome.passwordSave?.id)
+        .animation(reduceMotion ? nil : .ikagoQuick, value: chrome.autofillSuggestions?.id)
+        .animation(reduceMotion ? nil : .ikago, value: chrome.autofillSave?.id)
         .environment(\.tabHighlightStyle, state.tabHighlightStyle)
         .environment(\.chromeModel, chrome)
         .recordLayout("shell")

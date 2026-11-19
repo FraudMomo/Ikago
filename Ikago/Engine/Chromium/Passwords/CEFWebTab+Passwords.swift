@@ -23,6 +23,8 @@ struct PasswordKeyState {
 /// and which would send every console message to Ikago.
 extension CEFWebTab {
     static let passwordWorld = "ikago-passwords"
+    /// The password key and the address and card form script, which share the world.
+    static let pageScripts = PasswordKeyScript.chromium + "\n" + FormFillScript.chromium
 
     var hasPasswordKey: Bool { passwordKeyState.injectedGeneration == documentGeneration && passwordKeyState.context != nil }
 
@@ -33,6 +35,7 @@ extension CEFWebTab {
         let url = URL(string: currentURL)
         return PasswordChooser.offers(for: url, onChromium: true) || (!isPrivatePage && PasswordSaving.watches(url, onChromium: true))
             || PasswordChooser.offersStrongPasswords(for: url, isPrivate: isPrivatePage)
+            || AutofillFlow.watches(url, isPrivate: isPrivatePage)
     }
 
     var isPrivatePage: Bool { profileID.hasPrefix("Private-") }
@@ -56,7 +59,7 @@ extension CEFWebTab {
                           let frameID = frame["id"] as? String else { throw CEFError.noResult }
                     let world = try await devTools("Page.createIsolatedWorld", ["frameId": frameID, "worldName": Self.passwordWorld], generation: generation)
                     guard let context = world["executionContextId"] as? Int else { throw CEFError.noResult }
-                    _ = try await devTools("Runtime.evaluate", ["expression": PasswordKeyScript.chromium,
+                    _ = try await devTools("Runtime.evaluate", ["expression": Self.pageScripts,
                                                                 "contextId": context, "userGesture": false], generation: generation)
                     passwordKeyState.context = context
                     passwordKeyState.injectedGeneration = generation
@@ -84,15 +87,19 @@ extension CEFWebTab {
                 switch event.type {
                 case .keyUp, .keyDown:
                     guard let responder = window.firstResponder as? NSView, responder === self.page || responder.isDescendant(of: self.page) else { return }
-                    if event.type == .keyDown, [36, 76].contains(event.keyCode) { self.checkForSignIn() }
-                    // Tab into a field: list the logins once focus has landed.
-                    if event.type == .keyUp, event.keyCode == 48, PasswordChooser.suggestsOnFocus { self.suggestAtFocusedField() }
+                    if event.type == .keyDown, [36, 76].contains(event.keyCode) { self.checkForSignIn(); self.checkForSubmittedForm() }
+                    // Tab into a field: list the logins, or saved addresses and cards, once focus has landed.
+                    if event.type == .keyUp, event.keyCode == 48 {
+                        if PasswordChooser.suggestsOnFocus { self.suggestAtFocusedField() }
+                        self.autofillAtFocusedField()
+                    }
                 default:
                     guard let hit = window.contentView?.hitTest(event.locationInWindow), hit === self.page || hit.isDescendant(of: self.page) else { return }
-                    if event.type == .leftMouseUp { return self.passwordMouseUp() }
+                    if event.type == .leftMouseUp { self.checkForSubmittedForm(); return self.passwordMouseUp() }
                     guard event.clickCount == 1,
                           event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting(.capsLock).isEmpty else { return }
                     self.passwordKeyClicked(at: self.page.convert(event.locationInWindow, from: nil))
+                    self.autofillAtFocusedField()
                 }
             }
             return event

@@ -41,7 +41,7 @@ extension SettingsCategory {
             return [page("AutoFill", "AutoFill"), page("Saved", "Saved in Ikago", "Import from Apple Passwords", "Export to Apple Passwords")]
         case .about:
             return [page("Overview", "Ikago", "Acknowledgements"), page("Developer", "Developer")]
-        case .history, .imports, .performance:
+        case .history, .imports, .performance, .autofill:
             return []
         }
     }

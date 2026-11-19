@@ -37,6 +37,9 @@ final class ChromeModel {
     var showPageAssistant = false
     /// Saved logins under the focused sign-in field (`PasswordSuggestionsPresenter`).
     var passwordSuggestions: PasswordSuggestions?
+    /// Saved addresses or cards under a form field (`AutofillSuggestionsView`), and the offer to save one.
+    var autofillSuggestions: AutofillSuggestions?
+    var autofillSave: AutofillSaveOffer?
     /// "Save password?" after a sign-in (`PasswordSavePresenter`).
     var passwordSave: PasswordSaveOffer?
     /// The page translation in progress or just done (`TranslationCard`, run by `TranslationHost`).
@@ -54,7 +57,7 @@ final class ChromeModel {
     /// Something floats over the sidebar and the tab row: tabs underneath draw no hover and show no card.
     var coversTabs: Bool {
         showSiteInfo || showDevices || showDownloads || showClearData || showSavePage || showNewSpace || showNotes || showPalette
-            || textPrompt != nil || editFolderID != nil || passwordSuggestions != nil || previewTabID != nil || nativePopovers > 0
+            || textPrompt != nil || editFolderID != nil || passwordSuggestions != nil || autofillSuggestions != nil || previewTabID != nil || nativePopovers > 0
     }
     /// A live two-finger swipe between Spaces in the sidebar (`SidebarSpaceSwipe`).
     let spaceSwipe = SpaceSwipe()

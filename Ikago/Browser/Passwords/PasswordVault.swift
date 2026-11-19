@@ -162,7 +162,12 @@ final class PasswordVault {
     }
 
     /// Removes every login and the enclave key with them.
+    /// Removes every login. The key goes too, unless saved cards still need it (their numbers are sealed to it).
     func deleteAll() throws {
+        if key != nil, AutofillStore.shared.hasCards {
+            try save([])
+            return
+        }
         for url in [file, backup] { try? FileManager.default.removeItem(at: url) }
         logins = []
         key = nil
@@ -234,6 +239,36 @@ final class PasswordVault {
         defer { context.invalidate() }
         let enclaveKey = try SecureEnclave.P256.KeyAgreement.PrivateKey(dataRepresentation: key, authenticationContext: context)
         return try chosen.map { ($0, try Self.decrypt($0, with: enclaveKey)) }
+    }
+
+    // MARK: Other secrets
+
+    /// Where secrets other than passwords (card numbers) are bound, so one can never be read as a password.
+    nonisolated static let secretSite = "ikago-autofill"
+
+    /// Encrypts a secret other than a password (a card number) to the vault's Secure Enclave key, bound to `label`, so it
+    /// opens only with Touch ID (or the Mac's password). Creates and keeps the vault's key if there isn't one yet.
+    func seal(secret: String, label: String) throws -> Data {
+        try requireReadable()
+        let hadKey = key != nil
+        let publicKey = try vaultPublicKey()
+        if !hadKey { try save(logins) }
+        return try Self.encrypt(secret, to: publicKey, site: Self.secretSite, username: label)
+    }
+
+    /// Opens a sealed secret for this one use, after Touch ID (or the Mac's password). Never cached.
+    func open(secret: Data, label: String, reason: String) async throws -> String {
+        loadIfNeeded(force: true)
+        guard let key else { throw Failure(errorDescription: "Ikago’s vault has no key, so this can’t be opened.") }
+        let wrapper = Login(id: UUID(), site: Self.secretSite, title: nil, username: label, secret: secret, created: 0)
+        if usesTestKey { return try Self.decrypt(wrapper, with: P256.KeyAgreement.PrivateKey(rawRepresentation: key)) }
+        let context = LAContext()
+        context.touchIDAuthenticationAllowableReuseDuration = 0
+        do { try await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason) } catch {
+            throw Failure(errorDescription: nil)
+        }
+        defer { context.invalidate() }
+        return try Self.decrypt(wrapper, with: SecureEnclave.P256.KeyAgreement.PrivateKey(dataRepresentation: key, authenticationContext: context))
     }
 
     // MARK: Keys and encryption

@@ -52,6 +52,19 @@ enum SealedStorage {
         return key
     }
 
+    /// Unattended checks can't click a list, so they take its first choice (a login, a strong password, an address or
+    /// card). Never in the hands-on demo (scripts/demo.sh), where a person chooses; only runs that auto-approve.
+    static var picksFirstChoice: Bool {
+        #if DEBUG
+        let environment = ProcessInfo.processInfo.environment
+        if environment["IKAGO_TEST_MODE"] != nil { return environment["IKAGO_TEST_AUTO_APPROVE"] != nil }
+        #endif
+        #if IKAGO_CHECKS
+        if CommandLine.arguments.contains("--cef-smoke") { return true }
+        #endif
+        return false
+    }
+
     /// Unattended checks use disposable data, and must never touch the real Keychain or raise a prompt.
     static var usesTestKey: Bool {
         #if DEBUG

@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum SettingsCategory: String, CaseIterable, Identifiable {
-    case general, appearance, toolbar, tabs, search, performance, extensions, history, security, passwords, imports, about
+    case general, appearance, toolbar, tabs, search, performance, extensions, history, security, passwords, autofill, imports, about
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -15,12 +15,13 @@ enum SettingsCategory: String, CaseIterable, Identifiable {
         case .history: "History"
         case .security: "Privacy & Security"
         case .passwords: "Passwords"
+        case .autofill: "Autofill"
         case .imports: "Import & Export"
         case .about: "About"
         }
     }
     static var navigationGroups: [[Self]] {
-        [[.general, .appearance, .toolbar, .tabs, .search, .performance], [.security, .passwords, .extensions, .history], [.imports, .about]]
+        [[.general, .appearance, .toolbar, .tabs, .search, .performance], [.security, .passwords, .autofill, .extensions, .history], [.imports, .about]]
     }
     var symbol: String {
         switch self {
@@ -34,6 +35,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable {
         case .history: "clock.arrow.circlepath"
         case .security: "hand.raised"
         case .passwords: "key"
+        case .autofill: "creditcard"
         case .imports: "square.and.arrow.down"
         case .about: "info.circle"
         }
@@ -227,6 +229,8 @@ struct SettingsPage: View {
             PrivacySettingsSection(state: state, commands: commands)
         case .passwords:
             PasswordSettingsSection(state: state)
+        case .autofill:
+            AutofillSettingsSection(state: state)
         case .imports:
             BrowserImportSection(state: state)
             BrowserExportSection(state: state)

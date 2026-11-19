@@ -36,7 +36,7 @@ extension CEFWebTab {
             for frame in found where passwordKeyState.frames[frame.id] == nil && generation == documentGeneration {
                 guard let world = try? await devTools("Page.createIsolatedWorld", ["frameId": frame.id, "worldName": Self.passwordWorld], generation: generation),
                       let context = world["executionContextId"] as? Int,
-                      (try? await devTools("Runtime.evaluate", ["expression": PasswordKeyScript.chromium, "contextId": context, "userGesture": false],
+                      (try? await devTools("Runtime.evaluate", ["expression": Self.pageScripts, "contextId": context, "userGesture": false],
                                            generation: generation)) != nil else { continue }
                 _ = await passwordCall(context, "function (allowed, strong) { window.__ikagoPasswordKey.setKeyAllowed(allowed); window.__ikagoPasswordKey.setGenerateAllowed(strong) }",
                                        [passwordKeyState.keyAllowed, offersStrongPasswords], generation: generation)

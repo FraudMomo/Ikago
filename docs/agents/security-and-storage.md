@@ -114,6 +114,22 @@
   and the button reads Save Anyway. Default format: three groups of six letters and digits with one
   uppercase and one digit, no look-alike characters; every pick is `SecRandomCopyBytes` with rejection sampling. On Chromium
   the script learns `setGenerateAllowed` and the field's report travels with its rect. Checks: `passwordstrongchecks`.
+- Addresses and cards (Settings ▸ Autofill; `autofillAddresses`, `autofillCards`, `autofillOfferSave`, unset: on): stored in
+  `autofill.sealed` (`AutofillStore`, `SealedStorage`, with a backup); a card's number is sealed again to the password vault's
+  Secure Enclave key (`PasswordVault.seal(secret:label:)`, bound to `secretSite` and the card's id, so it can never read as a
+  password) and opens with Touch ID for each fill (`open(secret:)`); only its last four digits, brand, name and expiry are
+  readable, and the security code is never saved or filled. `deleteAll` keeps the vault's key while cards need it.
+  `FormFillScript` (isolated world; on Chromium it shares the password world, `pageScripts`) recognizes fields by
+  `autocomplete` tokens, then name, id, label and placeholder (an expiry needs "exp", "cc" or "card", so a birthday never
+  reads as one); an address field needs a second address field beside it. After the person's own click or Tab it reports the
+  field (`focus` on WebKit, `focusInfo` on Chromium); `AutofillFlow.choose` lists saved ones (`AutofillSuggestions`, the same
+  card style as passwords) and the script's `fill` takes the values as call arguments for its origin only, filling the whole
+  form's fields the person can see (selects by value or text, expiry in the field's shape). Seeing means at least 4×4
+  points, `checkVisibility` with opacity and visibility, no transparent ancestor, not clipped away (`clip-path`, `clip`, an
+  `overflow: hidden` box it sits outside of), not moved off the page and, when in view, not covered by another element: a
+  page that shows a name and hides a street or phone gets only the name. Saving reads the same visible fields. Submits are captured (`submitted` / `takeSubmitted`) and
+  `AutofillSaveCard` offers the new card, then the new address. Secure pages only, main frame or same-site frames, never
+  private windows for saving. Checks: `autofillchecks`.
 - Safari bundle native messages use WebKit's default delivery; do not override the messaging
   delegate with a blanket unsupported response. Chrome native messaging is still unavailable.
 - Extension website access (`ExtensionAccess`, one store for both engines, keyed by Web Store ID when there is one): an

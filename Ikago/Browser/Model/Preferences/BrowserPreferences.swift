@@ -102,6 +102,12 @@ struct BrowserPreferences: Codable, Equatable {
     var passwordOfferSave: Bool? = nil
     /// Offers a generated strong password in new-password fields, saved in Ikago Passwords. Unset: on.
     var passwordSuggestStrong: Bool? = nil
+    /// Fills saved addresses into address forms (Settings ▸ Autofill). Unset: on.
+    var autofillAddresses: Bool? = nil
+    /// Fills saved cards into payment forms, with Touch ID for each. Unset: on.
+    var autofillCards: Bool? = nil
+    /// Offers to save an address or card after a form with one is submitted. Unset: on.
+    var autofillOfferSave: Bool? = nil
     /// Registrable domains the person chose "Never for This Site" for.
     var passwordNeverSave: [String]? = nil
     /// Shows Safari's tabs and Tab Groups from the person's other devices (Devices control). Unset: off.

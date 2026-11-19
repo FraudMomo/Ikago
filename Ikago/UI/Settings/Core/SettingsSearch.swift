@@ -126,6 +126,10 @@ enum SettingsSearch {
         .init(title: "Fill passwords", category: .passwords, section: "AutoFill", keywords: "autofill touch id"),
         .init(title: "Import passwords", category: .passwords, section: "Import from Apple Passwords", keywords: "csv export"),
         .init(title: "Saved passwords", category: .passwords, section: "Saved in Ikago", keywords: "vault logins"),
+        .init(title: "Fill addresses", category: .autofill, section: "Autofill", keywords: "address shipping billing forms contact"),
+        .init(title: "Fill cards", category: .autofill, section: "Autofill", keywords: "credit card payment checkout touch id"),
+        .init(title: "Saved addresses", category: .autofill, section: "Addresses", keywords: "address home work"),
+        .init(title: "Saved cards", category: .autofill, section: "Cards", keywords: "credit debit card payment"),
 
         .init(title: "Import browser data", category: .imports, section: "Import", keywords: "bookmarks history tabs chrome firefox"),
         .init(title: "Remove Chromium", category: .general, section: "Advanced", keywords: "uninstall delete engine space disk webkit only"),
