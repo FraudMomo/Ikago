@@ -65,9 +65,12 @@ final class WebContentViewController: NSViewController {
         _ = view
         // Preferences reach the protections on their own; only the few that matter reconfigure pages.
         BrowserSecurity.shared.apply(state.browserPreferences)
+        if !state.isPrivate { AgentServer.shared.update() }
         observeState { [weak self] in _ = self?.state.browserPreferences } onChange: { [weak self] in
             guard let self, !self.stopped else { return }
             BrowserSecurity.shared.apply(self.state.browserPreferences)
+            // Agent access follows its setting (Settings ▸ Agents).
+            if !self.state.isPrivate { AgentServer.shared.update() }
         }
         observeState { [weak self] in self?.trackedState() } onChange: { [weak self] in self?.reconcile() }
         reconcile()

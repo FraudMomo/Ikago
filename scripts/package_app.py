@@ -178,6 +178,9 @@ def main():
     # Password matching groups sites by registrable domain (PublicSuffix.swift).
     shutil.copyfile(ROOT/'Ikago/Resources/public_suffix_list.dat', contents/'Resources/public_suffix_list.dat')
     shutil.copyfile(ROOT/'Ikago/Resources/webkit-logo.svg', contents/'Resources/webkit-logo.svg')
+    # The marks of the agents Ikago recognizes (AgentLogos.swift).
+    shutil.rmtree(contents/'Resources/agent-logos', ignore_errors=True)
+    shutil.copytree(ROOT/'Ikago/Resources/agent-logos', contents/'Resources/agent-logos')
 
     # Sparkle checks for and installs updates. Ikago isn't sandboxed, so its XPC services aren't needed.
     sparkle = contents/'Frameworks/Sparkle.framework'

@@ -31,6 +31,7 @@ extension BrowserState {
             return
         }
         visitGrants[id] = nil
+        AgentActivity.shared.closed(id)
         let order = tab.spaceID == activeSpaceID ? navigationOrder : []
         let position = order.firstIndex { $0.id == id } ?? 0
         let neighbours = order.filter { $0.id != id }

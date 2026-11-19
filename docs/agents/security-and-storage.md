@@ -149,3 +149,8 @@
 - Preserve WebKit’s native extension resource origins. Use `resourceURL`/`canonicalURL` to
   resolve Chrome-style navigation and persist stable package IDs; extension-tab APIs must
   expose resource URLs consistent with `runtime.getURL`.
+- Agents name themselves in the MCP handshake (`clientInfo`); `AgentIdentity` turns that into "Claude Code" or "Codex"
+  and a mark (`Resources/agent-logos`, Simple Icons). The name only labels tabs, the bar and the log, and grants nothing:
+  the token is the only credential. `AgentServer` keeps session → agent so each request is logged under its agent
+  (`AgentActivity.current`). Setup snippets (`AgentSetup`) all carry the token, so they leave Ikago only on Copy; Reset
+  token stops every agent.

@@ -85,6 +85,7 @@ extension SettingsCategory {
         case .security: Color(hex: 0x22A559)
         case .passwords: Color(hex: 0x8E8E93)
         case .autofill: Color(hex: 0x5E5CE6)
+        case .agents: Color(hex: 0x7C3AED)
         case .imports: Color(hex: 0x06A5C9)
         case .about: Color(hex: 0x71717A)
         }
@@ -134,6 +135,7 @@ extension SettingsCategory {
         case .security: "Connections, permissions and browsing data"
         case .passwords: "Sign in with your preferred password source"
         case .autofill: "Addresses and cards for forms"
+        case .agents: "Let AI agents browse for you, where you can see them"
         case .imports: "Bring your data in, or take it with you"
         case .about: "Version, updates and developer tools"
         }

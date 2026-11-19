@@ -556,6 +556,11 @@ enum TestDriver {
         case "railpointer":  // y in window points from the top, over the rail's middle; "off" lets the real pointer back
             RailHoverChecks.point(arg == "off" ? nil : Double(arg).map { CGFloat($0) }, browser: c)
         case "savepage": c.chrome.showSavePage = arg != "off"  // Save Page's choices
+        case "agent":  // on | off: agent access; prints the test token
+            state.browserPreferences.agentAccess = arg == "on" ? true : nil
+            BrowserSecurity.shared.apply(state.browserPreferences)
+            AgentServer.shared.update()
+            if arg == "on" { print("IKTEST agent token \(AgentCredentials.token)") }
         case "railpointtile": RailHoverChecks.pointTile(arg, browser: c)  // <index from the top> | folder
         case "raildemo": RailHoverChecks.seed(c, base: arg)  // <fixture base URL>
         case "hitat":  // x,y in window points from the top-left: which view takes the click there

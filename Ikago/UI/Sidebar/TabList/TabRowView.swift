@@ -13,8 +13,11 @@ struct FaviconView: View {
     /// Icons follow the mode they're drawn in: a site's dark icon, and SVG icons' own dark styles.
     @Environment(\.colorScheme) private var colorScheme
     var size: CGFloat = 16
+    /// A live tab's id: an agent driving it shows its mark on the icon (`AgentBadge`), wherever the icon is drawn.
+    private var tabID: String?
 
     init(tab: TabItem, size: CGFloat = 16) {
+        tabID = tab.id
         symbol = InternalPage(url: tab.url)?.symbol
         url = tab.faviconURL ?? Self.fallback(for: tab.url)
         pageURL = tab.url
@@ -67,6 +70,12 @@ struct FaviconView: View {
             }
         }
         .frame(width: size, height: size)
+        .overlay(alignment: .bottomTrailing) {
+            if let tabID, let agent = AgentActivity.shared.tabs[tabID] {
+                let badge = max(10, size * 0.68)
+                AgentBadge(agent: agent.agent, working: agent.working, size: badge).offset(x: badge * 0.35, y: badge * 0.3)
+            }
+        }
     }
 }
 

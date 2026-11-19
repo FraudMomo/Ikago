@@ -86,6 +86,10 @@ struct BrowserRootView: View {
             TranslationHost(chrome: chrome)
             // Cards that come and go at the top right, stacked: an update, save password, translation, extension access.
             VStack(alignment: .trailing, spacing: 10) {
+                // Agents at work in this window's tabs.
+                if !state.isPrivate, AgentActivity.shared.tabs.keys.contains(where: { state.tab($0) != nil }) {
+                    AgentStatusChip(state: state, colors: state.palette).transition(.opacity.combined(with: .move(edge: .top)))
+                }
                 // The update card shows in the frontmost window only.
                 if appearsActive, let phase = AppUpdates.shared.prompt.phase {
                     UpdateCard(prompt: AppUpdates.shared.prompt, phase: phase, colors: state.palette)
@@ -256,6 +260,14 @@ struct BrowserRootView: View {
     }
 
     @ViewBuilder private var overlays: some View {
+        // A tab an agent drives: its bar at the foot of the page.
+        if let id = state.activeTabID, AgentActivity.shared.drives(id) {
+            AgentBar(tabID: id, colors: state.palette)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                .padding(.bottom, 18)
+                .padding(.leading, pageLeadingOffset)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+        }
         // A site's permission request, over its own tab's page, centred on the page under the bars.
         if let item = chrome.permissionPrompt, item.tabID == state.activeTabID {
             PermissionPrompt(item: item, state: state) { commands?.finishPermission($0) }

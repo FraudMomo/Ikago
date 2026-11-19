@@ -108,6 +108,14 @@ struct BrowserPreferences: Codable, Equatable {
     var autofillCards: Bool? = nil
     /// Offers to save an address or card after a form with one is submitted. Unset: on.
     var autofillOfferSave: Bool? = nil
+    /// Lets agents drive Ikago through its MCP server on this Mac (Settings ▸ Agents). Unset: off.
+    var agentAccess: Bool? = nil
+    /// Lets agents list and use the person's own open tabs, not only their own. Unset: off.
+    var agentUsesOpenTabs: Bool? = nil
+    /// Lets agents run their own scripts in a page (in Ikago's isolated world). Unset: off.
+    var agentAllowsScripts: Bool? = nil
+    /// The agent server's port on 127.0.0.1. Unset: 47811.
+    var agentPort: Int? = nil
     /// Registrable domains the person chose "Never for This Site" for.
     var passwordNeverSave: [String]? = nil
     /// Shows Safari's tabs and Tab Groups from the person's other devices (Devices control). Unset: off.

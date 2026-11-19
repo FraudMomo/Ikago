@@ -27,6 +27,10 @@ following third-party components, each under its own license.
 
 - The **WebKit logo** (`Ikago/Resources/webkit-logo.svg`) is the WebKit project's artwork from webkit.org, © Apple Inc.,
   with its colors converted to sRGB. It only identifies the WebKit engine; WebKit is a trademark of Apple Inc.
+- The **agent marks** in `Ikago/Resources/agent-logos/` come from [Simple Icons](https://simpleicons.org) 16.38
+  (CC0 1.0; the GitHub Copilot mark under MIT). They only show which agent is connected. Claude is a trademark of
+  Anthropic, PBC; OpenAI and Codex of OpenAI; Gemini of Google LLC; Cursor of Anysphere, Inc.; GitHub Copilot of
+  GitHub, Inc.; Windsurf and Zed of their owners. Ikago isn't affiliated with or endorsed by any of them.
 - The **Chromium logo** is drawn in code from the Chromium project's artwork, © The Chromium Authors, under
   [CC BY 2.5](https://creativecommons.org/licenses/by/2.5/). It only identifies the Chromium engine. Chromium is a
   trademark of Google LLC.

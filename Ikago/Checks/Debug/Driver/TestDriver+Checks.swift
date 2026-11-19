@@ -124,6 +124,7 @@ extension TestDriver {
         case "passwordsavechecks": await PasswordSaveChecks.run(c, base: arg)
         case "passwordstrongchecks": await PasswordStrongChecks.run(c, base: arg)
         case "autofillchecks": await AutofillChecks.run(c, base: arg)
+        case "agentchecks": await AgentChecks.run(c, base: arg)
         case "featurechecks": await BrowserFeatureChecks.run(c)
         case "faviconstabilitychecks": await FaviconStabilityChecks.run(c)
         case "faviconappearancechecks": await FaviconAppearanceChecks.run(c)

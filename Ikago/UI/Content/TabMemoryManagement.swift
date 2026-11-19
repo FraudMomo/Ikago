@@ -76,7 +76,7 @@ final class TabMemoryManagement {
         let tab = controller.tab
         return !tab.isLoading && !tab.isPlayingAudio && !tab.playback.playing && !tab.cameraActive && !tab.microphoneActive
             && !(preferences.protectPinnedTabs && tab.pinned) && !preferences.protects(tab.url)
-            && controller.page?.isInspectorVisible != true
+            && controller.page?.isInspectorVisible != true && !AgentActivity.shared.drives(tab.id)
     }
 
     /// Releases inactive pages oldest-first while pressure remains. No fixed tab count or RAM budget.
