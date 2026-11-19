@@ -26,7 +26,7 @@ enum ImportFileParser {
     }
 
     /// Safari's export archive (and Ikago's, which uses its format): bookmarks HTML, history JSON and passwords CSV, each
-    /// found by extension like Chrome does. Files it doesn't know (extensions, payment cards) are left alone.
+    /// found by their file extension. Files it doesn't know (extensions, payment cards) are left alone.
     static func archive(_ data: Data) throws -> BrowserImportData {
         var result = BrowserImportData()
         var known = 0

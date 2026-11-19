@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Tab groups in the Top Tabs row, like Chrome's: a chip in the group's color leads its tabs, a click collapses or
+/// Tab groups in the Top Tabs row: a chip in the group's color leads its tabs, a click collapses or
 /// expands them (the same open state as the sidebar's), and a line in the color runs under the group's tabs. Hidden
 /// groups leave the row and come back from `HiddenGroupsButton`. Where groups show is `GroupPlacement`.
 enum TopRowEntry: Identifiable {
@@ -133,7 +133,7 @@ struct TopBarGroupChip: View {
     }
 }
 
-/// A group's color in the row, like Chrome: a 2 pt line along the bottom of its tabs, and around the active tab an
+/// A group's color in the row: a 2 pt line along the bottom of its tabs, and around the active tab an
 /// outline in the same color that follows its arch (`AttachedTabOutline`) and meets the line at both flares, so the tab
 /// you are on rises out of its group's line.
 struct TopBarGroupLine: ViewModifier {

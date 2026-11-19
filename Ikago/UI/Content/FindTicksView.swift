@@ -1,7 +1,7 @@
 import AppKit
 
 /// Find in page's marks along the page's right edge: where every match sits down the page, the selected one stronger,
-/// like Chrome's scroll bar ticks. Drawn by Ikago over WebKit pages (Chromium draws its own). Plain AppKit on the
+/// as ticks along the scroll bar. Drawn by Ikago over WebKit pages (Chromium draws its own). Plain AppKit on the
 /// tab's host view, like the link status pill; it never takes clicks.
 final class FindTicksView: NSView {
     private var ticks: [Double] = []

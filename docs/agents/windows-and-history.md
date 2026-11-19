@@ -47,8 +47,8 @@
 - Export (Settings ▸ Import & Export, `BrowserExport`): bookmarks as Netscape HTML (marked `ikagoMarker`, top level as
   the toolbar folder), or Safari's export ZIP (`ZipArchive`, stored entries): `Bookmarks.html`, `History.json`
   (metadata first: Chrome's reader rejects it otherwise; `time_usec`, `visit_count`) and, after Touch ID, `Passwords.csv`
-  in Apple Passwords' columns. Files are written 0600. Import reads the same archives (stored or deflated, by extension
-  like Chrome, unknown parts ignored), Safari and data-portability history JSON, and passwords CSV. Ikago's own export
+  in Apple Passwords' columns. Files are written 0600. Import reads the same archives (stored or deflated, by extension,
+  unknown parts ignored), Safari and data-portability history JSON, and passwords CSV. Ikago's own export
   restores its layout (`fromIkago`: no "Imported" folder); bookmarks already on the Bookmarks Bar are never moved into an
   Imported folder. `applyImport` returns an `ImportReport`: per kind, found, imported and why the rest weren't. Imported
   cookies always go into WebKit's store too. `importexportchecks` covers every format both ways with `unzip -t`.

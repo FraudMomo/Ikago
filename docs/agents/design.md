@@ -32,9 +32,9 @@
    `TabsToolbar` (its own host) is the top of the page card: navigation left, the centred address field, other controls right;
    the page's top corners are square under it (`WebTabContainerView.squareTop`). The address bar is 36 pt with no rule under it; the active tab and the bar share `tabSheetColor` (`Palette.tabSheet`: the page color, or a raised 0x2C2C2E in dark mode when the Space color is near-black so the active tab still shows; when frosted, a see-through page color in light mode and a 12% white veil in dark mode, which a darker veil all but vanished into), so tab and bar read as one lighter sheet that settles into the solid page. There is no full sidebar in this layout:
    the sidebar is a secondary rail of pins and groups below the tab row, or hidden (its peek is the rail). Tab groups
-   lead their tabs in the row as Chrome-style chips (`TopBarGroupChip`, `TopRowEntry`): top-level groups in order, then
+   lead their tabs in the row as chips (`TopBarGroupChip`, `TopRowEntry`): top-level groups in order, then
    the ungrouped tabs; a chip in the group's color (dark text on yellow and orange) collapses and expands the group (the
-   same `isOpen` as the sidebar), a 2 pt line in the color runs along the bottom of its tabs and, like Chrome, outlines the active tab's arch (`AttachedTabOutline`) to meet the line at both flares, and a
+   same `isOpen` as the sidebar), a 2 pt line in the color runs along the bottom of its tabs and outlines the active tab's arch (`AttachedTabOutline`) to meet the line at both flares, and a
    collapsed group keeps only the active tab beside its chip. Chips take tab drops, drag like sidebar headers (left 30 %
    before, middle inside, right 30 % of a shut group after; `FolderHeaderDropDelegate(horizontal:)`), and their menu is
    the group's. `GroupPlacement` (Settings ▸ Appearance ▸ Tab Groups) shows groups in both places (unset), the tab row

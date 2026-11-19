@@ -78,7 +78,7 @@ final class TabItem: Identifiable {
         return host.isEmpty ? displayTitle : host
     }
 
-    /// The address as Chrome shows it at rest: no scheme, no "www.", no lone trailing slash. Ikago's own pages and
+    /// The address as shown at rest: no scheme, no "www.", no lone trailing slash. Ikago's own pages and
     /// extension pages show their label.
     var shortAddress: String {
         guard AddressResolver.isWebURL(url), var components = URLComponents(string: url) else { return addressLabel }

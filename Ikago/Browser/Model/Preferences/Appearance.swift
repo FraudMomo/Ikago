@@ -29,8 +29,8 @@ enum GroupPlacement: String, Codable, CaseIterable, Identifiable {
 }
 
 /// Top Tabs: how the address bar sits under the tabs. Centered shows the site in the middle (unset); Full Width
-/// spans the bar with the address at its start, like Chrome; Title spans it too but shows the page's title and site,
-/// with the full address on hover, like Dia.
+/// spans the bar with the address at its start; Title spans it too but shows the page's title and site, with the full
+/// address on hover.
 /// The icon sidebar's response to the pointer (Settings ▸ Appearance ▸ Layout ▸ Window and Sidebar).
 enum RailHoverEffect: String, Codable, CaseIterable, Identifiable {
     /// Rows near the pointer reach out past the rail with their names, the nearest furthest, like the Dock; a shut group
@@ -55,8 +55,8 @@ enum TabsAddressStyle: String, Codable, CaseIterable, Identifiable {
     var summary: String {
         switch self {
         case .centered: "The site, centred over the page"
-        case .wide: "The whole address across the bar, like Chrome"
-        case .title: "The page's title and site; the address on hover, like Dia"
+        case .wide: "The whole address across the bar"
+        case .title: "The page's title and site; the address on hover"
         }
     }
 }

@@ -96,7 +96,7 @@ struct FindBarView: View {
         if !model.text.isEmpty && model.matchCount == 0 {
             Text("Not found").font(.system(size: 11)).foregroundStyle(colors.secondary).fixedSize().transition(.opacity)
         } else if !model.text.isEmpty, let total = model.totalMatches, total > 0 {
-            // "3 of 12" once the selected match is known, like Chrome and Safari.
+            // "3 of 12" once the selected match is known.
             Text(model.activeMatch > 0 ? "\(model.activeMatch) of \(total)" : total == 1 ? "1 match" : "\(total) matches")
                 .font(.system(size: 11)).monospacedDigit()
                 .foregroundStyle(colors.secondary).fixedSize().transition(.opacity)

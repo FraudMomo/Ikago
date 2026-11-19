@@ -15,7 +15,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
     private var popoverObservers: [NSObjectProtocol] = []
     let palette: CommandPaletteModel
     let find = FindBarModel()
-    /// Find belongs to each tab, as in Chrome: its own search text, and whether its find bar is open. A tab never
+    /// Find belongs to each tab: its own search text, and whether its find bar is open. A tab never
     /// starts from another tab's search, and switching tabs shows or hides the bar with the tab.
     var findTexts: [String: String] = [:]
     var findOpenTabs: Set<String> = []
@@ -198,7 +198,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
             }
             // The count and the selected match arrive with the result (`tabController(_:didFind:)`).
             // A new search (typing, not Next/Previous) may come back from Chromium with every match marked and none
-            // selected; it then gets one step, so it reads "1 of N" at once like Chrome.
+            // selected; it then gets one step, so it reads "1 of N" at once.
             self.find.selectsFirstMatch = !next && page is CEFWebTab
             page.find(text, forward: forward, matchCase: self.find.matchCase)
         }

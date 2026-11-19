@@ -60,7 +60,7 @@ Checks: `PageToolChecks` (WebKit, `pagetoolchecks`), `CEFPageToolChecks` (Chromi
   it reads "1 of N". WebKit's find says only whether it found one: `FindHighlights.detailsBody` counts the matches, finds
   the selected one from the DOM selection, marks them (Highlight All) and returns tick positions for `FindTicksView` on
   the tab's host view. Match Case works on both engines (Chromium starts a new search when the text or Match Case
-  changes). Find belongs to each tab, as in Chrome: its own text (`findTexts`) and whether its bar is open
+  changes). Find belongs to each tab: its own text (`findTexts`) and whether its bar is open
   (`findOpenTabs`). A tab never starts from another tab's search (no shared find pasteboard); switching tabs hides the
   bar or brings back that tab's own, and ⌘G with the bar closed opens the tab's find. WebKit repaints only what a new
   highlight covers, so the old Highlight All marks are deleted before new ones are set, or earlier letters' marks stay.
