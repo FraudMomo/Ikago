@@ -5,6 +5,37 @@ What changed in each release of Ikago, newest first. Add changes under **Unrelea
 
 ## Unreleased
 
+- **Top Tabs:** the Sidebar + Tabs layout is now called Top Tabs. Tab groups show as chips in the tab row, in their
+  color, and can be hidden without deleting them (Hide Group in any group menu). Three address bar styles (Centered,
+  Full Width, and Page Title, which shows the site and the page's title), pinned tabs can lead the tab row,
+  and the hidden sidebar can slide in at the window's edge. In split view each pane has its own small bar with back,
+  forward, reload, its address and close. The tab row no longer rubber-bands when its tabs fit, and the + sits closer
+  to the tabs with a small divider.
+- **Icon sidebar on hover** (Settings ▸ Appearance ▸ Layout): Magnify reaches the rows near the pointer out with
+  their names, like the Dock, and a click on a group opens a card beside the sidebar with its tabs and nested groups.
+  Expand widens the icon sidebar itself to show each row's name.
+- **Essentials:** one Show essentials switch for every layout; the tab menu pins a tab as a row or adds it to
+  essentials. Pinned tabs show in one place only.
+- **Groups and Spaces:** drag a group's header to reorder it, nest it, take it out or move it to another Space. Move a
+  group, or several selected tabs, to another Space from their menus. The Space swipe follows your fingers.
+- **Permissions:** sites ask in Ikago's own prompt over the page, once even when they ask twice. Every permission a
+  site can request (camera, microphone, location, notifications, clipboard, files, MIDI, the local network and more)
+  can be allowed once, for a day or always, or blocked. The site card lists only what the site has asked for.
+- **Save Page** (⌘S): save a page as a web archive, HTML, text, a PDF in pages or one long page, or an image of the
+  whole page or what's on screen (PNG or JPEG), or copy it.
+- **Find in page:** "N of M", Match Case, match marks on the scroll bar, and a separate search for each tab.
+- **Tabs:** closing a window remembers it whole, so ⇧⌘T brings it back with all its tabs and groups. Untouched new
+  tabs aren't reopened. Long titles fade out instead of ending in "…".
+- **Import and export:** export bookmarks, history and passwords for other browsers, or all of them as one archive,
+  and import those archives back.
+- **Bookmarks:** select several bookmarks like in Finder, then move or delete them together.
+- **Settings:** settings that don't apply to your layout are hidden instead of dimmed, and appearance options show a
+  drawing of what they do. Remove Chromium (General ▸ Advanced) deletes its data and turns it off.
+- **Performance:** showing, hiding or shrinking the sidebar resizes the page once instead of on every frame.
+- **Fixes:** a new tab's address is kept when you press Return right after ⌘T. DuckDuckGo no longer opens unless it's
+  your choice. Adding a login you already saved no longer duplicates it. Back through restored history no longer
+  adds a duplicate entry.
+
 
 ## 0.6.1 — 2026-11-18
 
