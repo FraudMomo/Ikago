@@ -100,7 +100,7 @@ this file) when a rule there changes.
 | Several windows, history, back history, import, Settings page structure | `docs/agents/windows-and-history.md` |
 | Peek, multi-tab selection, notes, page assistance, page menus | `docs/agents/peek-notes-assistant.md` |
 | Chromium/CEF: media translation, per-site engines, appearance, DevTools, extensions | `docs/agents/chromium.md` |
-| Notifications, Reader, translation, Save Page As, web apps | `docs/agents/page-tools.md` |
+| Notifications, Reader, translation, Save Page, web apps | `docs/agents/page-tools.md` |
 | Releases: Developer ID, notarization, DMG, Sparkle updates, credits | `docs/agents/distribution.md` |
 | Private WebKit SPI in use (list every new use here) | `docs/agents/private-spi.md` |
 

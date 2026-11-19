@@ -82,23 +82,34 @@ extension WebKitTab {
 
 // MARK: - Saving
 extension WebKitTab {
-    /// A web archive (WebKit's own, with every resource) or the whole page as a PDF.
-    func savePage(as format: PageSaveFormat, to url: URL) async throws {
+    /// Every Save Page format: WebKit's own web archive (every resource), the HTML or text from the page, PDFs WebKit
+    /// draws, and images from those or from a snapshot.
+    func exportPage(_ format: PageSaveFormat) async throws -> Data {
         switch format {
         case .archive:
-            let data: Data = try await withCheckedThrowingContinuation { continuation in
+            return try await withCheckedThrowingContinuation { continuation in
                 webView.createWebArchiveData { result in continuation.resume(with: result) }
             }
-            try data.write(to: url, options: .atomic)
-        case .pdf:
-            try await pdf().write(to: url, options: .atomic)
+        case .html: return try PageExport.string(try await evaluate(PageExport.htmlScript))
+        case .text: return try PageExport.string(try await evaluate(PageExport.textScript))
+        case .pdf: return try await pagedPDF()
+        case .longPDF: return try await longPDF()
+        case .fullPNG, .fullJPEG: return try PageExport.encode(try PageExport.rasterize(pdf: try await longPDF()), jpeg: format.isJPEG)
+        case .visiblePNG, .visibleJPEG: return try PageExport.encode(try await snapshot(), jpeg: format.isJPEG)
+        }
+    }
+
+    /// The whole page as one long PDF page: with no rect, WebKit draws all of its content.
+    private func longPDF() async throws -> Data {
+        try await withCheckedThrowingContinuation { continuation in
+            webView.createPDF(configuration: WKPDFConfiguration()) { continuation.resume(with: $0) }
         }
     }
 
     /// The document in letter-shaped pages: WebKit draws each slice of the page as it is laid out, and the slices are
     /// joined into one PDF (a print operation can't run without its sheet).
-    private func pdf() async throws -> Data {
-        let size = try await evaluate("[document.documentElement.scrollWidth, document.documentElement.scrollHeight]") as? [Double] ?? []
+    private func pagedPDF() async throws -> Data {
+        let size = try await evaluate(PageExport.sizeScript) as? [Double] ?? []
         guard size.count == 2, size[0] > 0, size[1] > 0 else { throw PageSaveError.failed }
         let width = min(size[0], 2400), height = min(size[1], 60 * width * 11 / 8.5)
         let pageHeight = width * 11 / 8.5

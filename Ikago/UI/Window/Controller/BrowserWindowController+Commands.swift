@@ -206,9 +206,17 @@ extension BrowserWindowController: BrowserCommands, NSMenuItemValidation {
     @objc func findPreviousMatch(_ sender: Any?) { chrome.showFind ? find.search(forward: false, next: true) : showFindBar() }
     @objc func printCurrentPage(_ sender: Any?) { activeController?.page?.printPage() }
     @objc func toggleReader(_ sender: Any?) { activeController?.toggleReader() }
+    /// Save Page's choices over the window (`SavePageSheet`).
     @objc func savePageAs(_ sender: Any?) {
-        guard let page = activeController?.page, let tab = state.activeTab else { return }
-        PageSaver.save(page, title: tab.title, in: window)
+        guard activeController?.page != nil, state.activeTab.map({ AddressResolver.isWebURL($0.url) }) == true else { return }
+        chrome.showSiteInfo = false
+        chrome.showSavePage = true
+    }
+
+    func savePage(_ format: PageSaveFormat, copy: Bool) async throws -> Bool {
+        guard let page = activeController?.page, let tab = state.activeTab else { throw PageSaveError.failed }
+        if copy { try await PageSaver.copy(page, format: format); return true }
+        return try await PageSaver.save(page, format: format, title: tab.title, in: window)
     }
     @objc func nextTab(_ sender: Any?) { state.selectAdjacent(1) }
     @objc func previousTab(_ sender: Any?) { state.selectAdjacent(-1) }

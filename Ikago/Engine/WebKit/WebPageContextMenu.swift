@@ -29,7 +29,7 @@ extension FileDropWebView {
             }
         }
         addPageItem("Translate Page", to: menu) { [weak self] in self?.pageAction(.translate) }
-        addPageItem("Save Page As…", to: menu, separated: false) { [weak self] in self?.pageAction(.savePage) }
+        addPageItem("Save Page…", to: menu, separated: false) { [weak self] in self?.pageAction(.savePage) }
         let script = """
         (() => {
           let e = document.elementFromPoint(\(point.x), \(y));

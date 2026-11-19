@@ -30,7 +30,7 @@ class ContextMenu final : public CefContextMenuHandler {
       model->AddItem(kDownloadImage, "Download Image");
     if (!params->GetSelectionText().empty()) model->AddItem(kSearch, "Search Selection in Ikago");
     model->AddItem(kTranslate, "Translate Page");
-    model->AddItem(kSave, "Save Page As…");
+    model->AddItem(kSave, "Save Page…");
     if (params->GetMediaType() == CM_MEDIATYPE_VIDEO) {
       // Ikago's own panel (ChromiumPictureInPicture) floats any video Chromium plays, streams included.
       model->AddItem(kVideo, "Picture in Picture");

@@ -52,7 +52,7 @@ struct SiteEngineRow: View {
 
 // MARK: - Page actions
 
-/// The site card's page tools as one row of tiles: Reader, Translate, Save Page As and Add to Applications.
+/// The site card's page tools as one row of tiles: Reader, Translate, Save Page and Add to Applications.
 struct SitePageActions: View {
     let state: BrowserState
     weak var commands: BrowserCommands?
@@ -69,7 +69,9 @@ struct SitePageActions: View {
             }
             tile("translate", translated ? "Original" : "Translate", help: translated ? "Show the page’s own text" : "Translate this page on this Mac",
                  tint: .blue, on: translated) { controller?.translatePage(nil) }
-            tile("arrow.down.doc", "Save As…", help: "Save the page as a web archive or PDF (⌘S)", tint: .green) { controller?.savePageAs(nil) }
+            tile("arrow.down.doc", "Save Page", help: "Save the page as an archive, HTML, text, PDF or image (⌘S)", tint: .green) {
+                controller?.savePageAs(nil)
+            }
             if !state.isPrivate, state.webApp == nil {
                 tile("plus.app", "Add App", help: "Add to Applications: its own window and a Dock shortcut", tint: .purple) { controller?.installWebApp(nil) }
             }

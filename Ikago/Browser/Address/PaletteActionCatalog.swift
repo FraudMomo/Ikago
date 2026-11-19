@@ -66,7 +66,7 @@ extension PaletteAction {
         .init("reader", "Show Reader", "doc.plaintext", "⌥⌘R", "reader mode article simplify distraction free read", "toggleReader:"),
         .init("translate", "Translate Page", "translate", "", "translate language foreign english spanish on device", "translatePage:"),
         .init("webApp", "Add to Applications…", "plus.app", "", "web app install dock launchpad application site", "installWebApp:"),
-        .init("savePage", "Save Page As…", "arrow.down.doc", "⌘S", "save page archive pdf mhtml webarchive download file", "savePageAs:"),
+        .init("savePage", "Save Page…", "arrow.down.doc", "⌘S", "save page archive pdf long screenshot image png jpeg html text mhtml webarchive download file", "savePageAs:"),
         .init("devtools", "Developer Tools", "hammer", "⌥⌘I", "inspect developer console devtools", "toggleDevTools:"),
         .init("assistant", "Ask About This Page", "sparkles", "", "assistant ai summarize page intelligence", "askThisPage:"),
         .init("perfStats", "Show or Hide Performance Stats", "speedometer", "", "fps cpu memory stats overlay", "togglePerformanceStats:"),

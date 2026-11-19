@@ -1,4 +1,4 @@
-# Page tools: notifications, Reader, translation, Save Page As, web apps
+# Page tools: notifications, Reader, translation, Save Page, web apps
 
 Phase 7's everyday features. Each works the same on WebKit and Chromium, and all of them start from the site card
 (`SitePageActions`), the View and File menus and the address field's actions.
@@ -33,10 +33,17 @@ Phase 7's everyday features. Each works the same on WebKit and Chromium, and all
   and restores the originals. The page's language is detected with `NLLanguageRecognizer`; the target is Settings ▸ General.
 - Import `Translation` with `@preconcurrency`: its session isn't `Sendable`.
 
-## Save Page As
-- `PageSaver` (NSSavePanel with a format menu) → `WebTab.savePage(as:to:)`. WebKit: `createWebArchiveData`, and a PDF
-  built from `createPDF` slices joined with PDFKit (a print operation hangs without its sheet). Chromium: MHTML from
-  `Page.captureSnapshot`, PDF from CEF's `PrintToPDF` (`IKCEFPage.savePDF`, since headful DevTools can't print).
+## Save Page
+- ⌘S, the site card's Save Page tile, the page menu and the command bar open `SavePageSheet` over the window (never a
+  save panel's format menu): Document (web archive, HTML, text), PDF (printable pages, one long page), Image (the full
+  page or the visible area, PNG or JPEG). Save asks where (`PageSaver.save`, the name filled in); Copy puts images, HTML
+  and text on the clipboard. Each engine makes every format in `WebTab.exportPage(_:)`; `savePage(as:to:)` writes it.
+- WebKit: `createWebArchiveData`; paged PDF from `createPDF` slices joined with PDFKit (a print operation hangs without
+  its sheet); Long PDF is `createPDF` with no rect (the whole content as one page); the full-page image draws that PDF
+  (`PageExport.rasterize`, 2x, smaller past `longestImage`), the visible area is `takeSnapshot`. Chromium: MHTML from
+  `Page.captureSnapshot`; both PDFs from CEF's `PrintToPDF` (`savePDF`, `saveLongPDF` sized to `cssContentSize` with no
+  margins), since headful DevTools can't print; the full page from `Page.captureScreenshot` with
+  `captureBeyondViewport`. HTML and text come from the page in the isolated world (`PageExport.htmlScript`, `textScript`).
 
 ## Web apps
 - `WebApp` (preferences) + a launcher bundle in ~/Applications (`WebAppLauncher`) whose script opens

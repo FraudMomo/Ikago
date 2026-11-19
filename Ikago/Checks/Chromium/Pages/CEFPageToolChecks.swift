@@ -1,7 +1,7 @@
 import AppKit
 import WebKit
 
-/// Website notifications and Save Page As on Chromium: the page-world shim talks to Ikago and is told back, a page can't
+/// Website notifications and Save Page on Chromium: the page-world shim talks to Ikago and is told back, a page can't
 /// make Ikago deliver by itself (Ikago decides), and a page saves as MHTML and PDF.
 @MainActor
 enum CEFPageToolChecks {
@@ -87,7 +87,16 @@ enum CEFPageToolChecks {
             throw CEFError.script("The MHTML archive is missing or malformed.")
         }
         guard (try? Data(contentsOf: pdf))?.starts(with: Data("%PDF".utf8)) == true else { throw CEFError.script("The PDF is missing or malformed.") }
-        print("CEF_PAGETOOLS_OK notifications mhtml pdf")
+        // The rest of Save Page: HTML, text, one long PDF page, and images of the whole page and the visible area.
+        let html = String(decoding: try await tab.exportPage(.html), as: UTF8.self)
+        guard html.lowercased().contains("<html") else { throw CEFError.script("The HTML is missing.") }
+        guard !(try await tab.exportPage(.text)).isEmpty else { throw CEFError.script("The text is missing.") }
+        guard (try await tab.exportPage(.longPDF)).starts(with: Data("%PDF".utf8)) else { throw CEFError.script("The long PDF is missing.") }
+        guard NSImage(data: try await tab.exportPage(.fullPNG)) != nil,
+              (try await tab.exportPage(.visibleJPEG)).starts(with: Data([0xFF, 0xD8])) else {
+            throw CEFError.script("The page images are missing.")
+        }
+        print("CEF_PAGETOOLS_OK notifications mhtml pdf html text longpdf images")
     }
 
     private static func wait(_ predicate: @MainActor () async -> Bool) async throws {

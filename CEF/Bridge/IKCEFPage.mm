@@ -156,6 +156,16 @@ class PDFCallback : public CefPdfPrintCallback {
   settings.generate_tagged_pdf = true;
   _browser->GetHost()->PrintToPDF(path.UTF8String, settings, new PDFCallback(completion));
 }
+- (void)saveLongPDFToPath:(NSString *)path inches:(CGSize)inches completion:(void (^)(BOOL))completion {
+  if (!self.ready || inches.width <= 0 || inches.height <= 0) return completion(NO);
+  CefPdfPrintSettings settings;
+  settings.print_background = true;
+  settings.paper_width = inches.width;
+  settings.paper_height = inches.height;
+  settings.margin_type = PDF_PRINT_MARGIN_NONE;
+  settings.prefer_css_page_size = false;
+  _browser->GetHost()->PrintToPDF(path.UTF8String, settings, new PDFCallback(completion));
+}
 - (void)exitFullscreen { if (self.ready) _browser->GetHost()->ExitFullscreen(true); }
 - (void)refitPage {
   if (!self.ready) return;

@@ -82,18 +82,54 @@ extension CEFWebTab {
 
 // MARK: - Saving
 extension CEFWebTab {
-    /// MHTML from DevTools' snapshot, or the whole page as a PDF from Chromium's own print.
-    func savePage(as format: PageSaveFormat, to url: URL) async throws {
+    /// Every Save Page format: MHTML from DevTools' snapshot, the HTML or text from the page, Chromium's own PDFs, and
+    /// images from DevTools' screenshots (the full page beyond the viewport, or what is on screen).
+    func exportPage(_ format: PageSaveFormat) async throws -> Data {
         switch format {
         case .archive:
             let result = try await devTools("Page.captureSnapshot", ["format": "mhtml"], generation: documentGeneration)
-            guard let text = result["data"] as? String, let data = text.data(using: .utf8) else { throw PageSaveError.failed }
-            try data.write(to: url, options: .atomic)
-        case .pdf:
+            return try PageExport.string(result["data"])
+        case .html: return try PageExport.string(try await evaluate(PageExport.htmlScript))
+        case .text: return try PageExport.string(try await evaluate(PageExport.textScript))
+        case .pdf, .longPDF:
+            // Chromium's own print (headful DevTools can't print): letter pages, or one page the document's size (CSS
+            // pixels at 96 per inch, a hair taller so nothing spills onto a second page).
+            let inches = format == .longPDF ? try await contentSize().applying(CGAffineTransform(scaleX: 1 / 96, y: 1 / 96)) : nil
+            let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".pdf")
+            defer { try? FileManager.default.removeItem(at: file) }
             let ok: Bool = await withCheckedContinuation { continuation in
-                page.savePDF(to: url.path) { continuation.resume(returning: $0) }
+                if let inches {
+                    page.saveLongPDF(to: file.path, inches: CGSize(width: inches.width, height: inches.height + 0.05)) {
+                        continuation.resume(returning: $0)
+                    }
+                } else {
+                    page.savePDF(to: file.path) { continuation.resume(returning: $0) }
+                }
             }
             guard ok else { throw PageSaveError.failed }
+            return try Data(contentsOf: file)
+        case .fullPNG, .fullJPEG:
+            let size = try await contentSize()
+            let height = min(size.height, PageExport.longestImage)
+            var parameters: [String: Any] = ["format": format.isJPEG ? "jpeg" : "png", "captureBeyondViewport": true,
+                                             "clip": ["x": 0, "y": 0, "width": size.width, "height": height, "scale": 1]]
+            if format.isJPEG { parameters["quality"] = 90 }
+            return try decode(try await devTools("Page.captureScreenshot", parameters, generation: documentGeneration))
+        case .visiblePNG, .visibleJPEG:
+            return try PageExport.encode(try await snapshot(), jpeg: format.isJPEG)
         }
+    }
+
+    /// The whole document's size in CSS pixels.
+    private func contentSize() async throws -> CGSize {
+        let metrics = try await devTools("Page.getLayoutMetrics", [:], generation: documentGeneration)
+        guard let content = metrics["cssContentSize"] as? [String: Any], let width = content["width"] as? Double,
+              let height = content["height"] as? Double, width > 0, height > 0 else { throw PageSaveError.failed }
+        return CGSize(width: width, height: height)
+    }
+
+    private func decode(_ result: [String: Any]) throws -> Data {
+        guard let encoded = result["data"] as? String, let data = Data(base64Encoded: encoded) else { throw PageSaveError.failed }
+        return data
     }
 }

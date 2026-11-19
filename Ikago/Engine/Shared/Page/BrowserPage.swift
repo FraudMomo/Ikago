@@ -41,8 +41,8 @@ protocol WebTab: AnyObject {
     func printPage()
     /// Tells the page's Notification shim (permission, or a notification's show, click and close).
     func sendNotificationMessage(_ message: [String: Any])
-    /// Writes the page to `url` as a web archive or PDF (File ▸ Save Page As…).
-    func savePage(as format: PageSaveFormat, to url: URL) async throws
+    /// The page as a file's contents in `format` (Save Page, `PageSaveFormat`); `savePage(as:to:)` writes it.
+    func exportPage(_ format: PageSaveFormat) async throws -> Data
     /// Looks up the page's icon again for Ikago's current light or dark mode (`FaviconScript`).
     func refreshFavicon()
     func setDeveloperTools(_ enabled: Bool)

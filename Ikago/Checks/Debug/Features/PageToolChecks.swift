@@ -1,8 +1,9 @@
 #if DEBUG
 import AppKit
 import WebKit
+import PDFKit
 
-/// Reader, translation text handling, Save Page As, website notifications and web apps, on WebKit: what each hands the
+/// Reader, translation text handling, Save Page, website notifications and web apps, on WebKit: what each hands the
 /// page and the person, without the system parts (macOS notifications, the Translation models) that can't run headless.
 @MainActor
 enum PageToolChecks {
@@ -67,7 +68,7 @@ enum PageToolChecks {
         check(spanish.map { PageTranslation.same($0, Locale.Language(identifier: "es")) } == true
               && spanish.map { PageTranslation.same($0, Locale.Language(identifier: "en")) } == false, "the page's language is recognized")
 
-        // Save Page As, on WebKit: a web archive and a PDF.
+        // Save Page, on WebKit: every format.
         let folder = FileManager.default.temporaryDirectory.appending(path: "IkagoPageTools-\(UUID())")
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: folder) }
@@ -76,6 +77,17 @@ enum PageToolChecks {
         try? await page.savePage(as: .pdf, to: pdf)
         check((try? Data(contentsOf: archive))?.starts(with: Data("bplist".utf8)) == true, "a web archive is written")
         check((try? Data(contentsOf: pdf))?.starts(with: Data("%PDF".utf8)) == true, "a PDF is written")
+        let html = (try? await page.exportPage(.html)).map { String(decoding: $0, as: UTF8.self) }
+        check(html?.contains("<html") == true || html?.contains("<HTML") == true, "the page's HTML is saved")
+        let text = (try? await page.exportPage(.text)).map { String(decoding: $0, as: UTF8.self) }
+        check(text?.isEmpty == false, "its text is saved")
+        let long = (try? await page.exportPage(.longPDF)).flatMap { PDFDocument(data: $0) }
+        check(long?.pageCount == 1, "Long PDF is one page")
+        let full = (try? await page.exportPage(.fullPNG)).flatMap { NSImage(data: $0) }
+        let visible = (try? await page.exportPage(.visibleJPEG)).flatMap { NSImage(data: $0) }
+        check(full != nil && visible != nil, "the full page and the visible area are saved as images")
+        let jpeg = try? await page.exportPage(.fullJPEG)
+        check(jpeg?.starts(with: Data([0xFF, 0xD8])) == true, "JPEG is JPEG")
         check(PageSaver.fileName("A/B: C\nD", "https://x.test") == "A B  C D" || PageSaver.fileName("A/B: C\nD", "https://x.test").contains("A"),
               "file names are made safe")
 

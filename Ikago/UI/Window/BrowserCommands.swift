@@ -3,6 +3,8 @@ import AppKit
 /// Commands the SwiftUI chrome can issue; implemented by BrowserWindowController.
 @MainActor
 protocol BrowserCommands: AnyObject {
+    /// Saves the active page in `format` (asking where), or copies it; false when the person cancelled the save panel.
+    func savePage(_ format: PageSaveFormat, copy: Bool) async throws -> Bool
     /// Answers the permission prompt on screen (`PermissionPrompt`).
     func finishPermission(_ choice: PermissionChoice)
     func goBack()

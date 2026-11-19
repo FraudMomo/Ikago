@@ -13,6 +13,8 @@ final class ChromeModel {
     var showNotes = false
     /// Clear Browsing Data (`ClearDataSheet`), over the window.
     var showClearData = false
+    /// Save Page's choices (`SavePageSheet`).
+    var showSavePage = false
     /// The site card (`SiteInfoOverlay`) and where its button was clicked, in the shell's coordinates.
     var showSiteInfo = false
     /// The permission prompt over the page (`PermissionPrompt`); one at a time, queued by the window.
@@ -51,7 +53,7 @@ final class ChromeModel {
 
     /// Something floats over the sidebar and the tab row: tabs underneath draw no hover and show no card.
     var coversTabs: Bool {
-        showSiteInfo || showDevices || showDownloads || showClearData || showNewSpace || showNotes || showPalette
+        showSiteInfo || showDevices || showDownloads || showClearData || showSavePage || showNewSpace || showNotes || showPalette
             || textPrompt != nil || editFolderID != nil || passwordSuggestions != nil || previewTabID != nil || nativePopovers > 0
     }
     /// A live two-finger swipe between Spaces in the sidebar (`SidebarSpaceSwipe`).

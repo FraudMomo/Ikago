@@ -42,6 +42,11 @@ struct BrowserRootView: View {
                     .onExitCommand { chrome.showNotes = false }
             }
             if chrome.showSiteInfo { SiteInfoOverlay(state: state, chrome: chrome, commands: commands) }
+            if chrome.showSavePage {
+                Color.black.opacity(state.isDark ? 0.25 : 0.1).onTapGesture { chrome.showSavePage = false }
+                SavePageSheet(state: state, commands: commands) { chrome.showSavePage = false }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity).transition(.opacity.combined(with: .scale(scale: 0.98)))
+            }
             if chrome.showClearData {
                 Color.black.opacity(state.isDark ? 0.25 : 0.1).onTapGesture { chrome.showClearData = false }
                 ClearDataSheet(state: state) { chrome.showClearData = false }
@@ -130,10 +135,11 @@ struct BrowserRootView: View {
             }
         }
         .onChange(of: state.browserPreferences.pageIntelligence) { _, enabled in if enabled != true { chrome.showPageAssistant = false } }
-        .onChange(of: state.activeTabID) { _, _ in if !chrome.peekExpanding { commands?.closePeek() }; chrome.hoverTabID = nil; chrome.showClearData = false; chrome.showSiteInfo = false; chrome.translationJob = nil; chrome.extensionAccessOffer = nil; PasswordSuggestionsPresenter.shared.dismiss() }
+        .onChange(of: state.activeTabID) { _, _ in if !chrome.peekExpanding { commands?.closePeek() }; chrome.hoverTabID = nil; chrome.showClearData = false; chrome.showSavePage = false; chrome.showSiteInfo = false; chrome.translationJob = nil; chrome.extensionAccessOffer = nil; PasswordSuggestionsPresenter.shared.dismiss() }
         .onChange(of: chrome.inlineAddress) { _, editing in if editing { chrome.hoverTabID = nil } }
         .animation(reduceMotion ? nil : .ikago, value: chrome.showNotes)
         .animation(reduceMotion ? nil : .ikago, value: chrome.showClearData)
+        .animation(reduceMotion ? nil : .ikago, value: chrome.showSavePage)
         .animation(reduceMotion ? nil : .ikagoQuick, value: chrome.showSiteInfo)
         .animation(reduceMotion ? nil : .ikago, value: chrome.textPrompt?.id)
         .animation(reduceMotion ? nil : .ikago, value: chrome.editFolderID)
