@@ -38,8 +38,8 @@ extension CEFWebTab {
                       let context = world["executionContextId"] as? Int,
                       (try? await devTools("Runtime.evaluate", ["expression": PasswordKeyScript.chromium, "contextId": context, "userGesture": false],
                                            generation: generation)) != nil else { continue }
-                _ = await passwordCall(context, "function (allowed) { window.__ikagoPasswordKey.setKeyAllowed(allowed) }",
-                                       [passwordKeyState.keyAllowed], generation: generation)
+                _ = await passwordCall(context, "function (allowed, strong) { window.__ikagoPasswordKey.setKeyAllowed(allowed); window.__ikagoPasswordKey.setGenerateAllowed(strong) }",
+                                       [passwordKeyState.keyAllowed, offersStrongPasswords], generation: generation)
                 passwordKeyState.frames[frame.id] = context
             }
         }
@@ -61,7 +61,8 @@ extension CEFWebTab {
                 guard let css = rect as? [String: Any] else { continue }
                 let offset = await frameOffset(frameID, generation: generation)
                 let origin = await passwordCall(context, "function () { return location.origin }", generation: generation) as? String
-                await fillFromVault(field: offset.flatMap { fieldRect(css, offset: $0) }, generation: generation, context: context, origin: origin)
+                await fillFromVault(field: offset.flatMap { fieldRect(css, offset: $0) }, generation: generation, context: context,
+                                    origin: origin, report: css)
                 return
             }
             checkForSignIn(delay: false)

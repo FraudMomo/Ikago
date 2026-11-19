@@ -122,6 +122,7 @@ extension TestDriver {
         case "pagetoolshots": await PageToolChecks.shots(c, base: arg.components(separatedBy: "|")[0], dir: arg.components(separatedBy: "|").last ?? "/tmp")
         case "pagetoolchecks": await PageToolChecks.run(c, base: arg)
         case "passwordsavechecks": await PasswordSaveChecks.run(c, base: arg)
+        case "passwordstrongchecks": await PasswordStrongChecks.run(c, base: arg)
         case "featurechecks": await BrowserFeatureChecks.run(c)
         case "faviconstabilitychecks": await FaviconStabilityChecks.run(c)
         case "faviconappearancechecks": await FaviconAppearanceChecks.run(c)

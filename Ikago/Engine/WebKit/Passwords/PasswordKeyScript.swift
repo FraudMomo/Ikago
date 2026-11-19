@@ -6,13 +6,17 @@
 enum PasswordKeyScript {
     /// WebKit: replies come back through the message handler's promise.
     static let source = make(transport: """
-        let keyAllowed = true
+        let keyAllowed = true, generateAllowed = true
         const post = message => window.webkit.messageHandlers.\(PasswordAutoFill.handlerName).postMessage(message)
         """)
 
     /// Chromium: native code says whether the key may show (`setKeyAllowed`). The script never sends anything:
     /// native code sees real clicks and keys and then asks the script (`hit`, `focusRect`, `poll`).
-    static let chromium = make(transport: "let keyAllowed = false\nconst post = message => Promise.resolve(message.type === 'query' ? keyAllowed : false)")
+    /// A new-password field shows the key whenever strong passwords are offered (`setGenerateAllowed`).
+    static let chromium = make(transport: """
+        let keyAllowed = false, generateAllowed = false
+        const post = message => Promise.resolve(message.type === 'query' ? (message.newPassword ? generateAllowed : keyAllowed) : false)
+        """)
 
     private static func make(transport: String) -> String { """
         (() => {
@@ -22,7 +26,7 @@ enum PasswordKeyScript {
           const largest = 22, smallest = 12, inset = 3, minimumWidth = 80
           const textTypes = new Set(['', 'text', 'email', 'tel'])
           const userPattern = /user|log-?in|e-?mail|account|identifier|sign-?in|phone|handle/i
-          let field = null, requested = null, requests = 0, lastInput = -Infinity, lastClick = false, keyClickedAt = 0
+          let field = null, requested = null, requests = 0, lastInput = -Infinity, lastClick = false, keyClickedAt = 0, fieldIsNew = false
 
           // The focused element, inside open shadow roots too (web components keep their inputs there).
           const deepActive = () => {
@@ -47,7 +51,8 @@ enum PasswordKeyScript {
             requested = field
             // A click puts the pointer on the field, so a frame without a known offset can list there; Tab can't.
             const click = performance.now() - lastInput < 600 && lastClick
-            Promise.resolve(handler.postMessage({ type: 'suggest', rect: rectOf(field), click })).catch(() => {})
+            Promise.resolve(handler.postMessage(Object.assign({ type: 'suggest', rect: rectOf(field), click, typed: usernameOf(field) },
+                                                              fieldIsNew ? { newPassword: true, rules: rulesOf(field) } : {}))).catch(() => {})
           }
           const typeOf = el => (el.getAttribute('type') || '').toLowerCase()
           const scopeOf = el => el.form || (el.closest && el.closest('form, dialog, [role=dialog]')) || el.getRootNode() || document
@@ -70,6 +75,35 @@ enum PasswordKeyScript {
             if (scope.querySelector('input[type=password i]')) return true
             return el.form ? textFields(scope).length <= 2 : textFields(scope).length === 1
           }
+
+          // A field for a new password: annotated as one, the new and confirm fields of a sign-up or change form (not the
+          // current password, which comes first in a form of three), or a password field on a sign-up page.
+          const isNewPassword = el => {
+            if (!(el instanceof HTMLInputElement) || typeOf(el) !== 'password' || el.disabled || el.readOnly) return false
+            const t = tokens(el)
+            if (t.includes('new-password')) return true
+            if (t.includes('current-password')) return false
+            const passwords = [...scopeOf(el).querySelectorAll('input[type=password i]')].filter(visible)
+            if (passwords.length >= 2) return !(passwords.length >= 3 && passwords[0] === el)
+            const text = [el.name, el.id, el.getAttribute('placeholder'), el.getAttribute('aria-label')].join(' ')
+            if (/new|create|choose|confirm|repeat|again|retype/i.test(text)) return true
+            const form = el.form
+            const context = [form && form.getAttribute('action'), form && form.id, form && form.getAttribute('name'), location.pathname].join(' ')
+            return /sign-?up|register|registration|create|join|new-?account|enrol/i.test(context)
+          }
+          // What the field says about the passwords it takes, for the generator.
+          const rulesOf = el => ({ rules: el.getAttribute('passwordrules') || '', minLength: el.minLength > 0 ? el.minLength : 0,
+                                   maxLength: el.maxLength > 0 ? el.maxLength : 0, pattern: el.getAttribute('pattern') || '' })
+          // The username the field's form holds: the field itself, or the username field before a password field.
+          const usernameOf = target => {
+            if (!target) return ''
+            if (typeOf(target) !== 'password') return (target.value || '').slice(0, 200)
+            const scope = target.form || scopeOf(target)
+            const before = textFields(scope).filter(el => el.value && (el.compareDocumentPosition(target) & Node.DOCUMENT_POSITION_FOLLOWING))
+            const named = before.filter(isLoginField).pop() || before.pop()
+            return (named ? named.value : lastUser).slice(0, 200)
+          }
+          const describe = el => Object.assign(rectOf(el), { typed: usernameOf(el) }, fieldIsNew ? { newPassword: true, rules: rulesOf(el) } : {})
 
           const host = document.createElement('ikago-password-key')
           const root = host.attachShadow({ mode: 'closed' })
@@ -144,9 +178,14 @@ enum PasswordKeyScript {
               return hide()
             }
             const request = ++requests
-            const allowed = await Promise.resolve(handler.postMessage({ type: 'query' })).catch(() => false)
+            const fresh = isNewPassword(target)
+            const allowed = await Promise.resolve(handler.postMessage({ type: 'query', newPassword: fresh })).catch(() => false)
             if (!allowed || request !== requests || deepActive() !== target) return
             field = target
+            fieldIsNew = fresh
+            const label = fresh ? 'Suggest a strong password' : 'Fill from Passwords'
+            button.title = label
+            button.setAttribute('aria-label', label)
             place()
             raise()
             if (performance.now() - lastInput < 600) suggest()
@@ -182,7 +221,8 @@ enum PasswordKeyScript {
             requested = field
             keyClickedAt = Date.now()
             field.focus()
-            Promise.resolve(handler.postMessage({ type: 'fill', rect: rectOf(field) })).catch(() => {})
+            Promise.resolve(handler.postMessage(Object.assign({ type: 'fill', rect: rectOf(field), typed: usernameOf(field) },
+                                                              fieldIsNew ? { newPassword: true, rules: rulesOf(field) } : {}))).catch(() => {})
           })
 
           // Fills a login the person picked: visible, enabled fields of the form the key was in.
@@ -209,6 +249,23 @@ enum PasswordKeyScript {
             if (pass && password) assign(pass, password)
             ;(pass || user).focus()
             return true
+          }
+
+          // A strong password the person chose: into the new-password fields of the form (the field and its confirm),
+          // never the current password. Returns the username the form already has, to save the login with.
+          const fillNew = (password, origin) => {
+            if (location.origin !== origin) return false
+            const target = requested && requested.isConnected ? requested : field
+            if (!target) return false
+            const scope = target.form || scopeOf(target)
+            const passwords = [...scope.querySelectorAll('input[type=password i]')].filter(usable)
+            const fresh = passwords.filter(el => el === target || isNewPassword(el))
+            for (const el of fresh) assign(el, password)
+            const first = passwords[0] || target
+            const before = textFields(scope).filter(el => el.value && (el.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING))
+            const named = before.filter(isLoginField).pop() || before.pop()
+            target.focus()
+            return { username: (named ? named.value : lastUser).trim(), filled: fresh.length }
           }
 
           // Saving: a sign-in is a filled password sent by a form submit, Return, or a button. It's confirmed once the
@@ -264,7 +321,7 @@ enum PasswordKeyScript {
             state: () => {
               const r = host.getBoundingClientRect()
               return { visible: host.style.getPropertyValue('display') === 'block', field: field ? field.id : null,
-                       covered: !!field && inTopLayer(field) && !(popovers && host.matches(':popover-open')),
+                       covered: !!field && inTopLayer(field) && !(popovers && host.matches(':popover-open')), newPassword: fieldIsNew,
                        x: r.x + r.width / 2, y: r.y + r.height / 2 }
             },
             click: () => button.click(),
@@ -274,19 +331,26 @@ enum PasswordKeyScript {
               const r = host.getBoundingClientRect()
               if (x < r.left || x > r.right || y < r.top || y > r.bottom) return false
               requested = field
-              return rectOf(field)
+              return describe(field)
             },
             // The focused sign-in field after a real click or Tab (Chromium), so native code can list logins under it.
             focusRect: () => {
               if (!field || deepActive() !== field || host.style.getPropertyValue('display') !== 'block') return null
               requested = field
-              return rectOf(field)
+              return describe(field)
             },
-            setKeyAllowed: allowed => { keyAllowed = !!allowed; if (!allowed) hide() },
+            // What the focused username field holds, as the person types with the list open; null in a password field.
+            typed: () => {
+              const el = deepActive()
+              if (!el || (el !== field && el !== requested) || typeOf(el) === 'password') return null
+              return (el.value || '').slice(0, 200)
+            },
+            setKeyAllowed: allowed => { keyAllowed = !!allowed; if (!allowed && !fieldIsNew) hide() },
+            setGenerateAllowed: allowed => { generateAllowed = !!allowed },
             // Chromium: whether the key was clicked since native code last asked, as the field's rect in this frame.
             poll: () => {
               const result = {}
-              if (field && Date.now() - keyClickedAt < 1500) { keyClickedAt = 0; requested = field; result.key = rectOf(field) }
+              if (field && Date.now() - keyClickedAt < 1500) { keyClickedAt = 0; requested = field; result.key = describe(field) }
               return result
             },
             // Chromium: the sign-in waiting to be saved, confirmed or not; a confirmed one is handed over only once.
@@ -298,7 +362,8 @@ enum PasswordKeyScript {
             },
             // A new page that still asks for a password means the sign-in didn't go through.
             hasPasswordField: () => [...document.querySelectorAll('input[type=password i]')].some(visible),
-            fill
+            fill,
+            fillNew
           }
           // A field focused before this script ran (autofocus) gets the key right away.
           const focused = deepActive()

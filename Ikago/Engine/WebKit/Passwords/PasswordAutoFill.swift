@@ -33,11 +33,27 @@ final class PasswordAutoFill: NSObject, WKScriptMessageHandlerWithReply {
         guard let webView = message.webView, isEnabled, Self.mayFill(message.frameInfo, in: webView),
               let body = message.body as? [String: Any], let kind = body["type"] as? String else { return replyHandler(false, nil) }
         let vault = PasswordSource.current == .ikago
+        // A new-password field: a strong password, whichever store fills logins.
+        if body["newPassword"] as? Bool == true {
+            let isPrivate = (webView.window?.windowController as? BrowserWindowController)?.state.isPrivate ?? true
+            switch kind {
+            case "query": return replyHandler(PasswordChooser.offersStrongPasswords(for: webView.url, isPrivate: isPrivate), nil)
+            case "fill", "suggest":
+                replyHandler(true, nil)
+                let field = Self.fieldRect(body["rect"], frame: message.frameInfo, in: webView)
+                // As with logins: Tab lists only in the main frame, where the field's place is known.
+                if kind == "suggest", !PasswordChooser.suggestsOnFocus || (field == nil && body["click"] as? Bool != true) { return }
+                return suggestStrong(webView, frame: message.frameInfo, field: field,
+                                     rules: PasswordGenerator.Rules(body["rules"] as? [String: Any]), isPrivate: isPrivate)
+            default: break
+            }
+        }
         switch kind {
         case "query": replyHandler(vault ? PasswordChooser.offers(for: webView.url) : true, nil)
         case "fill" where vault:
             replyHandler(true, nil)
-            fillFromVault(webView, frame: message.frameInfo, field: Self.fieldRect(body["rect"], frame: message.frameInfo, in: webView))
+            fillFromVault(webView, frame: message.frameInfo, field: Self.fieldRect(body["rect"], frame: message.frameInfo, in: webView),
+                          typed: body["typed"] as? String ?? "")
         case "save" where vault:
             replyHandler(true, nil)
             saved(body, frame: message.frameInfo, in: webView)
@@ -48,9 +64,9 @@ final class PasswordAutoFill: NSObject, WKScriptMessageHandlerWithReply {
             guard PasswordChooser.suggestsOnFocus else { return }
             if message.frameInfo.isMainFrame {
                 guard let field = Self.fieldRect(body["rect"], frame: message.frameInfo, in: webView) else { return }
-                fillFromVault(webView, frame: message.frameInfo, field: field)
+                fillFromVault(webView, frame: message.frameInfo, field: field, typed: body["typed"] as? String ?? "")
             } else if body["click"] as? Bool == true {
-                fillFromVault(webView, frame: message.frameInfo)
+                fillFromVault(webView, frame: message.frameInfo, typed: body["typed"] as? String ?? "")
             }
         case "fill": replyHandler(open(for: webView), nil)
         default: replyHandler(false, nil)
@@ -67,10 +83,16 @@ final class PasswordAutoFill: NSObject, WKScriptMessageHandlerWithReply {
         return NSRect(x: x * scale, y: top, width: width * scale, height: height * scale)
     }
 
-    private func fillFromVault(_ webView: WKWebView, frame: WKFrameInfo, field: NSRect? = nil) {
+    private func fillFromVault(_ webView: WKWebView, frame: WKFrameInfo, field: NSRect? = nil, typed: String = "") {
         guard let url = webView.url, isFocused(webView) else { return }
         Task { @MainActor in
-            guard let login = await PasswordChooser.choose(for: url, in: webView, field: field), webView.url == url,
+            let readTyped: @MainActor () async -> String? = {
+                guard webView.url == url else { return nil }
+                return try? await webView.callAsyncJavaScript("return window.__ikagoPasswordKey.typed()", in: frame,
+                                                              contentWorld: .defaultClient) as? String
+            }
+            guard let login = await PasswordChooser.choose(for: url, in: webView, field: field, typed: typed, readTyped: readTyped),
+                  webView.url == url,
                   Self.mayFill(frame, in: webView) else { return }
             _ = try? await webView.callAsyncJavaScript("return window.__ikagoPasswordKey.fill(username, password, origin)",
                 arguments: ["username": login.username, "password": login.password, "origin": Self.origin(of: frame, page: url)],
@@ -78,6 +100,30 @@ final class PasswordAutoFill: NSObject, WKScriptMessageHandlerWithReply {
             #if DEBUG
             if WebProfiles.isTestMode { print("IKTEST passwords vault filled") }
             #endif
+        }
+    }
+
+    /// Offers a strong password at a new-password field; the chosen one fills the field and its confirmation. It's saved
+    /// only when the person confirms the save card after the form goes through, with its username (`PasswordSaving`).
+    private func suggestStrong(_ webView: WKWebView, frame: WKFrameInfo, field: NSRect?, rules: PasswordGenerator.Rules, isPrivate: Bool) {
+        guard let url = webView.url, isFocused(webView) else { return }
+        Task { @MainActor in
+            guard let choice = await PasswordChooser.chooseNew(for: url, in: webView, field: field, rules: rules, isPrivate: isPrivate),
+                  webView.url == url, Self.mayFill(frame, in: webView) else { return }
+            let origin = Self.origin(of: frame, page: url)
+            switch choice {
+            case .generated(let password):
+                let result = try? await webView.callAsyncJavaScript("return window.__ikagoPasswordKey.fillNew(password, origin)",
+                    arguments: ["password": password, "origin": origin], in: frame, contentWorld: .defaultClient)
+                guard let filled = result as? [String: Any] else { return }
+                if filled["filled"] as? Int ?? 0 > 0 { PasswordChooser.rememberStrong(password, host: frame.securityOrigin.host) }
+                #if DEBUG
+                if WebProfiles.isTestMode { print("IKTEST passwords strong filled \(filled["filled"] as? Int ?? 0)") }
+                #endif
+            case .login(let username, let password):
+                _ = try? await webView.callAsyncJavaScript("return window.__ikagoPasswordKey.fill(username, password, origin)",
+                    arguments: ["username": username, "password": password, "origin": origin], in: frame, contentWorld: .defaultClient)
+            }
         }
     }
 

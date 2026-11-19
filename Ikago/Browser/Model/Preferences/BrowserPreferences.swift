@@ -100,6 +100,8 @@ struct BrowserPreferences: Codable, Equatable {
     var passwordSuggestOnFocus: Bool? = nil
     /// Offers to save or update a login after signing in (Ikago Passwords). Unset: on.
     var passwordOfferSave: Bool? = nil
+    /// Offers a generated strong password in new-password fields, saved in Ikago Passwords. Unset: on.
+    var passwordSuggestStrong: Bool? = nil
     /// Registrable domains the person chose "Never for This Site" for.
     var passwordNeverSave: [String]? = nil
     /// Shows Safari's tabs and Tab Groups from the person's other devices (Devices control). Unset: off.

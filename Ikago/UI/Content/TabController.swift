@@ -263,6 +263,11 @@ final class TabController: NSObject, WebTabDelegate {
         closeReader()
         translation = nil
         upgradedURL = nil
+        // A list of saved logins, addresses or cards belongs to the page it opened over, never the next one.
+        if state?.activeTabID == tab.id {
+            PasswordSuggestionsPresenter.shared.dismiss()
+            AutofillSuggestionsPresenter.shared.dismiss()
+        }
         state?.recordVisit(tabID: tab.id, url: url)
         // Allow Once lasts while the tab stays on its site.
         state?.endVisitGrant(tabID: tab.id, unless: URL(string: url)?.host)

@@ -37,6 +37,12 @@ struct PasswordSettingsSection: View {
                     }
                 }
                 PageDivider()
+                PageRow(title: "Suggest strong passwords", subtitle: "When you sign up or change a password, offer a new one and save it") {
+                    Toggle("Suggest strong passwords", isOn: Binding(get: { state.browserPreferences.passwordSuggestStrong ?? true },
+                                                                     set: { state.browserPreferences.passwordSuggestStrong = $0 }))
+                        .labelsHidden().toggleStyle(.switch)
+                }
+                PageDivider()
                 PageRow(title: "Suggest logins automatically", subtitle: "Show saved logins when you click a sign-in field. Off: click the key first") {
                     Toggle("Suggest logins automatically", isOn: Binding(get: { state.browserPreferences.passwordSuggestOnFocus ?? true },
                                                                          set: { state.browserPreferences.passwordSuggestOnFocus = $0 }))

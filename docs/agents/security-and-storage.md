@@ -87,8 +87,13 @@
   on pages (pages can detect it and it streams every console message). The logins list is Ikago's own card in the window's
   SwiftUI tree (`PasswordSuggestions`, shown through `ChromeModel`), the same on both engines: it opens under the field after
   the person's own click or Tab (`passwordSuggestOnFocus`, unset: on; a page focusing a field by itself opens nothing) or from
-  the key, and a local monitor reads arrows, Return and Escape while the page keeps the keyboard. Choosing a login still asks
-  Touch ID. Fields in child frames without a known offset list at the pointer. Debug tests pick the first login instead of a list.
+  the key, and a local monitor reads arrows, Return and Escape while the page keeps the keyboard. Logins with the same
+  username on several sites of the domain are one row (the vault's best match first; its chevron, or →, lists the others, so
+  none is hidden). The username the form holds (`typed`, read again with the script's `typed()` as the person types) narrows
+  the rows to usernames containing it, but only when one does (a prefilled address that isn't saved shows them all; typing
+  one that isn't closes the list). More than three usernames add a search field (usernames, sites, titles). The click that
+  closes the list (on the key or the field) doesn't reopen it (`closedByClick`), and the header has a close button. Choosing
+  a login still asks Touch ID. Fields in child frames without a known offset list at the pointer. Debug tests pick the first login instead of a list.
 - Saving logins (`PasswordSaving`, `passwordOfferSave`, unset: on; Ikago Passwords only; never in private windows, asked of the
   window): the script captures a filled password on submit, Return or a button, and confirms the sign-in only when the password
   field goes away or the page moves on to one without a password field, so a rejected password is never offered. The card
@@ -98,6 +103,17 @@
   so `PasswordExportSection` writes the Passwords app's CSV (one Touch ID for all), the person imports it (File ▸ Import
   Passwords…), and Ikago erases the file; only logins saved here (`savedHere`) and not yet exported (`exported`, cleared when the
   password changes) are included. Checks: `passwordsavechecks` (WebKit) and `CEFPasswordChecks` (Chromium).
+- Strong passwords (`PasswordGenerator`, `passwordSuggestStrong`, unset: on; HTTPS or local pages, never private windows,
+  whichever source fills logins): the key script marks new-password fields (`autocomplete="new-password"`, the new and confirm
+  fields of a two- or three-password form, or a password field on a sign-up page) and reports their `passwordrules`,
+  `minlength`, `maxlength` and `pattern`. The suggestions card puts "Use Strong Password" first (`PasswordSuggestions.generated`);
+  the script's `fillNew` fills the field and its confirmation (never a current-password field). Nothing is saved then: the
+  person confirms the save card once the form goes through, with its username (`rememberStrong` only marks the password, in
+  memory, so the card says "Save strong password?" and doesn't time out). So a change-password form never replaces the saved
+  login before the change succeeds, and no login is ever saved without the person seeing its username; an empty one says so
+  and the button reads Save Anyway. Default format: three groups of six letters and digits with one
+  uppercase and one digit, no look-alike characters; every pick is `SecRandomCopyBytes` with rejection sampling. On Chromium
+  the script learns `setGenerateAllowed` and the field's report travels with its rect. Checks: `passwordstrongchecks`.
 - Safari bundle native messages use WebKit's default delivery; do not override the messaging
   delegate with a blanket unsupported response. Chrome native messaging is still unavailable.
 - Extension website access (`ExtensionAccess`, one store for both engines, keyed by Web Store ID when there is one): an

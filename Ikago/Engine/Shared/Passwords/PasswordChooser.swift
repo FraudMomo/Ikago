@@ -21,7 +21,7 @@ enum PasswordChooser {
     static func offers(for url: URL?, onChromium: Bool = false) -> Bool {
         guard onChromium || PasswordSource.current == .ikago, BrowserSecurity.shared.preferences.passwordAutoFill ?? true,
               let url, let host = url.host else { return false }
-        let secure = url.scheme?.lowercased() == "https" || ["localhost", "127.0.0.1", "::1"].contains(host)
+        let secure = BrowserPreferences.isSecurePage(url)
         return secure && !PasswordVault.shared.matches(for: host).isEmpty
     }
 
@@ -35,15 +35,79 @@ enum PasswordChooser {
         return scheme + "://" + host + port
     }
 
+    /// Whether a new-password field on a page at `url` offers a strong password: on in Settings, an HTTPS page (or local
+    /// development), never in a private window (it couldn't be saved).
+    static func offersStrongPasswords(for url: URL?, isPrivate: Bool) -> Bool {
+        let preferences = BrowserSecurity.shared.preferences
+        guard !isPrivate, preferences.passwordAutoFill ?? true, preferences.passwordSuggestStrong ?? true,
+              BrowserPreferences.isSecurePage(url) else { return false }
+        return true
+    }
+
+    enum NewPasswordChoice {
+        case generated(String)
+        case login(username: String, password: String)
+    }
+
+    /// For a new-password field: a strong password that keeps the field's rules, offered above the site's saved logins
+    /// (a change-password form may want one of them). nil when dismissed.
+    static func chooseNew(for url: URL, in view: NSView, field: NSRect?, rules: PasswordGenerator.Rules,
+                          isPrivate: Bool) async -> NewPasswordChoice? {
+        guard offersStrongPasswords(for: url, isPrivate: isPrivate), let host = url.host,
+              let password = PasswordGenerator.generate(rules) else { return nil }
+        let logins = PasswordVault.shared.matches(for: host)
+        #if DEBUG || IKAGO_CHECKS
+        if SealedStorage.picksFirstChoice { return .generated(password) }  // unattended checks can't click the list
+        #endif
+        guard let window = view.window else { return nil }
+        let anchor: NSRect
+        if let field { anchor = view.convert(field, to: nil) } else {
+            let point = window.convertPoint(fromScreen: NSEvent.mouseLocation)
+            anchor = NSRect(x: point.x - 1, y: point.y - 10, width: 2, height: 20)
+        }
+        guard let pick = await PasswordSuggestionsPresenter.shared.present(logins, site: PasswordVault.site(host), anchor: anchor,
+                                                                           in: window, generated: password) ?? nil else { return nil }
+        switch pick {
+        case .generated: return .generated(password)
+        case .login(let login):
+            guard let secret = try? await PasswordVault.shared.password(for: login, reason: "fill your password for \(login.site)")
+            else { return nil }
+            return .login(username: login.username, password: secret)
+        }
+    }
+
+    /// Strong passwords filled in the last half hour, by site, in memory only. Nothing is saved until the person confirms
+    /// the save card after the form goes through; this only lets that card say it's a strong password and stay until
+    /// answered, so a new password isn't lost to a card that timed out.
+    private static var filledStrong: [String: (password: String, at: Date)] = [:]
+
+    static func rememberStrong(_ password: String, host: String) {
+        let site = PasswordVault.site(host)
+        guard !site.isEmpty else { return }
+        filledStrong = filledStrong.filter { Date().timeIntervalSince($0.value.at) < 1800 }
+        filledStrong[site] = (password, Date())
+    }
+
+    /// Whether `password` is a strong password Ikago filled on `site` recently.
+    static func isStrong(_ password: String, site: String) -> Bool {
+        guard let filled = filledStrong[site], Date().timeIntervalSince(filled.at) < 1800 else { return false }
+        return filled.password == password
+    }
+
+    static func forgetStrong(site: String) { filledStrong[site] = nil }
+
     /// Whether a click or Tab into a sign-in field opens the list without the key.
     static var suggestsOnFocus: Bool { BrowserSecurity.shared.preferences.passwordSuggestOnFocus ?? true }
 
     /// The chosen login, or nil when the person dismissed the list or Touch ID. `field` is the sign-in field in
     /// `view`'s coordinates; without it the list opens at the pointer.
-    static func choose(for url: URL, in view: NSView, field: NSRect? = nil) async -> (username: String, password: String)? {
+    /// `typed` is the username the form holds now, and `readTyped` reads it again as the person types, to narrow the list.
+    static func choose(for url: URL, in view: NSView, field: NSRect? = nil, typed: String = "",
+                       readTyped: (@MainActor () async -> String?)? = nil) async -> (username: String, password: String)? {
         guard offers(for: url), let host = url.host else { return nil }
         let logins = PasswordVault.shared.matches(for: host)
-        guard let login = await pick(from: logins, site: PasswordVault.site(host), in: view, field: field) else { return nil }
+        guard let login = await pick(from: logins, site: PasswordVault.site(host), in: view, field: field, typed: typed, readTyped: readTyped)
+        else { return nil }
         do {
             let password = try await PasswordVault.shared.password(for: login, reason: "fill your password for \(PasswordVault.site(host))")
             return (login.username, password)
@@ -53,9 +117,10 @@ enum PasswordChooser {
         }
     }
 
-    private static func pick(from logins: [PasswordVault.Login], site: String, in view: NSView, field: NSRect?) async -> PasswordVault.Login? {
+    private static func pick(from logins: [PasswordVault.Login], site: String, in view: NSView, field: NSRect?, typed: String,
+                             readTyped: (@MainActor () async -> String?)?) async -> PasswordVault.Login? {
         #if DEBUG || IKAGO_CHECKS
-        if SealedStorage.usesTestKey { return logins.first }  // unattended checks can't use a menu
+        if SealedStorage.picksFirstChoice { return logins.first }  // unattended checks can't use a menu
         #endif
         guard let window = view.window else { return nil }
         let anchor: NSRect
@@ -63,7 +128,11 @@ enum PasswordChooser {
             let point = window.convertPoint(fromScreen: NSEvent.mouseLocation)
             anchor = NSRect(x: point.x - 1, y: point.y - 10, width: 2, height: 20)
         }
-        if let shown = await PasswordSuggestionsPresenter.shared.present(logins, site: site, anchor: anchor, in: window) { return shown }
+        if let shown = await PasswordSuggestionsPresenter.shared.present(logins, site: site, anchor: anchor, in: window,
+                                                                          typed: typed, readTyped: readTyped) {
+            if case .login(let login)? = shown { return login }
+            return nil
+        }
         return menuPick(from: logins, in: view)
     }
 

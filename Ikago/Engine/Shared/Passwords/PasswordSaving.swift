@@ -16,7 +16,7 @@ enum PasswordSaving {
     /// Whether a page's sign-ins may be watched: HTTPS (or local development), not a site the person said never to.
     static func watches(_ url: URL?, onChromium: Bool) -> Bool {
         guard isEnabled, onChromium || PasswordSource.current == .ikago, let url, let host = url.host else { return false }
-        let secure = url.scheme?.lowercased() == "https" || ["localhost", "127.0.0.1", "::1"].contains(host)
+        let secure = BrowserPreferences.isSecurePage(url)
         return secure && !(preferences.passwordNeverSave ?? []).contains(PublicSuffix.registrableDomain(PasswordVault.site(host)))
     }
 
@@ -29,11 +29,12 @@ enum PasswordSaving {
         let username = username.trimmingCharacters(in: .whitespacesAndNewlines)
         let site = PasswordVault.site(host)
         guard !site.isEmpty else { return }
+        let strong = PasswordChooser.isStrong(password, site: site)
         switch PasswordVault.shared.submission(host: site, username: username, password: password) {
         case .same: return
-        case .new: PasswordSavePresenter.shared.offer(site: site, username: username, password: password, update: false, in: controller)
+        case .new: PasswordSavePresenter.shared.offer(site: site, username: username, password: password, update: false, strong: strong, in: controller)
         case .changed(let login):
-            PasswordSavePresenter.shared.offer(site: login.site, username: username, password: password, update: true, in: controller)
+            PasswordSavePresenter.shared.offer(site: login.site, username: username, password: password, update: true, strong: strong, in: controller)
         }
     }
 
@@ -52,6 +53,8 @@ struct PasswordSaveOffer: Equatable {
     let site: String
     var username: String
     let update: Bool
+    /// A strong password Ikago suggested: the card stays until answered, so it isn't lost.
+    var strong = false
 }
 
 @MainActor
@@ -61,12 +64,13 @@ final class PasswordSavePresenter {
     private weak var chrome: ChromeModel?
     private var expiry: Task<Void, Never>?
 
-    func offer(site: String, username: String, password: String, update: Bool, in controller: BrowserWindowController) {
+    func offer(site: String, username: String, password: String, update: Bool, strong: Bool = false, in controller: BrowserWindowController) {
         dismiss()
         self.password = password
         chrome = controller.chrome
-        controller.chrome.passwordSave = PasswordSaveOffer(site: site, username: username, update: update)
-        // Like a notification: it goes away on its own if left alone.
+        controller.chrome.passwordSave = PasswordSaveOffer(site: site, username: username, update: update, strong: strong)
+        // Like a notification: it goes away on its own if left alone, unless it holds a new strong password.
+        if strong { return }
         expiry = Task { [weak self] in
             try? await Task.sleep(for: .seconds(45))
             if !Task.isCancelled { self?.dismiss() }
@@ -79,8 +83,10 @@ final class PasswordSavePresenter {
     func save() -> String? {
         guard let offer = chrome?.passwordSave, let password else { return nil }
         do {
-            try PasswordVault.shared.add([.init(url: "https://" + offer.site, title: nil, username: offer.username,
+            let username = offer.username.trimmingCharacters(in: .whitespacesAndNewlines)
+            try PasswordVault.shared.add([.init(url: "https://" + offer.site, title: nil, username: username,
                                                password: password, savedHere: true)])
+            if offer.strong { PasswordChooser.forgetStrong(site: offer.site) }
             dismiss()
             return nil
         } catch {

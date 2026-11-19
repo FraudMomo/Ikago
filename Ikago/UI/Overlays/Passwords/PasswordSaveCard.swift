@@ -14,7 +14,8 @@ struct PasswordSaveCard: View {
                     .frame(width: 32, height: 32)
                     .background(Circle().fill(LinearGradient(colors: [colors.accent.opacity(0.85), colors.accent], startPoint: .top, endPoint: .bottom)))
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(offer.update ? "Update saved password?" : "Save password?").font(.system(size: 13, weight: .semibold))
+                    Text(offer.update ? "Update saved password?" : offer.strong ? "Save strong password?" : "Save password?")
+                        .font(.system(size: 13, weight: .semibold))
                     Text(offer.site).font(.system(size: 11)).foregroundStyle(colors.secondary).lineLimit(1)
                 }
                 Spacer(minLength: 4)
@@ -22,7 +23,7 @@ struct PasswordSaveCard: View {
             }
             VStack(spacing: 0) {
                 field("Username") {
-                    TextField("Username", text: Binding(get: { offer.username }, set: { presenter.setUsername($0) }))
+                    TextField("Email or username", text: Binding(get: { offer.username }, set: { presenter.setUsername($0) }))
                         .textFieldStyle(.plain).font(.system(size: 12))
                 }
                 Rectangle().fill(colors.separator).frame(height: 0.5).padding(.leading, 10)
@@ -31,6 +32,10 @@ struct PasswordSaveCard: View {
                 }
             }
             .background(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).fill(colors.hover))
+            if missingUsername {
+                Text("The page didn’t say which account this is. Add the email or username you use here, so you can find it later.")
+                    .font(.system(size: 11)).foregroundStyle(colors.secondary).fixedSize(horizontal: false, vertical: true)
+            }
             if let error { Text(error).font(.system(size: 11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true) }
             HStack(spacing: 8) {
                 if !offer.update {
@@ -38,9 +43,11 @@ struct PasswordSaveCard: View {
                         .font(.system(size: 11.5)).foregroundStyle(colors.secondary)
                 }
                 Spacer()
-                Button("Not Now") { presenter.dismiss() }.buttonStyle(SettingsButtonStyle())
-                Button(offer.update ? "Update" : "Save") { error = presenter.save() }
-                    .buttonStyle(SettingsButtonStyle(prominent: true))
+                Button("Not Now") { presenter.dismiss() }.buttonStyle(SettingsButtonStyle()).fixedSize()
+                // Both buttons keep their full labels; "Never for This Site" wraps instead. The hint above says what's
+                // missing, so the save button stays short.
+                Button(offer.update ? "Update" : missingUsername ? "Save Anyway" : "Save") { error = presenter.save() }
+                    .buttonStyle(SettingsButtonStyle(prominent: true)).fixedSize()
             }
             .controlSize(.small)
         }
@@ -51,6 +58,8 @@ struct PasswordSaveCard: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel(offer.update ? "Update saved password for \(offer.site)" : "Save password for \(offer.site)")
     }
+
+    private var missingUsername: Bool { offer.username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
     private func field<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
         HStack(spacing: 10) {

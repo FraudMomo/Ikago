@@ -28,13 +28,17 @@ extension CEFWebTab {
 
     /// Once per document, after it commits; retried briefly while a page is still redirecting, because a
     /// navigation cancels DevTools commands in flight.
-    /// Whether this page gets the script: a saved login to fill, or sign-ins to watch for saving.
+    /// Whether this page gets the script: a saved login to fill, sign-ins to watch for saving, or new-password fields.
     var watchesPasswords: Bool {
         let url = URL(string: currentURL)
         return PasswordChooser.offers(for: url, onChromium: true) || (!isPrivatePage && PasswordSaving.watches(url, onChromium: true))
+            || PasswordChooser.offersStrongPasswords(for: url, isPrivate: isPrivatePage)
     }
 
     var isPrivatePage: Bool { profileID.hasPrefix("Private-") }
+
+    /// Whether this page's new-password fields offer a strong password.
+    var offersStrongPasswords: Bool { PasswordChooser.offersStrongPasswords(for: URL(string: currentURL), isPrivate: isPrivatePage) }
 
     func injectPasswordKey() {
         if hasPasswordKey { return scanPasswordFrames() }
@@ -58,8 +62,8 @@ extension CEFWebTab {
                     passwordKeyState.injectedGeneration = generation
                     passwordKeyState.frames = [:]
                     passwordKeyState.keyAllowed = PasswordChooser.offers(for: URL(string: currentURL), onChromium: true)
-                    _ = await passwordCall(context, "function (allowed) { window.__ikagoPasswordKey.setKeyAllowed(allowed) }",
-                                           [passwordKeyState.keyAllowed], generation: generation)
+                    _ = await passwordCall(context, "function (allowed, strong) { window.__ikagoPasswordKey.setKeyAllowed(allowed); window.__ikagoPasswordKey.setGenerateAllowed(strong) }",
+                                           [passwordKeyState.keyAllowed, offersStrongPasswords], generation: generation)
                     scanPasswordFrames(force: true)
                 } catch {
                     #if IKAGO_CHECKS
@@ -124,7 +128,7 @@ extension CEFWebTab {
                 "executionContextId": context, "arguments": [["value": x], ["value": y]], "returnByValue": true],
                 generation: generation)
             let value = (result?["result"] as? [String: Any])?["value"]
-            if let rect = value as? [String: Any] { return await fillFromVault(field: fieldRect(rect), generation: generation) }
+            if let rect = value as? [String: Any] { return await fillFromVault(field: fieldRect(rect), generation: generation, report: rect) }
             if PasswordChooser.suggestsOnFocus { suggestAtFocusedField() }
         }
     }
@@ -142,15 +146,26 @@ extension CEFWebTab {
                     "functionDeclaration": "function () { return window.__ikagoPasswordKey.focusRect() }",
                     "executionContextId": context, "returnByValue": true], generation: generation)
                 if let rect = (result?["result"] as? [String: Any])?["value"] as? [String: Any] {
-                    return await fillFromVault(field: fieldRect(rect), generation: generation)
+                    return await fillFromVault(field: fieldRect(rect), generation: generation, report: rect)
                 }
             }
         }
     }
 
-    func fillFromVault(field: NSRect?, generation: Int, context frameContext: Int? = nil, origin frameOrigin: String? = nil) async {
+    /// `report` is what the key script said about the field; a new-password field gets a strong password instead.
+    func fillFromVault(field: NSRect?, generation: Int, context frameContext: Int? = nil, origin frameOrigin: String? = nil,
+                       report: [String: Any]? = nil) async {
+        if report?["newPassword"] as? Bool == true {
+            return await suggestStrong(field: field, generation: generation, context: frameContext, origin: frameOrigin,
+                                       rules: PasswordGenerator.Rules(report?["rules"] as? [String: Any]))
+        }
         guard let context = frameContext ?? passwordKeyState.context, let url = URL(string: currentURL),
-              let login = await PasswordChooser.choose(for: url, in: page, field: field),
+              let login = await PasswordChooser.choose(for: url, in: page, field: field, typed: report?["typed"] as? String ?? "",
+                                                       readTyped: { [weak self] in
+                                                           guard let self, generation == self.documentGeneration else { return nil }
+                                                           return await self.passwordCall(context, "function () { return window.__ikagoPasswordKey.typed() }",
+                                                                                          generation: generation) as? String
+                                                       }),
               generation == documentGeneration, currentURL == url.absoluteString else { return }
         // The login travels as call arguments, never as script text.
         _ = try? await devTools("Runtime.callFunctionOn", [
@@ -161,5 +176,32 @@ extension CEFWebTab {
         #if IKAGO_CHECKS
         print("CEF_PASSWORDS_FILLED")
         #endif
+    }
+
+    /// A strong password for a new-password field: filled into it and its confirmation, then saved at once with the
+    /// username the form already has (the arguments carry it, never script text).
+    private func suggestStrong(field: NSRect?, generation: Int, context frameContext: Int?, origin frameOrigin: String?,
+                               rules: PasswordGenerator.Rules) async {
+        guard let context = frameContext ?? passwordKeyState.context, let url = URL(string: currentURL),
+              let choice = await PasswordChooser.chooseNew(for: url, in: page, field: field, rules: rules, isPrivate: isPrivatePage),
+              generation == documentGeneration, currentURL == url.absoluteString else { return }
+        let origin = frameOrigin ?? PasswordChooser.origin(of: url)
+        switch choice {
+        case .generated(let password):
+            let result = try? await devTools("Runtime.callFunctionOn", [
+                "functionDeclaration": "function (password, origin) { return window.__ikagoPasswordKey.fillNew(password, origin) }",
+                "executionContextId": context, "arguments": [["value": password], ["value": origin]],
+                "returnByValue": true, "userGesture": false], generation: generation)
+            guard let filled = (result?["result"] as? [String: Any])?["value"] as? [String: Any] else { return }
+            if filled["filled"] as? Int ?? 0 > 0 { PasswordChooser.rememberStrong(password, host: URL(string: origin)?.host ?? url.host ?? "") }
+            #if IKAGO_CHECKS
+            print("CEF_PASSWORDS_STRONG_FILLED \(filled["filled"] as? Int ?? 0)")
+            #endif
+        case .login(let username, let password):
+            _ = try? await devTools("Runtime.callFunctionOn", [
+                "functionDeclaration": "function (username, password, origin) { return window.__ikagoPasswordKey.fill(username, password, origin) }",
+                "executionContextId": context, "arguments": [["value": username], ["value": password], ["value": origin]],
+                "returnByValue": true, "userGesture": false], generation: generation)
+        }
     }
 }
