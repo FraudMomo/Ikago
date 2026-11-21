@@ -86,6 +86,9 @@ extension CEFWebTab {
         for id in frames(root) {
             guard let world = try? await devTools("Page.createIsolatedWorld", ["frameId": id, "worldName": "ikago-browser"], generation: generation),
                   let context = world["executionContextId"] as? Int else { continue }
+            // Chromium 157+ grants element fullscreen only to a page whose view has keyboard focus, and Ikago's button
+            // (or the media island) holds it now.
+            page.focus()
             floatingVideo.expectFullscreen()
             guard let result = try? await devTools("Runtime.evaluate", [
                 "expression": "(async () => {\n\(ChromiumPictureInPicture.prepare)\n})()", "contextId": context,

@@ -5,6 +5,7 @@
 #include "include/cef_command_line.h"
 #include "include/wrapper/cef_library_loader.h"
 #include <memory>
+#include <string>
 CefRefPtr<CefClient> IKCEFMakeToolClient();
 
 namespace {
@@ -27,10 +28,14 @@ class Application final : public CefApp, public CefBrowserProcessHandler {
     // Memory: Chromium keeps a spare renderer warm for the next site (one idle process), and the
     // optimization guide and page annotations load hints and models into the browser process for
     // Chrome UI Ikago doesn't have. Chromium's omnibox models go unused for the same reason.
-    command->AppendSwitchWithValue("disable-features",
+    std::string disabled =
         "AutofillServerCommunication,AimServerEligibilityEnabled,AimEnabled,"
         "SpareRendererForSitePerProcess,OptimizationHints,OptimizationHintsFetching,PageContentAnnotations,"
-        "OmniboxOnDeviceHeadProviderNonIncognito,OmniboxOnDeviceHeadProviderIncognito,OmniboxOnDeviceTailModel");
+        "OmniboxOnDeviceHeadProviderNonIncognito,OmniboxOnDeviceHeadProviderIncognito,OmniboxOnDeviceTailModel";
+    // Chromium 157+ refuses element fullscreen unless the page's view has keyboard focus in the key window. Check runs
+    // keep every window hidden and never take focus, so only they lift it; Ikago itself keeps the rule.
+    if (fixture_) disabled += ",SuppressFullscreenFromUnfocusedView";
+    command->AppendSwitchWithValue("disable-features", disabled);
     // Fixtures contain no credentials and never read a saved profile. Production
     // retains Chromium's real Keychain-backed encryption and security defaults.
     // Measuring where pages draw (Debug `peekshot`): software compositing keeps Chromium's pixels in Ikago's own window,
