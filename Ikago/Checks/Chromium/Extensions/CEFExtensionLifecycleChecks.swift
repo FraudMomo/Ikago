@@ -14,8 +14,7 @@ enum CEFExtensionLifecycleChecks {
         let toggle = "(() => { \(find) const t=find(document,'#enableToggle');if(!t)return false;t.click();return true;})()"
         guard try await value(manager, toggle, gesture: true) as? Bool == true else { throw CEFError.script("Native extension enable control was missing.") }
         try await wait(manager, "(() => { \(find) return find(document,'#enableToggle')?.checked === false; })()")
-        browser.reloadIgnoringCache(false)
-        try await loaded(browser)
+        try await CEFWait.newDocument(browser, "Extension lifecycle page did not reload.") { browser.reloadIgnoringCache(false) }
         guard try await value(browser, "document.documentElement.dataset.ikagoExtensionFixture === undefined") as? Bool == true else {
             throw CEFError.script("A disabled extension still injected into a new document.")
         }
@@ -42,15 +41,8 @@ enum CEFExtensionLifecycleChecks {
         return (result["result"] as? [String: Any])?["value"]
     }
     private static func wait(_ page: IKCEFPage, _ expression: String) async throws {
-        for _ in 0..<100 {
-            if (try? await value(page, expression)) as? Bool == true { return }
-            try await Task.sleep(for: .milliseconds(50))
+        try await CEFWait.until("Extension lifecycle fixture timed out: \(expression.prefix(200))") {
+            try await value(page, expression) as? Bool == true
         }
-        throw CEFError.script("Extension lifecycle fixture timed out: \(expression.prefix(200))")
-    }
-    private static func loaded(_ page: IKCEFPage) async throws {
-        try await Task.sleep(for: .milliseconds(200))
-        for _ in 0..<100 { if !page.loading { return }; try await Task.sleep(for: .milliseconds(50)) }
-        throw CEFError.script("Extension lifecycle page did not reload.")
     }
 }

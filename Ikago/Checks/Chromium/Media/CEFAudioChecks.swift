@@ -28,15 +28,17 @@ enum CEFAudioChecks {
         var before = 0.0
         for muted in [true, false, true, false] {
             page.audioMuted = muted
-            try await Task.sleep(for: .milliseconds(250))
-            guard page.audioMuted == muted,
-                  let state = try await value(page, """
-                    (() => { const audio = document.getElementById('ikago-audio-check');
-                      return {playing: !audio.paused && !audio.ended, time: audio.currentTime, muted: audio.muted}; })()
-                    """) as? [String: Any],
-                  state["playing"] as? Bool == true, state["muted"] as? Bool == false,
-                  let time = state["time"] as? Double, time > before else {
-                throw CEFError.script("Native tab mute/unmute interrupted Chromium playback or changed the media element.")
+            var time = before
+            try await CEFWait.until("Native tab mute/unmute interrupted Chromium playback or changed the media element.") {
+                guard page.audioMuted == muted,
+                      let state = try await value(page, """
+                        (() => { const audio = document.getElementById('ikago-audio-check');
+                          return {playing: !audio.paused && !audio.ended, time: audio.currentTime, muted: audio.muted}; })()
+                        """) as? [String: Any],
+                      state["playing"] as? Bool == true, state["muted"] as? Bool == false,
+                      let now = state["time"] as? Double, now > before else { return false }
+                time = now
+                return true
             }
             before = time
         }

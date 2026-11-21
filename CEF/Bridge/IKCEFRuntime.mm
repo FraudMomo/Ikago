@@ -9,7 +9,7 @@
 CefRefPtr<CefClient> IKCEFMakeToolClient();
 
 namespace {
-bool running = false, ready = false, started = false;
+bool running = false, ready = false, started = false, mockKeychain = false;
 NSUInteger browsers = 0;
 NSURL *storageRoot;
 std::unique_ptr<CefScopedLibraryLoader> loader;
@@ -44,8 +44,8 @@ class Application final : public CefApp, public CefBrowserProcessHandler {
       command->AppendSwitch("disable-gpu");
       command->AppendSwitch("disable-gpu-compositing");
     }
+    if (fixture_ || mockKeychain) command->AppendSwitch("use-mock-keychain");
     if (fixture_) {
-      command->AppendSwitch("use-mock-keychain");
       command->AppendSwitch("use-fake-device-for-media-stream");
     }
   }
@@ -99,6 +99,8 @@ void IKCEFTrackBrowser(int delta) {
   else { NSCAssert(browsers >= NSUInteger(-delta), @"Unbalanced CEF browser lifetime"); browsers -= -delta; }
 }
 @implementation IKCEFRuntime
++ (BOOL)usesMockKeychain { return mockKeychain; }
++ (void)setUsesMockKeychain:(BOOL)value { mockKeychain = value; }
 + (BOOL)ready { return running && ready; }
 + (BOOL)canShutdown { return !running || (ready && !browsers); }
 + (void)runMessageLoop { CefRunMessageLoop(); }

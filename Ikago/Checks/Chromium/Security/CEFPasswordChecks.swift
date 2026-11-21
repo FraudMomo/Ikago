@@ -79,10 +79,6 @@ enum CEFPasswordChecks {
     }
 
     private static func wait(_ predicate: @MainActor () async -> Bool) async throws {
-        for _ in 0..<200 {
-            if await predicate() { return }
-            try await Task.sleep(for: .milliseconds(50))
-        }
-        throw CEFError.script("The password fixture timed out.")
+        try await CEFWait.until("The password fixture timed out.") { await predicate() }
     }
 }

@@ -102,13 +102,10 @@ enum CEFHiddenServiceChecks {
             // `loading` can still be false before the navigation starts, and a commit cancels a running script,
             // so keep trying until the fixture page itself has loaded and accepted the data.
             let write = "location.protocol.startsWith('http') && document.readyState === 'complete' && (document.cookie='keep=1; max-age=3600', localStorage.setItem('keep', '1'), true)"
-            var written = false
-            for _ in 0..<50 where !written {
-                let result = try? await HiddenChromiumPage.call(page, "Runtime.evaluate", ["expression": write, "returnByValue": true])
-                written = (result?["result"] as? [String: Any])?["value"] as? Bool == true
-                if !written { try await Task.sleep(for: .milliseconds(100)) }
+            try await CEFWait.until("The cleanup fixture never loaded.") {
+                let result = try await HiddenChromiumPage.call(page, "Runtime.evaluate", ["expression": write, "returnByValue": true])
+                return (result["result"] as? [String: Any])?["value"] as? Bool == true
             }
-            guard written else { throw CEFError.script("The cleanup fixture never loaded.") }
         }
         func hasCookie(_ page: IKCEFPage) async throws -> Bool {
             page.reloadIgnoringCache(false)
@@ -156,7 +153,6 @@ enum CEFHiddenServiceChecks {
     }
 
     private static func wait(_ condition: () -> Bool) async throws {
-        for _ in 0..<300 { if condition() { return }; try await Task.sleep(for: .milliseconds(50)) }
-        throw CEFError.script("A hidden service check timed out.")
+        try await CEFWait.until("A hidden service check timed out.") { condition() }
     }
 }

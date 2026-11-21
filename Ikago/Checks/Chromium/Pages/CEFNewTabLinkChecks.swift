@@ -8,7 +8,7 @@ enum CEFNewTabLinkChecks {
     static func run(_ shell: BrowserWindowController, from id: String, url: String) async throws {
         let state = shell.state
         state.select(id)
-        try await Task.sleep(for: .milliseconds(300))
+        try await wait { shell.content.controller(for: id)?.page != nil }
         guard let opener = shell.content.controller(for: id), let page = opener.page else { throw CEFError.script("No opener page.") }
         let loads = state.browserPreferences.loadBackgroundTabs
         defer { state.browserPreferences.loadBackgroundTabs = loads }
@@ -30,11 +30,14 @@ enum CEFNewTabLinkChecks {
                 guard let page = shell.content.controller(for: tab.id)?.page else { return false }
                 return !page.isLoading && page.currentURL == target
             }
-            try await Task.sleep(for: .milliseconds(400))
-            guard let page = shell.content.controller(for: tab.id)?.page as? CEFWebTab,
-                  let report = try await page.callAsync("return await new Promise(r => requestAnimationFrame(() => r(JSON.stringify({ready: document.readyState, visible: document.visibilityState, width: innerWidth, height: innerHeight}))))") as? String,
-                  report.contains("\"ready\":\"complete\""), report.contains("\"visible\":\"visible\""), !report.contains("\"width\":0"), page.contentView.bounds.width > 0
-            else { throw CEFError.script("A \(background ? "background" : "foreground") link tab didn't load or show its page.") }
+            var report = ""
+            try await CEFWait.until("A \(background ? "background" : "foreground") link tab didn't load or show its page.") {
+                guard let page = shell.content.controller(for: tab.id)?.page as? CEFWebTab,
+                      let shown = try await page.callAsync("return await new Promise(r => requestAnimationFrame(() => r(JSON.stringify({ready: document.readyState, visible: document.visibilityState, width: innerWidth, height: innerHeight}))))") as? String else { return false }
+                report = shown
+                return shown.contains("\"ready\":\"complete\"") && shown.contains("\"visible\":\"visible\"") && !shown.contains("\"width\":0")
+                    && page.contentView.bounds.width > 0
+            }
             print("CEF_NEW_TAB_LINK \(background ? (eager ? "background" : "lazy") : "foreground") \(report)")
             state.closeTab(tab.id)
             state.select(id)
@@ -47,7 +50,7 @@ enum CEFNewTabLinkChecks {
     static func runBlankTarget(_ shell: BrowserWindowController, from id: String, url: String) async throws {
         let state = shell.state
         state.select(id)
-        try await Task.sleep(for: .milliseconds(300))
+        try await wait { shell.content.controller(for: id)?.page is CEFWebTab }
         guard let page = shell.content.controller(for: id)?.page as? CEFWebTab else { throw CEFError.script("No opener page.") }
         for (modifiers, label) in [(4, "command"), (0, "plain")] {
             let target = url + (url.contains("?") ? "&" : "?") + "blank-\(label)"
@@ -69,11 +72,13 @@ enum CEFNewTabLinkChecks {
                 guard let page = shell.content.controller(for: tab.id)?.page else { return false }
                 return !page.isLoading && page.currentURL == target
             }
-            try await Task.sleep(for: .milliseconds(400))
-            guard let child = shell.content.controller(for: tab.id)?.page as? CEFWebTab,
-                  let report = try await child.callAsync("return await new Promise(r => requestAnimationFrame(() => r(JSON.stringify({ready: document.readyState, visible: document.visibilityState, width: innerWidth, height: innerHeight}))))") as? String,
-                  report.contains("\"visible\":\"visible\""), !report.contains("\"width\":0")
-            else { throw CEFError.script("A \(label)-clicked target=_blank tab didn't load or show its page.") }
+            var report = ""
+            try await CEFWait.until("A \(label)-clicked target=_blank tab didn't load or show its page.") {
+                guard let child = shell.content.controller(for: tab.id)?.page as? CEFWebTab,
+                      let shown = try await child.callAsync("return await new Promise(r => requestAnimationFrame(() => r(JSON.stringify({ready: document.readyState, visible: document.visibilityState, width: innerWidth, height: innerHeight}))))") as? String else { return false }
+                report = shown
+                return shown.contains("\"visible\":\"visible\"") && !shown.contains("\"width\":0")
+            }
             print("CEF_NEW_TAB_LINK blank-\(label) \(report)")
             state.closeTab(tab.id)
             state.select(id)
@@ -83,8 +88,7 @@ enum CEFNewTabLinkChecks {
     }
 
     private static func wait(_ condition: () -> Bool) async throws {
-        for _ in 0..<160 { if condition() { return }; try await Task.sleep(for: .milliseconds(50)) }
-        throw CEFError.script("A link tab timed out loading.")
+        try await CEFWait.until("A link tab timed out loading.") { condition() }
     }
 }
 
@@ -99,12 +103,13 @@ enum CEFPeekKeepChecks {
         try await Task.sleep(for: .milliseconds(500))
         let target = url + (url.contains("?") ? "&" : "?") + "peek-keep"
         shell.peekLink(target)
-        for _ in 0..<80 where shell.peekController?.page?.isLoading != false { try await Task.sleep(for: .milliseconds(100)) }
-        try await Task.sleep(for: .milliseconds(400))
+        try await CEFWait.until("The Peek of a Chromium link didn't load.") { shell.peekController?.page?.isLoading == false }
         let previewed = shell.peekController?.page
         shell.openPeek()
-        for _ in 0..<40 where shell.chrome.previewTabID != nil { try await Task.sleep(for: .milliseconds(100)) }
-        try await Task.sleep(for: .milliseconds(300))
+        try await CEFWait.until("Open as Tab didn't keep the Chromium page.") {
+            guard shell.chrome.previewTabID == nil, let kept = shell.activeController, let page = kept.page else { return false }
+            return kept.tab.url == target && page.contentView.frame == kept.hostView.bounds
+        }
         guard let kept = shell.activeController, kept.tab.url == target, let page = kept.page else {
             throw CEFError.script("Open as Tab didn't keep the Chromium page.")
         }

@@ -11,12 +11,11 @@ enum CEFColorSchemeChecks {
             ChromiumAppearance.apply(dark: dark)
             var reported: Bool?
             // The renderer hears about the change asynchronously.
-            for _ in 0..<40 {
+            try? await CEFWait.until("") {
                 let result = try await CEFSmoke.method(page, "Runtime.evaluate", [
                     "expression": "matchMedia('(prefers-color-scheme: dark)').matches", "returnByValue": true])
                 reported = (result["result"] as? [String: Any])?["value"] as? Bool
-                if reported == dark { break }
-                try await Task.sleep(for: .milliseconds(50))
+                return reported == dark
             }
             guard reported == dark else {
                 throw CEFError.script("A Chromium page reported \(reported.map { $0 ? "dark" : "light" } ?? "nothing") after Ikago chose \(dark ? "dark" : "light").")

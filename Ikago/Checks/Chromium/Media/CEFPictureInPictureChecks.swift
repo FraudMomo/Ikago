@@ -42,7 +42,6 @@ enum CEFPictureInPictureChecks {
     }
 
     private static func wait(_ condition: () async -> Bool) async throws {
-        for _ in 0..<100 { if await condition() { return }; try await Task.sleep(for: .milliseconds(50)) }
-        throw CEFError.script("Picture in Picture timed out.")
+        try await CEFWait.until("Picture in Picture timed out.") { await condition() }
     }
 }

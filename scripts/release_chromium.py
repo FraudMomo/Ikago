@@ -5,7 +5,8 @@
   python3 scripts/release_chromium.py --trial     build, test, notarize and sign, publish nothing
   python3 scripts/release_chromium.py             the release itself
 
-It starts from the last published release's tag, never from main, so unfinished work on main can't ship. There it pins
+It starts from the last published release's tag, never from main, so unfinished work on main can't ship (only the release
+tooling and the Chromium checks come from main). There it pins
 the latest stable CEF (verified against the CEF index), builds it, runs the Chromium checks, and hands over to
 release.py with the next patch version, marked as a security update. Then main gets the same Chromium, version and
 BUILDS.md entry, so the next feature release builds on it. Any failure stops before anything is published.
@@ -29,6 +30,10 @@ WORK = ROOT/'out/chromium-release'
 # app's sources, the build and its checks stay exactly as they were in the release.
 TOOLING = ['scripts/release.py', 'scripts/chromium_lock.py', 'scripts/update_public_key.swift', 'scripts/package_app.py',
            'scripts/fetch_sparkle.py', 'CEF/sparkle-lock.json']
+# The Chromium checks come from main too, so a fix to a check counts on the next run instead of waiting for a release.
+# They never ship (release builds leave Checks/ out). If main's checks don't build against the release's code, the
+# release's own checks run instead.
+CHECKS = ['Ikago/Checks/Chromium', 'scripts/run_chromium_checks.py', 'scripts/cookie_fixture.py', 'scripts/fixtures']
 
 
 def git(*args, cwd=ROOT, capture=True):
@@ -46,6 +51,34 @@ def step(title, command, cwd, retries=0):
         if attempt < retries:
             print(f'{title} failed; trying once more in case it was a timing problem.', flush=True)
     raise SystemExit(f'{title} failed.')
+
+
+def use_checks(source):
+    """Puts the Chromium checks from `source` (a folder, or None for the release tag's own) into the work tree."""
+    for path in CHECKS:
+        target = WORK/path
+        if target.is_dir(): shutil.rmtree(target)
+        elif target.exists(): target.unlink()
+        if source is None:
+            if subprocess.run(['git', 'cat-file', '-e', f'HEAD:{path}'], cwd=WORK, capture_output=True).returncode == 0:
+                git('checkout', 'HEAD', '--', path, cwd=WORK)
+        elif (source/path).is_dir():
+            shutil.copytree(source/path, target)
+        elif (source/path).exists():
+            shutil.copy2(source/path, target)
+
+
+def build_checks():
+    """Builds the checks flavor with main's checks, falling back to the release's own when those don't build."""
+    python = sys.executable
+    command = [python, 'scripts/build.py', '--flavor', 'checks', '--jobs', '4']
+    use_checks(ROOT)
+    print('\n== Building the checks (with main\'s Chromium checks)', flush=True)
+    if subprocess.run(command, cwd=WORK).returncode == 0:
+        return
+    print('Main\'s checks did not build against this release; using the release\'s own checks.', flush=True)
+    use_checks(None)
+    step('Building the checks', command, WORK)
 
 
 def last_release_tag():
@@ -132,7 +165,7 @@ def release(trial):
             return
         lock = lock or chromium_lock.read_lock(WORK)
         python = sys.executable
-        step('Building the checks', [python, 'scripts/build.py', '--flavor', 'checks', '--jobs', '4'], WORK)
+        build_checks()
         step('Running the Chromium checks', [python, 'scripts/run_chromium_checks.py'], WORK, retries=1)
         main_build = json.loads(git('show', 'origin/main:scripts/release.json'))['build']
         build = max(int(file_at(tag, 'scripts/release.json')['build']), int(main_build)) + 1
