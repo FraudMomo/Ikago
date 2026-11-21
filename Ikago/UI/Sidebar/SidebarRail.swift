@@ -1,8 +1,9 @@
 import SwiftUI
 
 /// The Sidebar layout's middle state: a slim rail of icons beside the page. The traffic lights stand in a
-/// column at the top (Ikago draws them there, `FullScreenWindowControls`), then the essentials (pinned tabs)
-/// as tiles, a new-tab button, groups as one tile each (their icon in their colour; a click opens them in place), loose tabs, and at the bottom the Spaces and the
+/// column at the top (Ikago draws them there, `FullScreenWindowControls`), then in the full sidebar's order the essentials
+/// (pinned tabs) as tiles, groups as one tile each (their icon in their colour; a click opens them in place), a line, a
+/// new-tab button and the loose tabs, and at the bottom the Spaces and the
 /// placed controls (the sidebar button by default, which moves on to the next sidebar state). Titles show on hover; the active tab's highlight slides between tiles.
 struct SidebarRail: View {
     let state: BrowserState
@@ -41,15 +42,12 @@ struct SidebarRail: View {
                 }
                 .padding(.leading, Self.tileInset)
             }
-            // Top Tabs: loose tabs and the + live in the tab row; the rail keeps pins and groups.
-            if !state.showsSidebarTopTabs {
-                tile(symbol: "plus", label: "New Tab", colors: colors) { commands?.newTab() }
-                    .padding(.leading, Self.tileInset)
-            }
-            if (!state.pinnedTabs.isEmpty && state.pinsInRail) || !state.showsSidebarTopTabs {
+            // Top Tabs: loose tabs and the + live in the tab row; the rail keeps pins and groups, under a line.
+            if state.showsSidebarTopTabs && !state.pinnedTabs.isEmpty && state.pinsInRail {
                 Capsule().fill(colors.separator).frame(width: 20, height: 1).frame(width: BrowserState.sidebarRailWidth)
                     .opacity(magnified ? 0 : 1)
             }
+            // The full sidebar's order: pinned tabs, groups, a line, New Tab, then the tabs.
             SidebarScrollView {
                 VStack(alignment: .leading, spacing: 4) {
                     // Top Tabs can keep groups in the tab row only (Settings ▸ Appearance ▸ Tab Groups).
@@ -60,6 +58,14 @@ struct SidebarRail: View {
                         ForEach(state.childFolders(of: nil)) { folder in group(folder, colors: colors) }
                     }
                     if !state.showsSidebarTopTabs {
+                        if state.chromeLayout.sidebarShowsNewTab {
+                            if hasItemsAboveNewTab {
+                                Capsule().fill(colors.separator).frame(width: 20, height: 1).frame(width: 36)
+                                    .padding(.vertical, 4)
+                                    .opacity(magnified ? 0 : 1)
+                            }
+                            tile(symbol: "plus", label: "New Tab", colors: colors) { commands?.newTab() }
+                        }
                         ForEach(state.looseTabs) { tab in tabTile(tab, colors: colors) }
                     }
                 }
@@ -107,6 +113,11 @@ struct SidebarRail: View {
         // The wider rail is sized to the rail's own frame, which already reaches under the title bar.
         .ignoresSafeArea(.container, edges: isCopy ? [] : .top)
         .animation(.ikagoQuick, value: state.activeTabID)
+    }
+
+    /// Anything above the New Tab tile (essentials, pinned tiles, groups), so the line before it separates something.
+    private var hasItemsAboveNewTab: Bool {
+        !state.pinnedTabs.isEmpty || (state.showsGroupsInSidebar && !state.childFolders(of: nil).isEmpty)
     }
 
     /// Tiles sit this far in from the rail's leading edge: a 36 pt tile centred in its 64 pt column.
