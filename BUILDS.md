@@ -5,6 +5,8 @@ What changed in each release of Ikago, newest first. Add changes under **Unrelea
 
 ## Unreleased
 
+## 0.7.1 — 2026-11-21
+
 - **Chromium 158:** the Chromium engine is updated to Chromium 158 with its latest security fixes. Picture in
   Picture works again with it.
 - **Icon sidebar on hover:** Magnify now shows the tab under the pointer as a row with its name, with the tabs
