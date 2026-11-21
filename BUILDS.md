@@ -5,6 +5,14 @@ What changed in each release of Ikago, newest first. Add changes under **Unrelea
 
 ## Unreleased
 
+- **Icon sidebar on hover:** Magnify turns the tab under the pointer into a row with its name and the tabs beside it
+  into smaller, fainter ones, like a carousel. Its row and Expand's rows have the tab's close button and, while it
+  plays sound, its mute button. Expand always goes back once the pointer leaves, in every layout (also with Top Tabs and a
+  sidebar slid in at the window's edge), never sticks half open, and leaves the traffic lights visible. The page
+  underneath no longer reacts to the pointer while either shows, and both keep working after switching sidebar styles.
+- **Icon sidebar order:** it now matches the full sidebar: pinned tabs, groups, a line, New Tab, then tabs.
+- **Slid-in icon sidebar:** its glass is tinted deeper, so its icons stay readable over a busy page.
+
 ## 0.7.0 — 2026-11-19
 
 - **Top Tabs:** the Sidebar + Tabs layout is now called Top Tabs. Tab groups show as chips in the tab row, in their

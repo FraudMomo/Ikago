@@ -91,14 +91,21 @@ final class ChromeModel {
 
     /// The pointer is over the revealed sidebar.
     @ObservationIgnored var peekHovered = false
-    /// Something in the revealed chrome is in use (typing an address, the downloads list, a tab drag): it stays.
-    var holdsPeek: Bool {
-        inlineAddress || showDownloads || draggingTabID != nil || draggingFolderID != nil || rail.holdsSidebar
+    /// Something in the revealed chrome is in use (typing an address, the downloads list, a tab drag, the icon
+    /// sidebar's effects): it stays.
+    var holdsPeek: Bool { holdsChrome || rail.holdsSidebar }
+
+    /// The window's own controls are in use (typing an address, the downloads list, a tab drag). Apart from the rail's
+    /// effects, which wait for these too: counting themselves, the wider rail would never go back.
+    var holdsChrome: Bool {
+        inlineAddress || showDownloads || draggingTabID != nil || draggingFolderID != nil
     }
 
     init() {
         // The icon sidebar's effects reach past a rail that slid in from the edge (a group's island, the wider rail, the
-        // leading card): it stays while they are in use, and slides away once they let go and the pointer is elsewhere.
+        // grown icons and the name beside them): it stays while they are in use, and slides away once they let go and the
+        // pointer is elsewhere.
+        rail.holdsChrome = { [weak self] in self?.holdsChrome ?? false }
         rail.onRelease = { [weak self] in
             guard let self, self.peeking, !self.peekHovered else { return }
             self.endPeek()

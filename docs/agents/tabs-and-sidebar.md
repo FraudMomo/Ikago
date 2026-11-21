@@ -7,37 +7,60 @@
   icon sidebar, also while it is hidden and slides in at the edge; only a hidden sidebar with edge peek off sends them to
   the tab row. They never show in both places (`pinsInRail`).
 - The icon sidebar's hover effect (`RailHoverEffect`, Settings ▸ Appearance ▸ Layout ▸ Window and Sidebar, shown only
-  where there is an icon sidebar; off by default and under Reduce Motion): `UI/Sidebar/RailHover.swift` (model, tracking,
-  tile reports) and `RailHoverLayers.swift` (what it draws). The rail itself never changes: no tile scales, moves or
-  resizes, so nothing the pointer measures shifts under it and the effect can't feed back (scaling tiles and parting them,
-  then a swelling edge, were tried and jittered). Everything is drawn by one layer over the rail and the page in the root
-  view (`RailHoverLayers`), never by widening the dock or resizing the page. Magnify: each tab or group tile reports its
-  frame in its host's named space (`railTile`, `railSpace`: the rail, and its list's own `NSHostingView`); the space's
-  anchor `NSView` converts it to window coordinates live, so the list's scrolling is included (the anchor bumps
-  `scrolled` when the clip view moves under a still pointer). One pointer, from an AppKit tracking view over the whole rail
-  (`RailPointerTracker`), in window coordinates. The layer draws a pill per tile (icon where the tile is, then the name,
-  fading where cut; solid card, glass over a page washed white) whose length follows one raised-cosine profile of the
-  distance, sharpened so neighbours reach about a third as far (`RailHover.reachOut`: the row under the pointer always
-  reaches furthest, `profile` or its whole name), on a
-  retargeting spring. The leading row (the tile nearest the pointer, when on or beside it) is a raised card with its icon,
-  name and site (a group: its tab count); its neighbours show the same card flat and at half opacity, names dimmer
-  with distance. The card bridges rail and page: it takes clicks past its tile (`ReachShape`;
-  the tile keeps its own) and its own AppKit tracking view holds the rows still while the pointer is on it
-  (`pillHover`), releasing `leaveGrace` after the pointer is off both. A click on a shut group opens its island (`RailIsland`, `toggleIsland`): its name over the tile and,
-  beside the rail, a card with its tabs and the groups inside it as a tree; it stays while the pointer is on it and closes
-  `leaveGrace` after the pointer leaves it and the tile; pills give way while it is open. Tabs' hover cards are off on
-  the rail and in Expand's sidebar while an effect is on (`tabHoverCards`): they covered the names. Expand: resting `expandDelay` on the rail
-  widens the rail itself: `RailExpandPanel` draws `SidebarRail(expanded: true)` over the rail and the page, the same items
-  in the same order and places (every item sits in the rail's 64 pt column, tiles `tileInset` in, so only names grow out
-  beside the icons; the traffic lights keep their column), never the full sidebar, and the docked full and Icons sidebars
-  are untouched. It is laid out at `expandedWidth` the whole time and only its clip moves from the rail's width out and
-  back, so nothing reflows; at the rail's width it looks exactly like the rail, so it shows at once and hides only after
-  the edge is back. It stays mounted and hidden (opacity 0, no hit testing) while Expand is on, its list is scrolled to
-  the rail's as it opens (and back as it closes), it takes the rail's frame from the rail's anchor view in window
-  coordinates (right in any host), and its own AppKit tracking view keeps it out while the pointer is on it (SwiftUI's
-  `onHover` missed moves there). Group clicks follow the effect: Off and Expand open a group in place, Magnify keeps every
-  group shut in the rail and toggles its island. A rail that slid in from the window's edge stays while an island, the wider rail or the
-  leading card is in use (`holdsSidebar` in `holdsPeek`), and slides away when they let go (`onRelease`). `railhoverchecks` covers both. The grid uses a saved two-to-eight column preference (three by default),
+  where there is an icon sidebar; off by default and under Reduce Motion): `UI/Sidebar/RailHoverModel.swift` (the state
+  machine), `RailHover.swift` (constants, Magnify's icons, tracking), `RailHoverLayers.swift` (what draws over the page)
+  and `RailOverlay.swift` (its window). The rail itself never changes size or place, so nothing the pointer measures
+  shifts under it.
+- **When the effects open and close is one state machine and nothing else** (`RailHoverModel.phase`, its graph is in the
+  doc comment): `idle → arming → open → leaving → closing → idle`, and any state straight to `idle` when the effect
+  changes, the rail goes away or moves under it. A rail's tracking view only starts it; from then a 60 Hz timer reads
+  the real pointer (and whether this window is the one under it) and takes at most one step per tick; it stops at
+  `idle`. Everything drawn is derived from the phase (`shown`, `expanded`, `covered`, `rowOnScreen`). Exit events
+  decided closing before and AppKit doesn't send them when a window covers the rail, a rail slides away under a still
+  pointer, or the style changes: the wider rail stayed out for good (2026-11-21). Don't add another path that changes
+  what shows; add an edge to the graph.
+- It opens only on a rail that is still (two ticks at the same frame) and sits on that frame (`anchor`) while shown;
+  if the rail moves (a rail slid in from the edge sliding away, a window resize) it resets at once. Following a moving
+  rail stranded the wider rail half off the window under Top Tabs.
+- Magnify is a carousel, stepped by tile, never by the pointer's distance (a smooth curve felt restless, 2026-11-21):
+  the tile nearest the pointer (`hovered`) grows most (`largest`) with a full row over the page with its name, the
+  tiles just above and below (`neighbours`) grow a little (`neighbour`) with shorter, fainter rows; the hovered
+  row's name is semibold. Moving within a tile
+  changes nothing. Like the Dock, nothing slides: each row stays on its own tile and only its shown width animates
+  (laid out at full length, revealed to `width`, the name fading where cut), on the same spring as the icons (`glide`);
+  rows that slid between tiles parted from their icons and their names cross-faded into each other. Everything fades
+  and grows in and out with `strength`; the tiles are kept through `closing` so the rows fade with it. While it shows,
+  a copy of the rail's icons only (`SidebarRail(magnified:)`) lies in the overlay over the rail, whose tiles stay and
+  whose own icons step aside (`railCopy`), and the rows lie between the two: one icon per item, never a bigger
+  duplicate over it. The two lists scroll together (`listScrolled`). Items register their frames with the model
+  (`register`, by owning view: a rebuilt tile registers before the old one goes); a shut group's tiles are left out
+  (`railItemsHidden`). The newest rail to appear is the one followed (style switches mount it before the last goes).
+  Rows work like their tiles. Tab rows have the full sidebar's controls (`TabMediaIndicators`, `RailTabCloseButton`):
+  Magnify's hovered row always, Expand's rows with close on hover (`RailTabControls`), beside the row's button, never
+  inside it.
+- The icon rail keeps the full sidebar's order (Sidebar layout): essentials, pinned tiles, groups, a line, New Tab
+  (when the sidebar shows it, `sidebarShowsNewTab`), then tabs. Under Top Tabs it keeps pins and groups only.
+- Expand: resting `expandDelay` on the rail widens the rail itself: `RailExpandPanel` draws `SidebarRail(expanded: true)`
+  over the rail and the page, the same items in the same places, laid out at `expandedWidth` the whole time; the
+  backdrop grows from the rail's width and the rows are masked to it, so nothing reflows. At the rail's width it is the
+  rail, so it shows at once and the rail's items step aside (`covered`, only once the overlay is on screen, so a failed
+  overlay never leaves the rail blank). The rail's traffic lights stay uncovered: the wider rail has a hole where they
+  are (`lightsRect`), and while the pointer is over them the overlay ignores the mouse (`onPassThrough`): a transparent
+  hole alone still sent their clicks to the overlay.
+- Both draw in a window of their own (`RailOverlay`): borderless, transparent, a child of the browser window and exactly
+  its size. It is put in place invisible and click-through ahead of use (`onPrepare`, when a rail appears and on
+  `arming`) and showing is only its alpha: ordered in as it showed, its first frames were lost and Magnify popped. Measured: AppKit sends pointer moves to every tracking area under the pointer
+  whatever is drawn over it, so pages hovered under in-window overlays; the window server gives a child window the
+  pointer only where it draws and lets it through elsewhere. The one exception to overlays living in the window's tree
+  (`shell-and-webkit.md`).
+- Every rail on screen is its own `RailSurface` (docked, slid in from the edge); the model follows the one the pointer
+  came onto and resets when it goes. A rail slid in from the edge stays while the machine isn't idle (`holdsSidebar` in
+  `holdsPeek`) and may slide away once it is (`onRelease`).
+- `railhoverchecks` is a quick local check (a pretend pointer, `pretendPointer`, drives the machine; the real one is
+  never moved): every run ends at `idle` in each sidebar style, hiding the sidebar while Expand is out, and Top Tabs with
+  the rail slid in from the edge. `railpoint:<y>,<png prefix>` holds the pretend pointer on the rail and saves the window
+  and the effects' window, for looking at it. Look and feel are checked by hand.
+- The pinned grid uses a saved two-to-eight column preference (three by default),
   adapting down with the sidebar's available width, with bounded scrolling and an
   empty drop target during tab drags. Split drops accept live tabs only. Tab rows use SwiftUI's
   drag/drop lifecycle with before/after insertion markers, without native overlays intercepting

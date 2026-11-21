@@ -24,10 +24,6 @@ struct BrowserRootView: View {
             if !docksSidebar && state.webApp == nil {
                 SidebarPeek(state: state, chrome: chrome, palette: palette, commands: commands)
             }
-            // The icon sidebar's hover effects draw over the rail and the page (`RailHover`).
-            if state.webApp == nil && state.browserPreferences.railHover != nil {
-                RailHoverLayers(state: state, chrome: chrome, palette: palette, commands: commands)
-            }
             if state.webApp == nil, state.sidebarOnRight && !state.sidebarLightsFollow && !state.showsSidebarTopTabs && !state.isImmersive {
                 Capsule().fill(.regularMaterial).frame(width: 86, height: 32).padding(.leading, 8).padding(.top, 7).allowsHitTesting(false)
             }

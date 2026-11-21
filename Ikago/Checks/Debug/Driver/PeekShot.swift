@@ -28,5 +28,13 @@ enum PeekShot {
         let blue = (0..<height).last { kind(top + $0) == "B" }.map { Int(CGFloat(height - 1 - $0) / scale) }
         return "redStartsBelowTop=\(red.map(String.init) ?? "none") blueEndsAboveBottom=\(blue.map(String.init) ?? "none") view=\(NSStringFromRect(rect))"
     }
+
+    /// One window's own image (not what covers it) as a PNG at `path`.
+    static func save(window number: Int, to path: String) {
+        typealias Capture = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?
+        guard let symbol = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGWindowListCreateImage"),
+              let image = unsafeBitCast(symbol, to: Capture.self)(.null, 8, UInt32(number), 1 | 16)?.takeRetainedValue() else { return }
+        try? NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
+    }
 }
 #endif

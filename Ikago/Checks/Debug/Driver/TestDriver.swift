@@ -383,6 +383,21 @@ enum TestDriver {
                 print("IKTEST savecard \(PeekShot.measure(content, window: window, save: arg))")
                 PasswordSavePresenter.shared.dismiss()
             }
+        case "railpoint":  // <points from the rail's top>|off[,<png prefix>[,<ms>]]: a pretend pointer on the rail, for looking at its
+            // hover effect; with a prefix, the window and the effects' window each saved as <prefix>-<n>.png
+            let model = c.chrome.rail
+            // ,<ms> after the prefix captures that soon instead, mid-animation.
+            let parts = arg.split(separator: ",", maxSplits: 2).map(String.init)
+            if parts.first == "off" { model.pretendPointer = .some(nil) }
+            else if let surface = model.surface, let rect = surface.windowRect, let effect = state.browserPreferences.railHover {
+                model.pretendPointer = .some(NSPoint(x: rect.midX, y: rect.maxY - (Double(parts.first ?? "") ?? 100)))
+                model.startForCheck(rail: surface, effect: effect)
+            }
+            try? await Task.sleep(for: .milliseconds(parts.count > 2 ? Int(parts[2]) ?? 700 : 700))
+            let windows = NSApp.windows.filter { ($0 === c.window || $0.parent === c.window) && $0.isVisible }
+            if parts.count > 1 { for (n, window) in windows.enumerated() { PeekShot.save(window: window.windowNumber, to: "\(parts[1])-\(n).png") } }
+            print("IKTEST railpoint phase=\(model.phase) windows=\(windows.count)")
+            print("IKTEST railpoint hovered=\(model.hovered.map { "\($0.key.kind) \(Int($0.tile.midY))" } ?? "none") neighbours=\(model.neighbours.map { "\($0.key.kind) \(Int($0.tile.midY))" })")
         case "railhit":  // what receives a click on each of the rail's drawn traffic lights
             if let host = c.fullScreenControls.hostView, let frame = c.window?.contentView?.superview {
                 for i in 0..<3 {
@@ -553,16 +568,12 @@ enum TestDriver {
             try? await Task.sleep(for: .seconds(Double(arg) ?? 5))
             print("IKTEST chipafter open=\(state.folders.first { $0.id == work.id }?.isOpen ?? false)")
         case "railhover": state.browserPreferences.railHover = RailHoverEffect(rawValue: arg)  // magnify | expand | off
-        case "railpointer":  // y in window points from the top, over the rail's middle; "off" lets the real pointer back
-            RailHoverChecks.point(arg == "off" ? nil : Double(arg).map { CGFloat($0) }, browser: c)
         case "savepage": c.chrome.showSavePage = arg != "off"  // Save Page's choices
         case "agent":  // on | off: agent access; prints the test token
             state.browserPreferences.agentAccess = arg == "on" ? true : nil
             BrowserSecurity.shared.apply(state.browserPreferences)
             AgentServer.shared.update()
             if arg == "on" { print("IKTEST agent token \(AgentCredentials.token)") }
-        case "railpointtile": RailHoverChecks.pointTile(arg, browser: c)  // <index from the top> | folder
-        case "raildemo": RailHoverChecks.seed(c, base: arg)  // <fixture base URL>
         case "hitat":  // x,y in window points from the top-left: which view takes the click there
             let parts = arg.split(separator: ",").compactMap { Double($0) }
             if parts.count == 2, let view = c.window?.contentView {
