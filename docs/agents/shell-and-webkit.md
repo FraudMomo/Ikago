@@ -23,7 +23,9 @@
    Cmd/Ctrl shortcuts to the main menu first (`ShortcutRouter`); Cmd+C/V/X/A/Z stay with
    the page.
 5. **Overlays live in the window's SwiftUI tree** (`BrowserRootView`), not child windows, so
-   Liquid Glass samples the page behind them. Show/hide them through `ChromeModel`.
+   Liquid Glass samples the page behind them. Show/hide them through `ChromeModel`. The one exception: the icon
+   sidebar's hover effects (`RailOverlay`), which the pointer moves over constantly, so the page under it must get no pointer
+   moves; only the window server can promise that (tabs-and-sidebar.md).
    The sidebar and the Top Tabs row run in their own `NSHostingView`s (`IsolatedHost`) so their updates don't walk the
    whole window's graph; anchors can't cross hosts, so the Downloads button's frame reaches the shell through
    `ChromeModel.downloadsButtonFrame`, published after layout (never during it).

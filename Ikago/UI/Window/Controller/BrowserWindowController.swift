@@ -27,6 +27,8 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
     /// device) while it waits joins its entry, so it is asked once.
     private var permissionQueue: [PendingPermission] = []
     private(set) var pageWindowGrab: PageWindowGrab?
+    /// The icon sidebar's hover effects, drawn in a window over this one (`RailOverlay`).
+    private var railOverlay: RailOverlay?
     private var systemAppearance: SystemAppearance?
     /// Ikago's own traffic lights while the window is full screen.
     lazy var fullScreenControls = FullScreenWindowControls(window: window!)
@@ -105,6 +107,20 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
         configureOverlays()
         content.start()
         pageWindowGrab = PageWindowGrab(content: content.view, state: state)
+        let overlay = RailOverlay(parent: window, content: RailHoverLayers(state: state, chrome: chrome, commands: self)
+            .environment(\.privateBrowsing, state.isPrivate))
+        railOverlay = overlay
+        chrome.rail.onOverlay = { [weak overlay, weak rail = chrome.rail] shown in
+            overlay?.show(shown)
+            rail?.overlayOnScreen = shown && overlay?.isShown == true
+        }
+        chrome.rail.onPrepare = { [weak overlay] in overlay?.prepare() }
+        chrome.rail.onPassThrough = { [weak overlay] through in overlay?.passThrough(through) }
+        // The rail's traffic lights stay uncovered by the wider rail.
+        chrome.rail.lightsRect = { [weak self] in
+            guard let host = self?.fullScreenControls.hostView, host.window != nil, !host.isHidden, host.alphaValue > 0 else { return nil }
+            return host.convert(host.bounds, to: nil)
+        }
         if !state.isPrivate {
             ExtensionManager.shared.browser = self
             // Spaces, settings, history and bookmarks are shared by every regular window (`BrowserState+Windows`).

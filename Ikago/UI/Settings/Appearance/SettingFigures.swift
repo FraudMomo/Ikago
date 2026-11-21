@@ -202,35 +202,50 @@ struct EdgePeekFigure: View {
     }
 }
 
-/// The icon sidebar under the pointer: Magnify reaches rows out with their names, the nearest furthest; Expand slides
-/// the full sidebar out over the page.
+/// The icon sidebar under the pointer: Magnify turns the tile under it into a tab row over the page and the tiles beside
+/// it into smaller ones, like a carousel; Expand widens the rail over the page with each name beside its icon.
 struct RailHoverFigure: View {
     let effect: RailHoverEffect?
     let colors: Palette
 
     var body: some View {
-        let reach: [CGFloat] = effect == .magnify ? [0, 9, 20, 9, 0] : [0, 0, 0, 0, 0]
+        // Each icon's growth with the pointer on the middle one: 0 at rest, 1 under the pointer.
+        let growth: [CGFloat] = effect == .magnify ? [0, 0.3, 1, 0.3, 0] : [0, 0, 0, 0, 0]
         FigureWindow(colors: colors) {
             ZStack(alignment: .topLeading) {
                 FigurePage(colors: colors).padding(.leading, 13)
-                // The rail: its tiles, and with Magnify a pill on each near the pointer.
                 VStack(spacing: 2.5) {
-                    ForEach(Array(reach.enumerated()), id: \.offset) { index, extra in
+                    ForEach(Array(growth.enumerated()), id: \.offset) { index, grow in
+                        // Each icon grows in place, inside its tile.
                         RoundedRectangle(cornerRadius: 1.5)
-                            .fill(extra > 0 ? colors.panel : index == 2 ? colors.selected : colors.figureLine)
-                            .frame(width: 5 + extra, height: 5)
-                            .overlay(alignment: .leading) {
-                                if extra > 0 { Capsule().fill(colors.figureLine).frame(width: extra - 3, height: 1.5).padding(.leading, 6) }
-                            }
-                            .shadow(color: .black.opacity(extra > 0 ? 0.25 : 0), radius: 1)
-                            .frame(width: 5, alignment: .leading)
+                            .fill(index == 2 && grow == 0 ? colors.selected : colors.figureLine)
+                            .frame(width: 4, height: 4)
+                            .scaleEffect(1 + 0.6 * grow)
+                            .frame(width: 7, height: 5)
                     }
                 }
                 .padding(.top, 3)
                 .frame(width: 11)
                 .frame(maxHeight: .infinity, alignment: .top)
                 .background(RoundedRectangle(cornerRadius: 2).fill(colors.tint))
-                // Expand: the full sidebar out over the page, with names beside the icons.
+                // Magnify: the tile under the pointer as a tab row over the page, the ones beside it as smaller rows.
+                if effect == .magnify {
+                    VStack(alignment: .leading, spacing: 1.5) {
+                        ForEach(0..<3, id: \.self) { index in
+                            let main = index == 1, line: CGFloat = main ? 12 : 7
+                            HStack(spacing: 2) {
+                                RoundedRectangle(cornerRadius: 1.5).fill(colors.figureLine).frame(width: main ? 6.4 : 4.7, height: main ? 6.4 : 4.7)
+                                Capsule().fill(colors.figureLine.opacity(main ? 1 : 0.6)).frame(width: line, height: 1.5)
+                            }
+                            .padding(.leading, main ? 2.3 : 3.1).padding(.trailing, 3)
+                            .frame(height: main ? 8 : 6)
+                            .background(RoundedRectangle(cornerRadius: 2).fill(colors.tint).shadow(color: .black.opacity(main ? 0.3 : 0.2), radius: 1.5))
+                        }
+                    }
+                    .offset(x: 0.5, y: 10.5)
+                    .transition(.opacity)
+                }
+                // Expand: the rail widened over the page, with names beside the icons.
                 if effect == .expand {
                     VStack(alignment: .leading, spacing: 3) {
                         ForEach([14, 10, 16, 9], id: \.self) { width in
@@ -248,7 +263,7 @@ struct RailHoverFigure: View {
                 }
                 if effect != nil {
                     Image(systemName: "cursorarrow").font(.system(size: 9)).foregroundStyle(colors.text.opacity(0.8))
-                        .offset(x: effect == .expand ? 18 : 6, y: 13)
+                        .offset(x: effect == .expand ? 18 : 14, y: effect == .expand ? 13 : 19)
                 }
             }
         }

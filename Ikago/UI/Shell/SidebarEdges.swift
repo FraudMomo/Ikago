@@ -3,9 +3,9 @@ import SwiftUI
 extension View {
     /// The sidebar's card (docked or revealed): glass, or a flat panel. A revealed card casts its shadow from its
     /// outline (`CardShadow`), never with `.shadow`, which would re-render every tab title on each scroll frame.
-    func sidebarPanel(_ colors: Palette, radius: CGFloat, shadow: Double = 0, translucent: Bool = false) -> some View {
+    func sidebarPanel(_ colors: Palette, radius: CGFloat, shadow: Double = 0, translucent: Bool = false, tintOpacity: Double = 0.4) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius == 0 ? 0 : radius + 4)
-        return surface(shape, colors, translucentSidebar: translucent)
+        return surface(shape, colors, translucentSidebar: translucent, tintOpacity: tintOpacity)
             .background { if shadow > 0 { CardShadow(shape: shape, color: .black.opacity(shadow), radius: 16, x: 2, y: 3) } }
     }
 }
@@ -71,7 +71,9 @@ struct SidebarPeek: View {
             WindowDragArea()
                 .frame(width: 10)
                 .frame(maxHeight: .infinity)
-                .onHover { if $0 && (state.sidebarEdgePeek || state.isImmersive) { chrome.peek() } }
+                // AppKit's tracking (`RailPointerTracker`), not SwiftUI's hover, which missed a pointer arriving fast or
+                // already resting there as the window came forward.
+                .background(RailPointerTracker { if $0 != nil && (state.sidebarEdgePeek || state.isImmersive) { chrome.peek() } })
             if chrome.peeking {
                 IsolatedHost(chrome: chrome) {
                     // Top Tabs has no full sidebar: its rail slides in instead, under the tab row.
@@ -80,7 +82,10 @@ struct SidebarPeek: View {
                 }
                     .frame(width: state.usesTabsLayout ? BrowserState.sidebarRailWidth : state.sidebarWidth)
                     .frame(maxHeight: .infinity)
-                    .sidebarPanel(state.palette, radius: Radius.card, shadow: 0.18, translucent: state.browserPreferences.translucentSidebar == true)
+                    // The icon rail's glass is tinted deeper than the sidebar's: over a busy page its icons alone, with
+                    // no names beside them, got lost.
+                    .sidebarPanel(state.palette, radius: Radius.card, shadow: 0.18, translucent: state.browserPreferences.translucentSidebar == true,
+                                  tintOpacity: state.usesTabsLayout ? 0.85 : 0.4)
                     .padding(max(state.frameInset, 6))
                     .padding(.top, state.isImmersive ? state.immersiveChromeTop : 0)
                     .padding(.top, state.showsSidebarTopTabs ? SidebarTopTabs.height(state) : 0)

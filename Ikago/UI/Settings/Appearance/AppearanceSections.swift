@@ -111,7 +111,7 @@ struct SpacingSection: View {
                 // Only where there is an icon sidebar: Top Tabs, or the Sidebar layout's Icons.
                 if state.usesTabsLayout || state.browserPreferences.sidebarCompact == true {
                     PageDivider()
-                    PageRow(title: "Icon sidebar on hover", subtitle: "Show the names near the pointer, like the Dock, or slide out the full sidebar",
+                    PageRow(title: "Icon sidebar on hover", subtitle: "Grow the icons near the pointer and show the tab, or widen it to show names",
                             figure: AnyView(RailHoverFigure(effect: state.browserPreferences.railHover, colors: state.palette))) {
                         SettingsMenu(selection: Binding(
                             get: { state.browserPreferences.railHover },
