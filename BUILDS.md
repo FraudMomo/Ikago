@@ -5,13 +5,14 @@ What changed in each release of Ikago, newest first. Add changes under **Unrelea
 
 ## Unreleased
 
-- **Icon sidebar on hover:** Magnify turns the tab under the pointer into a row with its name and the tabs beside it
-  into smaller, fainter ones, like a carousel. Its row and Expand's rows have the tab's close button and, while it
-  plays sound, its mute button. Expand always goes back once the pointer leaves, in every layout (also with Top Tabs and a
-  sidebar slid in at the window's edge), never sticks half open, and leaves the traffic lights visible. The page
-  underneath no longer reacts to the pointer while either shows, and both keep working after switching sidebar styles.
-- **Icon sidebar order:** it now matches the full sidebar: pinned tabs, groups, a line, New Tab, then tabs.
-- **Slid-in icon sidebar:** its glass is tinted deeper, so its icons stay readable over a busy page.
+- **Chromium 158:** the Chromium engine is updated to Chromium 158 with its latest security fixes. Picture in
+  Picture works again with it.
+- **Icon sidebar on hover:** Magnify now shows the tab under the pointer as a row with its name, with the tabs
+  around it smaller, like a carousel. Expand no longer gets stuck open or half open, keeps the window buttons
+  usable, and stops the page underneath from reacting. Both now have close and mute buttons on their tab rows.
+- **Icon sidebar:** tabs are in the same order as in the full sidebar, and the sidebar that slides in is easier to
+  read over busy pages.
+- **Reliability:** behind-the-scenes fixes so automatic Chromium updates reach you without failing.
 
 ## 0.7.0 — 2026-11-19
 
