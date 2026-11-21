@@ -99,10 +99,6 @@ enum CEFSiteEngineChecks {
     }
 
     private static func wait(_ condition: () -> Bool) async throws {
-        for _ in 0..<300 {
-            if condition() { return }
-            try await Task.sleep(for: .milliseconds(50))
-        }
-        throw CEFError.script("Timed out waiting for a per-site engine switch.")
+        try await CEFWait.until("Timed out waiting for a per-site engine switch.") { condition() }
     }
 }

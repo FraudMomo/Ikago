@@ -24,7 +24,6 @@ enum CEFWindowMoveChecks {
     }
 
     private static func wait(_ condition: () -> Bool) async throws {
-        for _ in 0..<200 { if condition() { return }; try await Task.sleep(for: .milliseconds(50)) }
-        throw CEFError.script("Moving a page between windows timed out.")
+        try await CEFWait.until("Moving a page between windows timed out.") { condition() }
     }
 }

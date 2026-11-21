@@ -39,9 +39,7 @@ enum CEFCaptureChecks {
         try await flag(page, equals: "denied")
         guard request == nil, !active else { throw CEFError.script("Stopped capture restarted without a manual reload.") }
         }
-        page.loadURL(url)
-        try await Task.sleep(for: .milliseconds(200))
-        try await wait { !page.loading }
+        try await CEFWait.newDocument(page) { page.loadURL(url) }
         _ = try await CEFSmoke.method(page, "Runtime.evaluate", ["expression": script])
         try await wait { request != nil }
         let pending = request!
@@ -55,17 +53,16 @@ enum CEFCaptureChecks {
             : "CEF_CAPTURE_PARTIAL deny navigation-cancel; allow/stop not exercised, macOS capture authorization not granted")
     }
     private static func flag(_ page: IKCEFPage, equals value: String) async throws {
-        for _ in 0..<100 {
-            let result = try? await CEFSmoke.method(page, "Runtime.evaluate", ["expression": "window.fixtureCapture", "returnByValue": true])
-            if (result?["result"] as? [String: Any])?["value"] as? String == value { return }
-            try await Task.sleep(for: .milliseconds(50))
-        }
+        let reached = (try? await CEFWait.until("") {
+            let result = try await CEFSmoke.method(page, "Runtime.evaluate", ["expression": "window.fixtureCapture", "returnByValue": true])
+            return (result["result"] as? [String: Any])?["value"] as? String == value
+        }) != nil
+        if reached { return }
         let failure = try? await CEFSmoke.method(page, "Runtime.evaluate", ["expression": "String(window.fixtureCaptureError)", "returnByValue": true])
         let reason = (failure?["result"] as? [String: Any])?["value"] as? String ?? "unknown"
         throw CEFError.script("Fake capture did not reach \(value): \(reason); macOS camera=\(AVCaptureDevice.authorizationStatus(for: .video).rawValue), microphone=\(AVCaptureDevice.authorizationStatus(for: .audio).rawValue).")
     }
     private static func wait(_ condition: () -> Bool) async throws {
-        for _ in 0..<200 { if condition() { return }; try await Task.sleep(for: .milliseconds(50)) }
-        throw CEFError.script("Capture fixture timed out.")
+        try await CEFWait.until("Capture fixture timed out.") { condition() }
     }
 }

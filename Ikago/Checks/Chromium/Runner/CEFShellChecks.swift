@@ -34,9 +34,9 @@ enum CEFShellChecks {
         state.browserPreferences.sidebarTopTabs = nil
         try await Task.sleep(for: .milliseconds(50))
         state.browserPreferences.sidebarTopTabs = true
-        try await Task.sleep(for: .milliseconds(800))
-        guard original.contentView.window === shell.window, original.contentView.bounds.width > 0 else {
-            throw CEFError.script("A rapid layout switch removed the page from the window.")
+        try await settle(shell)
+        try await CEFWait.until("A rapid layout switch removed the page from the window.") {
+            original.contentView.window === shell.window && original.contentView.bounds.width > 0
         }
         try CEFPageGrabChecks.run(shell)
         let second = state.newTab(url: url, select: false)!
@@ -141,7 +141,6 @@ enum CEFShellChecks {
         return nil
     }
     private static func wait(_ condition: () -> Bool) async throws {
-        for _ in 0..<200 { if condition() { return }; try await Task.sleep(for: .milliseconds(50)) }
-        throw CEFError.script("Native shell fixture timed out.")
+        try await CEFWait.until("Native shell fixture timed out.") { condition() }
     }
 }

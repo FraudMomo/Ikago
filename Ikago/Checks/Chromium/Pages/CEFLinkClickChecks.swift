@@ -24,8 +24,7 @@ enum CEFLinkClickChecks {
                 _ = try await CEFSmoke.method(browser, "Input.dispatchMouseEvent",
                                               ["type": type, "x": 60, "y": 35, "button": button, "clickCount": 1, "modifiers": modifiers])
             }
-            let deadline = Date().addingTimeInterval(5)
-            while opened.count == count, Date() < deadline { try await Task.sleep(for: .milliseconds(50)) }
+            try? await CEFWait.until("") { opened.count > count }
             guard let last = opened.last, opened.count == count + 1, last.url.contains("new-tab-link"), last.background == background
             else { throw CEFError.script("A \(button) click with modifiers \(modifiers) didn't open the link in a new tab.") }
         }

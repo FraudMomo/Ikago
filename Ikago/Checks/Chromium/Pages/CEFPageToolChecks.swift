@@ -62,9 +62,10 @@ enum CEFPageToolChecks {
             let result = try await CEFSmoke.method(tab.page, "Runtime.evaluate", ["expression": expression, "returnByValue": true, "awaitPromise": true])
             return (result["result"] as? [String: Any])?["value"]
         }
-        guard try await page("typeof Notification === 'function' && Notification.__ikago === true") as? Bool == true else {
-            throw CEFError.script("The page has no notification shim.")
-        }
+        // The shim goes in after the page's isolated state script (observePageState), not with the load itself.
+        do {
+            try await wait { (try? await page("typeof Notification === 'function' && Notification.__ikago === true")) as? Bool == true }
+        } catch { throw CEFError.script("The page has no notification shim.") }
         try await wait { recorder.messages.contains { $0["t"] as? String == "permission" } }
         tab.sendNotificationMessage(["t": "permission", "value": "granted"])
         try await wait { (try? await page("Notification.permission")) as? String == "granted" }
@@ -100,10 +101,6 @@ enum CEFPageToolChecks {
     }
 
     private static func wait(_ predicate: @MainActor () async -> Bool) async throws {
-        for _ in 0..<200 {
-            if await predicate() { return }
-            try await Task.sleep(for: .milliseconds(50))
-        }
-        throw CEFError.script("Timed out waiting for the page tools fixture.")
+        try await CEFWait.until("Timed out waiting for the page tools fixture.") { await predicate() }
     }
 }

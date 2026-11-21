@@ -71,18 +71,18 @@ enum CEFExtensionAPIChecks {
         try await check(page, url: url, mustBeListed: false)
         _ = try IKCEFNativeTools.openPage(URL(string: url)!, profile: profile)
         var native: IKCEFPage?
-        for _ in 0..<150 {
+        try? await CEFWait.until("") {
             for item in IKCEFNativeTools.windows() where item["url"] as? String == url {
                 if let id = item["id"] as? Int { native = IKCEFNativeTools.hiddenPage(forWindow: id) }
             }
-            if native != nil { break }
-            try await Task.sleep(for: .milliseconds(50))
+            return native != nil
         }
         guard let native else { throw CEFError.script("Native extension API control window was not created.") }
         try await check(native, url: url, mustBeListed: true)
     }
     private static func check(_ page: IKCEFPage, url: String, mustBeListed: Bool) async throws {
-        for _ in 0..<150 {
+        let deadline = ContinuousClock.now + CEFWait.limit
+        while ContinuousClock.now < deadline {
             let result = try? await CEFSmoke.method(page, "Runtime.evaluate", [
                 "expression": "({api:document.documentElement.dataset.ikagoExtensionAPI, injected:document.documentElement.dataset.ikagoExtensionInjected})", "returnByValue": true])
             if let value = (result?["result"] as? [String: Any])?["value"] as? [String: Any],

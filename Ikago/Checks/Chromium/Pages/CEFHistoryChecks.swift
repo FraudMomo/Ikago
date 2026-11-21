@@ -24,7 +24,6 @@ enum CEFHistoryChecks {
     }
 
     private static func wait(_ condition: () -> Bool) async throws {
-        for _ in 0..<200 { if condition() { return }; try await Task.sleep(for: .milliseconds(50)) }
-        throw CEFError.script("Restored history timed out.")
+        try await CEFWait.until("Restored history timed out.") { condition() }
     }
 }

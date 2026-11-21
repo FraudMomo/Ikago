@@ -21,6 +21,9 @@ NS_SWIFT_UI_ACTOR
 + (void)runMessageLoop;
 + (void)quitMessageLoop;
 @property(class, nonatomic, readonly) BOOL ready;
+/// Set before starting: Chromium keeps its encryption key in a mock keychain instead of the login keychain. Only for
+/// Debug test runs (temporary data, nothing worth protecting), which would otherwise make macOS ask for the password.
+@property(class, nonatomic) BOOL usesMockKeychain;
 @property(class, nonatomic, readonly) BOOL canShutdown;
 @end
 NS_ASSUME_NONNULL_END

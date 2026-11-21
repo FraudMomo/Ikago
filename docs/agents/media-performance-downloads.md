@@ -55,7 +55,9 @@
   PiP, which WebKit turns off for embedding apps; `MediaPictureInPicture.allow` turns it on for every web view (measured:
   YouTube reported no PiP support, so every route silently did nothing). Chromium: its own PiP opens a borderless Chromium
   window, which `ChromiumWindowGuard` hides; instead `ChromiumPictureInPicture` puts the video in element fullscreen inside
-  its frame (a user gesture through DevTools) and moves the page view into Ikago's floating panel, with Back to Tab and
+  its frame (a user gesture through DevTools, after focusing the page: Chromium 157+ refuses fullscreen to a view without
+  keyboard focus, `SuppressFullscreenFromUnfocusedView`; check runs, whose windows never take focus, lift that rule in
+  `IKCEFRuntime.mm`) and moves the page view into Ikago's floating panel, with Back to Tab and
   Play/Pause on hover, while the tab shows a note. A page's own request (`enterpictureinpicture`, reported by the
   page-state world) is taken out of Chromium's PiP into the panel. Videos Chromium can't play (H.264 files) fall back to
   AVKit for direct addresses. A tab moving windows ends the panel first (`WebTab.endPictureInPicture`). Check with

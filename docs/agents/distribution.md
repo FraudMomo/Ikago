@@ -57,7 +57,9 @@ Public releases are made by `scripts/release.py` and published as GitHub Release
   last release tag's `cef-lock.json` with the CEF index; only when it is behind does the release job run, on GitHub's `xcode-27` image with Xcode 27.2 selected (the
   same build as local releases; Xcode 26.6's Swift 6.3 crashes compiling Ikago). Move both together when upgrading Xcode.
 - `release_chromium.py` starts from the last release's tag in `out/chromium-release` (a worktree), never from main, so
-  unfinished work can't ship. It copies the current release tooling from main (`TOOLING`) over the tag's, pins the latest
+  unfinished work can't ship. It copies the current release tooling from main (`TOOLING`) over the tag's, and main's
+  Chromium checks (`CHECKS`, never shipped) so a check fix counts on the next run; if those don't build against the tag's
+  code it falls back to the tag's own. Checks wait for conditions (`CEFWait`), never a guessed time. It pins the latest
   stable CEF (`chromium_lock.py`: size and SHA-1 from the index, SHA-256 recorded), builds and runs the Chromium checks
   (one retry), then calls `release.py --security --tag-only` with the next patch version and a build number above both
   the tag's and main's. Publishing pushes only the tag; then main gets the same Chromium (unless it has a newer one),

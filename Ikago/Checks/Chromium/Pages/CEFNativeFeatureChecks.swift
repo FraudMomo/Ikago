@@ -62,11 +62,10 @@ enum CEFNativeFeatureChecks {
         try await waitForValue(manager, "(() => { \(deepFind) return !!find(document,'#devMode'); })()")
         print("CEF_EXTENSION_DEV_MODE_READY")
         _ = try await value(manager, "(() => { \(deepFind) const t=find(document,'#devMode'); if(!t.checked)t.click(); return true; })()", gesture: true)
-        try await Task.sleep(for: .milliseconds(300))
         let reading = CommandLine.arguments.contains("--cef-smoke-read")
         if !reading {
-            guard try await value(manager, "(() => { \(deepFind) const b=find(document,'#loadUnpacked'); if(!b)return false; b.click(); return true; })()", gesture: true) as? Bool == true else {
-                throw CEFError.script("Chromium’s Load Unpacked control was unavailable.")
+            try await CEFWait.until("Chromium’s Load Unpacked control was unavailable.") {
+                try await value(manager, "(() => { \(deepFind) const b=find(document,'#loadUnpacked'); if(!b)return false; b.click(); return true; })()", gesture: true) as? Bool == true
             }
         }
         print("CEF_EXTENSION_LOAD_REQUESTED")
@@ -100,14 +99,10 @@ enum CEFNativeFeatureChecks {
         return (result["result"] as? [String: Any])?["value"]
     }
     private static func wait(_ condition: () -> Bool) async throws {
-        for _ in 0..<200 { if condition() { return }; try await Task.sleep(for: .milliseconds(100)) }
-        throw CEFError.script("Native feature fixture timed out.")
+        try await CEFWait.until("Native feature fixture timed out.") { condition() }
     }
     private static func waitForValue(_ page: IKCEFPage, _ expression: String) async throws {
-        for _ in 0..<100 {
-            if (try? await value(page, expression)) as? Bool == true { return }
-            try await Task.sleep(for: .milliseconds(100))
-        }
+        if (try? await CEFWait.until("") { try await value(page, expression) as? Bool == true }) != nil { return }
         let debug = try? await value(page, "(() => { \(deepFind) return {url:location.href, body:document.body.innerText.slice(0,1500), dev:!!find(document,'#devMode'), load:!!find(document,'#loadUnpacked'), item:!!find(document,'extensions-item'), error:find(document,'extensions-load-error')?.shadowRoot?.innerText, manager:find(document,'extensions-manager')?.items_?.map(x=>x.name)}; })()")
         print("CEF_EXTENSION_DEBUG \(String(describing: debug))")
         throw CEFError.script("Native extension fixture timed out: \(expression.prefix(90))")

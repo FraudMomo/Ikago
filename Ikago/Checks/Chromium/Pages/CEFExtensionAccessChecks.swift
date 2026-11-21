@@ -31,14 +31,7 @@ enum CEFExtensionAccessChecks {
             """) as? [String] ?? []
         guard granted.contains(pattern) else { throw CEFError.script("Granted hosts read back as \(granted), not \(pattern).") }
         try await reload(browser)
-        var active = false
-        for _ in 0..<50 where !active {
-            active = await marker(browser) == "active"
-            if !active { try await Task.sleep(for: .milliseconds(100)) }
-        }
-        guard active else {
-            throw CEFError.script("A granted site didn't get the extension.")
-        }
+        try await CEFWait.until("A granted site didn't get the extension.") { await marker(browser) == "active" }
         _ = try await value(manager, "chrome.developerPrivate.removeHostPermission(\(quoted), \(ChromiumExtensions.json(pattern)))")
         _ = try await value(manager, "chrome.developerPrivate.updateExtensionConfiguration({extensionId: \(quoted), hostAccess: 'ON_ALL_SITES'})")
         print("CEF_EXTENSION_ACCESS_OK specific-sites grant read-back")
@@ -46,13 +39,7 @@ enum CEFExtensionAccessChecks {
 
     /// Reloads and waits until the new document answers scripts.
     private static func reload(_ page: IKCEFPage) async throws {
-        page.reloadIgnoringCache(false)
-        try await Task.sleep(for: .milliseconds(300))
-        for _ in 0..<50 {
-            if (try? await value(page, "document.readyState")) as? String == "complete" { break }
-            try await Task.sleep(for: .milliseconds(100))
-        }
-        try await Task.sleep(for: .milliseconds(300))
+        try await CEFWait.newDocument(page) { page.reloadIgnoringCache(false) }
     }
 
     /// The fixture's content-script mark, once the page answers.

@@ -76,6 +76,10 @@ default:
 
 do {
     if BrowserRuntime.runs(.chromium) {
+        #if DEBUG
+        // Debug test runs keep Chromium's data in a temporary folder: they never touch the login keychain.
+        IKCEFRuntime.usesMockKeychain = ProcessInfo.processInfo.environment["IKAGO_TEST_MODE"] != nil
+        #endif
         try CEFGoogleServices.prepare()
         try CEFSessions.clearScheduledData()
         try IKCEFRuntime.start(withArgc: CommandLine.argc, argv: CommandLine.unsafeArgv, root: CEFSessions.root,

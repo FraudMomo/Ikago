@@ -225,11 +225,7 @@ enum CEFSmoke {
         }
     }
     private static func until(_ predicate: @MainActor () -> Bool) async throws {
-        for _ in 0..<400 {
-            if predicate() { return }
-            try await Task.sleep(for: .milliseconds(50))
-        }
-        throw CEFError.script("The CEF fixture timed out.")
+        try await CEFWait.until("The CEF fixture timed out.") { predicate() }
     }
     static func method(_ page: IKCEFPage, _ name: String, _ params: [String: Any]) async throws -> [String: Any] {
         let data: Data = try await withCheckedThrowingContinuation { continuation in

@@ -5,20 +5,16 @@ import IKCEFBridge
 @MainActor
 enum CEFPageStateChecks {
     static func run(_ tab: CEFWebTab) async throws {
-        for _ in 0..<100 {
-            if !tab.pageStateContexts.isEmpty { break }
-            try await Task.sleep(for: .milliseconds(50))
-        }
-        guard !tab.pageStateContexts.isEmpty else { throw CEFError.script("Page state binding did not install.") }
+        try await CEFWait.until("Page state binding did not install.") { !tab.pageStateContexts.isEmpty }
         guard let pid = tab.performanceProcessID, pid > 0, pid != getpid() else {
             throw CEFError.script("Renderer did not report its process identity for diagnostics.")
         }
         let monitor = PerformanceMonitor.shared
         let subscription = monitor.subscribe()
-        try await Task.sleep(for: .milliseconds(1500))
-        let attributed = monitor.sample.rows.contains { $0.id == pid && $0.owner == .chromium }
-        monitor.unsubscribe(subscription)
-        guard attributed else { throw CEFError.script("Renderer footprint was not attributed to Chromium.") }
+        defer { monitor.unsubscribe(subscription) }
+        try await CEFWait.until("Renderer footprint was not attributed to Chromium.") {
+            monitor.sample.rows.contains { $0.id == pid && $0.owner == .chromium }
+        }
         _ = try await tab.evaluate("""
             (() => {
               const original = window.__ikagoMedia.state;
@@ -35,9 +31,9 @@ enum CEFPageStateChecks {
             (() => { const meta=document.createElement('meta');meta.name='theme-color';meta.content='#123456';
               document.head.append(meta);return true; })()
             """)
-        try await Task.sleep(for: .milliseconds(250))
-        guard let color = tab.lastPolledThemeColor?.usingColorSpace(.sRGB), abs(color.redComponent - 18.0/255) < 0.01 else {
-            throw CEFError.script("Theme changes did not arrive without polling.")
+        try await CEFWait.until("Theme changes did not arrive without polling.") {
+            guard let color = tab.lastPolledThemeColor?.usingColorSpace(.sRGB) else { return false }
+            return abs(color.redComponent - 18.0/255) < 0.01
         }
         // Existing native-output fixture also emits real play/pause events to the adapter.
         try await CEFAudioChecks.run(tab.page)
