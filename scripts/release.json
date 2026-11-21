@@ -1,6 +1,6 @@
 {
-  "version": "0.7.0",
-  "build": 26,
+  "version": "0.7.1",
+  "build": 27,
   "repository": "FraudMomo/Ikago",
   "feed": "https://github.com/FraudMomo/Ikago/releases/latest/download/appcast.xml",
   "updatePublicKey": "BsRTMloXIKtqhoWhF0BMK+RhykoGKc9/Xo4OEJy79us=",
