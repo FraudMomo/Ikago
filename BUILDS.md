@@ -5,6 +5,11 @@ What changed in each release of Ikago, newest first. Add changes under **Unrelea
 
 ## Unreleased
 
+
+## 0.7.2 — 2026-11-25
+
+- **Chromium 158.0.8127.89:** the latest security and stability fixes from the Chromium project.
+
 ## 0.7.1 — 2026-11-21
 
 - **Chromium 158:** the Chromium engine is updated to Chromium 158 with its latest security fixes. Picture in
