@@ -1,13 +1,13 @@
 {
   "platform": "macosarm64",
   "channel": "stable",
-  "cef_version": "158.0.3+g8c29be2+chromium-158.0.8127.18",
+  "cef_version": "158.0.6+g23f1736+chromium-158.0.8127.89",
   "cef_commit": "",
-  "chromium_version": "158.0.8127.18",
-  "archive": "cef_binary_158.0.3+g8c29be2+chromium-158.0.8127.18_macosarm64_minimal.tar.bz2",
-  "size": 140226159,
-  "sha1": "25c8a98f652214b852f06ec943b504415d115e74",
-  "sha256": "eb4877f894615c0f1b806b699c74d19c476696f7716daee22811b883a9e8441f",
+  "chromium_version": "158.0.8127.89",
+  "archive": "cef_binary_158.0.6+g23f1736+chromium-158.0.8127.89_macosarm64_minimal.tar.bz2",
+  "size": 140851604,
+  "sha1": "63faae7ccd6a497430c06d26b17c4cac20dca387",
+  "sha256": "53f687e1a662820c352ceb884e342ddcf5ff1610bc166c4ae09f1e0cbb278d9d",
   "checksum_provenance": "SHA1 and size from Spotify CEF binary index; SHA256 calculated from the matching HTTPS download",
   "index": "https://cef-builds.spotifycdn.com/index.json"
 }
