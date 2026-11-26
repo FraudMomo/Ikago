@@ -7,12 +7,13 @@ import SwiftUI
 struct RailHoverLayers: View {
     let state: BrowserState
     let chrome: ChromeModel
+    let palette: CommandPaletteModel
     weak var commands: BrowserCommands?
 
     var body: some View {
         GeometryReader { geometry in
             switch state.browserPreferences.railHover {
-            case .expand: RailExpandPanel(state: state, chrome: chrome, size: geometry.size, commands: commands)
+            case .expand: RailExpandPanel(state: state, chrome: chrome, palette: palette, size: geometry.size, commands: commands)
             case .magnify: RailMagnifyLayer(state: state, chrome: chrome, size: geometry.size, commands: commands)
             case nil: EmptyView()
             }
@@ -28,34 +29,39 @@ private func flipped(_ rect: CGRect, in size: CGSize) -> CGRect {
 
 // MARK: - Expand
 
-/// Expand: the rail itself widens over the page while the pointer is on it, every item where it was and each row's
-/// name beside its icon (`SidebarRail(expanded:)`). It sits on the rail's frame from when it opened (`anchor`) and is
-/// exactly `expandedWidth` wide when out, the rail's width when in. Its rows are laid out at the full width the whole
-/// time and only the edge moves, so nothing reflows. At the rail's width it looks just like the rail, so it shows at
-/// once and the rail's items step aside (`covered`). The window's traffic lights, when the rail holds them, stay
-/// uncovered: the wider rail has a hole where they are, and the pointer goes through it to them.
+/// Expand: the full sidebar (`SidebarView`) opens over the rail and the page while the pointer is on it, laid out as
+/// when it is always shown: the same top row, address field, essentials, groups and bottom bar, and the same drags
+/// (reorder, into groups, out to split the page). It sits on the rail's frame from when it opened (`anchor`) and is the
+/// sidebar's own width when out (`RailHoverModel.expandWidth`); its edge grows from the rail's while it fades in. The
+/// window's traffic lights move into its top row meanwhile (`positionTrafficLights`) and stay uncovered: the panel has
+/// a hole where they are, and the pointer goes through it to them.
 private struct RailExpandPanel: View {
     let state: BrowserState
     let chrome: ChromeModel
+    let palette: CommandPaletteModel
     let size: CGSize
     weak var commands: BrowserCommands?
 
     var body: some View {
         let model = chrome.rail
         let out = model.expanded
+        // Read where the lights are again each time they move (`lightsMoves`): they leave the rail's column for the
+        // sidebar's top row while it is out.
+        let lights = model.shown && model.lightsMoves >= 0 ? model.lightFrames() : []
         if let anchor = model.anchor {
             let rail = flipped(anchor, in: size)
-            let full = RailHover.expandedWidth
+            let full = model.expandWidth()
             let onRight = state.sidebarOnRight
             let alignment: Alignment = onRight ? .trailing : .leading
-            // The rows show from the tiles' far edge: at the rail's width the names would already peek past the icons.
-            let rows = out ? full : SidebarRail.tileInset + 36
+            let edge = out ? full : min(full, rail.width)
             ZStack(alignment: alignment) {
                 RailExpandBackdrop(state: state, raised: out)
-                    .frame(width: out ? full : min(full, rail.width), height: rail.height)
-                SidebarRail(state: state, chrome: chrome, commands: commands, expanded: true)
+                    .frame(width: edge, height: rail.height)
+                SidebarView(state: state, chrome: chrome, palette: palette, commands: commands)
+                    .environment(\.sidebarOverRail, true)
                     .frame(width: full, height: rail.height)
-                    .mask(alignment: alignment) { Rectangle().frame(width: rows) }
+                    .opacity(out ? 1 : 0)
+                    .mask(alignment: alignment) { Rectangle().frame(width: edge) }
             }
             .animation(out ? RailHover.reveal : RailHover.conceal, value: out)
             .frame(width: full, height: rail.height, alignment: alignment)
@@ -64,21 +70,22 @@ private struct RailExpandPanel: View {
             .allowsHitTesting(out)
             .position(x: onRight ? rail.maxX - full / 2 : rail.minX + full / 2, y: rail.midY)
             .frame(width: size.width, height: size.height)
-            .mask { LightsHole(rect: model.shown ? model.lightsRect().map { flipped($0, in: size) } : nil) }
+            .mask { LightsHole(lights: lights.map { flipped($0, in: size) }).animation(out ? RailHover.reveal : RailHover.conceal, value: lights) }
         }
     }
 }
 
-/// Everything, less a rounded hole around the window's traffic lights.
+/// Everything, less a round hole over each of the window's traffic lights, so only the lights show through, never what
+/// lies around them in the window below. The holes move with the lights as they glide between the rail's column and the
+/// sidebar's row (on the same curve, set by the caller).
 private struct LightsHole: View {
-    let rect: CGRect?
+    let lights: [CGRect]
     var body: some View {
         Rectangle().overlay {
-            if let rect {
-                let hole = rect.insetBy(dx: -4, dy: -4)
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .frame(width: hole.width, height: hole.height)
-                    .position(x: hole.midX, y: hole.midY)
+            ForEach(Array(lights.enumerated()), id: \.offset) { _, light in
+                Circle()
+                    .frame(width: light.width + 0.5, height: light.height + 0.5)
+                    .position(x: light.midX, y: light.midY)
                     .blendMode(.destinationOut)
             }
         }
@@ -86,7 +93,7 @@ private struct LightsHole: View {
     }
 }
 
-/// The wider rail's backdrop: what the rail sits on, carried out over the page. The window's frost when the window is
+/// Expand's backdrop: what the rail sits on, carried out over the page. The window's frost when the window is
 /// frosted, else the window's color; with Liquid Glass and a rail that is its own card, that card's glass over the
 /// color (glass alone would show the page through). A hairline rim and a shadow while it is out.
 private struct RailExpandBackdrop: View {

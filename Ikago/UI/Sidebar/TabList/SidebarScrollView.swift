@@ -88,6 +88,11 @@ final class ListScrollView: NSScrollView {
         super.init(frame: frame)
         drawsBackground = false
         contentView.drawsBackground = false
+        // Never inset for the title bar: a list near the window's top (the essentials, once the address bar moved above
+        // the page) was given a 12 pt inset, which shifted its first row up under a clip and made it scroll.
+        automaticallyAdjustsContentInsets = false
+        contentInsets = NSEdgeInsetsZero
+        scrollerInsets = NSEdgeInsetsZero
         // A slim overlay scroller that shows while scrolling, so long lists show where you are. Overlay style keeps
         // the rows full width even when a mouse makes the system prefer legacy scrollers.
         verticalScroller = SlimScroller()

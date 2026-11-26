@@ -107,7 +107,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
         configureOverlays()
         content.start()
         pageWindowGrab = PageWindowGrab(content: content.view, state: state)
-        let overlay = RailOverlay(parent: window, content: RailHoverLayers(state: state, chrome: chrome, commands: self)
+        let overlay = RailOverlay(parent: window, content: RailHoverLayers(state: state, chrome: chrome, palette: palette, commands: self)
             .environment(\.privateBrowsing, state.isPrivate))
         railOverlay = overlay
         chrome.rail.onOverlay = { [weak overlay, weak rail = chrome.rail] shown in
@@ -115,11 +115,18 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
             rail?.overlayOnScreen = shown && overlay?.isShown == true
         }
         chrome.rail.onPrepare = { [weak overlay] in overlay?.prepare() }
+        // Expand opens the full sidebar at the width the person gave it.
+        chrome.rail.expandWidth = { [weak state] in CGFloat(state?.sidebarWidth ?? Double(RailHover.expandedWidth)) }
         chrome.rail.onPassThrough = { [weak overlay] through in overlay?.passThrough(through) }
         // The rail's traffic lights stay uncovered by the wider rail.
         chrome.rail.lightsRect = { [weak self] in
-            guard let host = self?.fullScreenControls.hostView, host.window != nil, !host.isHidden, host.alphaValue > 0 else { return nil }
-            return host.convert(host.bounds, to: nil)
+            guard let self, let window = self.window else { return nil }
+            let rects = self.fullScreenControls.lightRects(in: window)
+            return rects.isEmpty ? nil : rects.dropFirst().reduce(rects[0]) { $0.union($1) }
+        }
+        chrome.rail.lightFrames = { [weak self] in
+            guard let self, let window = self.window else { return [] }
+            return self.fullScreenControls.lightRects(in: window)
         }
         if !state.isPrivate {
             ExtensionManager.shared.browser = self
@@ -145,8 +152,9 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
         } onChange: { [weak self] in self?.applyChrome() }
         // Sidebar width changes (a drag fires many) only move the traffic lights; everything
         // else in applyChrome is far heavier.
+        let rail = chrome.rail
         observeState {
-            _ = state.sidebarWidth
+            _ = (state.sidebarWidth, rail.expanded)
         } onChange: { [weak self] in
             self?.positionTrafficLights()
         }

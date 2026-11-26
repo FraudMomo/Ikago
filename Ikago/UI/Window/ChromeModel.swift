@@ -106,6 +106,7 @@ final class ChromeModel {
         // grown icons and the name beside them): it stays while they are in use, and slides away once they let go and the
         // pointer is elsewhere.
         rail.holdsChrome = { [weak self] in self?.holdsChrome ?? false }
+        rail.isDragging = { [weak self] in self?.draggingTabID != nil || self?.draggingFolderID != nil }
         rail.onRelease = { [weak self] in
             guard let self, self.peeking, !self.peekHovered else { return }
             self.endPeek()

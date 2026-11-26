@@ -197,6 +197,14 @@ extension BrowserWindowController: BrowserCommands, NSMenuItemValidation {
     @objc func navigateBack(_ sender: Any?) { goBack() }
     @objc func navigateForward(_ sender: Any?) { goForward() }
     @objc func toggleIkagoSidebar(_ sender: Any?) { toggleSidebar() }
+    func showFullSidebar() {
+        chrome.rail.reset()
+        withAnimation(.ikago) {
+            state.browserPreferences.sidebarCompact = nil
+            state.sidebarVisible = true
+        }
+    }
+
     func cycleSidebar() {
         chrome.showDownloads = false
         chrome.peeking = false

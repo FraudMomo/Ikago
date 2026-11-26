@@ -9,6 +9,8 @@ struct ChromeItemView: View {
     var size: CGFloat = 28
     /// In the sidebar's bottom bar "Spaces" is the row of dots; elsewhere it is a menu.
     var spacesAsDots = false
+    /// Drawn in the full sidebar that Expand opens over the icon rail: the sidebar button keeps it open.
+    @Environment(\.sidebarOverRail) private var overRail
 
     var body: some View {
         let tab = state.activeTab
@@ -23,7 +25,9 @@ struct ChromeItemView: View {
         case .reload:
             ChromeButton(symbol: tab?.isLoading == true ? "stop.fill" : "arrow.clockwise", help: "Reload (⌘R)",
                          colors: colors, size: size, enabled: tab != nil) { commands?.reloadOrStop() }
-        case .sidebarToggle: button(help: "Sidebar: Full, Icons, Hidden") { commands?.cycleSidebar() }
+        case .sidebarToggle:
+            if overRail { button(help: "Keep the Sidebar Open") { commands?.showFullSidebar() } }
+            else { button(help: "Sidebar: Full, Icons, Hidden") { commands?.cycleSidebar() } }
         case .newTab: button(help: "New Tab (⌘T)") { commands?.newTab() }
         case .newSpace: button(help: "New Space (⇧⌘N)") { commands?.newSpace() }
         case .bookmarks: button(help: "Bookmarks (⌥⌘B)") { commands?.openPage(.bookmarks) }
@@ -135,5 +139,15 @@ struct SpaceMenu: View {
         .menuIndicator(.hidden)
         .fixedSize()
         .help(state.activeSpace.name)
+    }
+}
+
+private struct SidebarOverRailKey: EnvironmentKey { static let defaultValue = false }
+
+extension EnvironmentValues {
+    /// Inside the full sidebar that the icon rail's Expand opens over the page (`RailExpandPanel`).
+    var sidebarOverRail: Bool {
+        get { self[SidebarOverRailKey.self] }
+        set { self[SidebarOverRailKey.self] = newValue }
     }
 }

@@ -34,8 +34,14 @@ extension BrowserWindowController {
             let lower = state.immersiveChromeTop
             let inset = state.isImmersive ? 0 : CGFloat(state.frameInset)
             if railLights {
-                fullScreenControls.place(firstX: state.sidebarOnRight && state.sidebarLightsFollow ? content.bounds.width - inset - (BrowserState.sidebarRailWidth + 14) / 2 : inset + (BrowserState.sidebarRailWidth - 14) / 2,
-                                         centerFromTop: max(inset, 8) + 16 + lower, band: band, vertical: true, visible: true)
+                // A column in the rail; a row in the top row of Expand's full sidebar while it is out over the rail, as
+                // when the sidebar is docked. The lights glide between the two with the panel.
+                let columnX = state.sidebarOnRight && state.sidebarLightsFollow
+                    ? content.bounds.width - inset - (BrowserState.sidebarRailWidth + 14) / 2 : inset + (BrowserState.sidebarRailWidth - 14) / 2
+                fullScreenControls.placeRail(column: (columnX, max(inset, 8) + 16 + lower),
+                                             row: (followsRight ? rightInset : 19, state.sidebarRowCenter + lower),
+                                             band: band, expanded: chrome.rail.expanded)
+                chrome.rail.lightsMoves += 1
             } else {
                 // The sidebar's top row: docked from the top edge, or peeking inside its margin.
                 let frame = CGFloat(state.frameInset)

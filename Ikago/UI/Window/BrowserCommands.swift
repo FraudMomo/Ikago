@@ -15,6 +15,8 @@ protocol BrowserCommands: AnyObject {
     func toggleSidebar()
     /// The sidebar button: Full → Icons → Hidden → Full.
     func cycleSidebar()
+    /// The full sidebar, docked (from the icon rail's Expand: keep it open).
+    func showFullSidebar()
     func toggleDownloads()
     var downloadsPresented: Bool { get }
     func toggleDevices()

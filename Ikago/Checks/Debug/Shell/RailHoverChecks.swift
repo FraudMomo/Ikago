@@ -40,7 +40,8 @@ enum RailHoverChecks {
         try? await Task.sleep(for: .milliseconds(900))
         check(model.surface?.windowRect != nil, "the rail is followed")
         // The new-tab tile, under the traffic lights; the first tab is just below it.
-        let top = SidebarRail.lightsHeight + 8 + 16
+        // (Below the sidebar button when it sits at the top: a 32 pt tile and the 8 pt gap.)
+        let top = SidebarRail.lightsHeight + 8 + (SidebarRail.togglesAtTop(state) ? 40 : 0) + 16
         point(onRail: true, effect: .magnify, fromTop: top)
         try? await Task.sleep(for: .milliseconds(400))
         check(model.phase == .open && model.strength == 1 && model.hovered?.key.kind == .newTab && model.rowOnScreen,
@@ -87,8 +88,41 @@ enum RailHoverChecks {
         } else {
             check(false, "the rail holds the traffic lights")
         }
+        // A tab dragged out of Expand's sidebar over the page: the effect stays out, but the overlay lets the drag through
+        // to the browser window (split view's targets); back over the sidebar it takes it again.
+        if let rail = model.surface?.windowRect, let window = browser.window, let id = made.first {
+            chrome.draggingTabID = id
+            model.pretendPointer = .some(NSPoint(x: window.frame.width * 0.7, y: rail.midY))
+            try? await Task.sleep(for: .milliseconds(150))
+            let overPage = model.passingThrough == true && model.expanded
+            model.pretendPointer = .some(NSPoint(x: rail.minX + 120, y: rail.midY))
+            try? await Task.sleep(for: .milliseconds(150))
+            let overSidebar = model.passingThrough == false
+            chrome.draggingTabID = nil
+            check(overPage && overSidebar, "a drag over the page passes through the overlay; over Expand's sidebar it doesn't")
+        }
         point(onRail: false, effect: .expand)
         try? await Task.sleep(for: settled)
+        check(model.anchor == nil, "back at idle the overlay holds nothing")
+
+        // Over the rail's own sidebar button Expand stays shut, so the button takes the click.
+        if let toggle = LayoutChecks.frames["rail-sidebar-toggle"], let content = browser.window?.contentView {
+            model.pretendPointer = .some(content.convert(NSPoint(x: toggle.midX, y: content.isFlipped ? toggle.midY : content.bounds.height - toggle.midY), to: nil))
+            if let surface = model.surface { model.startForCheck(rail: surface, effect: .expand) }
+            try? await Task.sleep(for: .milliseconds(400))
+            check(model.phase == .idle && !model.expanded, "over the rail's sidebar button Expand doesn't open")
+            // Opened from the tiles, moving onto the button lets the click through and lets go.
+            point(onRail: true, effect: .expand)
+            try? await Task.sleep(for: .milliseconds(300))
+            let wasOpen = model.expanded
+            model.pretendPointer = .some(content.convert(NSPoint(x: toggle.midX, y: content.isFlipped ? toggle.midY : content.bounds.height - toggle.midY), to: nil))
+            try? await Task.sleep(for: .milliseconds(100))
+            let through = model.passingThrough == true
+            try? await Task.sleep(for: settled)
+            check(wasOpen && through && model.phase == .idle, "moving from the tiles onto the rail's button lets the click through and closes Expand")
+            point(onRail: false, effect: .expand)
+            try? await Task.sleep(for: settled)
+        }
 
         // After switching sidebar styles back and forth, the effects open on the rail that is there and go back.
         var follows = true

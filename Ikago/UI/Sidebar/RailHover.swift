@@ -5,14 +5,15 @@ import SwiftUI
 ///
 /// - Magnify: the icons near the pointer grow in place, like the Dock (`railMagnify`), and the tile under the pointer
 ///   becomes a tab row over the page with its name (`RailMagnifyLayer`).
-/// - Expand: the rail widens over the page with each name beside its icon (`RailExpandPanel`).
+/// - Expand: the full sidebar opens over the rail and the page, laid out exactly as when it is always shown, with its
+///   controls, address field, essentials, groups and drags (`RailExpandPanel`).
 ///
 /// Both draw over the page in a window of their own (`RailOverlay`): AppKit sends pointer moves to every tracking area
 /// under the pointer whatever covers it, so the page under them went on hovering; the window server sends the pointer
 /// to the overlay only where it draws. When they open and close is `RailHoverModel`'s state machine, and nothing else.
 /// Off by default, and off under Reduce Motion.
 enum RailHover {
-    /// Expand's width: room for each row's name beside its icon.
+    /// Expand's width when the full sidebar's isn't known.
     static let expandedWidth: CGFloat = 240
     /// The icon under the pointer at its largest (a 16 pt icon grows to 24 pt, inside its 36 pt tile), and the ones
     /// just above and below it.
@@ -205,6 +206,11 @@ struct RailPointerTracker: FillingViewRepresentable {
 final class RailTrackingView: NSView {
     var onMove: (NSPoint?) -> Void = { _ in }
     private var isInside = false
+    /// Where the pointer was (screen) when the app or window came forward or this view arrived under it (a sidebar
+    /// change puts a rail or an edge under a still pointer): nothing opens until the person moves the pointer from there.
+    /// Without it the icon sidebar's Expand and the hidden sidebar opened by themselves after ⌘Tab or a click on the
+    /// sidebar button.
+    private var stillAt: NSPoint?
     private var observers: [NSObjectProtocol] = []
 
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
@@ -217,8 +223,21 @@ final class RailTrackingView: NSView {
         syncSoon()
     }
 
-    override func mouseEntered(with event: NSEvent) { follow(event.locationInWindow) }
-    override func mouseMoved(with event: NSEvent) { follow(event.locationInWindow) }
+    override func mouseEntered(with event: NSEvent) { moved(event.locationInWindow) }
+    override func mouseMoved(with event: NSEvent) { moved(event.locationInWindow) }
+
+    /// A move the person made: ignored while the pointer is still where it was when things changed under it.
+    private func moved(_ point: NSPoint) {
+        if let still = stillAt {
+            let now = NSEvent.mouseLocation
+            guard hypot(now.x - still.x, now.y - still.y) >= 3 else { return }
+            stillAt = nil
+        }
+        follow(point)
+    }
+
+    /// Something changed under a pointer that may not have moved: wait for it to move before opening anything.
+    private func holdStill() { stillAt = NSEvent.mouseLocation }
     override func mouseExited(with event: NSEvent) { leave() }
 
     override func viewDidMoveToWindow() {
@@ -230,15 +249,16 @@ final class RailTrackingView: NSView {
         let center = NotificationCenter.default
         for name in [NSWindow.didBecomeKeyNotification, NSWindow.didBecomeMainNotification] {
             observers.append(center.addObserver(forName: name, object: window, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.sync() }
+                MainActor.assumeIsolated { self?.holdStill(); self?.sync() }
             })
         }
         observers.append(center.addObserver(forName: NSApplication.didResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.leave() }
         })
         observers.append(center.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.sync() }
+            MainActor.assumeIsolated { self?.holdStill(); self?.sync() }
         })
+        holdStill()
         syncSoon()
     }
 
@@ -251,7 +271,8 @@ final class RailTrackingView: NSView {
         guard let window, NSApp.isActive, !isHiddenOrHasHiddenAncestor else { leave(); return }
         let point = window.mouseLocationOutsideOfEventStream
         let frontmost = NSWindow.windowNumber(at: NSEvent.mouseLocation, belowWindowWithWindowNumber: 0) == window.windowNumber
-        if frontmost && contains(point) { report(point) } else { leave() }
+        // Catching up only keeps something already open; it never opens it (`stillAt`).
+        if frontmost && contains(point) { if isInside || stillAt == nil { report(point) } } else { leave() }
     }
 
     private func contains(_ windowPoint: NSPoint) -> Bool {

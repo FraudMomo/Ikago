@@ -53,7 +53,7 @@ final class RailHoverModel {
     private(set) var hovered: RailHoveredItem?
     /// Magnify: the items just above and below it, grown a little with smaller rows.
     private(set) var neighbours: [RailHoveredItem] = []
-    /// The overlay window is on screen (set by its owner). The rail's own items step aside only then, so a wider rail
+    /// The overlay window is on screen (set by its owner). The rail's own items step aside only then, so Expand's sidebar
     /// that failed to show can never leave the rail blank.
     var overlayOnScreen = false
 
@@ -64,7 +64,7 @@ final class RailHoverModel {
         case .idle, .arming: false
         }
     }
-    /// Expand: the wider rail is out (it narrows back while closing).
+    /// Expand: Expand's sidebar is out (it narrows back while closing).
     var expanded: Bool {
         guard effect == .expand else { return false }
         switch phase {
@@ -72,7 +72,7 @@ final class RailHoverModel {
         default: return false
         }
     }
-    /// A copy of the rail lies over it in the overlay (the wider rail, or Magnify's), so the rail's own items step aside.
+    /// A copy of the rail lies over it in the overlay (Expand's sidebar, or Magnify's), so the rail's own items step aside.
     var covered: Bool { shown && overlayOnScreen }
     /// Magnify: the tab row is on screen.
     var rowOnScreen: Bool { effect == .magnify && covered && hovered != nil }
@@ -95,8 +95,18 @@ final class RailHoverModel {
     @ObservationIgnored var onRelease: (() -> Void)?
     /// Something else in the window is in use (an address being typed, a drag, the downloads list): don't close.
     @ObservationIgnored var holdsChrome: () -> Bool = { false }
-    /// The window's own traffic lights (window coordinates) when it draws them; the wider rail leaves them uncovered.
+    /// A tab or group is being dragged. Outside the effect's own zone the overlay lets the drag through to the browser
+    /// window, so drops on the page (split view) and elsewhere reach their targets: the overlay window covers the whole
+    /// browser window and its host is a drop destination wherever it is.
+    @ObservationIgnored var isDragging: () -> Bool = { false }
+    /// The window's own traffic lights (window coordinates) when it draws them; Expand's sidebar leaves them uncovered.
     @ObservationIgnored var lightsRect: () -> CGRect? = { nil }
+    /// Each drawn traffic light where it is headed (window coordinates), for the round holes over them.
+    @ObservationIgnored var lightFrames: () -> [CGRect] = { [] }
+    /// Bumped whenever the traffic lights move (into Expand's top row and back), so the hole over them follows.
+    var lightsMoves = 0
+    /// Expand's width when out: the full sidebar's.
+    @ObservationIgnored var expandWidth: () -> CGFloat = { RailHover.expandedWidth }
     /// The list of the rail's copy in the overlay, kept scrolled like the rail's (`listScrolled`).
     @ObservationIgnored weak var overlayList: RailSpace?
     @ObservationIgnored private var mirroring = false
@@ -262,18 +272,27 @@ final class RailHoverModel {
         // The rail moved or resized while the effect showed over it (slid away, the window resized): let go at once.
         if shown, let anchor, !Self.same(anchor, rail) { reset(); stop(); return }
         let onRail = point.map(rail.contains) ?? false
+        // Expand opens only from the tiles: over the rail's own buttons (the sidebar button, Tab Groups, Spaces at the foot)
+        // the full sidebar would cover them, and a click meant for them landed on it instead.
+        let onTiles = effect != .expand || (point.map { tilesRect(rail)?.contains($0) ?? true } ?? false)
         let onRight = rail.midX > window.frame.width / 2
-        let inZone = onRail || (point.map { zone(rail, onRight: onRight)?.contains($0) ?? false } ?? false)
-        let through = !shown || (point.map { lightsRect()?.insetBy(dx: -4, dy: -4).contains($0) ?? false } ?? false)
+        // Expand: the rail's own buttons (outside its tiles) are never under the panel; over them it lets go at once and
+        // lets the click through.
+        let overButtons = effect == .expand && onRail && !onTiles
+        let inZone = !overButtons && (onRail || (point.map { zone(rail, onRight: onRight)?.contains($0) ?? false } ?? false))
+        let dragging = isDragging()
+        let overLights = point.map { lightsRect()?.insetBy(dx: -4, dy: -4).contains($0) ?? false } ?? false
+        let through = !shown || overLights || overButtons || (dragging && !inZone)
         if through != passingThrough { passingThrough = through; onPassThrough?(through) }
-        if effect == .magnify, inZone, let point, shown { follow(point, rail: rail) }
+        // The carousel holds still during a drag: its springs on every tile crossed made dragging stutter.
+        if effect == .magnify, inZone, let point, shown, !dragging { follow(point, rail: rail) }
         let now = ContinuousClock.now
 
         switch phase {
         case .idle:
-            if onRail { phase = .arming(since: now) } else { stop() }
+            if onRail && onTiles { phase = .arming(since: now) } else if !onRail { stop() }
         case .arming(let since):
-            if !onRail { phase = .idle }
+            if !onRail || !onTiles { phase = .idle }
             else if still, now - since >= (effect == .expand ? RailHover.expandDelay : .zero) {
                 anchor = rail
                 phase = .open
@@ -285,7 +304,7 @@ final class RailHoverModel {
             if inZone || holdsChrome() { phase = .open }
             else if now - since >= RailHover.leaveGrace { phase = .closing(since: now) }
         case .closing(let since):
-            if onRail, still { phase = .open }
+            if onRail, onTiles, still { phase = .open }
             else if now - since >= RailHover.settle { phase = .idle }
         }
     }
@@ -296,6 +315,9 @@ final class RailHoverModel {
         switch new {
         case .idle:
             stop()
+            // Nothing stays mounted in the hidden overlay (a whole sidebar, registered for drops); `arming` mounts it
+            // again where it will open.
+            anchor = nil
             pointer = nil
             hovered = nil
             neighbours = []
@@ -322,11 +344,17 @@ final class RailHoverModel {
         if new == .idle, old != .idle { onRelease?() }
     }
 
-    /// Where the pointer keeps the effect: the wider rail, or the tab row; both grow away from the window's edge.
+    /// The rail's list of tiles (its scroll view, window coordinates), clipped to the rail.
+    private func tilesRect(_ rail: CGRect) -> CGRect? {
+        guard let scroll = surface?.list.view?.enclosingScrollView, scroll.window != nil else { return nil }
+        return scroll.convert(scroll.bounds, to: nil).intersection(rail)
+    }
+
+    /// Where the pointer keeps the effect: Expand's sidebar, or the tab row; both grow away from the window's edge.
     private func zone(_ rail: CGRect, onRight: Bool) -> CGRect? {
         switch effect {
         case .expand:
-            let width = RailHover.expandedWidth
+            let width = expandWidth()
             let base = anchor ?? rail
             return CGRect(x: onRight ? base.maxX - width : base.minX, y: base.minY, width: width, height: base.height)
         case .magnify:
@@ -362,7 +390,7 @@ final class RailHoverModel {
         abs(a.minX - b.minX) < 0.5 && abs(a.minY - b.minY) < 0.5 && abs(a.width - b.width) < 0.5 && abs(a.height - b.height) < 0.5
     }
 
-    /// Scrolls one rail list to where the other is, so the wider rail shows the same rows the rail did.
+    /// Scrolls one rail list to where the other is, so Expand's sidebar shows the same rows the rail did.
     private static func scroll(_ target: RailSpace?, like source: RailSpace?) {
         guard let from = source?.view?.enclosingScrollView, let to = target?.view?.enclosingScrollView else { return }
         to.contentView.scroll(to: from.contentView.bounds.origin)

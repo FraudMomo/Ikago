@@ -197,7 +197,7 @@ struct TabListView: View {
                 TabDragPreview(tab: tab, colors: colors, count: chrome.selectedTabIDs.contains(tab.id) ? chrome.selectedTabIDs.count : 1)
             }
             .travellingWithDrag(tab.id, chrome: chrome)
-            .tabDropTarget(tab, axis: .vertical, state: state, chrome: chrome)
+            .tabDropTarget(tab, axis: .vertical, state: state, chrome: chrome, combines: true)
             .recordLayout("sidebar-tab-\(tab.id)")
             .transition(.asymmetric(insertion: .move(edge: .top).combined(with: .opacity),
                                     removal: .opacity.combined(with: .scale(scale: 0.96))))

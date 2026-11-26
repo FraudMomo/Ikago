@@ -2,8 +2,10 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 extension View {
-    func tabDropTarget(_ tab: TabItem, axis: Axis, state: BrowserState, chrome: ChromeModel) -> some View {
-        modifier(TabDropTarget(tab: tab, axis: axis, state: state, chrome: chrome))
+    /// `combines`: the middle of the row also groups or splits (the full sidebar's rows only; tiles and the tab row just
+    /// reorder, which keeps small targets simple).
+    func tabDropTarget(_ tab: TabItem, axis: Axis, state: BrowserState, chrome: ChromeModel, combines: Bool = false) -> some View {
+        modifier(TabDropTarget(tab: tab, axis: axis, state: state, chrome: chrome, combines: combines))
     }
 
     func tabListEndDrop(state: BrowserState, chrome: ChromeModel) -> some View {
@@ -17,6 +19,7 @@ private struct TabDropTarget: ViewModifier {
     let axis: Axis
     let state: BrowserState
     let chrome: ChromeModel
+    let combines: Bool
     @State private var insertionAfter: Bool?
     @State private var length = MeasuredLength()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -44,6 +47,50 @@ private struct TabDropTarget: ViewModifier {
     }
 
     private var animation: Animation? { reduceMotion ? nil : .ikagoQuick }
+
+    private var delegate: TabReorderDropDelegate {
+        let state = state, chrome = chrome, tab = tab, animation = animation
+        var delegate = TabReorderDropDelegate(
+            axis: axis, length: length, preview: $insertionAfter,
+            accepts: { state.canReorderTab($0, relativeTo: tab.id) },
+            source: { chrome.draggingTabID },
+            perform: { id, after in
+                withAnimation(animation) { _ = state.reorderTab(id, relativeTo: tab.id, after: after) }
+                chrome.endTabDrag()
+            },
+            into: state)
+        // A group dragged onto a loose tab takes its place among the tabs, before or after it.
+        if tab.folderID == nil && !tab.pinned {
+            let source: @MainActor () -> String? = { chrome.draggingFolderID }
+            let perform: @MainActor (String, Bool) -> Void = { id, after in
+                chrome.endFolderDrag()
+                withAnimation(animation) { state.placeFolderAmongTabs(id, relativeTo: tab.id, after: after) }
+            }
+            delegate.group = (source, perform)
+        }
+        guard combines else { return delegate }
+        // Dropped on the middle: group the two (or join this tab's group), or open them side by side.
+        let target = tab.id
+        let allowed: @MainActor (String, TabCombine) -> Bool = { id, kind in
+            guard id != target, let dragged = state.tab(id), let here = state.tab(target), dragged.spaceID == here.spaceID else { return false }
+            switch kind {
+            case .group: return !here.pinned && state.splitGroup(of: target) == nil && !(here.folderID != nil && here.folderID == dragged.folderID)
+            case .split: return state.splitGroup(of: target)?.contains(id) != true && (state.splitGroup(of: target)?.count ?? 1) < 4
+            }
+        }
+        let combine: @MainActor (String, TabCombine) -> Void = { id, kind in
+            chrome.endTabDrag()
+            withAnimation(animation) {
+                switch kind {
+                case .group: if let here = state.tab(target) { state.drop(id, onto: here, makeGroup: true) }
+                case .split: state.splitTabs(id, with: target)
+                }
+            }
+            chrome.selectedTabIDs = []
+        }
+        delegate.combine = (cross, $combineHint, allowed, combine)
+        return delegate
+    }
     private var alignment: Alignment {
         axis == .horizontal ? (insertionAfter == true ? .trailing : .leading) : (insertionAfter == true ? .bottom : .top)
     }

@@ -54,20 +54,36 @@
   building (`DragSourceDim`, `DragInsertionLine`, `TravellingWithDrag`), and delegates ask for the dragged tab through a
   closure and write their preview only when it changes. Measured with `renders:<n>` (`RenderProbe`): a drag's start and
   end re-ran every row builder and target (31 each with 30 tabs); now only the 31 small dims.
+- In the full sidebar's rows (and Expand's), a tab dropped on another tab's middle half combines them (`combines:`; tiles,
+  the essentials grid and the tab row only reorder) (`TabReorderDropDelegate.combine`, `TabCombine`): across
+  the row, the first half groups the two (`drop(_:onto:makeGroup:)`: a new group where the target was, or the target's
+  group) and the second half splits them (`splitTabs`); left/right in lists and tiles, top/bottom in the tab row, whose
+  ends are for reordering. The quarters at either end only reorder. `CombineHint` tints the half and names it (just
+  the symbol on small tiles); nothing changes until the drop. Pinned targets and split members only offer what applies.
+  `hintshot:<png>` draws the hints offscreen.
 - Rail tiles drag like the full sidebar's rows (`onDrag` with `TabDrag`, `tabDropTarget` on each tile, `tabListEndDrop`
   under the last one): reorder, onto a group tile to join it, onto the page to split it, out to a new window. Group
   tiles drag and take drops like group headers (`RailGroupDrag`, `FolderHeaderDropDelegate`).
 - The rail's sidebar button sits where the full sidebar has it: at the top under the lights when the sidebar's top row
-  holds it (`SidebarRail.togglesAtTop`), else at the foot.
+  holds it (`SidebarRail.togglesAtTop`), else at the foot. A click opens the full sidebar (`showFullSidebar`); its menu hides the
+  sidebar. Under Top Tabs it hides the rail.
 - Both draw in a window of their own (`RailOverlay`): borderless, transparent, a child of the browser window and exactly
   its size. It is put in place invisible and click-through ahead of use (`onPrepare`, when a rail appears and on
   `arming`) and showing is only its alpha: ordered in as it showed, its first frames were lost and Magnify popped. Measured: AppKit sends pointer moves to every tracking area under the pointer
   whatever is drawn over it, so pages hovered under in-window overlays; the window server gives a child window the
   pointer only where it draws and lets it through elsewhere. The one exception to overlays living in the window's tree
   (`shell-and-webkit.md`).
+- The overlay window covers the whole browser window and its host is a drop destination wherever it is, so during a tab
+  or group drag (`isDragging`) it lets the pointer through outside the effect's zone: split view's targets on the page
+  and every other drop reach the browser window. Back at `idle` `anchor` is cleared, so the hidden overlay holds no
+  sidebar or rail copy (and no drop targets); `arming` mounts it again. Magnify's carousel holds still during drags.
 - Every rail on screen is its own `RailSurface` (docked, slid in from the edge); the model follows the one the pointer
   came onto and resets when it goes. A rail slid in from the edge stays while the machine isn't idle (`holdsSidebar` in
   `holdsPeek`) and may slide away once it is (`onRelease`).
+- Hover reveals start only from the person's own pointer movement: `RailTrackingView` holds still (`stillAt`) when the
+  app or window comes forward or a rail/edge appears under the pointer (⌘Tab back, a click on the sidebar button), so
+  neither Expand nor the hidden sidebar opens by itself. Expand opens only from the rail's tiles, and over the rail's own
+  buttons it lets the click through at once and closes.
 - `railhoverchecks` is a quick local check (a pretend pointer, `pretendPointer`, drives the machine; the real one is
   never moved): every run ends at `idle` in each sidebar style, hiding the sidebar while Expand is out, and Top Tabs with
   the rail slid in from the edge. `railpoint:<y>,<png prefix>` holds the pretend pointer on the rail and saves the window

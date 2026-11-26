@@ -331,10 +331,12 @@ extension BrowserState {
     }
 
     /// Reopens a closed group, expanded, and selects its first tab.
-    func reopenFolder(_ id: String, selecting: Bool = true) {
+    /// Shows a hidden group again, collapsed (like a group just added back); opened when one of its tabs was chosen
+    /// (`expanding`), so that tab is on screen.
+    func reopenFolder(_ id: String, selecting: Bool = true, expanding: Bool = false) {
         guard let index = folders.firstIndex(where: { $0.id == id }) else { return }
         folders[index].isClosed = nil
-        folders[index].isOpen = true
+        folders[index].isOpen = expanding
         if selecting, let first = tabs(inSubtree: folders[index]).first { select(first.id) }
         scheduleSave()
     }
@@ -344,7 +346,7 @@ extension BrowserState {
     func reopenFolderIfClosed(containing tabID: String) {
         var next = tab(tabID)?.folderID, steps = 0
         while let id = next, steps < 16, let folder = folders.first(where: { $0.id == id }) {
-            if folder.isClosed == true { reopenFolder(id, selecting: false) }
+            if folder.isClosed == true { reopenFolder(id, selecting: false, expanding: true) }
             next = folder.parentID; steps += 1
         }
     }

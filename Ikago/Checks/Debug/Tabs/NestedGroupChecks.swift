@@ -58,8 +58,8 @@ enum NestedGroupChecks {
         check(!state.listedFolders.contains { $0.id == hiddenGroup.id } && !state.navigationOrder.contains { $0.id == hiddenTab.id }
               && state.addsTabGroupsButton(in: .sidebarBottomTrailing), "a hidden group leaves the lists and the Tab Groups button shows")
         state.reopenFolder(hiddenGroup.id, selecting: false)
-        check(state.listedFolders.contains { $0.id == hiddenGroup.id } && !state.addsTabGroupsButton(in: .sidebarBottomTrailing),
-              "shown again, it is back in the list")
+        check(state.listedFolders.contains { $0.id == hiddenGroup.id } && !state.addsTabGroupsButton(in: .sidebarBottomTrailing)
+              && state.folders.first { $0.id == hiddenGroup.id }?.isOpen == false, "shown again, it is back in the list, collapsed")
         state.closeTab(hiddenTab.id); state.deleteFolder(hiddenGroup.id)
         // Groups among tabs: placed after a loose tab, kept in place when that tab goes, back to the block on request.
         let la = state.newTab(url: "about:blank#la", select: false)!, lb = state.newTab(url: "about:blank#lb", select: false)!

@@ -35,7 +35,7 @@ enum GroupPlacement: String, Codable, CaseIterable, Identifiable {
 enum RailHoverEffect: String, Codable, CaseIterable, Identifiable {
     /// Icons near the pointer grow in place like the Dock's, the one under it most; names show in help tags.
     case magnify
-    /// The rail widens over the page, each name beside its icon, while the pointer is on it.
+    /// The full sidebar opens over the page, laid out as when it is always shown, while the pointer is on the rail.
     case expand
     var id: String { rawValue }
     var name: String { self == .magnify ? "Magnify" : "Expand" }

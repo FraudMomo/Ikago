@@ -9,14 +9,11 @@ struct SidebarRail: View {
     let state: BrowserState
     let chrome: ChromeModel
     weak var commands: BrowserCommands?
-    /// Expand's wider rail (`RailHover`): the same items in the same places, each with its name beside its icon. Drawn
-    /// over the rail and the page by `RailExpandPanel`, never in the dock.
-    var expanded = false
     /// Magnify's copy of the rail (`RailMagnifyLayer`): only the icons, in the same places, growing in the carousel; drawn
     /// over the rail, whose tiles stay and whose own icons step aside, so the rows can lie between the tiles and icons.
     var magnified = false
     /// One of the copies drawn over the rail by the hover effects, not the rail in the window.
-    private var isCopy: Bool { expanded || magnified }
+    private var isCopy: Bool { magnified }
     @Namespace private var selection
     /// This rail for the hover effects (`RailHover`): where its tiles measure themselves (the rail, and its list's own
     /// host), kept apart from any other rail on screen.
@@ -29,11 +26,17 @@ struct SidebarRail: View {
     var body: some View {
         let colors = state.palette
         let model = chrome.rail
-        // Leading-aligned, with every item in the rail's 64 pt column (tiles 14 pt in), so the wider rail keeps each icon
+        // Leading-aligned, with every item in the rail's 64 pt column (tiles 14 pt in), so Expand's sidebar keeps each icon
         // exactly where the rail has it and only the names grow out.
         VStack(alignment: .leading, spacing: 8) {
             // Under the Top Tabs row the lights stay in that row, beside the tabs.
             Color.clear.frame(height: state.showsSidebarTopTabs ? 4 : state.sidebarOnRight && !state.sidebarLightsFollow ? 10 : Self.lightsHeight)
+            // The sidebar button sits where the full sidebar has it: at the top when its top row holds it.
+            if toggleOnTop {
+                sidebarToggle(colors)
+                    .padding(.leading, Self.tileInset)
+                    .opacity(magnified ? 0 : 1)
+            }
             // Essentials: pinned tabs as tiles at the top (Settings ▸ Show essentials). Off, they are ordinary tiles in the
             // list, or in Top Tabs icon tabs at the start of the tab row.
             if !state.pinnedTabs.isEmpty && state.pinsInRail {
@@ -73,13 +76,7 @@ struct SidebarRail: View {
                             }
                             tile(symbol: "plus", label: "New Tab", colors: colors) { commands?.newTab() }
                         }
-                        // The tabs, with the groups placed among them.
-                        ForEach(state.looseEntries) { entry in
-                            switch entry {
-                            case .tab(let tab): tabTile(tab, colors: colors)
-                            case .folder(let folder): if state.showsGroupsInSidebar { group(folder, colors: colors) }
-                            }
-                        }
+                        ForEach(state.looseTabs) { tab in tabTile(tab, colors: colors) }
                         // Below the last tile: a tab dropped here goes last; a group leaves the group it was in.
                         if !magnified {
                             Color.clear.frame(width: 36, height: 44).tabListEndDrop(state: state, chrome: chrome)
@@ -99,7 +96,7 @@ struct SidebarRail: View {
                 if state.spaces.count > 1 { spaces(colors) }
                 ForEach(footItems) { item in
                     if item == .sidebarToggle {
-                        tile(symbol: "sidebar.left", label: "Hide Sidebar", colors: colors, named: false) { commands?.cycleSidebar() }
+                        sidebarToggle(colors)
                     } else {
                         ChromeItemView(item: item, state: state, colors: colors, commands: commands, size: 32)
                     }
@@ -109,13 +106,13 @@ struct SidebarRail: View {
             .frame(width: BrowserState.sidebarRailWidth)
         }
         .padding(.bottom, 10)
-        // While the wider rail lies over this one, this one's items step aside: through a see-through material they
+        // While Expand's sidebar lies over this one, this one's items step aside: through a see-through material they
         // would show twice. (Not 0: SwiftUI stops hit-testing a view it no longer draws.)
         .opacity(!isCopy && model.covered && model.effect == .expand && model.surface === surface ? 0.001 : 1)
         .animation(nil, value: model.covered)
         .frame(width: width, alignment: .leading)
         .railSpace(surface.rail)
-        .environment(\.railHover, effect == .magnify && !expanded ? model : nil)
+        .environment(\.railHover, effect == .magnify ? model : nil)
         .environment(\.railCopy, magnified)
         // Tabs' hover cards would cover the effects' names.
         .environment(\.tabHoverCards, effect == nil)
@@ -139,9 +136,7 @@ struct SidebarRail: View {
 
     /// Tiles sit this far in from the rail's leading edge: a 36 pt tile centred in its 64 pt column.
     static let tileInset: CGFloat = (BrowserState.sidebarRailWidth - 36) / 2
-    private var width: CGFloat { expanded ? RailHover.expandedWidth : BrowserState.sidebarRailWidth }
-    /// A row's width: the tile, or with the rail wider the tile and its name, up to the same inset from the far edge.
-    private var rowWidth: CGFloat { expanded ? RailHover.expandedWidth - 2 * Self.tileInset : 36 }
+    private var width: CGFloat { BrowserState.sidebarRailWidth }
 
     /// The hover effect in use: none under Reduce Motion.
     private var effect: RailHoverEffect? {
@@ -151,10 +146,35 @@ struct SidebarRail: View {
     /// The controls at the rail's foot (Settings ▸ Sidebar & Toolbar ▸ Customize ▸ Icons-only sidebar). Downloads join
     /// them while there are any, unless a toolbar above the page already shows them.
     private var footItems: [ChromeItem] {
-        var items = state.visibleChromeItems(state.chromeLayout.rail).filter { $0 != .spaces || state.spaces.count < 2 }
+        var items = state.visibleChromeItems(state.chromeLayout.rail).filter { ($0 != .spaces || state.spaces.count < 2) && !($0 == .sidebarToggle && toggleOnTop) }
         if !state.usesTabsLayout, !items.contains(.downloads), DownloadCenter.shared.showsToolbarButton { items.append(.downloads) }
         if state.addsTabGroupsButton(in: .rail) { items.append(.tabGroups) }
         return items
+    }
+
+    /// The rail shows the sidebar button (Customize ▸ Icons-only sidebar) and the full sidebar keeps its own in the top
+    /// row: then the rail's goes to the top too, under the traffic lights, instead of the foot. Not under Top Tabs, whose
+    /// toolbar holds it.
+    private var toggleOnTop: Bool { Self.togglesAtTop(state) }
+
+    static func togglesAtTop(_ state: BrowserState) -> Bool {
+        let layout = state.chromeLayout
+        return !state.showsSidebarTopTabs && layout.rail.contains(.sidebarToggle)
+            && (layout.topLeading + layout.topCenter + layout.sidebarTop).contains(.sidebarToggle)
+    }
+
+    /// Opens the full sidebar from the icons (the next step up); its menu hides the sidebar. Under Top Tabs, which has no
+    /// full sidebar, it hides the rail.
+    private func sidebarToggle(_ colors: Palette) -> some View {
+        let tabs = state.usesTabsLayout
+        return tile(symbol: "sidebar.left", label: tabs ? "Hide Sidebar" : "Show Full Sidebar", colors: colors, named: false) {
+            if tabs { commands?.cycleSidebar() } else { commands?.showFullSidebar() }
+        }
+        .recordLayout("rail-sidebar-toggle", enabled: !magnified)
+        .contextMenu {
+            if !tabs { Button("Show Full Sidebar") { commands?.showFullSidebar() } }
+            Button("Hide Sidebar") { withAnimation(.ikago) { state.sidebarVisible = false } }
+        }
     }
 
     // MARK: Groups
@@ -199,6 +219,9 @@ struct SidebarRail: View {
             .buttonStyle(RailButtonStyle(colors: colors, quiet: magnified))
             .help(effect != nil ? "" : hidden ? "\(folder.name) · hidden — click to show" : "\(folder.name) · \(tabs.count) \(tabs.count == 1 ? "tab" : "tabs")")
             .contextMenu { FolderContextMenu(folder: folder, state: state, commands: commands) }
+            // Dragged like the full sidebar's group headers: tabs dropped on it join the group; groups go before,
+            // into or after it.
+            .modifier(RailGroupDrag(folder: folder, state: state, chrome: chrome, colors: colors))
             // Opens and closes like the full sidebar's groups: the rows' measured height grows on the same spring and
             // the clip reveals them, so the tiles below move with it.
             RailDisclosure(isOpen: open) {
@@ -253,13 +276,21 @@ struct SidebarRail: View {
                 .contentShape(RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
         }
         .buttonStyle(RailButtonStyle(colors: colors, quiet: magnified))
-        // The wider rail's rows have the full sidebar's controls at their end; the rail's tiles a mute badge.
-        .modifier(RailTabControls(tab: tab, colors: colors, commands: commands, inRow: expanded))
+        // A mute badge on the tile while it plays or is muted.
         .overlay(alignment: .bottomTrailing) {
-            if !magnified && !expanded { audio(tab, colors: colors) }
+            if !magnified { audio(tab, colors: colors) }
         }
         .tabPeek(tab, commands: commands)
         .contextMenu { TabContextMenu(tab: tab, state: state, commands: commands) }
+        // The full sidebar's drags: reorder among the tiles, into a group, onto the page to split it, or out of the
+        // window into a new one.
+        .onDrag {
+            chrome.beginTabDrag(tab.id)
+            return TabDrag.provider(tab.id)
+        } preview: {
+            TabDragPreview(tab: tab, colors: colors, count: chrome.selectedTabIDs.contains(tab.id) ? chrome.selectedTabIDs.count : 1)
+        }
+        .tabDropTarget(tab, axis: .vertical, state: state, chrome: chrome)
     }
 
     private func audio(_ tab: TabItem, colors: Palette) -> some View {
@@ -268,20 +299,9 @@ struct SidebarRail: View {
                 .offset(x: 5, y: 3)
     }
 
-    /// A tile's icon in its 36 pt box, and in the wider rail its name beside it (Magnify shows it in its tab row
-    /// instead: `RailMagnifyRow`).
+    /// A tile's icon in its 36 pt box. Its name shows on hover, or in Magnify's tab row (`RailMagnifyRow`).
     private func railIcon<Icon: View>(_ name: String? = nil, colors: Palette, @ViewBuilder _ icon: () -> Icon) -> some View {
-        HStack(spacing: 2) {
-            icon().frame(width: 36)
-            if expanded, let name {
-                Text(name).font(.system(size: 13)).foregroundStyle(colors.text).lineLimit(1)
-                    .fadeTruncated()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    // Room for a tab row's controls at its end (`RailTabControls`).
-                    .padding(.trailing, 26)
-            }
-        }
-        .frame(width: name == nil ? 36 : rowWidth, alignment: .leading)
+        icon().frame(width: 36)
     }
 
     private func spaces(_ colors: Palette) -> some View {
@@ -326,13 +346,11 @@ private struct RailButtonStyle: ButtonStyle {
     /// Magnify's copy draws no fill: the rail's own tile under it does.
     var quiet = false
     @State private var hovering = false
-    /// The whole row is under the pointer, its controls included (`RailTabControls`).
-    @Environment(\.railRowHovered) private var rowHovered
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .background(RoundedRectangle(cornerRadius: Radius.row, style: .continuous)
-                .fill(colors.text.opacity(quiet ? 0 : configuration.isPressed ? 0.12 : hovering || rowHovered ? 0.06 : 0)))
+                .fill(colors.text.opacity(quiet ? 0 : configuration.isPressed ? 0.12 : hovering ? 0.06 : 0)))
             .sidebarHover($hovering)
             .animation(.easeOut(duration: hovering ? 0.1 : 0.2), value: hovering)
     }
@@ -397,36 +415,6 @@ private struct RailNewTabMagnify: ViewModifier {
     }
 }
 
-/// A tab row's controls at its end, as in the full sidebar: camera, microphone and sound while in use, and a close
-/// button while the pointer is on the row. Beside the row's own button, never inside it, so each takes its own clicks.
-private struct RailTabControls: ViewModifier {
-    let tab: TabItem
-    let colors: Palette
-    weak var commands: BrowserCommands?
-    let inRow: Bool
-    @State private var hovering = false
-
-    func body(content: Content) -> some View {
-        if inRow {
-            // The row's hover covers its controls too: tracked on the button alone, moving onto the close button left
-            // the row, which hid the button and its highlight, and they flickered as the pointer moved.
-            content
-                .environment(\.railRowHovered, hovering)
-                .overlay(alignment: .trailing) {
-                    HStack(spacing: 4) {
-                        TabMediaIndicators(tab: tab, colors: colors, commands: commands)
-                        if hovering { RailTabCloseButton(tab: tab, colors: colors, commands: commands) }
-                    }
-                    .padding(.trailing, 7)
-                }
-                .sidebarHover($hovering)
-                .animation(.ikagoQuick, value: hovering)
-        } else {
-            content
-        }
-    }
-}
-
 /// The full sidebar's close button for a tab row.
 struct RailTabCloseButton: View {
     let tab: TabItem
@@ -449,12 +437,38 @@ struct RailTabCloseButton: View {
     }
 }
 
-private struct RailRowHoveredKey: EnvironmentKey { static let defaultValue = false }
+/// A rail group tile as a drag source and target, like the full sidebar's group header (`SidebarFolderSection`).
+private struct RailGroupDrag: ViewModifier {
+    let folder: TabFolder
+    let state: BrowserState
+    let chrome: ChromeModel
+    let colors: Palette
+    @State private var targeted = false
+    @State private var zone: GroupDropZone?
+    @State private var height = MeasuredLength(36)
 
-extension EnvironmentValues {
-    /// A wider rail's row is under the pointer, its controls included.
-    fileprivate var railRowHovered: Bool {
-        get { self[RailRowHoveredKey.self] }
-        set { self[RailRowHoveredKey.self] = newValue }
+    func body(content: Content) -> some View {
+        content
+            .overlay {
+                if targeted {
+                    RoundedRectangle(cornerRadius: Radius.row, style: .continuous)
+                        .strokeBorder(folder.tagValue?.color ?? colors.accent, lineWidth: 1.5)
+                }
+            }
+            .overlay(alignment: zone == .after ? .bottom : .top) {
+                if zone == .before || zone == .after { GroupInsertionLine(colors: colors).offset(y: zone == .after ? 1 : -1) }
+            }
+            .opacity(chrome.draggingFolderID == folder.id ? 0.5 : 1)
+            .onDrag {
+                chrome.beginFolderDrag(folder.id)
+                return GroupDrag.provider(folder.id)
+            } preview: {
+                GroupDragPreview(folder: folder, colors: colors)
+            }
+            .onDrop(of: [.ikagoTab, .ikagoGroup], delegate: FolderHeaderDropDelegate(
+                folder: folder, state: state, chrome: chrome, length: height, tabTargeted: $targeted, zone: $zone))
+            .onChange(of: chrome.draggingFolderID) { _, id in if id == nil { zone = nil } }
+            .animation(.ikagoQuick, value: targeted)
+            .animation(.ikagoQuick, value: zone)
     }
 }

@@ -14,7 +14,8 @@ struct WindowDragArea: FillingViewRepresentable {
         // drag. Here it is movable just for the system drag: edge tiling, snapping and
         // Option-arrange all work, as in a native title bar.
         override func mouseDown(with event: NSEvent) {
-            guard let window else { return }
+            // Inside a child window over the browser window (the icon rail's Expand), the browser window moves.
+            guard let window = window?.parent ?? window else { return }
             if event.clickCount == 2 { window.zoom(nil); return }
             window.isMovable = true
             window.performDrag(with: event)
