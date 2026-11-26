@@ -62,6 +62,8 @@ protocol BrowserCommands: AnyObject {
     func moveTabs(_ ids: [String], toFolder folderID: String?)
     func newFolder(withTabs ids: [String])
     func openInNewTab(_ url: String)
+    /// Opens `url` in this tab, or a new one.
+    func open(_ url: String, inNewTab: Bool)
     func openDroppedFiles(_ urls: [URL])
     func openBookmark(_ bookmark: Bookmark, forceNewTab: Bool)
     func installFromWebStore(_ id: String)

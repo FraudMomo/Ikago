@@ -550,6 +550,20 @@ enum TestDriver {
             if let root = c.window?.contentView { walk(root) }
         case "pinsome":  // <n>: pins the Space's first n loose tabs into the essentials grid
             for tab in state.looseTabs.prefix(Int(arg) ?? 4) { state.movePin(tab.id, intoGrid: true) }
+        case "groupamong":  // <name>: a group of the Space's last two loose tabs, placed after the first loose tab
+            let folder = state.createFolder(named: arg.isEmpty ? "Research" : arg)
+            for tab in state.looseTabs.suffix(2) { state.moveToFolder(tab.id, folderID: folder.id) }
+            state.setFolderTag(folder.id, to: .blue)
+            state.placeFolderAmongTabs(folder.id, relativeTo: state.looseTabs.first?.id, after: true)
+        case "homebg":  // color:<hex> | image:<path> | blur | plain: Ikago Home's background (screenshots)
+            let parts = arg.split(separator: ":", maxSplits: 1).map(String.init)
+            switch parts.first {
+            case "color": state.browserPreferences.homeBackgroundColor = UInt32(parts.last ?? "", radix: 16); state.browserPreferences.homeBackgroundImage = nil
+            case "image": if HomeBackground.save(from: URL(fileURLWithPath: parts.last ?? "")) { state.browserPreferences.homeBackgroundImage = true }
+            case "blur": state.browserPreferences.homeBackgroundBlur = true
+            default: state.browserPreferences.homeBackgroundColor = nil; state.browserPreferences.homeBackgroundImage = nil; state.browserPreferences.homeBackgroundBlur = nil; HomeBackground.remove()
+            }
+            print("IKTEST homebg \(arg) image=\(HomeBackground.image != nil)")
         case "railstyle":  // expand | magnify | off: the icon sidebar, with that hover effect
             state.browserPreferences.sidebarCompact = true; state.sidebarVisible = true
             state.browserPreferences.railHover = RailHoverEffect(rawValue: arg)

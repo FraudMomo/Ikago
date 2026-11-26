@@ -75,11 +75,14 @@ struct BrowserPreferences: Codable, Equatable {
     /// Sidebar layout: the address bar sits above the page, the top of its card, instead of in the sidebar (Settings ▸
     /// Appearance ▸ Layout). Unset: in the sidebar.
     var addressAbovePage: Bool? = nil
-    /// That bar's style. Unset: Full Width, like Chrome's address bar over the page with vertical tabs.
-    var pageBarStyle: TabsAddressStyle? = nil
     /// Ikago Home's sections (Customize on the page). Unset: shown.
     var homeShowsFavorites: Bool? = nil
     var homeShowsFrequent: Bool? = nil
+    /// Ikago Home's background (`HomeBackground`): a picked colour (0xRRGGBB), the person's own image (saved beside the
+    /// session), and blur. Unset: the page colour, no blur.
+    var homeBackgroundColor: UInt32? = nil
+    var homeBackgroundImage: Bool? = nil
+    var homeBackgroundBlur: Bool? = nil
     /// A hidden sidebar slides in when the pointer reaches the window's edge. Unset: on.
     var sidebarEdgePeek: Bool? = nil
     /// How the icon sidebar responds to the pointer (`RailHoverEffect`). Unset: no effect.

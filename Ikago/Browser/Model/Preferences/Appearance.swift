@@ -69,10 +69,13 @@ enum AddressStyle: String, Codable, CaseIterable, Identifiable {
 
 /// What ⌘T opens.
 enum NewTabMode: String, Codable, CaseIterable, Identifiable {
+    /// Ikago Home (ikago://home): bookmarks and frequently visited pages as tiles.
+    case home
     case commandBar, homepage, extensionPage
     var id: String { rawValue }
     var name: String {
         switch self {
+        case .home: "Ikago Home"
         case .commandBar: "Command bar"
         case .homepage: "Homepage"
         case .extensionPage: "Extension page"

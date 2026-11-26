@@ -41,6 +41,21 @@ enum StartPageChecks {
         check(state.closed.first?.url == page.url, "ordinary pages are still reopened")
         state.newTabMode = .commandBar
 
+        // Ikago Home: the start page and every new tab, each a tab of its own; closed untouched it leaves nothing.
+        state.newTabMode = .home
+        check(state.startPageURL == "ikago://home", "with Ikago Home chosen the start page is Ikago Home")
+        let home = state.newTab(url: state.startPageURL)!
+        state.closeTab(home.id)
+        check(state.closed.first?.url != home.url, "an untouched Ikago Home tab leaves nothing to reopen")
+        state.newTabMode = .commandBar
+        let mainState = browser.state, savedMode = mainState.newTabMode
+        mainState.newTabMode = .home
+        let before = mainState.tabs.filter { $0.url == "ikago://home" }.count
+        browser.newTab(); browser.newTab()
+        check(mainState.tabs.filter { $0.url == "ikago://home" }.count == before + 2, "each new tab opens its own Ikago Home")
+        for tab in mainState.tabs where tab.url == "ikago://home" { mainState.closeTab(tab.id) }
+        mainState.newTabMode = savedMode
+
         // A private window opens like ⌘N: with the command bar, no page loads by itself.
         let main = browser.state
         let saved = (main.newTabMode, main.searchEngine)

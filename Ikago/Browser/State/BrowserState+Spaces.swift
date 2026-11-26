@@ -114,6 +114,7 @@ extension BrowserState {
     /// The page for a tab that must show something before anything is typed (the first tab of a launch, a new split
     /// pane): the homepage when new tabs open it, otherwise the chosen search engine's start page. Never a fixed site.
     var startPageURL: String {
+        if newTabMode == .home { return InternalPage.home.url }
         if newTabMode == .homepage, let home = try? AddressResolver.resolve(homepage, engine: searchEngine) { return home }
         return searchEngine.homeURL
     }
@@ -155,6 +156,7 @@ extension BrowserState {
         browserPreferences.preferredEngine = Self.newProfileEngine
         browserPreferences.chromiumVideoTranslation = false
         browserPreferences.resourcePolicy = .balanced
+        newTabMode = .home
         chromeLayout.sidebarTop = [.sidebarToggle, .back, .forward]
         chromeLayout.sidebarBottom = [.spaces, .newSpace, .settings]
     }

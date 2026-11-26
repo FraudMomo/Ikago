@@ -164,6 +164,15 @@
   `WindowSession.maxClosedWindows`, saved in `Session.closedWindows`); ⌘⇧T reopens whatever closed last, tab or window
   (`SavedTab.closedAt`, `WindowSession.closedAt`, `reopensWindowNext`). Closing the first window records it the same
   way before it takes over another. Windows closing while the app quits are never recorded (the state is frozen).
+- Ikago Home (`ikago://home`, `HomePage`, `NewTabMode.home`, the default for new profiles; saved profiles keep their
+  choice) is the new-tab page after Safari's Start Page: a field that opens the address bar, bookmarks as tiles with
+  folders opened in place, then the most visited pages; Customize picks the sections (`homeShowsFavorites`,
+  `homeShowsFrequent`) and what new tabs open. Every new tab gets its own (`newTab` makes the tab directly; `openPage`
+  would reuse one), its tab reads "New Tab", and closed untouched it isn't recorded (`isUntouchedNewTab`). A click
+  opens the page in that tab, ⌘-click in a new one. Checks: `startpagechecks`.
+  Its background (`HomeBackground`, `HomeBackdrop`): the page colour, a picked colour (`homeBackgroundColor`), or
+  the person's image copied beside the session as `home-background.jpg` (≤2560 px, `homeBackgroundImage`), with an
+  optional blur (`homeBackgroundBlur`) and a light veil for legibility. `homebg:` in the driver sets it.
 - Ikago never opens a fixed site by itself: the first tab of a launch and Split View's new pane open `startPageURL`
   (the homepage when new tabs open it, else the chosen engine's `homeURL`); a new private window opens like ⌘N.
 - If ⌘T's blank tab has no page view yet when Return is pressed, `open` sets the tab's address so the page starts there. Closing a top tab with the mouse keeps the others' width until

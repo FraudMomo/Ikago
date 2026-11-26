@@ -214,6 +214,7 @@ struct NewTabSection: View {
 
     private func footer(_ providers: [NewTabProviders.Provider]) -> String? {
         switch state.newTabMode {
+        case .home: "Opens Ikago Home: your bookmarks and most visited pages as tiles."
         case .commandBar: "Opens the address field, ready to type."
         case .homepage: "⌘T opens this page. ⌘L edits its address."
         case .extensionPage where providers.isEmpty:

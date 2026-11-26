@@ -35,6 +35,17 @@ enum DemoSetup {
         try? store.save(home)
         try? store.saveCard(number: "4242 4242 4242 4242", name: "Sam Example", expMonth: 4, expYear: 2030)  // a test number
 
+        // Bookmarks for Ikago Home: a few pages and a folder of them.
+        if state.bookmarks.isEmpty {
+            let base = "http://ikago-demo.localhost:\(port)"
+            let pages = [("Ikago Demo", "/"), ("Sign in", "/signin.html"), ("Checkout", "/checkout.html"), ("Demo Shop", "/agent.html")]
+            state.bookmarks = pages.map { Bookmark(url: base + $0.1, title: $0.0) }
+            if let folder = state.createBookmarkFolder(named: "Password demos") {
+                state.bookmarks += [("Sign up", "/signup.html"), ("Change password", "/change.html"), ("PIN only", "/pin.html")]
+                    .map { Bookmark(url: base + $0.1, title: $0.0, folderID: folder.id) }
+            }
+        }
+
         // The demo agent drives the tab the person is looking at, on a port of its own (never the installed Ikago's).
         state.browserPreferences.agentAccess = true
         state.browserPreferences.agentUsesOpenTabs = true

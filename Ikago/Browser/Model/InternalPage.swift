@@ -2,7 +2,7 @@ import Foundation
 
 /// Ikago's own pages, shown in a tab like any site: ikago://settings, …
 enum InternalPage: String, CaseIterable {
-    case settings, history, downloads, bookmarks, welcome, performance, notes
+    case settings, history, downloads, bookmarks, welcome, performance, notes, home
     case splitEmpty = "split-empty"
 
     init?(url: String) {
@@ -12,7 +12,13 @@ enum InternalPage: String, CaseIterable {
     }
 
     var url: String { "ikago://\(rawValue)" }
-    var title: String { self == .splitEmpty ? "Empty Split" : rawValue.capitalized }
+    var title: String {
+        switch self {
+        case .splitEmpty: "Empty Split"
+        case .home: "New Tab"
+        default: rawValue.capitalized
+        }
+    }
 
     var symbol: String {
         switch self {
@@ -24,6 +30,7 @@ enum InternalPage: String, CaseIterable {
         case .downloads: "arrow.down.circle"
         case .notes: "note.text"
         case .welcome: "hand.wave"
+        case .home: "house"
         }
     }
 }

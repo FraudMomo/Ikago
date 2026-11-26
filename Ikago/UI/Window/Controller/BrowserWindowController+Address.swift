@@ -92,6 +92,9 @@ extension BrowserWindowController {
     func newTab() {
         let previous = state.activeTabID
         switch state.newTabMode {
+        case .home:
+            // A new tab of its own each time, unlike Settings or History (`openPage` reuses those).
+            withAnimation(nil) { _ = state.newTab(url: InternalPage.home.url) }
         case .commandBar:
             showCommandPalette(newTab: true)
             return

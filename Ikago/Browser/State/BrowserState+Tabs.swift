@@ -286,6 +286,7 @@ extension BrowserState {
                 provider.url.host?.lowercased() == page.host?.lowercased() && provider.url.path == page.path
             }
         }
+        if InternalPage(url: tab.url) == .home { return true }
         if newTabMode == .homepage, let home = try? AddressResolver.resolve(homepage, engine: searchEngine) {
             return Self.pageKey(tab.url) == Self.pageKey(home)
         }
