@@ -18,6 +18,7 @@ extension SettingsCategory {
                     page("Web Apps", "Web Apps"),
                     page("Engine by Site", "Engine by Site", "Your Sites"),
                     page("Other Devices", "Other Devices"),
+                    page("Shortcuts", "Keyboard Shortcuts"),
                     page("Advanced", "Advanced")]
         case .appearance:
             return [page("Theme", "Color & Theme", "Materials"),

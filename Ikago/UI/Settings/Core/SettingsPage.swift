@@ -177,6 +177,7 @@ struct SettingsPage: View {
             WebAppsSection(state: state)
             OtherDevicesSection(state: state)
             PageIntelligenceSection(state: state)
+            KeyboardShortcutsSection(state: state)
         case .search:
             SearchSettingsSection(state: state)
         case .appearance:

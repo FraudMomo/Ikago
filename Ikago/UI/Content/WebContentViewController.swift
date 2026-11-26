@@ -65,10 +65,12 @@ final class WebContentViewController: NSViewController {
         _ = view
         // Preferences reach the protections on their own; only the few that matter reconfigure pages.
         BrowserSecurity.shared.apply(state.browserPreferences)
+        KeyBindings.apply(state.browserPreferences.keyBindings)
         if !state.isPrivate { AgentServer.shared.update() }
         observeState { [weak self] in _ = self?.state.browserPreferences } onChange: { [weak self] in
             guard let self, !self.stopped else { return }
             BrowserSecurity.shared.apply(self.state.browserPreferences)
+            KeyBindings.apply(self.state.browserPreferences.keyBindings)
             // Agent access follows its setting (Settings ▸ Agents).
             if !self.state.isPrivate { AgentServer.shared.update() }
         }

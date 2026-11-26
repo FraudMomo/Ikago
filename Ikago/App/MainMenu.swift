@@ -24,6 +24,8 @@ enum MainMenu {
             $0.item("New Space…", #selector(BrowserWindowController.newSpaceAction(_:)), "n", [.command, .shift])
             $0.item("New Private Window", #selector(BrowserWindowController.newPrivateWindow(_:)), "n", [.command, .option])
             $0.item("Open Location…", #selector(BrowserWindowController.openLocation(_:)), "l")
+            // ⇧⌘K by default: ⌘K belongs to many sites (Slack, GitHub, Notion). Changeable in Settings.
+            $0.item("Command Bar…", #selector(BrowserWindowController.openCommandBar(_:)), "k", [.command, .shift])
             $0.item("Reopen Closed Tab", #selector(BrowserWindowController.reopenClosedTab(_:)), "t", [.command, .shift])
             $0.separator()
             $0.item("Close Tab", #selector(BrowserWindowController.closeCurrentTab(_:)), "w")
@@ -181,6 +183,9 @@ private extension NSMenu {
               _ modifiers: NSEvent.ModifierFlags = .command) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
         item.keyEquivalentModifierMask = key.isEmpty ? [] : modifiers
+        // Marks Ikago's own items: only these can have their shortcuts changed (`KeyBindings`), never the ones macOS adds
+        // to the menus (Start Dictation, Emoji & Symbols, AutoFill…), whose keys use fn.
+        item.identifier = NSUserInterfaceItemIdentifier(KeyBindings.ownPrefix + NSStringFromSelector(action))
         addItem(item)
         return item
     }

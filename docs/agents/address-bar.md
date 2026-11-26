@@ -40,3 +40,11 @@
   kind; a scope shows as a token, and Esc or ⌫ on an empty field leaves it. Address cards are solid
   (`AddressSurface`, `AddressAppearance`) and frosted only when `frostedChrome` is on, never Liquid Glass. Selection updates
   immediately without matched geometry or spring motion.
+- ⇧⌘K (File ▸ Command Bar, `showCommandBar`, `prepareActions`) opens the floating command bar in any address style
+  with nothing typed and the Actions scope on, so commands and settings come first; Esc or ⌫ widens it to everything.
+  Not ⌘K, which many sites use. Like every menu shortcut it wins over the page, and it can be changed.
+- Keyboard shortcuts are changeable (Settings ▸ General ▸ Shortcuts, `KeyboardShortcutsSection`): `KeyBindings` lists the
+  menu's commands by a stable id (the action's selector, `#tag`, `@copy` for a command listed twice), remembers their
+  built-in shortcuts right after `MainMenu.build`, and applies `BrowserPreferences.keyBindings` to the menu, which stays
+  the one source of shortcuts (`ShortcutRouter`). A shortcut needs ⌘ or ⌃; one in use elsewhere is refused. While
+  recording, the key monitor hands presses to the recorder (`KeyBindings.recorder`). Checks: `shortcutchecks`.

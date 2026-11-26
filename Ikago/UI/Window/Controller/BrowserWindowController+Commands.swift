@@ -157,6 +157,7 @@ extension BrowserWindowController: BrowserCommands, NSMenuItemValidation {
 
     @objc func newTab(_ sender: Any?) { newTab() }
     @objc func openLocation(_ sender: Any?) { showCommandPalette(newTab: false) }
+    @objc func openCommandBar(_ sender: Any?) { showCommandBar() }
     @objc func closeCurrentTab(_ sender: Any?) {
         if state.webApp != nil { return window?.performClose(sender) ?? () }
         if let id = state.activeTabID { closeTab(id) } else { window?.performClose(sender) }

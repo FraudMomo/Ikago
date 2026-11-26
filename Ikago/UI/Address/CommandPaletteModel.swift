@@ -66,6 +66,16 @@ final class CommandPaletteModel {
         refreshCompletions()
     }
 
+    /// ⇧⌘K (remappable): the command bar on browser actions and settings, with nothing typed. Typing filters them; Esc or ⌫ on the
+    /// empty field widens it to everything, like any scope.
+    func prepareActions() {
+        prepare(mode: .currentTab)
+        query = ""
+        edited = false
+        scope = .actions
+        selection = 0
+    }
+
     /// The active page's address to edit, or empty on new-tab pages (an extension's page
     /// such as Momentum, Ikago's own pages, or the homepage), where you start typing fresh.
     private var editableAddress: String {

@@ -32,6 +32,19 @@ extension BrowserWindowController {
         }
     }
 
+    /// ⇧⌘K (remappable): the floating command bar, scoped to actions, whatever the address style (it never edits the page's address).
+    func showCommandBar() {
+        chrome.showDownloads = false
+        if let window = window as? BrowserWindow { window.clearAddressFocus() } else { window?.makeFirstResponder(nil) }
+        palette.prepareActions()
+        chrome.editingTabID = state.activeTabID
+        withAnimation(nil) {
+            chrome.inlineAddress = false
+            chrome.showPalette = true
+        }
+        focusAddressField()
+    }
+
     /// Gives the keyboard to the address field once SwiftUI has shown it. Also covers the field
     /// already being on screen (editing restarted), where it wouldn't refocus by itself.
     private func focusAddressField() {

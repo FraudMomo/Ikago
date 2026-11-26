@@ -130,6 +130,7 @@ enum SettingsSearch {
         .init(title: "Fill cards", category: .autofill, section: "Autofill", keywords: "credit card payment checkout touch id"),
         .init(title: "Saved addresses", category: .autofill, section: "Addresses", keywords: "address home work"),
         .init(title: "Saved cards", category: .autofill, section: "Cards", keywords: "credit debit card payment"),
+        .init(title: "Keyboard shortcuts", category: .general, section: "Keyboard Shortcuts", keywords: "keys hotkeys remap command bar menu shortcut key binding"),
         .init(title: "Allow agents", category: .agents, section: "Agent Access", keywords: "ai mcp claude automation model context protocol"),
         .init(title: "Connect an agent", category: .agents, section: "Connect an Agent", keywords: "token claude code codex openai chatgpt cursor gemini vs code copilot mcp server address setup"),
 

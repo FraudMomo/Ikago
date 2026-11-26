@@ -13,6 +13,7 @@ extension TestDriver {
         case "sidebarvisibilitychecks": await SidebarVisibilityChecks.run(c)
         case "featurebatchchecks": await FeatureBatchChecks.run(c)
         case "nestedgroupchecks": NestedGroupChecks.run(c)
+        case "shortcutchecks": ShortcutChecks.run(c)
         case "reopenchecks": ReopenChecks.run(c)
         case "settingsshot":
             // settingsshot:<category>|<dark or light>|<file.png>[|<width>]: renders Settings to an image.

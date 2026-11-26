@@ -72,6 +72,17 @@ struct BrowserPreferences: Codable, Equatable {
     var tabsBarHeight: Double? = nil
     /// Top Tabs: how the address bar sits under the tabs (`TabsAddressStyle`). Unset: centred.
     var tabsAddressStyle: TabsAddressStyle? = nil
+    /// Sidebar layout: the address bar sits above the page, the top of its card, instead of in the sidebar (Settings ▸
+    /// Appearance ▸ Layout). Unset: in the sidebar.
+    var addressAbovePage: Bool? = nil
+    /// That bar's style. Unset: Full Width, like Chrome's address bar over the page with vertical tabs.
+    var pageBarStyle: TabsAddressStyle? = nil
+    /// Shortcuts the person changed (Settings ▸ General ▸ Keyboard Shortcuts), by menu command id (`KeyBindings`). An
+    /// empty key removes a command's shortcut. Unset: the built-in ones.
+    var keyBindings: [String: KeyCombo]? = nil
+    /// Ikago Home's sections (Customize on the page). Unset: shown.
+    var homeShowsFavorites: Bool? = nil
+    var homeShowsFrequent: Bool? = nil
     /// A hidden sidebar slides in when the pointer reaches the window's edge. Unset: on.
     var sidebarEdgePeek: Bool? = nil
     /// How the icon sidebar responds to the pointer (`RailHoverEffect`). Unset: no effect.

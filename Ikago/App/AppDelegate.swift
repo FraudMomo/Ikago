@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, IKCEFApplicationDelegate {
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         NSApp.mainMenu = MainMenu.build()
+        _ = KeyBindings.commands  // remember the built-in shortcuts before the person's are applied
         // http(s) links opened from other apps (Ikago registers as a browser).
         NSAppleEventManager.shared().setEventHandler(
             self, andSelector: #selector(handleGetURL(_:reply:)),
@@ -116,6 +117,10 @@ final class AppDelegate: NSObject, IKCEFApplicationDelegate {
         // App shortcuts (Cmd+T, Cmd+L, …) win over the page; editing keys stay with it.
         // Both monitors serve whichever browser window (main or private) got the event.
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            // Settings is recording a shortcut: the press is the shortcut, not a command.
+            if let recorder = KeyBindings.recorder, event.window != nil, event.window === KeyBindings.recordingWindow {
+                recorder(event); return nil
+            }
             guard let controller = event.window?.windowController as? BrowserWindowController else { return event }
             if event.keyCode == 53, controller.chrome.showDownloads {
                 controller.chrome.showDownloads = false

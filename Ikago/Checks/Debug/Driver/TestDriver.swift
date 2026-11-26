@@ -521,6 +521,81 @@ enum TestDriver {
             }
         case "sidebarshortcuts": state.browserPreferences.sidebarShortcuts = arg == "on" ? true : nil
         case "labelstyle": if let style = GroupLabelStyle(rawValue: arg) { state.groupLabelStyle = style }
+        case "pingroup":  // <name>: a pinned group holding the Space's last two loose tabs (screenshots)
+            let folder = state.createFolder(named: arg.isEmpty ? "Reading" : arg)
+            for tab in state.looseTabs.suffix(2) { state.moveToFolder(tab.id, folderID: folder.id) }
+            state.setFolderTag(folder.id, to: .orange)
+            state.setFolderPinned(folder.id, true)
+        case "sidebarfull": state.browserPreferences.sidebarCompact = nil; state.sidebarVisible = true
+        case "addressabove": state.browserPreferences.addressAbovePage = arg == "off" ? nil : true  // on | off
+        case "newtabmode": if let mode = NewTabMode(rawValue: arg) { state.newTabMode = mode }  // home | commandBar | …
+        case "renders":  // <tabs>: how many view bodies a drag's start and end re-run, with that many tabs open
+            let made = (0..<(Int(arg) ?? 30)).compactMap { state.newTab(url: "about:blank#renders\($0)", select: false) }
+            try? await Task.sleep(for: .seconds(1))
+            func measure(_ label: String, _ change: () -> Void) async {
+                RenderProbe.counts = [:]
+                change()
+                try? await Task.sleep(for: .milliseconds(500))
+                print("IKTEST renders \(label) \(RenderProbe.counts.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: " "))")
+            }
+            await measure("drag start") { c.chrome.draggingTabID = made.first?.id }
+            await measure("drag end") { c.chrome.draggingTabID = nil }
+            for tab in made { state.closeTab(tab.id) }
+        case "scrollinsets":  // every sidebar list's frame (window coordinates), content insets and scroll offset
+            func walk(_ view: NSView) {
+                if let scroll = view as? ListScrollView {
+                    let frame = scroll.convert(scroll.bounds, to: nil)
+                    print("IKTEST scrollinsets frame=\(frame) insets=\(scroll.contentInsets.top),\(scroll.contentInsets.bottom) offset=\(scroll.contentView.bounds.origin.y) doc=\(scroll.documentView?.frame.height ?? 0)")
+                }
+                view.subviews.forEach(walk)
+            }
+            if let root = c.window?.contentView { walk(root) }
+        case "pinsome":  // <n>: pins the Space's first n loose tabs into the essentials grid
+            for tab in state.looseTabs.prefix(Int(arg) ?? 4) { state.movePin(tab.id, intoGrid: true) }
+        case "groupamong":  // <name>: a group of the Space's last two loose tabs, placed after the first loose tab
+            let folder = state.createFolder(named: arg.isEmpty ? "Research" : arg)
+            for tab in state.looseTabs.suffix(2) { state.moveToFolder(tab.id, folderID: folder.id) }
+            state.setFolderTag(folder.id, to: .blue)
+            state.placeFolderAmongTabs(folder.id, relativeTo: state.looseTabs.first?.id, after: true)
+        case "homebg":  // color:<hex> | image:<path> | blur | plain: Ikago Home's background (screenshots)
+            let parts = arg.split(separator: ":", maxSplits: 1).map(String.init)
+            switch parts.first {
+            case "color": state.browserPreferences.homeBackgroundColor = UInt32(parts.last ?? "", radix: 16); state.browserPreferences.homeBackgroundImage = nil
+            case "image": if HomeBackground.save(from: URL(fileURLWithPath: parts.last ?? "")) { state.browserPreferences.homeBackgroundImage = true }
+            case "blur": state.browserPreferences.homeBackgroundBlur = true
+            default: state.browserPreferences.homeBackgroundColor = nil; state.browserPreferences.homeBackgroundImage = nil; state.browserPreferences.homeBackgroundBlur = nil; HomeBackground.remove()
+            }
+            print("IKTEST homebg \(arg) image=\(HomeBackground.image != nil)")
+        case "railclick":  // <layout name>: a real click at the middle of a recorded rail control; prints what it hit
+            if let frame = LayoutChecks.frames[arg], let window = c.window, let content = window.contentView {
+                let point = content.convert(NSPoint(x: frame.midX, y: content.isFlipped ? frame.midY : content.bounds.height - frame.midY), to: nil)
+                var chain: [String] = []
+                var v = window.contentView?.superview?.hitTest(window.contentView!.superview!.convert(point, from: nil))
+                while let view = v, chain.count < 6 { chain.append(String(describing: type(of: view))); v = view.superview }
+                print("IKTEST railclick \(arg) at=\(point) hit=\(chain.joined(separator: " < "))")
+                for type: NSEvent.EventType in [.mouseMoved, .leftMouseDown, .leftMouseUp] {
+                    if let event = NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                      windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1) {
+                        window.sendEvent(event)
+                    }
+                    try? await Task.sleep(for: .milliseconds(120))
+                }
+                try? await Task.sleep(for: .milliseconds(500))
+                print("IKTEST railclick after compact=\(state.browserPreferences.sidebarCompact == true) visible=\(state.sidebarVisible)")
+            } else { print("IKTEST railclick none \(LayoutChecks.frames.keys.filter { $0.hasPrefix("rail") })") }
+        case "menukeys":  // every menu item with a key equivalent: title, key, modifiers
+            func visit(_ menu: NSMenu, _ path: String) {
+                for item in menu.items {
+                    if let sub = item.submenu { visit(sub, path + "/" + item.title); continue }
+                    if !item.keyEquivalent.isEmpty || item.title.contains("Dictation") || item.title.contains("Emoji") {
+                        print("IKTEST menukeys \(path)/\(item.title) key='\(item.keyEquivalent)' mask=\(item.keyEquivalentModifierMask.rawValue) action=\(item.action.map(NSStringFromSelector) ?? "-")")
+                    }
+                }
+            }
+            NSApp.mainMenu.map { visit($0, "") }
+        case "railstyle":  // expand | magnify | off: the icon sidebar, with that hover effect
+            state.browserPreferences.sidebarCompact = true; state.sidebarVisible = true
+            state.browserPreferences.railHover = RailHoverEffect(rawValue: arg)
         case "sidebartoptabs": state.browserPreferences.sidebarTopTabs = arg == "on" ? true : nil
         case "sidebargroups": state.browserPreferences.sidebarGroupStyle = SidebarGroupStyle(rawValue: arg)
         case "sidebartranslucency": state.browserPreferences.translucentSidebar = arg == "on"
