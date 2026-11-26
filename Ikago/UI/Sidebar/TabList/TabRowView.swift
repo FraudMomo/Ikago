@@ -91,6 +91,7 @@ struct TabRowView: View {
     @State private var hovering = false
 
     var body: some View {
+        let _ = RenderProbe.hit("TabRowView")
         HStack(spacing: 9) {
             ZStack {
                 FaviconView(tab: tab)

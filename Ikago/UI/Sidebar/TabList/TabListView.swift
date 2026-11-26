@@ -178,7 +178,8 @@ struct TabListView: View {
     }
 
     private func row(_ tab: TabItem) -> some View {
-        TabRowView(tab: tab, isActive: tab.id == state.activeTabID, isInSplit: false,
+        RenderProbe.hit("sidebar row builder")
+        return TabRowView(tab: tab, isActive: tab.id == state.activeTabID, isInSplit: false,
                    colors: colors, selection: selection, commands: commands)
             .tabSelectionTint(chrome.selectedTabIDs.contains(tab.id), colors: colors)
             .onTapGesture {
@@ -195,8 +196,7 @@ struct TabListView: View {
             } preview: {
                 TabDragPreview(tab: tab, colors: colors, count: chrome.selectedTabIDs.contains(tab.id) ? chrome.selectedTabIDs.count : 1)
             }
-            .travellingWithDrag(chrome.draggingTabID != nil && chrome.draggingTabID != tab.id && chrome.selectedTabIDs.contains(tab.id)
-                                && chrome.selectedTabIDs.contains(chrome.draggingTabID ?? ""))
+            .travellingWithDrag(tab.id, chrome: chrome)
             .tabDropTarget(tab, axis: .vertical, state: state, chrome: chrome)
             .recordLayout("sidebar-tab-\(tab.id)")
             .transition(.asymmetric(insertion: .move(edge: .top).combined(with: .opacity),
@@ -312,10 +312,10 @@ struct TabDragPreview: View {
 
 extension View {
     /// A selected tab travelling with the one being dragged: it fades and tucks in, as if stacked under the pointer.
-    func travellingWithDrag(_ travelling: Bool) -> some View {
-        opacity(travelling ? 0.35 : 1)
-            .scaleEffect(travelling ? 0.96 : 1)
-            .animation(.ikago, value: travelling)
+    /// A selected tab carried along by a drag of another selected tab fades and shrinks a little. It reads the drag in
+    /// its own view, so a drag starting or ending never rebuilds the rows themselves.
+    func travellingWithDrag(_ tabID: String, chrome: ChromeModel) -> some View {
+        modifier(TravellingWithDrag(tabID: tabID, chrome: chrome))
     }
 }
 
@@ -375,4 +375,19 @@ struct SidebarGroups {
     }
 
     func tabs(in folderID: String) -> [TabItem] { byFolder[folderID] ?? [] }
+}
+
+private struct TravellingWithDrag: ViewModifier {
+    let tabID: String
+    let chrome: ChromeModel
+
+    func body(content: Content) -> some View {
+        let dragged = chrome.draggingTabID
+        let travelling = dragged != nil && dragged != tabID && chrome.selectedTabIDs.contains(tabID)
+            && chrome.selectedTabIDs.contains(dragged ?? "")
+        content
+            .opacity(travelling ? 0.35 : 1)
+            .scaleEffect(travelling ? 0.96 : 1)
+            .animation(.ikago, value: travelling)
+    }
 }

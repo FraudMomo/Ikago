@@ -541,22 +541,6 @@ enum TestDriver {
             await measure("drag start") { c.chrome.draggingTabID = made.first?.id }
             await measure("drag end") { c.chrome.draggingTabID = nil }
             for tab in made { state.closeTab(tab.id) }
-        case "scrollinsets":  // every sidebar list's frame (window coordinates), content insets and scroll offset
-            func walk(_ view: NSView) {
-                if let scroll = view as? ListScrollView {
-                    let frame = scroll.convert(scroll.bounds, to: nil)
-                    print("IKTEST scrollinsets frame=\(frame) insets=\(scroll.contentInsets.top),\(scroll.contentInsets.bottom) offset=\(scroll.contentView.bounds.origin.y) doc=\(scroll.documentView?.frame.height ?? 0)")
-                }
-                view.subviews.forEach(walk)
-            }
-            if let root = c.window?.contentView { walk(root) }
-        case "pinsome":  // <n>: pins the Space's first n loose tabs into the essentials grid
-            for tab in state.looseTabs.prefix(Int(arg) ?? 4) { state.movePin(tab.id, intoGrid: true) }
-        case "groupamong":  // <name>: a group of the Space's last two loose tabs, placed after the first loose tab
-            let folder = state.createFolder(named: arg.isEmpty ? "Research" : arg)
-            for tab in state.looseTabs.suffix(2) { state.moveToFolder(tab.id, folderID: folder.id) }
-            state.setFolderTag(folder.id, to: .blue)
-            state.placeFolderAmongTabs(folder.id, relativeTo: state.looseTabs.first?.id, after: true)
         case "railstyle":  // expand | magnify | off: the icon sidebar, with that hover effect
             state.browserPreferences.sidebarCompact = true; state.sidebarVisible = true
             state.browserPreferences.railHover = RailHoverEffect(rawValue: arg)

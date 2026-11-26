@@ -26,8 +26,7 @@ extension View {
             } preview: {
                 TabDragPreview(tab: tab, colors: state.palette, count: chrome.selectedTabIDs.contains(tab.id) ? chrome.selectedTabIDs.count : 1)
             }
-            .travellingWithDrag(chrome.draggingTabID != nil && chrome.draggingTabID != tab.id && chrome.selectedTabIDs.contains(tab.id)
-                                && chrome.selectedTabIDs.contains(chrome.draggingTabID ?? ""))
+            .travellingWithDrag(tab.id, chrome: chrome)
             .tabDropTarget(tab, axis: .horizontal, state: state, chrome: chrome)
         } else {
             base.tabDropTarget(tab, axis: .horizontal, state: state, chrome: chrome)

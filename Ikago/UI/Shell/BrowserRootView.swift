@@ -190,7 +190,7 @@ struct BrowserRootView: View {
         .animation(reduceMotion ? nil : .ikago, value: chrome.showPalette)
         .animation(reduceMotion ? nil : .ikago, value: showsSidebarSuggestions)
         .animation(.ikago, value: state.sidebarVisible)
-        .animation(reduceMotion ? .easeInOut(duration: 0.15) : .spring(response: 0.36, dampingFraction: 0.9), value: state.showsSidebarRail)
+        .animation(reduceMotion ? .easeInOut(duration: 0.15) : .spring(duration: 0.2, bounce: 0), value: state.showsSidebarRail)
         .animation(revealAnimation, value: chrome.peeking)
         .animation(nil, value: state.isImmersive)
         // Typing an address, or ⌘L / a new tab, brings the hidden bar in for as long as it lasts.
@@ -217,7 +217,7 @@ struct BrowserRootView: View {
     var docksSidebar: Bool { state.sidebarVisible }
     /// Revealed chrome arrives with a soft spring and leaves a little quicker.
     private var revealAnimation: Animation? {
-        reduceMotion ? .easeInOut(duration: 0.15) : chrome.peeking ? .spring(response: 0.34, dampingFraction: 0.86) : .smooth(duration: 0.24)
+        reduceMotion ? .easeInOut(duration: 0.15) : chrome.peeking ? .spring(duration: 0.22, bounce: 0) : .smooth(duration: 0.16)
     }
     var sidebarShownWidth: CGFloat { state.showsSidebarRail ? BrowserState.sidebarRailWidth : state.sidebarWidth }
     /// Width the sidebar takes before the page starts (0 without a visible sidebar).

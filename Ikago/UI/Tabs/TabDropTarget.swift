@@ -21,41 +21,29 @@ private struct TabDropTarget: ViewModifier {
     @State private var length = MeasuredLength()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    // Nothing here reads the drag's state while building: a drag starting or ending would rebuild every row's target.
+    // The dimming and the line read it in their own small views (`DragSourceDim`, `DragInsertionLine`), and the
+    // delegate asks for the dragged tab only when the pointer moves over this row.
     func body(content: Content) -> some View {
+        let _ = RenderProbe.hit("TabDropTarget")
         content
-            .opacity(isSource ? 0.5 : 1)
+            .modifier(DragSourceDim(tabID: tab.id, state: state, chrome: chrome))
             .onGeometryChange(for: CGFloat.self) { axis == .horizontal ? $0.size.width : $0.size.height } action: { length.value = $0 }
-            .onDrop(of: [.ikagoTab, .ikagoGroup], delegate: delegate)
+            .onDrop(of: [.ikagoTab], delegate: TabReorderDropDelegate(
+                axis: axis, length: length, preview: $insertionAfter,
+                accepts: { state.canReorderTab($0, relativeTo: tab.id) },
+                source: { chrome.draggingTabID }, perform: { id, after in
+                    withAnimation(animation) { _ = state.reorderTab(id, relativeTo: tab.id, after: after) }
+                    chrome.endTabDrag()
+                }, into: state))
             .overlay(alignment: alignment) {
-                if insertionAfter != nil { TabInsertionIndicator(horizontal: axis == .horizontal) }
+                if insertionAfter != nil {
+                    DragInsertionLine(horizontal: axis == .horizontal, chrome: chrome) { insertionAfter = nil }
+                }
             }
-            .onChange(of: chrome.draggingTabID) { _, id in if id == nil { insertionAfter = nil } }
     }
 
     private var animation: Animation? { reduceMotion ? nil : .ikagoQuick }
-
-    private var delegate: TabReorderDropDelegate {
-        let state = state, chrome = chrome, tab = tab, animation = animation
-        var delegate = TabReorderDropDelegate(
-            axis: axis, length: length, preview: $insertionAfter,
-            accepts: { state.canReorderTab($0, relativeTo: tab.id) },
-            source: { chrome.draggingTabID },
-            perform: { id, after in
-                withAnimation(animation) { _ = state.reorderTab(id, relativeTo: tab.id, after: after) }
-                chrome.endTabDrag()
-            },
-            into: state)
-        // A group dragged onto a loose tab takes its place among the tabs, before or after it.
-        if tab.folderID == nil && !tab.pinned {
-            let source: @MainActor () -> String? = { chrome.draggingFolderID }
-            let perform: @MainActor (String, Bool) -> Void = { id, after in
-                chrome.endFolderDrag()
-                withAnimation(animation) { state.placeFolderAmongTabs(id, relativeTo: tab.id, after: after) }
-            }
-            delegate.group = (source, perform)
-        }
-        return delegate
-    }
     private var alignment: Alignment {
         axis == .horizontal ? (insertionAfter == true ? .trailing : .leading) : (insertionAfter == true ? .bottom : .top)
     }
@@ -73,7 +61,7 @@ private struct TabListEndDrop: ViewModifier {
             .onDrop(of: [.ikagoTab, .ikagoGroup], delegate: ListEndDropDelegate(tabs: TabReorderDropDelegate(
                 axis: .vertical, length: MeasuredLength(), preview: $insertionAfter,
                 accepts: { state.tab($0)?.spaceID == state.activeSpaceID },
-                sourceID: chrome.draggingTabID, perform: { id, _ in
+                source: { chrome.draggingTabID }, perform: { id, _ in
                     withAnimation(reduceMotion ? nil : .ikagoQuick) { _ = state.moveTabToListEnd(id) }
                     chrome.endTabDrag()
                 }, into: state), state: state, chrome: chrome, preview: $insertionAfter))
@@ -169,10 +157,8 @@ private struct DragInsertionLine: View {
     let clear: () -> Void
 
     var body: some View {
-        // Shown for a tab or a group (a group drag sets only `draggingFolderID`: gating on the tab alone hid the line).
-        let dragging = chrome.draggingTabID != nil || chrome.draggingFolderID != nil
         TabInsertionIndicator(horizontal: horizontal)
-            .opacity(dragging ? 1 : 0)
-            .onChange(of: dragging) { _, now in if !now { clear() } }
+            .opacity(chrome.draggingTabID == nil ? 0 : 1)
+            .onChange(of: chrome.draggingTabID == nil) { _, ended in if ended { clear() } }
     }
 }

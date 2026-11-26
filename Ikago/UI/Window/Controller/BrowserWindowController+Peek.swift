@@ -82,7 +82,7 @@ extension BrowserWindowController {
         guard peekController != nil, !chrome.peekExpanding else { return }
         guard !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion, let target = peekTargetFrame() else { return finishOpeningPeek() }
         chrome.peekTarget = target
-        withAnimation(.spring(duration: 0.36, bounce: 0)) { chrome.peekExpanding = true } completion: { [weak self] in
+        withAnimation(.spring(duration: 0.26, bounce: 0)) { chrome.peekExpanding = true } completion: { [weak self] in
             self?.finishOpeningPeek()
         }
     }

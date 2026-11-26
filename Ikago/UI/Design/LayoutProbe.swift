@@ -19,3 +19,16 @@ private struct LayoutSample: Equatable {
     let enabled: Bool
 }
 #endif
+
+/// How many times views' bodies ran, by name, for measuring what a change re-renders (DEBUG; `renders` driver action).
+@MainActor
+enum RenderProbe {
+    #if DEBUG
+    static var counts: [String: Int] = [:]
+    #endif
+    @inline(__always) static func hit(_ name: StaticString) {
+        #if DEBUG
+        counts["\(name)", default: 0] += 1
+        #endif
+    }
+}

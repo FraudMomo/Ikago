@@ -93,17 +93,21 @@ struct FolderHeaderDropDelegate: DropDelegate {
         return true
     }
 
+    /// Written only when something changes: a drag moves many times a second over the same header.
     private func update(_ info: DropInfo) {
         if info.hasItemsConforming(to: [.ikagoGroup]) {
-            tabTargeted = false
-            zone = zone(at: info.location)
+            set(zone(at: info.location), targeted: false)
         } else {
-            zone = nil
-            tabTargeted = true
+            set(nil, targeted: true)
         }
     }
 
-    private func clear() { zone = nil; tabTargeted = false }
+    private func clear() { set(nil, targeted: false) }
+
+    private func set(_ newZone: GroupDropZone?, targeted: Bool) {
+        if zone != newZone { zone = newZone }
+        if tabTargeted != targeted { tabTargeted = targeted }
+    }
 
     /// Like moving a tab: the first half of the header puts the group before this one, the second half after it (an
     /// open group's header is all "before", since after it come its tabs). Putting a group inside another is Move Into.

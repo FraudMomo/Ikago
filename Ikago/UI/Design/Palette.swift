@@ -117,12 +117,13 @@ extension NSColor {
     }
 }
 
-/// Shared motion: one spring for everything that moves, so the app feels consistent.
+/// Shared motion: one spring for everything that moves, so the app feels consistent. Short, like Chrome's tab strip
+/// (about 125–200 ms): chrome answers at once and never makes the person wait for it.
 extension Animation {
-    static let ikago = Animation.spring(duration: 0.2, bounce: 0)
-    static let ikagoQuick = Animation.spring(duration: 0.12, bounce: 0)
+    static let ikago = Animation.spring(duration: 0.16, bounce: 0)
+    static let ikagoQuick = Animation.spring(duration: 0.1, bounce: 0)
     /// A sidebar group opening or closing: long enough to follow the rows below as they move.
     static let groupDisclosure = Animation.smooth(duration: groupDisclosureDuration)
     /// The sidebar list scrolls along with a closing group on this same spring (`ListScrollView.follow`).
-    static let groupDisclosureDuration = 0.26
+    static let groupDisclosureDuration = 0.2
 }

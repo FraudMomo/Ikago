@@ -4,7 +4,7 @@ import SwiftUI
 /// tab shrinks to nothing while they slide in, and widths reflow smoothly when tabs open, close,
 /// or reorder. Window resizes and Space switches stay immediate.
 enum TabMotion {
-    static let duration: Double = 0.2
+    static let duration: Double = 0.16
 
     static func animation(reduceMotion: Bool) -> Animation? {
         reduceMotion ? nil : .easeOut(duration: duration)

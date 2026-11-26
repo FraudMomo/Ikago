@@ -18,14 +18,15 @@
    `state.palette` and `.surface`; glass surfaces retain the Space tint. Keep page contents
    neutral, provide readable ink for arbitrary custom colors, and let website theme colors
    blend subtly rather than replace the Space's identity. Margins follow `state.frameInset`.
-4. **The tab row moves; everything else stays immediate.** `TabMotion` (`TabSlotMotion.swift`, a 200 ms ease-out)
+4. **The tab row moves; everything else stays immediate.** `TabMotion` (`TabSlotMotion.swift`, a 160 ms ease-out)
    animates the Top Tabs row's *structure*: an opened tab's slot grows in while neighbours and the + button slide;
    a closed tab (closed at once, no delay) shrinks out; reorders reflow. A settled slot isn't clipped, so an attached
    tab's flares reach into the page. The row animates only on `TabMotionKey` (item ids) through `tabStripMotion`, which
    blocks callers' transactions. Selection, address editing, window resizes and Space switches stay immediate, and so does
    suggestion selection. Titles crossfade over 100 ms, hover fills fade (~0.1s in, 0.2s out), and the address
    field eases its focus fill/ring. Respect Reduce Motion. Other changes animate quickly: `Animation.ikago`
-   (0.2s) or `.ikagoQuick` (0.12s). Sidebar selection highlights follow the configured `TabSelectionHighlight` style.
+   (0.16s) or `.ikagoQuick` (0.1s); chrome motion stays in Chrome's tab-strip range (about 125–200 ms) and never makes the
+   person wait. Sidebar selection highlights follow the configured `TabSelectionHighlight` style.
 5. **One layout, the sidebar, with an optional tab row.** Settings ▸ Appearance ▸ Layout (`LayoutChoice`) picks Sidebar or
    Top Tabs (`browserPreferences.sidebarTopTabs`, `state.usesTabsLayout`, `state.showsSidebarTopTabs`): `SidebarTopTabs` (its own
    `IsolatedHost`) shows the Space's ungrouped tabs above the page as arched, attached tabs (`AttachedTabShape`), and

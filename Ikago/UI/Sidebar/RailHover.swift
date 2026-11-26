@@ -19,18 +19,19 @@ enum RailHover {
     static let largest: CGFloat = 1.5
     static let neighbour: CGFloat = 1.18
     /// The carousel moving from tile to tile: the icons growing and shrinking and the rows gliding, on one spring.
-    static let glide = Animation.spring(response: 0.26, dampingFraction: 0.84)
+    static let glide = Animation.spring(response: 0.2, dampingFraction: 0.86)
     /// Magnify easing in as the pointer arrives, and out as it leaves.
-    static let grow = Animation.easeOut(duration: 0.22)
-    static let shrink = Animation.easeInOut(duration: 0.24)
-    static let reveal = Animation.spring(response: 0.3, dampingFraction: 0.86)
-    static let conceal = Animation.spring(response: 0.24, dampingFraction: 1)
+    static let grow = Animation.easeOut(duration: 0.15)
+    static let shrink = Animation.easeInOut(duration: 0.16)
+    /// Expand opening: a decelerating curve (fast start, soft landing), as Chrome-style vertical tabs widen.
+    static let reveal = Animation.timingCurve(0.2, 0, 0, 1, duration: 0.17)
+    static let conceal = Animation.timingCurve(0.3, 0, 0.8, 0.15, duration: 0.12)
     /// How long the effects take to settle back onto the rail, after which the overlay goes.
-    static let settle: Duration = .milliseconds(300)
+    static let settle: Duration = .milliseconds(180)
     /// How long the pointer rests on the rail before it widens, so crossing it to the window's edge doesn't flash it.
-    static let expandDelay: Duration = .milliseconds(70)
+    static let expandDelay: Duration = .milliseconds(50)
     /// How long the effects stay after the pointer leaves them, to forgive a slip.
-    static let leaveGrace: Duration = .milliseconds(150)
+    static let leaveGrace: Duration = .milliseconds(120)
 
     /// An icon's scale for its place in Magnify's carousel, at `strength` (0 at rest, 1 grown).
     static func scale(_ role: RailMagnifyRole?, strength: CGFloat) -> CGFloat {

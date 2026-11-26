@@ -8,7 +8,8 @@ struct TabReorderDropDelegate: DropDelegate {
     let length: MeasuredLength
     @Binding var preview: Bool?
     let accepts: @MainActor (String) -> Bool
-    let sourceID: String?
+    /// The tab being dragged in this window, read only while the pointer is over the row.
+    let source: @MainActor () -> String?
     let perform: @MainActor (String, Bool) -> Void
     /// The window's state, so a tab dragged from another window is brought here first.
     var into: BrowserState? = nil
@@ -16,17 +17,17 @@ struct TabReorderDropDelegate: DropDelegate {
     var group: (source: @MainActor () -> String?, perform: @MainActor (String, Bool) -> Void)? = nil
 
     func validateDrop(info: DropInfo) -> Bool {
-        if info.hasItemsConforming(to: [.ikagoGroup]) { return group?.source() != nil }
-        return info.hasItemsConforming(to: [.ikagoTab]) && (source().map(accepts) ?? true)
+        info.hasItemsConforming(to: [.ikagoTab]) && (source().map(accepts) ?? true)
     }
 
     func dropEntered(info: DropInfo) { updatePreview(info) }
+    /// One check per move, and the line written only when it changes side.
     func dropUpdated(info: DropInfo) -> DropProposal? {
-        guard validateDrop(info: info) else { preview = nil; return DropProposal(operation: .cancel) }
-        updatePreview(info)
+        guard validateDrop(info: info) else { set(nil); return DropProposal(operation: .cancel) }
+        set(isAfter(info.location))
         return DropProposal(operation: .move)
     }
-    func dropExited(info: DropInfo) { preview = nil }
+    func dropExited(info: DropInfo) { set(nil) }
 
     func performDrop(info: DropInfo) -> Bool {
         defer { preview = nil }
@@ -45,9 +46,9 @@ struct TabReorderDropDelegate: DropDelegate {
     }
 
     private func updatePreview(_ info: DropInfo) {
-        guard validateDrop(info: info) else { preview = nil; return }
-        preview = isAfter(info.location)
+        set(validateDrop(info: info) ? isAfter(info.location) : nil)
     }
+    private func set(_ value: Bool?) { if preview != value { preview = value } }
     private func isAfter(_ location: CGPoint) -> Bool {
         length.value > 0 && (axis == .horizontal ? location.x : location.y) >= length.value / 2
     }

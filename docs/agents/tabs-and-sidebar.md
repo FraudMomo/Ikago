@@ -40,13 +40,25 @@
   inside it.
 - The icon rail keeps the full sidebar's order (Sidebar layout): essentials, pinned tiles, groups, a line, New Tab
   (when the sidebar shows it, `sidebarShowsNewTab`), then tabs. Under Top Tabs it keeps pins and groups only.
-- Expand: resting `expandDelay` on the rail widens the rail itself: `RailExpandPanel` draws `SidebarRail(expanded: true)`
-  over the rail and the page, the same items in the same places, laid out at `expandedWidth` the whole time; the
-  backdrop grows from the rail's width and the rows are masked to it, so nothing reflows. At the rail's width it is the
-  rail, so it shows at once and the rail's items step aside (`covered`, only once the overlay is on screen, so a failed
-  overlay never leaves the rail blank). The rail's traffic lights stay uncovered: the wider rail has a hole where they
-  are (`lightsRect`), and while the pointer is over them the overlay ignores the mouse (`onPassThrough`): a transparent
-  hole alone still sent their clicks to the overlay.
+- Expand: resting `expandDelay` on the rail opens the full sidebar over the rail and the page (`RailExpandPanel` draws
+  `SidebarView` at `state.sidebarWidth`, `RailHoverModel.expandWidth`), laid out exactly as when it is docked: top row,
+  address field, essentials, groups, bottom bar, and the same drags (reorder, into groups, out to split the page). Its
+  edge grows from the rail's while it fades in. The drawn traffic lights glide from the rail's column to its top row
+  while it is out (`FullScreenWindowControls.placeRail`: one host covering both places, each light offset by `progress`
+  on `RailHover.reveal`/`conceal`; `LightsHost` takes clicks only on the lights) and stay uncovered: the panel has a
+  round hole over each light that moves with it (`lightFrames`, re-read on `lightsMoves`), and while the pointer is over them the overlay ignores the
+  mouse (`onPassThrough`). Its sidebar button keeps the full sidebar docked (`sidebarOverRail`, `showFullSidebar`);
+  `WindowDragArea` in the overlay moves the browser window (its parent). Inactive drawn lights are solid grey, as
+  macOS's are, since see-through ones showed what was behind them.
+- Drag state is read only in leaf views: rows, tiles and drop targets never read `draggingTabID`/`selectedTabIDs` while
+  building (`DragSourceDim`, `DragInsertionLine`, `TravellingWithDrag`), and delegates ask for the dragged tab through a
+  closure and write their preview only when it changes. Measured with `renders:<n>` (`RenderProbe`): a drag's start and
+  end re-ran every row builder and target (31 each with 30 tabs); now only the 31 small dims.
+- Rail tiles drag like the full sidebar's rows (`onDrag` with `TabDrag`, `tabDropTarget` on each tile, `tabListEndDrop`
+  under the last one): reorder, onto a group tile to join it, onto the page to split it, out to a new window. Group
+  tiles drag and take drops like group headers (`RailGroupDrag`, `FolderHeaderDropDelegate`).
+- The rail's sidebar button sits where the full sidebar has it: at the top under the lights when the sidebar's top row
+  holds it (`SidebarRail.togglesAtTop`), else at the foot.
 - Both draw in a window of their own (`RailOverlay`): borderless, transparent, a child of the browser window and exactly
   its size. It is put in place invisible and click-through ahead of use (`onPrepare`, when a rail appears and on
   `arming`) and showing is only its alpha: ordered in as it showed, its first frames were lost and Magnify popped. Measured: AppKit sends pointer moves to every tracking area under the pointer
