@@ -27,7 +27,7 @@ final class WebNotifications: NSObject, UNUserNotificationCenterDelegate {
               let message = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any], let type = message["t"] as? String,
               let state = controller.browserState, let page = controller.page,
               let url = URL(string: page.currentURL), let host = url.host?.lowercased(),
-              url.scheme == "https" || ["localhost", "127.0.0.1"].contains(host) else { return }
+              BrowserPreferences.isSecurePage(url) else { return }
         let enabled = state.browserPreferences.websiteNotifications ?? true
         let permission: SitePermission = state.isPrivate || !enabled ? .block
             : state.permission(.notifications, host: host, tabID: controller.tab.id)

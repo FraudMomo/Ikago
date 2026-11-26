@@ -114,6 +114,9 @@ struct BrowserPreferences: Codable, Equatable {
     var agentUsesOpenTabs: Bool? = nil
     /// Lets agents run their own scripts in a page (in Ikago's isolated world). Unset: off.
     var agentAllowsScripts: Bool? = nil
+    /// Lets agents take consequential actions (buying, paying, sending, posting, deleting) without asking each time. They
+    /// still never type passwords or card numbers. Unset: they ask.
+    var agentActsWithoutAsking: Bool? = nil
     /// The agent server's port on 127.0.0.1. Unset: 47811.
     var agentPort: Int? = nil
     /// Registrable domains the person chose "Never for This Site" for.
@@ -167,6 +170,13 @@ struct BrowserPreferences: Codable, Equatable {
             domain = domain.trimmingCharacters(in: CharacterSet(charactersIn: "."))
             return !domain.isEmpty && (host == domain || host.hasSuffix("." + domain))
         }
+    }
+
+    /// Whether a page at `url` is secure enough for passwords, autofill and notifications: HTTPS, or a page on this Mac
+    /// (`localhost`, `*.localhost`, `127.x`, `::1`), which browsers treat as secure too.
+    static func isSecurePage(_ url: URL?) -> Bool {
+        guard let url, let host = url.host?.lowercased(), !host.isEmpty else { return false }
+        return url.scheme?.lowercased() == "https" || isLoopback(host)
     }
 
     static func isLoopback(_ host: String) -> Bool {
