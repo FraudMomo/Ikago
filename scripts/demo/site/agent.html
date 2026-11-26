@@ -1,0 +1,46 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="/demo.css"><title>Demo Shop</title>
+<main><header class="top"><h1>Demo Shop</h1><a href="" data-host="ikago-demo.localhost">← All demos</a></header>
+<p class="host" data-here></p>
+<div class="split">
+<div class="stack">
+<section class="card"><form id="search-form" onsubmit="event.preventDefault(); document.getElementById('results').textContent = 'Results for “' + this.q.value + '”'">
+<label>Search <input name="q" type="search" placeholder="Search the shop"></label></form>
+<p id="results" style="margin:8px 0 0;color:var(--muted)">Popular items</p>
+<p><a href="#page-2" onclick="document.getElementById('results').textContent='Page 2 of results'">Next page</a></p></section>
+<section class="card"><h2>Running shoes · $89</h2>
+<p style="margin:0 0 10px;color:var(--muted)">In stock</p>
+<button id="buy" onclick="this.textContent='Bought ✓'; this.disabled=true">Buy now</button></section>
+<form class="card" id="signin" onsubmit="event.preventDefault()"><h2>Sign in</h2>
+<label>Email <input name="email" type="email" autocomplete="username"></label>
+<label>Password <input name="password" type="password" autocomplete="current-password"></label></form>
+<form class="card" id="card" onsubmit="event.preventDefault()"><h2>Payment</h2>
+<label>Card number <input name="cardnumber" autocomplete="cc-number" value="4242 4242 4242 4242"></label>
+<label>Security code <input name="cvc" autocomplete="cc-csc"></label></form>
+<form class="card" id="comment" onsubmit="event.preventDefault(); document.getElementById('posted').textContent='Posted: ' + this.text.value"><h2>Review</h2>
+<label>Your review <input name="text"></label><button>Post review</button><p id="posted" style="margin:0;color:var(--muted)"></p></form>
+<section class="card"><h2>Account</h2><button class="danger" id="delete" onclick="this.textContent='Account deleted'; this.disabled=true">Delete account</button></section>
+</div>
+<div class="stack">
+<section class="card check"><h2>Demo agent</h2><ol>
+<li>Press <b>Start</b>. A scripted agent drives <i>this</i> tab through Ikago's real agent server, like Claude Code would.</li>
+<li>The bar at the foot of the page shows it working. <b>Pause</b> holds it, even from reading the page.</li>
+<li>It searches and pages without asking, can't see or type the card or password, then wants to <b>buy</b>, <b>post</b> and <b>delete</b>. Each asks: Don't Allow, Allow on ikago-demo.localhost, Allow Once.</li>
+<li>Choose <b>Allow on site</b> once and run it again: nothing asks. Settings ▸ Agents lists the site with Ask Again.</li>
+<li>Turn off "Ask before consequential actions" there: no prompts, but the card and password are still refused.</li>
+</ol>
+<p style="display:flex;gap:8px;margin-top:12px"><button id="start">Start</button><button class="quiet" onclick="location.reload()">Reset page</button></p></section>
+<section class="card"><h2>What the agent did</h2><div id="log"><div class="step">Not started.</div></div></section>
+</div></div></main>
+<script src="/demo.js"></script>
+<script>
+const log = document.getElementById('log')
+async function poll() {
+  const state = await (await fetch('/agent/log')).json()
+  log.replaceChildren(...state.lines.map(([kind, text]) => { const d = document.createElement('div'); d.className = 'step ' + kind; d.textContent = text; return d }))
+  if (!state.lines.length) log.innerHTML = '<div class="step">Not started.</div>'
+  document.getElementById('start').disabled = state.running
+  setTimeout(poll, 600)
+}
+document.getElementById('start').onclick = () => fetch('/agent/start', { method: 'POST' })
+poll()
+</script>

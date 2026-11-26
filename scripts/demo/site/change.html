@@ -1,0 +1,16 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="/demo.css"><title>Change password · Demo Accounts</title>
+<main><header class="top"><h1>Change password</h1><a href="" data-host="ikago-demo.localhost">← All demos</a></header>
+<p class="host" data-here></p>
+<div class="split">
+<form class="card" method="post" action="/changed.html">
+<label>Account <input name="username" autocomplete="username" value="sam.work@example.com" readonly></label>
+<label>Current password <input name="current-password" type="password" autocomplete="current-password"></label>
+<label>New password <input name="new-password" type="password" autocomplete="new-password"></label>
+<label>Confirm new password <input name="confirm-password" type="password" autocomplete="new-password"></label>
+<button>Change password</button></form>
+<section class="card check"><h2>What to check</h2><ol>
+<li>Fill the current password from the key (sam.work@example.com).</li>
+<li>Choose <b>Use Strong Password</b> for the new one. Settings ▸ Passwords still has the old one.</li>
+<li>Press Change password: the card offers to <b>Update</b>. Only then does the saved one change.</li>
+<li>Choose Not Now instead: the old password stays.</li>
+</ol></section></div></main><script src="/demo.js"></script>

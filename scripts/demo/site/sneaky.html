@@ -1,0 +1,25 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="/demo.css"><title>Newsletter · Demo Shop</title>
+<style>.trap-parent { position: relative; } .cover { position: absolute; inset: 0; background: var(--card); }</style>
+<main><header class="top"><h1>Join the newsletter</h1><a href="" data-host="ikago-demo.localhost">← All demos</a></header>
+<p class="host" data-here></p>
+<div class="split">
+<form class="card" id="sneaky" method="post" action="/signed-up.html"><h2>Just your name</h2>
+<label>Full name <input name="name" autocomplete="name" data-label="name (visible)"></label>
+<input name="street" autocomplete="address-line1" data-label="street" data-trick="see-through" style="opacity:0">
+<input name="city" autocomplete="address-level2" data-label="city" data-trick="off the page" style="position:absolute;left:-9999px">
+<input name="zip" autocomplete="postal-code" data-label="postal code" data-trick="1 pixel" style="width:1px;height:1px;padding:0;border:0">
+<div style="opacity:0.01"><input name="phone" type="tel" autocomplete="tel" data-label="phone" data-trick="see-through parent"></div>
+<input name="email" type="email" autocomplete="email" data-label="email" data-trick="clipped" style="clip-path:inset(50%);position:absolute">
+<div style="height:0;overflow:hidden"><input name="org" autocomplete="organization" data-label="company" data-trick="outside a zero-height box"></div>
+<div class="trap-parent"><select name="country" autocomplete="country" data-label="country" data-trick="covered"><option value="">—</option><option value="US">United States</option></select><div class="cover"></div></div>
+<input name="tel2" autocomplete="tel-national" data-label="phone again" data-trick="hidden" style="visibility:hidden;position:absolute">
+<input name="cardnumber" autocomplete="cc-number" data-label="card number" data-trick="display: none" style="display:none">
+<button>Subscribe</button></form>
+<div class="stack">
+<section class="card check"><h2>What to check</h2><ol>
+<li>The form shows only <b>Full name</b>. Hidden in it: street, city, postal code, phone, email, company, country and a card field, each hidden a different way.</li>
+<li>Click Full name and choose your saved address.</li>
+<li>Only the name fills. Every hidden field below should say <span class="ok">empty (good)</span>, never <span class="leak">FILLED</span>.</li>
+</ol></section>
+<section class="card"><h2>What the page received</h2><div class="received" data-received="sneaky"></div></section>
+</div></div></main><script src="/demo.js"></script>

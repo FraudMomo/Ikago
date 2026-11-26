@@ -164,6 +164,11 @@ def main():
                     SUScheduledCheckInterval=86400, SUAllowsAutomaticUpdates=True, SUEnableSystemProfiling=False,
                     # Only a feed signed with the update key is believed, and a download is verified before it opens.
                     SURequireSignedFeed=True, SUVerifyUpdateBeforeExtraction=True)
+    if flavor == 'debug':
+        # The hands-on demo (scripts/demo.sh) serves sites like accounts.ikago-demo.localhost over plain HTTP on this Mac;
+        # App Transport Security exempts only localhost itself. Debug builds only.
+        info['NSAppTransportSecurity'] = {'NSExceptionDomains': {'localhost': {
+            'NSIncludesSubdomains': True, 'NSExceptionAllowsInsecureHTTPLoads': True}}}
     (contents/'Info.plist').write_bytes(plistlib.dumps(info))
 
     if flavor == 'release':

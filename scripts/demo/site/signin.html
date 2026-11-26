@@ -1,0 +1,19 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="/demo.css"><title>Sign in · Demo Accounts</title>
+<main><header class="top"><h1>Sign in</h1><a href="" data-host="ikago-demo.localhost">← All demos</a></header>
+<p class="host" data-here></p>
+<div class="split">
+<form class="card" method="post" action="/signed-in.html">
+<label>Email or username <input name="username" autocomplete="username" autofocus></label>
+<label>Password <input name="password" type="password" autocomplete="current-password"></label>
+<button>Sign in</button></form>
+<section class="card check"><h2>What to check</h2><ol>
+<li>Click the email field (or the key at its right). The list shows <b>4 usernames</b> and a <b>search field</b>.</li>
+<li><b>sam@example.com</b> is one row, <b>"3 sites"</b>. Its chevron (or →) shows mail.… with its own, different password.</li>
+<li>Pick the mail.… one: it fills <i>that</i> site's password (the field shows its length: 18 dots).</li>
+<li><b>family@example.com</b> shows its saved title "Family account".</li>
+<li>Type <b>work</b> in the email field: only sam.work@ is left. Type <b>nobody@x</b>: the list closes.</li>
+<li>Type in the search field: it searches usernames, sites and titles ("mail", "family").</li>
+<li>Click the key <b>twice</b>: the second click closes the list. The <b>×</b> and Escape close it too.</li>
+<li>Keys: ↑ ↓ move, Return fills, ← → close or open a group, Tab closes.</li>
+<li>Type a new email and password by hand and submit: a <b>save card</b> asks first.</li>
+</ol></section></div></main><script src="/demo.js"></script>

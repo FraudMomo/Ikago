@@ -1,0 +1,13 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="/demo.css"><title>Sign in · Demo Blog</title>
+<main><header class="top"><h1>Demo Blog</h1><a href="" data-host="ikago-demo.localhost">← All demos</a></header>
+<p class="host" data-here></p>
+<div class="split">
+<form class="card" method="post" action="/signed-in.html">
+<label>Email <input name="email" type="email" autocomplete="username"></label>
+<label>Password <input name="password" type="password" autocomplete="current-password"></label>
+<button>Sign in</button></form>
+<section class="card check"><h2>What to check</h2><ol>
+<li>Click the email field: <b>two rows</b>, and <b>no search field</b> (too few to need one).</li>
+<li>One row is <b>"No username"</b>; choosing it fills only the password.</li>
+<li>Nothing from accounts.ikago-demo.localhost shows here: another site.</li>
+</ol></section></div></main><script src="/demo.js"></script>

@@ -1,0 +1,34 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="/demo.css"><title>Ikago Demo</title>
+<main>
+<header class="top"><h1>Ikago demo</h1></header>
+<p class="host">A throwaway profile with sample data · <span data-here></span> · nothing here touches your own Ikago</p>
+<div class="stack">
+<section class="card check"><h2>Before you start</h2><ul>
+<li>Sample logins are saved for <b>accounts / mail.ikago-demo.localhost</b> and <b>blog-demo.localhost</b>. One address and one test card are saved too.</li>
+<li>In this demo, filling a password doesn't ask for Touch ID. The real app always does.</li>
+<li>Each page lists what to check. Quit this window's app (⌘Q) to throw everything away.</li>
+</ul></section>
+<h2>Passwords popup</h2>
+<div class="grid">
+<a class="card" data-host="accounts.ikago-demo.localhost" data-path="/signin.html"><h2>Busy sign-in</h2><p>Four usernames: the search field, one row for an email on three sites, filtering as you type, toggle and close.</p></a>
+<a class="card" data-host="blog-demo.localhost" data-path="/blog.html"><h2>Small sign-in</h2><p>Two logins: no search field, a login with no username.</p></a>
+</div>
+<h2>Saving passwords (always asks)</h2>
+<div class="grid">
+<a class="card" data-host="accounts.ikago-demo.localhost" data-path="/signup.html"><h2>Sign up with a strong password</h2><p>Nothing saved on fill; "Save strong password?" after you submit, with the email.</p></a>
+<a class="card" data-host="accounts.ikago-demo.localhost" data-path="/pin.html"><h2>No username on the page</h2><p>The save card asks for one, or "Save Anyway".</p></a>
+<a class="card" data-host="accounts.ikago-demo.localhost" data-path="/change.html"><h2>Change password</h2><p>The saved password changes only when you choose Update.</p></a>
+<a class="card" data-host="accounts.ikago-demo.localhost" data-path="/signin.html"><h2>New login typed by hand</h2><p>Type a new email and password on the sign-in page and submit: a save card, never a silent save.</p></a>
+</div>
+<h2>Autofill gives sites only what they need</h2>
+<div class="grid">
+<a class="card" data-host="shop.ikago-demo.localhost" data-path="/checkout.html"><h2>Normal checkout</h2><p>Address and card fill as usual; see exactly what the page received.</p></a>
+<a class="card" data-host="shop.ikago-demo.localhost" data-path="/sneaky.html"><h2>Sneaky form</h2><p>Asks for a name, hides address, phone and card fields eight ways. Only the name should fill.</p></a>
+</div>
+<h2>Agents</h2>
+<div class="grid">
+<a class="card" data-host="shop.ikago-demo.localhost" data-path="/agent.html"><h2>Demo agent in a shop</h2><p>A scripted agent searches, tries the password and card (refused), then buys, posts and deletes (asks you).</p></a>
+<div class="card"><h2>Settings (⌘,) ▸ Agents</h2><p>"Ask before consequential actions", and the sites you allowed, with Ask Again.</p></div>
+</div>
+</div>
+</main><script src="/demo.js"></script>

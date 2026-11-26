@@ -27,6 +27,10 @@ enum TestDriver {
         print("IKTEST action \(action)")
         switch parts[0] {
         case "wait": try? await Task.sleep(for: .seconds(Double(arg) ?? 1))
+        case "savecard": DemoSetup.saveCard(arg, c)  // strong | nousername | update | regular | off
+        case "autofillcard": DemoSetup.autofillCard(arg, c)  // address | card | off
+        case "agentstate": DemoSetup.agent(arg, c)  // working | paused | approval | allowsite | stop
+        case "demo": await DemoSetup.run(c, arg: arg)  // <port>[,chromium]: sample data and the demo site (scripts/demo.sh)
         case "dragprobe":  // <seconds>: selects two tabs, prints screen points to drag the first below the fifth (a real drag
                            // needs posted mouse events from outside, e.g. a CGEvent script), then prints the order
             let s = c.state
@@ -348,6 +352,28 @@ enum TestDriver {
                     """)
                 try? await Task.sleep(for: .milliseconds(600))
                 print("IKTEST peekshot \(label) \(PeekShot.measure(page.contentView, window: c.window, save: arg.isEmpty ? nil : arg + "/peek-\(label).png"))")
+            }
+        case "passwordpopup":  // <host>: the real login list for that site's saved logins, left open (demo screenshots)
+            if let window = c.window, let content = window.contentView {
+                let field = NSRect(x: content.bounds.midX - 160, y: content.bounds.height - 200, width: 320, height: 36)
+                let logins = PasswordVault.shared.matches(for: arg)
+                Task { _ = await PasswordSuggestionsPresenter.shared.present(logins, site: PasswordVault.site(arg), anchor: field, in: window) }
+                try? await Task.sleep(for: .milliseconds(400))
+                print("IKTEST passwordpopup \(arg) logins=\(logins.count)")
+            }
+        case "passwordpopupexpand": PasswordSuggestionsPresenter.shared.toggle(arg)  // <username>
+        case "passwordpopupsearch": PasswordSuggestionsPresenter.shared.search(arg)  // <text>
+        case "passwordpopupclose": PasswordSuggestionsPresenter.shared.dismiss()
+        case "keypage":  // brings the window forward and gives the page the keyboard, as a click would
+            NSApp.activate(ignoringOtherApps: true)
+            c.window?.makeKeyAndOrderFront(nil)
+            if let view = c.activeController?.page?.contentView { c.window?.makeFirstResponder(view) }
+            if arg == "tab", let window = c.window {  // then a real Tab key, which moves focus as the person's would
+                for type in [NSEvent.EventType.keyDown, .keyUp] {
+                    if let event = NSEvent.keyEvent(with: type, location: .zero, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                    windowNumber: window.windowNumber, context: nil, characters: "\t",
+                                                    charactersIgnoringModifiers: "\t", isARepeat: false, keyCode: 48) { window.sendEvent(event) }
+                }
             }
         case "passwordlist":  // <png>: the login list under a sample field over the current page, captured with the window
             if let window = c.window, let content = window.contentView {

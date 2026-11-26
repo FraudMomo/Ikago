@@ -1,0 +1,29 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="/demo.css"><title>Checkout · Demo Shop</title>
+<main><header class="top"><h1>Checkout</h1><a href="" data-host="ikago-demo.localhost">← All demos</a></header>
+<p class="host" data-here></p>
+<div class="split">
+<div class="stack">
+<form class="card" id="ship" method="post" action="/ordered.html"><h2>Shipping</h2>
+<div class="row2"><label>First name <input name="first_name" autocomplete="given-name"></label><label>Last name <input name="last_name" autocomplete="family-name"></label></div>
+<label>Address <input name="address" autocomplete="address-line1"></label>
+<div class="row2"><label>City <input name="city" autocomplete="address-level2"></label><label>ZIP <input name="zip" autocomplete="postal-code"></label></div>
+<label>Country <select name="country" autocomplete="country"><option value="">Choose</option><option value="US">United States</option><option value="GB">United Kingdom</option></select></label>
+<label>Email <input name="email" type="email" autocomplete="email"></label>
+<label>Phone <input name="phone" type="tel" autocomplete="tel"></label>
+<button>Continue</button></form>
+<form class="card" id="pay" method="post" action="/ordered.html"><h2>Payment</h2>
+<label>Card number <input name="cardnumber" autocomplete="cc-number" inputmode="numeric"></label>
+<label>Name on card <input name="ccname" autocomplete="cc-name"></label>
+<div class="row2"><label>Expiry <input name="exp" autocomplete="cc-exp" placeholder="MM / YY"></label><label>CVC <input name="cvc" autocomplete="cc-csc"></label></div>
+<button>Pay</button></form>
+</div>
+<div class="stack">
+<section class="card check"><h2>What to check</h2><ol>
+<li>Click <b>First name</b>: your saved address is listed. Choose it: every shipping field fills.</li>
+<li>Click <b>Card number</b>: the saved Visa ••4242 is listed. Choose it: number, name and expiry fill; the CVC is yours to type.</li>
+<li>The panels below are what this page's own script can read.</li>
+<li>Change something and press Continue: Ikago offers to save or update the address.</li>
+</ol></section>
+<section class="card"><h2>Shipping: what the page received</h2><div class="received" data-received="ship"></div></section>
+<section class="card"><h2>Payment: what the page received</h2><div class="received" data-received="pay"></div></section>
+</div></div></main><script src="/demo.js"></script>
