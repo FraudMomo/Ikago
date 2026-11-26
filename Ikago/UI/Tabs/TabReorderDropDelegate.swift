@@ -16,22 +16,27 @@ struct TabReorderDropDelegate: DropDelegate {
     /// A group dropped before or after this row (loose tabs only: a group placed among the tabs). Nil refuses groups.
     var group: (source: @MainActor () -> String?, perform: @MainActor (String, Bool) -> Void)? = nil
 
+    /// A group drag is one only while a group is being dragged here (`draggingFolderID`): a tab drag can also report
+    /// the group type, and treating it as a group refused every tab drop on loose and pinned rows.
+    private var groupDragged: Bool { group?.source() != nil }
+
     func validateDrop(info: DropInfo) -> Bool {
-        info.hasItemsConforming(to: [.ikagoTab]) && (source().map(accepts) ?? true)
+        if groupDragged { return info.hasItemsConforming(to: [.ikagoGroup]) }
+        return info.hasItemsConforming(to: [.ikagoTab]) && (source().map(accepts) ?? true)
     }
 
     func dropEntered(info: DropInfo) { updatePreview(info) }
-    /// One check per move, and the line written only when it changes side.
+    /// One check per move, and the line or hint written only when it changes.
     func dropUpdated(info: DropInfo) -> DropProposal? {
         guard validateDrop(info: info) else { set(nil); return DropProposal(operation: .cancel) }
-        set(isAfter(info.location))
+        updatePreview(info)
         return DropProposal(operation: .move)
     }
     func dropExited(info: DropInfo) { set(nil) }
 
     func performDrop(info: DropInfo) -> Bool {
         defer { preview = nil }
-        if let group, let provider = info.itemProviders(for: [.ikagoGroup]).first {
+        if groupDragged, let group, let provider = info.itemProviders(for: [.ikagoGroup]).first {
             let after = isAfter(info.location)
             GroupDrag.load(provider) { id in group.perform(id, after) }
             return true

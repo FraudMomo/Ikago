@@ -54,13 +54,9 @@
   building (`DragSourceDim`, `DragInsertionLine`, `TravellingWithDrag`), and delegates ask for the dragged tab through a
   closure and write their preview only when it changes. Measured with `renders:<n>` (`RenderProbe`): a drag's start and
   end re-ran every row builder and target (31 each with 30 tabs); now only the 31 small dims.
-- In the full sidebar's rows (and Expand's), a tab dropped on another tab's middle half combines them (`combines:`; tiles,
-  the essentials grid and the tab row only reorder) (`TabReorderDropDelegate.combine`, `TabCombine`): across
-  the row, the first half groups the two (`drop(_:onto:makeGroup:)`: a new group where the target was, or the target's
-  group) and the second half splits them (`splitTabs`); left/right in lists and tiles, top/bottom in the tab row, whose
-  ends are for reordering. The quarters at either end only reorder. `CombineHint` tints the half and names it (just
-  the symbol on small tiles); nothing changes until the drop. Pinned targets and split members only offer what applies.
-  `hintshot:<png>` draws the hints offscreen.
+- A row's drop delegates treat a drag as a group drag only while a group is dragged (`chrome.draggingFolderID`): a tab
+  drag can also report the group type, and treating it as a group refused every tab dropped on loose and pinned rows.
+  (Dropping a tab on another to group or split was tried and taken out for now.)
 - Rail tiles drag like the full sidebar's rows (`onDrag` with `TabDrag`, `tabDropTarget` on each tile, `tabListEndDrop`
   under the last one): reorder, onto a group tile to join it, onto the page to split it, out to a new window. Group
   tiles drag and take drops like group headers (`RailGroupDrag`, `FolderHeaderDropDelegate`).

@@ -48,8 +48,11 @@ struct FolderHeaderDropDelegate: DropDelegate {
     /// A chip in the tab row: before, inside and after run left to right instead of top to bottom.
     var horizontal = false
 
+    /// A group drag only while a group is dragged: a tab drag can report the group type too.
+    private func isGroup(_ info: DropInfo) -> Bool { chrome.draggingFolderID != nil && info.hasItemsConforming(to: [.ikagoGroup]) }
+
     func validateDrop(info: DropInfo) -> Bool {
-        if info.hasItemsConforming(to: [.ikagoGroup]) {
+        if isGroup(info) {
             return chrome.draggingFolderID.map { state.canPlaceFolder($0, relativeTo: folder.id) } ?? false
         }
         return info.hasItemsConforming(to: [.ikagoTab])
@@ -66,7 +69,7 @@ struct FolderHeaderDropDelegate: DropDelegate {
     func performDrop(info: DropInfo) -> Bool {
         let landing = zone(at: info.location)
         clear()
-        if let provider = info.itemProviders(for: [.ikagoGroup]).first {
+        if isGroup(info), let provider = info.itemProviders(for: [.ikagoGroup]).first {
             let target = folder.id
             GroupDrag.load(provider) { id in
                 chrome.endFolderDrag()
@@ -95,7 +98,7 @@ struct FolderHeaderDropDelegate: DropDelegate {
 
     /// Written only when something changes: a drag moves many times a second over the same header.
     private func update(_ info: DropInfo) {
-        if info.hasItemsConforming(to: [.ikagoGroup]) {
+        if isGroup(info) {
             set(zone(at: info.location), targeted: false)
         } else {
             set(nil, targeted: true)

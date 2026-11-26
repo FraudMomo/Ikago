@@ -125,6 +125,14 @@ extension BrowserState {
         join(partner, to: active, leading: false)
     }
 
+    /// A tab dropped on another tab's split half: the two side by side (or the dropped one added to the target's group),
+    /// showing the target.
+    func splitTabs(_ id: String, with targetID: String) {
+        guard id != targetID, tab(id) != nil, tab(targetID) != nil else { return }
+        select(targetID)
+        join(id, to: targetID, leading: false)
+    }
+
     /// Drag-to-split: show `id` on the left (`leading`) or right of the active tab.
     func splitWithDropped(_ id: String, leading: Bool) {
         splitWithDropped(id, edge: leading ? .left : .right)
