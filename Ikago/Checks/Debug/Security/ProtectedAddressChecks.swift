@@ -65,6 +65,8 @@ enum ProtectedAddressChecks {
         check(state.splitGroup(of: regular.id) == group && state.splitGroup(of: state.activeTabID ?? "") == nil,
               "protected address navigation leaves the original split intact")
         state.select(regular.id)
+        Session.maxTabsForChecks = state.tabs.count + 20
+        defer { Session.maxTabsForChecks = nil }
         while state.tabs.count < Session.maxTabs { _ = state.newTab(url: "about:blank", select: false) }
         browser.open("https://at-capacity.invalid", inNewTab: false)
         check(state.activeTabID == regular.id && regular.url == "https://regular.invalid/changed" && regular.pinned,

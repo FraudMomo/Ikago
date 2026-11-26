@@ -34,7 +34,19 @@ struct Session: Codable, Equatable {
     /// Recently closed windows, newest first (`WindowSession.closedAt`), for ⌘⇧T.
     var closedWindows: [WindowSession]? = nil
 
-    static let maxTabs = 100, maxClosed = 20, maxHistory = 1000
+    /// No practical limit on tabs: only a bound a damaged or hostile session file can't exceed (unloaded tabs are a few
+    /// hundred bytes each). It was 100, which stopped people with many tabs from opening more.
+    static var maxTabs: Int {
+        #if DEBUG
+        if let limit = maxTabsForChecks { return limit }
+        #endif
+        return 10_000
+    }
+    #if DEBUG
+    /// Checks that fill a window to the limit use a small one.
+    nonisolated(unsafe) static var maxTabsForChecks: Int?
+    #endif
+    static let maxClosed = 20, maxHistory = 1000
 
     /// Rejects sessions that exceed the limits or repeat tab IDs.
     func validate() throws {

@@ -83,6 +83,8 @@ enum ChromiumGroupImportChecks {
             check(!model.failed && oneClickState.folders.count == 4 && model.result?.contains("4 groups") == true,
                   "one-click browser import includes group conversion without extra configuration")
             let full = BrowserState(store: SessionStore(directory: root.appending(path: "Full")))
+            Session.maxTabsForChecks = 100
+            defer { Session.maxTabsForChecks = nil }
             full.tabs = (0..<Session.maxTabs).map { TabItem(url: "https://full.example/\($0)", spaceID: full.activeSpaceID) }
             let limitedSummary = await full.applyImport(imported, selection: ImportSelection(), to: full.activeSpaceID).summary
             check(full.folders.isEmpty && full.tabs.count == Session.maxTabs && limitedSummary.contains("limit was reached"),
