@@ -105,11 +105,11 @@ struct FolderHeaderDropDelegate: DropDelegate {
 
     private func clear() { zone = nil; tabTargeted = false }
 
+    /// Like moving a tab: the first half of the header puts the group before this one, the second half after it (an
+    /// open group's header is all "before", since after it come its tabs). Putting a group inside another is Move Into.
     private func zone(at location: CGPoint) -> GroupDropZone {
         let size = max(1, length.value), position = horizontal ? location.x : location.y
-        if position < size * 0.3 { return .before }
-        if !folder.isOpen && position > size * 0.7 { return .after }
-        return .into
+        return folder.isOpen || position < size / 2 ? .before : .after
     }
 }
 
@@ -128,15 +128,10 @@ struct GroupDragPreview: View {
     }
 }
 
-/// The line a group drop draws along a header's top or bottom edge (or a chip's side).
+/// The line a group drop draws along a header's top or bottom edge (or a chip's side): the same line tabs show, so
+/// moving a group reads like moving a tab.
 struct GroupInsertionLine: View {
     let colors: Palette
     var vertical = false
-    var body: some View {
-        if vertical {
-            Capsule().fill(colors.accent).frame(width: 2).padding(.vertical, 6).allowsHitTesting(false)
-        } else {
-            Capsule().fill(colors.accent).frame(height: 2).padding(.horizontal, 8).allowsHitTesting(false)
-        }
-    }
+    var body: some View { TabInsertionIndicator(horizontal: vertical) }
 }

@@ -32,6 +32,7 @@ struct SidebarView: View {
             SpaceSwipeContent(swipe: chrome.spaceSwipe, width: CGFloat(state.sidebarWidth)) {
                 VStack(alignment: .leading, spacing: 10) {
                     SidebarEssentials(state: state, chrome: chrome, commands: commands)
+                    PinnedGroupRows(state: state, chrome: chrome, commands: commands)
                     if gridAbove { SidebarShortcuts(state: state, chrome: chrome, commands: commands) }
                     TabListView(state: state, chrome: chrome, colors: colors, commands: commands)
                         .id(state.activeSpaceID).transition(.opacity.combined(with: .offset(x: 18)))
@@ -40,14 +41,16 @@ struct SidebarView: View {
 
             if state.showsBookmarksBar && !state.showsSidebarTopTabs { SidebarBookmarksDrawer(state: state, chrome: chrome, commands: commands) }
             SidebarMediaPlayer(state: state, commands: commands)
-            if !state.visibleChromeItems(state.chromeLayout.bottomItems).isEmpty {
+            let extraGroups = state.addsTabGroupsButton(in: .sidebarBottomTrailing)
+            if !state.visibleChromeItems(state.chromeLayout.bottomItems).isEmpty || extraGroups {
                 // Left, centre and right groups, as placed in Settings ▸ Sidebar & Toolbar ▸ Customize; the centre stays
                 // centred whatever the sides hold.
                 ZStack {
                     HStack(spacing: 0) {
                         controls(state.visibleChromeItems(state.chromeLayout.bottomLeading), colors, height: 36, dots: true)
                         Spacer(minLength: 0)
-                        controls(state.visibleChromeItems(state.chromeLayout.bottomTrailing), colors, height: 36, dots: true)
+                        controls(state.visibleChromeItems(state.chromeLayout.bottomTrailing) + (extraGroups ? [.tabGroups] : []),
+                                 colors, height: 36, dots: true)
                     }
                     controls(state.visibleChromeItems(state.chromeLayout.sidebarBottom), colors, height: 36, dots: true)
                 }

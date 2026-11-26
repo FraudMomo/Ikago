@@ -27,6 +27,10 @@ extension BrowserState {
         if let parentID, let index = folders.firstIndex(where: { $0.id == parentID && $0.spaceID == activeSpaceID }) {
             folder.parentID = parentID
             folders[index].isOpen = true
+        } else if let tabID, let tab = tab(tabID), tab.folderID == nil, !tab.pinned {
+            // A group made from a loose tab takes that tab's place among the tabs, as in Chrome.
+            let loose = looseTabs.map(\.id)
+            if let position = loose.firstIndex(of: tabID) { folder.afterTabID = position > 0 ? loose[position - 1] : "" }
         }
         folders.append(folder)
         if let tabID { moveToFolder(tabID, folderID: folder.id) }
@@ -65,6 +69,108 @@ extension BrowserState {
         for tab in tabs where tab.folderID == id { tab.folderID = parent }
         for index in folders.indices where folders[index].parentID == id { folders[index].parentID = parent }
         folders.removeAll { $0.id == id }
+        scheduleSave()
+    }
+
+    // MARK: Groups among tabs
+
+    /// A loose tab, or a top-level group placed among the loose tabs (`afterTabID`).
+    enum LooseEntry: Identifiable {
+        case tab(TabItem)
+        case folder(TabFolder)
+        var id: String {
+            switch self {
+            case .tab(let tab): tab.id
+            case .folder(let folder): "folder:" + folder.id
+            }
+        }
+    }
+
+    /// The listed groups kept in the block above the tabs.
+    var blockFolders: [TabFolder] { listedFolders.filter { $0.afterTabID == nil } }
+
+    /// The loose tabs with the groups placed among them, in order. A group whose tab is gone counts as first.
+    var looseEntries: [LooseEntry] {
+        let loose = looseTabs
+        let ids = Set(loose.map(\.id))
+        let placed = Dictionary(grouping: listedFolders.filter { $0.afterTabID != nil }) { folder in
+            folder.afterTabID.flatMap { ids.contains($0) ? $0 : nil } ?? ""
+        }
+        var entries = (placed[""] ?? []).map(LooseEntry.folder)
+        for tab in loose {
+            entries.append(.tab(tab))
+            entries += (placed[tab.id] ?? []).map(LooseEntry.folder)
+        }
+        return entries
+    }
+
+    /// Places a top-level group among the loose tabs, before or after `tabID` (or as the first entry with nil).
+    func placeFolderAmongTabs(_ id: String, relativeTo tabID: String?, after: Bool) {
+        guard let index = folders.firstIndex(where: { $0.id == id }) else { return }
+        let loose = looseTabs.map(\.id)
+        var anchor = ""
+        if let tabID, let position = loose.firstIndex(of: tabID) {
+            anchor = after ? tabID : position > 0 ? loose[position - 1] : ""
+        }
+        var folder = folders.remove(at: index)
+        folder.parentID = nil
+        folder.afterTabID = anchor
+        // Behind any group already at that place, so a dropped group lands where the line showed.
+        folders.append(folder)
+        scheduleSave()
+    }
+
+    /// Back to the block above the tabs, last there.
+    func placeFolderInBlock(_ id: String) {
+        guard let index = folders.firstIndex(where: { $0.id == id }) else { return }
+        var folder = folders.remove(at: index)
+        folder.parentID = nil
+        folder.afterTabID = nil
+        folders.append(folder)
+        scheduleSave()
+    }
+
+    /// A loose tab is leaving its place (closing, moving into a group, pinned, reordered): the groups after it stay where
+    /// they are, after the loose tab before it.
+    func keepGroupsInPlace(leaving tabID: String) {
+        guard folders.contains(where: { $0.afterTabID == tabID }) else { return }
+        let loose = looseTabs.map(\.id)
+        guard let position = loose.firstIndex(of: tabID) else { return }
+        let previous = position > 0 ? loose[position - 1] : ""
+        for index in folders.indices where folders[index].afterTabID == tabID { folders[index].afterTabID = previous }
+    }
+
+    // MARK: Pinned groups
+
+    /// Top-level groups pinned like tabs, in order: buttons among the pins, each with a menu of its tabs.
+    var pinnedFolders: [TabFolder] { childFolders(of: nil).filter { $0.isPinned == true } }
+    /// Top-level groups listed as groups in the sidebar, the rail and the tab row: not the pinned ones (pins instead) and
+    /// not the hidden ones (they come back from the Tab Groups button).
+    var listedFolders: [TabFolder] { childFolders(of: nil).filter { $0.isPinned != true && $0.isClosed != true } }
+
+    /// Pins or unpins a top-level group. A pinned group shows again if it was hidden, since a pin is always there.
+    func setFolderPinned(_ id: String, _ pinned: Bool) {
+        guard let index = folders.firstIndex(where: { $0.id == id }), folders[index].parentID == nil || !pinned else { return }
+        folders[index].isPinned = pinned ? true : nil
+        if pinned { folders[index].isClosed = nil }
+        scheduleSave()
+    }
+
+    /// The tab sits in a pinned group (or a group inside one): closing it keeps it, unloaded, like a pinned tab.
+    func isInPinnedFolder(_ tab: TabItem) -> Bool {
+        var next = tab.folderID, steps = 0
+        while let id = next, steps < 16, let folder = folders.first(where: { $0.id == id }) {
+            if folder.isPinned == true { return true }
+            next = folder.parentID; steps += 1
+        }
+        return false
+    }
+
+    /// Removes a group and the groups inside it, leaving their tabs to the caller to close (`deleteGroup`).
+    func deleteFolderTree(_ id: String) {
+        let ids = folderSubtreeIDs(id)
+        for tab in tabs where tab.folderID.map(ids.contains) == true { tab.folderID = nil }
+        folders.removeAll { ids.contains($0.id) }
         scheduleSave()
     }
 
@@ -157,6 +263,7 @@ extension BrowserState {
         }
         var folder = folders.remove(at: index)
         folder.parentID = parentID
+        if parentID != nil { folder.afterTabID = nil }
         folders.append(folder)
         scheduleSave()
     }
@@ -174,6 +281,8 @@ extension BrowserState {
         var folder = folders.remove(at: from)
         guard let target = folders.firstIndex(where: { $0.id == targetID }) else { folders.insert(folder, at: from); return }
         folder.parentID = folders[target].parentID
+        // Beside a group among the tabs, it joins it there; beside one in the block, the block.
+        folder.afterTabID = folders[target].parentID == nil ? folders[target].afterTabID : nil
         folders.insert(folder, at: after ? target + 1 : target)
         scheduleSave()
     }

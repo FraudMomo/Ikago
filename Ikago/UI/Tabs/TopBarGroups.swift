@@ -22,19 +22,30 @@ enum TopRowEntry: Identifiable {
         }
     }
 
-    /// The row in order: each shown top-level group's chip, then its tabs (all of them while open; only the active
-    /// tab while collapsed, so the page on screen always has its tab), then the ungrouped tabs.
+    /// The row in order: each group of the block's chip, then its tabs (all of them while open; only the active tab while
+    /// collapsed, so the page on screen always has its tab), then the ungrouped tabs with the groups placed among them.
     @MainActor static func row(state: BrowserState, seen: inout Set<String>) -> [TopRowEntry] {
         var entries: [TopRowEntry] = []
-        if state.showsGroupsInTopBar {
-            for folder in state.childFolders(of: nil) where folder.isClosed != true {
-                let members = state.tabs(inSubtree: folder)
-                entries.append(.chip(folder, count: members.count))
-                let shown = folder.isOpen ? members : members.filter { $0.id == state.activeTabID }
-                entries += state.listItems(shown, seen: &seen).map { .item($0, group: folder) }
+        func add(_ folder: TabFolder, _ seen: inout Set<String>) {
+            let members = state.tabs(inSubtree: folder)
+            entries.append(.chip(folder, count: members.count))
+            let shown = folder.isOpen ? members : members.filter { $0.id == state.activeTabID }
+            entries += state.listItems(shown, seen: &seen).map { .item($0, group: folder) }
+        }
+        let groups = state.showsGroupsInTopBar
+        if groups { for folder in state.blockFolders { add(folder, &seen) } }
+        // The ungrouped tabs, with the groups placed among them (in the rail only, their tabs still show here, loose).
+        var run: [TabItem] = []
+        for entry in state.looseEntries {
+            switch entry {
+            case .tab(let tab): run.append(tab)
+            case .folder(let folder):
+                entries += state.listItems(run, seen: &seen).map { .item($0, group: nil) }
+                run = []
+                if groups { add(folder, &seen) }
             }
         }
-        entries += state.listItems(state.looseTabs, seen: &seen).map { .item($0, group: nil) }
+        entries += state.listItems(run, seen: &seen).map { .item($0, group: nil) }
         return entries
     }
 }
@@ -203,14 +214,7 @@ struct HiddenGroupsButton: View {
     var body: some View {
         let hidden = state.closedFolders
         Menu {
-            Section("Hidden Groups") {
-                ForEach(hidden) { folder in
-                    let count = state.tabs(inSubtree: folder).count
-                    Button("\(folder.name.isEmpty ? "Group" : folder.name) (\(count) \(count == 1 ? "tab" : "tabs"))") {
-                        withAnimation(.ikagoQuick) { state.reopenFolder(folder.id) }
-                    }
-                }
-            }
+            TabGroupsMenu(state: state)
         } label: {
             HStack(spacing: 2) {
                 Image(systemName: "square.stack.3d.down.right").font(.system(size: 12, weight: .medium))

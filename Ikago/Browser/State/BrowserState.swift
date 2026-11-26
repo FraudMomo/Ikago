@@ -268,6 +268,7 @@ final class BrowserState {
     /// inside `folderID` or loose. Tabs of other Spaces keep their places.
     func move(_ id: String, before targetID: String?, pinned: Bool, folderID: String? = nil) {
         guard let moving = tab(id), id != targetID else { return }
+        if moving.folderID == nil, !moving.pinned { keepGroupsInPlace(leaving: id) }
         moving.pinned = pinned
         if !pinned { moving.pinAsRow = false; moving.pinAfterFolderID = nil }
         moving.folderID = pinned ? nil : folderID

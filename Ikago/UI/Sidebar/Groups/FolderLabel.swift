@@ -103,7 +103,15 @@ struct FolderContextMenu: View {
     var body: some View {
         Button("Rename Group…") { commands?.renameFolder(folder.id) }
         Button("Icon and Color…") { commands?.customizeFolder(folder.id) }
-        if folder.isClosed == true {
+        // Top-level groups pin like tabs: a button among the pins with a menu of the group's tabs.
+        if folder.isPinned == true {
+            Button("Unpin Group") { withAnimation(.ikago) { state.setFolderPinned(folder.id, false) } }
+        } else if folder.parentID == nil {
+            Button("Pin Group") { withAnimation(.ikago) { state.setFolderPinned(folder.id, true) } }
+        }
+        if folder.isPinned == true {
+            // A pin is always there: nothing to hide.
+        } else if folder.isClosed == true {
             Button("Show Group") { withAnimation(.ikago) { state.reopenFolder(folder.id) } }
         } else {
             Button("Hide Group") { withAnimation(.ikago) { commands?.hideGroup(folder.id) } }
@@ -138,11 +146,10 @@ struct FolderContextMenu: View {
                 }
             }
         }
-        Button("Delete Group") { withAnimation(.ikago) { state.deleteFolder(folder.id) } }
         Divider()
-        Button("Close Tabs in Group") {
-            for tab in state.tabs(inSubtree: folder) { commands?.closeTab(tab.id) }
-        }
+        // Hide keeps the group and its tabs for later; Ungroup keeps the tabs; Delete closes them with the group.
+        Button("Ungroup") { withAnimation(.ikago) { state.deleteFolder(folder.id) } }
+        Button("Delete Group…") { commands?.deleteGroup(folder.id) }
     }
 }
 

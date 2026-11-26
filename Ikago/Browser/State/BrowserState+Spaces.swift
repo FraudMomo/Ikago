@@ -99,6 +99,7 @@ extension BrowserState {
         folders.removeAll { subtree.contains($0.id) }
         for index in moved.indices {
             moved[index].spaceID = spaceID
+            moved[index].afterTabID = nil
             if moved[index].id == id { moved[index].parentID = nil }
         }
         folders.append(contentsOf: moved)

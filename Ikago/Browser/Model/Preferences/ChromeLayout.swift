@@ -4,6 +4,8 @@ import Foundation
 enum ChromeItem: String, Codable, CaseIterable, Identifiable {
     case sidebarToggle, back, forward, reload, newTab, spaces, newSpace, history, downloads, settings, bookmarks, notes
     case share, assistant, devices, siteInfo
+    /// The Space's tab groups as a menu: hidden ones to show again, and the others to go to.
+    case tabGroups
 
     var id: String { rawValue }
 
@@ -25,13 +27,14 @@ enum ChromeItem: String, Codable, CaseIterable, Identifiable {
         case .share: "Share"
         case .devices: "Other Devices"
         case .siteInfo: "Site & Extensions"
+        case .tabGroups: "Tab Groups"
         }
     }
 
     /// Controls whose popover or menu opens from the button itself, so they never move into a More menu.
     var anchorsPopover: Bool {
         switch self {
-        case .spaces, .downloads, .devices, .siteInfo, .share: true
+        case .spaces, .downloads, .devices, .siteInfo, .share, .tabGroups: true
         default: false
         }
     }
@@ -53,6 +56,7 @@ enum ChromeItem: String, Codable, CaseIterable, Identifiable {
         case .assistant: "sparkles"
         case .share: "square.and.arrow.up"
         case .devices: "iphone"
+        case .tabGroups: "square.stack.3d.down.right"
         case .siteInfo: "puzzlepiece.extension"
         }
     }

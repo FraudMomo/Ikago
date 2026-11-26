@@ -54,8 +54,15 @@ struct SidebarRail: View {
                     if !state.showsPinnedGrid && !state.showsSidebarTopTabs {
                         ForEach(state.pinnedTabs) { tab in tabTile(tab, colors: colors) }
                     }
+                    // Pinned groups sit with the pins, whatever the group placement: a tile each with a menu of its tabs.
+                    if !magnified {
+                        ForEach(state.pinnedFolders) { folder in
+                            PinnedGroupTile(folder: folder, state: state, chrome: chrome, commands: commands)
+                        }
+                    }
                     if state.showsGroupsInSidebar {
-                        ForEach(state.childFolders(of: nil)) { folder in group(folder, colors: colors) }
+                        // Groups in the block; under Top Tabs (no loose tabs here) the ones placed among tabs follow them.
+                        ForEach(state.showsSidebarTopTabs ? state.listedFolders : state.blockFolders) { folder in group(folder, colors: colors) }
                     }
                     if !state.showsSidebarTopTabs {
                         if state.chromeLayout.sidebarShowsNewTab {
@@ -66,7 +73,17 @@ struct SidebarRail: View {
                             }
                             tile(symbol: "plus", label: "New Tab", colors: colors) { commands?.newTab() }
                         }
-                        ForEach(state.looseTabs) { tab in tabTile(tab, colors: colors) }
+                        // The tabs, with the groups placed among them.
+                        ForEach(state.looseEntries) { entry in
+                            switch entry {
+                            case .tab(let tab): tabTile(tab, colors: colors)
+                            case .folder(let folder): if state.showsGroupsInSidebar { group(folder, colors: colors) }
+                            }
+                        }
+                        // Below the last tile: a tab dropped here goes last; a group leaves the group it was in.
+                        if !magnified {
+                            Color.clear.frame(width: 36, height: 44).tabListEndDrop(state: state, chrome: chrome)
+                        }
                     }
                 }
                 .padding(.vertical, 2)
@@ -74,7 +91,7 @@ struct SidebarRail: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .railSpace(surface.list) { model.listScrolled(surface.list) }
                 // The rows live in the scroll view's own host: an animation set out here never reaches them.
-                .animation(reduceMotion ? nil : .ikagoQuick, value: state.childFolders(of: nil).map(\.id))
+                .animation(reduceMotion ? nil : .ikagoQuick, value: state.listedFolders.map { $0.id + "@" + ($0.afterTabID ?? "-") })
             }
             .frame(maxHeight: .infinity)
             // The foot stays a column of icons, wider or not.
@@ -117,7 +134,7 @@ struct SidebarRail: View {
 
     /// Anything above the New Tab tile (essentials, pinned tiles, groups), so the line before it separates something.
     private var hasItemsAboveNewTab: Bool {
-        !state.pinnedTabs.isEmpty || (state.showsGroupsInSidebar && !state.childFolders(of: nil).isEmpty)
+        !state.pinnedTabs.isEmpty || !state.pinnedFolders.isEmpty || (state.showsGroupsInSidebar && !state.blockFolders.isEmpty)
     }
 
     /// Tiles sit this far in from the rail's leading edge: a 36 pt tile centred in its 64 pt column.
@@ -136,6 +153,7 @@ struct SidebarRail: View {
     private var footItems: [ChromeItem] {
         var items = state.visibleChromeItems(state.chromeLayout.rail).filter { $0 != .spaces || state.spaces.count < 2 }
         if !state.usesTabsLayout, !items.contains(.downloads), DownloadCenter.shared.showsToolbarButton { items.append(.downloads) }
+        if state.addsTabGroupsButton(in: .rail) { items.append(.tabGroups) }
         return items
     }
 

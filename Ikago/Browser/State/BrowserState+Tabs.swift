@@ -23,7 +23,8 @@ extension BrowserState {
     func closeTab(_ id: String, removingPin: Bool = false, detaching: Bool = false) {
         guard !isFrozen, let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         let tab = tabs[index]
-        if tab.pinned && !removingPin && !detaching {
+        // Pinned tabs, and tabs in a pinned group, stay: closing unloads them.
+        if (tab.pinned || isInPinnedFolder(tab)) && !removingPin && !detaching {
             removeFromSplits([id])
             if activeTabID == id { selectCloseFallback(for: tab, excluding: [id]) }
             tab.isHibernating = true
@@ -32,6 +33,7 @@ extension BrowserState {
         }
         visitGrants[id] = nil
         AgentActivity.shared.closed(id)
+        if tab.folderID == nil, !tab.pinned { keepGroupsInPlace(leaving: id) }
         let order = tab.spaceID == activeSpaceID ? navigationOrder : []
         let position = order.firstIndex { $0.id == id } ?? 0
         let neighbours = order.filter { $0.id != id }
@@ -198,6 +200,9 @@ extension BrowserState {
         } else {
             boundary = peers.first { targetGroup.contains($0.id) }?.id
         }
+        // Dropped after a loose tab that groups follow: it goes between that tab and them, where the line showed.
+        let following = after && target.folderID == nil && !target.pinned
+            ? folders.indices.filter { folders[$0].afterTabID == targetID } : []
         for member in moving {
             move(member, before: boundary, pinned: target.pinned, folderID: target.folderID)
             if let tab = tab(member), tab.pinned {
@@ -205,6 +210,7 @@ extension BrowserState {
                 tab.pinAfterFolderID = target.pinAfterFolderID
             }
         }
+        if let last = moving.last { for index in following { folders[index].afterTabID = last } }
         scheduleSave()
         return true
     }
@@ -235,10 +241,36 @@ extension BrowserState {
 extension BrowserState {
     var orderedSidebarTabs: [TabItem] {
         let rows = pinnedTabs.filter { !presentsSidebarPinGrid || $0.pinAsRow || splitGroup(of: $0.id) != nil }
-        let folderIDs = Set(spaceFolders.map(\.id))
+        let folderIDs = shownFolderIDs
         let anchors = Dictionary(grouping: rows) { tab in tab.pinAfterFolderID.flatMap { folderIDs.contains($0) ? $0 : nil } ?? "" }
         let grid = presentsSidebarPinGrid ? sidebarGridPinnedTabs : []
-        return grid + (anchors[""] ?? []) + orderedSpaceFolders.flatMap { tabs(in: $0) + (anchors[$0.id] ?? []) } + looseTabs
+        let ordered = orderedSpaceFolders.filter { folderIDs.contains($0.id) }
+        // A group with the groups inside it, then the pins placed after it. Hidden groups aren't in the sidebar, so ⌃Tab
+        // and closing tabs never land on them.
+        func subtree(_ root: TabFolder) -> [TabItem] {
+            let ids = folderSubtreeIDs(root.id)
+            return ordered.filter { ids.contains($0.id) }.flatMap { tabs(in: $0) + (anchors[$0.id] ?? []) }
+        }
+        let block = blockFolders.flatMap(subtree)
+        let loose = looseEntries.flatMap { entry -> [TabItem] in
+            switch entry {
+            case .tab(let tab): [tab]
+            case .folder(let folder): subtree(folder)
+            }
+        }
+        return grid + (anchors[""] ?? []) + block + loose
+    }
+
+    /// Groups the sidebar shows (listed groups and the shown groups inside them): pins placed after any other group
+    /// (pinned, hidden or gone) go back above the groups.
+    var shownFolderIDs: Set<String> {
+        var ids = Set<String>()
+        func visit(_ folder: TabFolder) {
+            guard folder.isClosed != true, ids.insert(folder.id).inserted else { return }
+            childFolders(of: folder.id).forEach(visit)
+        }
+        listedFolders.forEach(visit)
+        return ids
     }
 }
 

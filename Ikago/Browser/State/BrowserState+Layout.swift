@@ -82,6 +82,12 @@ extension BrowserState {
     func visibleChromeItems(_ items: [ChromeItem]) -> [ChromeItem] {
         items.filter { $0 != .assistant || browserPreferences.pageIntelligence == true }
     }
+
+    /// Groups are hidden and the Tab Groups button isn't placed in `zone`'s family: that place shows it anyway, so a
+    /// hidden group is never out of reach.
+    func addsTabGroupsButton(in zone: ChromeZone) -> Bool {
+        !closedFolders.isEmpty && !chromeLayout.contains(.tabGroups, in: zone)
+    }
 }
 
 // MARK: - Split

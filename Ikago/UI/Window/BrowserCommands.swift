@@ -24,6 +24,8 @@ protocol BrowserCommands: AnyObject {
     func unloadGroup(_ id: String)
     /// Hides a group: saved, its pages asleep, out of the tab row until shown again.
     func hideGroup(_ id: String)
+    /// Deletes a group with the groups inside it and closes their tabs, after asking when it holds more than one tab.
+    func deleteGroup(_ id: String)
     func toggleMute(_ id: String)
     func pictureInPicture(_ id: String)
     func controlMedia(_ id: String, action: MediaPlaybackAction)

@@ -158,16 +158,34 @@
 - Newly opened background tabs load by default (configurable in Tabs & Memory), without selecting
   them. Restored session tabs and unloaded pins remain lazy; never preload a restored session.
 - Hidden tab groups (`TabFolder.isClosed`, Hide Group, `hideFolder`, `BrowserState+Groups`) stay saved with their
-  nested groups; their pages unload until shown again (the group's menu, Tab ▸ Show Hidden Group, the tab row's
-  hidden-groups button, the rail, or selecting one of their tabs, which also shows hidden groups around it). The full
-  sidebar still lists them; `navigationOrder` is the sidebar's order.
+  nested groups; their pages unload and they leave every list: the full sidebar, the rail and the tab row
+  (`listedFolders`, `GroupEntry.tree` and `orderedSidebarTabs` skip them, so ⌃Tab never lands there). They come back
+  from the Tab Groups control (`ChromeItem.tabGroups`, `TabGroupsButton`/`TabGroupsMenu`: hidden groups to show, then the
+  others to go to; placeable in Customize, and added by itself to the sidebar's bottom bar and the rail's foot while
+  groups are hidden and it isn't placed, `addsTabGroupsButton`), the tab row's `HiddenGroupsButton` (same menu), the
+  group's menu, Tab ▸ Show Hidden Group, or selecting one of their tabs.
+- Groups can sit among the tabs, as in Chrome and Firefox (`TabFolder.afterTabID`: nil keeps a group in the block above
+  the New Tab line, as older sessions restore; "" is first among the loose tabs; a tab's id is right after that loose
+  tab). `blockFolders` and `looseEntries` order the sidebar (`LooseSegment`), the rail and the tab row
+  (`TopRowEntry.row`), and `orderedSidebarTabs` follows them. `keepGroupsInPlace` re-anchors groups when the tab before
+  them closes or moves; a tab dropped after that tab goes above the groups (`reorderTab`). A group made from a loose tab
+  takes its place (`createFolder(with:)`). Drags: a group dropped before/after a loose row (`TabReorderDropDelegate.group`)
+  or at the list's end goes among the tabs; on the New Tab row it goes back to the block (`placeFolderInBlock`); beside
+  another group it joins that group's place (`placeFolder` copies `afterTabID`). Space moves and nesting clear it.
+- Pinned groups (`TabFolder.isPinned`, Pin Group in a top-level group's menu, `setFolderPinned`, `pinnedFolders`) are pins,
+  not groups: a button each with a menu of the group's tabs, like a bookmarks folder (`PinnedGroups.swift`): rows under
+  the essentials in the full sidebar, tiles with the pins in the rail. Lists of groups read `listedFolders` (sidebar,
+  rail, tab row). Their tabs stay when closed, unloaded, like pinned tabs (`isInPinnedFolder` in `closeTab`); a pinned
+  group can't be hidden; Delete Group unpins first so its tabs really close. Tabs dropped on one join the group, and its
+  menu adds the current tab. Checks: `nestedgroupchecks`.
 - Tabs and groups move between Spaces from their menus (Move to Space, also for several selected tabs) or by dropping
   tabs on a Space's dot in the Space bar (`moveTab`, `moveTabs`, `moveFolder(_:toSpace:)`). A group takes the groups
   inside it and their tabs, arrives at the top level after the target's groups, and its tabs keep their groups. Between
   Spaces with different storage the pages reopen there (no closed-tab entry). The view stays in the current Space.
-- Groups drag by their header (`GroupDrag`, type `app.ikago.group`, declared in Info.plist): on another header the top
-  30% drops before it, the middle inside it (last), and the bottom 30% of a shut group after it, beside it at its level
-  (`placeFolder`, `canPlaceFolder` refuses its own subtree); the list's end takes it to the top level, last; a Space's dot
+- Groups drag by their header (`GroupDrag`, type `app.ikago.group`, declared in Info.plist) and move like tabs, with the
+  tabs' blue line (`GroupInsertionLine` is `TabInsertionIndicator`): on another header the first half drops before it
+  and the second half of a shut group after it, beside it at its level (`placeFolder`, `canPlaceFolder` refuses its own
+  subtree); putting a group inside another is the menu's Move Into; the list's end takes it to the top level, last; a Space's dot
   moves it there with its groups and tabs. Header drops for tabs and groups share one delegate
   (`FolderHeaderDropDelegate`). A new drag type only reaches drop targets once Launch Services knows the app: a debug
   binary run directly needs `lsregister -f build/debug/Ikago.app` first. Measure with `groupdragprobe` and a posted drag.

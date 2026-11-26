@@ -39,8 +39,8 @@
    before, middle inside, right 30 % of a shut group after; `FolderHeaderDropDelegate(horizontal:)`), and their menu is
    the group's. `GroupPlacement` (Settings ▸ Appearance ▸ Tab Groups) shows groups in both places (unset), the tab row
    only, or the rail only. Hidden groups (`hideFolder`, `TabFolder.isClosed`) leave the row: their pages unload, and
-   they come back from the row's hidden-groups button (`HiddenGroupsButton`), the rail (a faded tile with a mark) or
-   Tab ▸ Show Hidden Group; selecting one of their tabs shows them too. The address bar has three styles (`TabsAddressStyle`, Settings ▸ Appearance ▸ Layout ▸ Top Tabs):
+   they come back from the row's hidden-groups button (`HiddenGroupsButton`), the Tab Groups control in the sidebar
+   and rail (`TabGroupsButton`) or Tab ▸ Show Hidden Group; selecting one of their tabs shows them too. The address bar has three styles (`TabsAddressStyle`, Settings ▸ Appearance ▸ Layout ▸ Top Tabs):
    Centered (unset; the site over the middle, max 680 pt), Full Width (spans the bar between the controls, the whole
    `shortAddress` from its start) and Page Title (spans it too; "site / title" on the bar itself with no field at rest,
    a soft fill on hover, the address on hover; its controls are plain icons with no glass capsule, and the tab row's +
@@ -56,7 +56,7 @@
    headers line up with tab rows (icon where favicons sit), with semibold names and the chevron right after the name (a pill keeps
    it at the far end). Groups nest (`TabFolder.parentID`, optional; `BrowserState+Groups`, `GroupEntry.tree`): nested
    groups sit inside the top-level group's card as plain, indented headers, listed before the group's own tabs; counts, sleep
-   and the active tab cover the subtree; deleting a group moves its tabs and groups up a level; moves into a group's own
+   and the active tab cover the subtree; Ungroup moves its tabs and groups up a level, while Delete Group (`deleteGroup`, asking when more than one tab) closes the tabs of the group and the groups inside it, and Hide Group only hides; moves into a group's own
    subtree are refused (`nestedgroupchecks`). The rail shows top-level groups only, and the Color pill label fills the header like a book's bookmark: a light wash of the group's color, a solid 3 pt spine on the leading edge, `Radius.control` corners; a group whose tabs are all closed or asleep fades to half until hovered (rail tiles too); closed groups stack 4 pt apart, and a hairline separates pinned rows from groups. Titles that don't fit fade out at their trailing edge (`fadeTruncated`) instead of ending in
    "…": tab row tabs, sidebar rows, split chips and group chips. With glass off the
    docked sidebar joins the window (`sidebarJoinsWindow`; always for the Top Tabs rail, whose controls alone are glass): it draws no card, so sidebar and tab row are one surface and only the

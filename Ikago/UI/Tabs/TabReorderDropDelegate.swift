@@ -12,9 +12,12 @@ struct TabReorderDropDelegate: DropDelegate {
     let perform: @MainActor (String, Bool) -> Void
     /// The window's state, so a tab dragged from another window is brought here first.
     var into: BrowserState? = nil
+    /// A group dropped before or after this row (loose tabs only: a group placed among the tabs). Nil refuses groups.
+    var group: (source: @MainActor () -> String?, perform: @MainActor (String, Bool) -> Void)? = nil
 
     func validateDrop(info: DropInfo) -> Bool {
-        info.hasItemsConforming(to: [.ikagoTab]) && (sourceID.map(accepts) ?? true)
+        if info.hasItemsConforming(to: [.ikagoGroup]) { return group?.source() != nil }
+        return info.hasItemsConforming(to: [.ikagoTab]) && (source().map(accepts) ?? true)
     }
 
     func dropEntered(info: DropInfo) { updatePreview(info) }
@@ -27,6 +30,11 @@ struct TabReorderDropDelegate: DropDelegate {
 
     func performDrop(info: DropInfo) -> Bool {
         defer { preview = nil }
+        if let group, let provider = info.itemProviders(for: [.ikagoGroup]).first {
+            let after = isAfter(info.location)
+            GroupDrag.load(provider) { id in group.perform(id, after) }
+            return true
+        }
         guard let provider = info.itemProviders(for: [.ikagoTab]).first else { return false }
         let after = isAfter(info.location)
         TabDrag.load(provider, into: into, reversed: after) { id in

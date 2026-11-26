@@ -85,22 +85,10 @@ enum NestedGroupChecks {
               "a group made from a loose tab takes that tab's place")
         for tab in [la, lc, inside] { state.closeTab(tab.id) }
         for id in [among.id, made.id] { state.deleteFolder(id) }
-        // A tab dropped on another's middle: a group of the two where the target was, or the two side by side.
-        let ta = state.newTab(url: "about:blank#ta", select: false)!, tb = state.newTab(url: "about:blank#tb", select: false)!
-        let tc = state.newTab(url: "about:blank#tc", select: false)!
-        state.drop(tb.id, onto: ta, makeGroup: true)
-        check(ta.folderID != nil && ta.folderID == tb.folderID, "dropping a tab on a tab's group half groups the two")
-        state.splitTabs(tc.id, with: ta.id)
-        check(state.splitGroup(of: ta.id)?.contains(tc.id) == true && state.activeTabID == tc.id,
-              "dropping a tab on a tab's split half shows the two side by side")
-        state.unsplitGroup(containing: ta.id)
-        let pairFolder = ta.folderID
-        for tab in [ta, tb, tc] { state.closeTab(tab.id) }
-        if let pairFolder { state.deleteFolder(pairFolder) }
-        // The command bar on actions (⇧⌘K), with nothing typed.
+        // ⌘K: the floating command bar on actions, with nothing typed.
         browser.showCommandBar()
         check(browser.chrome.showPalette && browser.palette.scope == .actions && browser.palette.query.isEmpty
-              && !browser.palette.suggestions.isEmpty, "the command bar opens on actions")
+              && !browser.palette.suggestions.isEmpty, "⌘K opens the command bar on actions")
         browser.dismissCommandPalette()
         // Dragging groups by their headers: before, after, inside, and to the end of the list.
         let x = state.createFolder(named: "X"), y = state.createFolder(named: "Y")

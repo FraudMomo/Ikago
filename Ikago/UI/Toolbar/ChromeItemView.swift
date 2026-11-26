@@ -33,6 +33,7 @@ struct ChromeItemView: View {
         case .siteInfo:
             button(help: "Site Settings and Extensions") { (commands as? BrowserWindowController)?.toggleSiteInfo(fromToolbar: true) }
         case .settings: button(help: "Settings (⌘,)") { commands?.openPage(.settings) }
+        case .tabGroups: TabGroupsButton(state: state, colors: colors, size: size)
         case .assistant:
             if state.browserPreferences.pageIntelligence == true { button(help: "Ask this page") { commands?.togglePageAssistant() } }
         case .notes: button(help: "Notes") { commands?.openPage(.notes) }
@@ -102,7 +103,7 @@ struct ChromeOverflowMenu: View {
         case .settings: commands?.openPage(.settings)
         case .assistant: commands?.togglePageAssistant()
         case .notes: commands?.openPage(.notes)
-        case .spaces, .downloads, .devices, .siteInfo, .share: break
+        case .spaces, .downloads, .devices, .siteInfo, .share, .tabGroups: break
         }
     }
 }

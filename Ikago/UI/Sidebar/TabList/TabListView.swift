@@ -75,15 +75,17 @@ struct TabListView: View {
         let activeID = state.activeTabID
         var seen = Set(state.presentsSidebarPinGrid ? state.sidebarGridPinnedTabs.map(\.id) : [])
         let rowPins = groups.pinned.filter { !state.presentsSidebarPinGrid || $0.pinAsRow || state.splitGroup(of: $0.id) != nil }
-        let folderIDs = Set(folders.map(\.id))
+        let folderIDs = state.shownFolderIDs
         let anchors = Dictionary(grouping: rowPins) { tab in tab.pinAfterFolderID.flatMap { folderIDs.contains($0) ? $0 : nil } ?? "" }
         let pinnedItems = state.listItems(anchors[""] ?? [], seen: &seen)
         let folderItems = GroupEntry.tree(state: state, groups: groups, anchors: anchors, activeID: activeID, seen: &seen)
-        // With tabs above the page, ungrouped tabs live there; the sidebar keeps pins and groups.
-        let looseItems = state.showsSidebarTopTabs ? [] : state.listItems(groups.loose, seen: &seen)
-        let visibleItems = pinnedItems + folderItems.flatMap(\.visibleItems) + looseItems
+        // The tabs under the New Tab line, with the groups placed among them. With tabs above the page, ungrouped tabs live
+        // there; the sidebar keeps pins and groups.
+        let segments = LooseSegment.build(state: state, groups: groups, anchors: anchors, activeID: activeID,
+                                          tabsShown: !state.showsSidebarTopTabs, seen: &seen)
+        let visibleItems = pinnedItems + folderItems.flatMap(\.visibleItems) + segments.flatMap(\.visibleItems)
         let activeIsListed = visibleItems.contains { $0.containsTab(activeID) }
-        let order = pinnedItems.map(\.id) + folderItems.flatMap(\.order) + looseItems.map(\.id)
+        let order = pinnedItems.map(\.id) + folderItems.flatMap(\.order) + segments.flatMap(\.order)
         // Optionally pinned rows and groups (everything above the New Tab line) stay put and only the tabs under them
         // scroll. While that part would take more than 60% of the height it scrolls with the rest, so it never pushes
         // the tabs out of reach.
@@ -105,7 +107,7 @@ struct TabListView: View {
             if fixedTop {
                 top
                     .animation(reduceMotion ? nil : .ikagoQuick, value: order)
-                    .animation(reduceMotion ? nil : .ikagoQuick, value: folders.map { $0.id + ($0.parentID ?? "") })
+                    .animation(reduceMotion ? nil : .ikagoQuick, value: folders.map { $0.id + ($0.parentID ?? "") + "@" + ($0.afterTabID ?? "-") })
             }
         GeometryReader { geometry in
             SidebarScrollView(chrome: chrome) {
@@ -113,9 +115,14 @@ struct TabListView: View {
                     if !fixedTop { top }
                     if state.chromeLayout.sidebarShowsNewTab && !state.showsSidebarTopTabs {
                         Rectangle().fill(colors.separator).frame(height: 1).padding(.horizontal, 10).padding(.vertical, 6)
-                        NewTabRow(colors: colors) { commands?.newTab() }
+                        NewTabRow(colors: colors, state: state, chrome: chrome) { commands?.newTab() }
                     }
-                    AnimatedListItems(items: looseItems) { item in itemView(item) }
+                    ForEach(segments) { segment in
+                        switch segment {
+                        case .tabs(_, let items): AnimatedListItems(items: items) { item in itemView(item) }
+                        case .group(let entry): branch(entry, showSelection: !activeIsListed)
+                        }
+                    }
                     Color.clear.frame(minHeight: 40)
                         .tabListEndDrop(state: state, chrome: chrome)
                 }
@@ -127,7 +134,7 @@ struct TabListView: View {
                 // and animating the whole list on every selection slid rows and the content height while scrolling.
                 .animation(reduceMotion ? nil : .ikagoQuick, value: order)
                 // Groups being added, removed or reordered; opening one animates from its own section.
-                .animation(reduceMotion ? nil : .ikagoQuick, value: folders.map { $0.id + ($0.parentID ?? "") })
+                .animation(reduceMotion ? nil : .ikagoQuick, value: folders.map { $0.id + ($0.parentID ?? "") + "@" + ($0.afterTabID ?? "-") })
                 .animation(reduceMotion ? nil : .ikagoQuick, value: state.splits)
             }
             .frame(maxHeight: .infinity)
@@ -314,8 +321,11 @@ extension View {
 
 private struct NewTabRow: View {
     let colors: Palette
+    let state: BrowserState
+    let chrome: ChromeModel
     let action: () -> Void
     @State private var hovering = false
+    @State private var groupTargeted = false
 
     var body: some View {
         Button(action: action) {
@@ -333,6 +343,16 @@ private struct NewTabRow: View {
         }
         .buttonStyle(.plain)
         .sidebarHover($hovering)
+        // A group dropped on the line between the block and the tabs goes back up into the block.
+        .overlay(alignment: .top) { if groupTargeted { GroupInsertionLine(colors: colors).offset(y: -5) } }
+        .onDrop(of: [.ikagoGroup], isTargeted: $groupTargeted) { providers in
+            guard let provider = providers.first else { return false }
+            GroupDrag.load(provider) { id in
+                chrome.endFolderDrag()
+                withAnimation(.ikagoQuick) { state.placeFolderInBlock(id) }
+            }
+            return true
+        }
         .animation(.ikagoQuick, value: hovering)
         .help("New Tab (⌘T)")
     }

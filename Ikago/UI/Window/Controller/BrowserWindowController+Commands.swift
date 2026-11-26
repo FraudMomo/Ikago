@@ -53,6 +53,30 @@ extension BrowserWindowController: BrowserCommands, NSMenuItemValidation {
         for member in state.hideFolder(id) { content.controller(for: member)?.hibernate() }
     }
 
+    /// Delete Group: the group and the groups inside it go, and so do their tabs (closed, so ⌘⇧T brings them back one by
+    /// one). Ungroup is the way to keep the tabs. More than one tab asks first.
+    func deleteGroup(_ id: String) {
+        guard let folder = state.folders.first(where: { $0.id == id }) else { return }
+        let members = state.tabs(inSubtree: folder)
+        let delete = { [weak self] in
+            guard let self else { return }
+            withAnimation(.ikago) {
+                // Unpinned first: a pinned group's tabs only unload when closed.
+                self.state.setFolderPinned(id, false)
+                for tab in members { self.closeTab(tab.id) }
+                self.state.deleteFolderTree(id)
+            }
+        }
+        guard members.count > 1, let window else { return delete() }
+        let alert = NSAlert()
+        alert.messageText = "Delete “\(folder.name)”?"
+        alert.informativeText = "Its \(members.count) tabs close too. To keep them, choose Ungroup instead."
+        alert.addButton(withTitle: "Delete Group")
+        alert.addButton(withTitle: "Cancel")
+        alert.buttons.first?.hasDestructiveAction = true
+        alert.beginSheetModal(for: window) { if $0 == .alertFirstButtonReturn { delete() } }
+    }
+
     /// Tab ▸ Show Hidden Group.
     @objc func reopenGroup(_ sender: NSMenuItem) {
         guard let id = sender.representedObject as? String else { return }
