@@ -14,7 +14,8 @@ struct SidebarView: View {
             topRow(colors)
             let shortcuts = state.browserPreferences.sidebarShortcuts == true
             if shortcuts && state.browserPreferences.sidebarSpaceName != false { SidebarSpaceHeader(state: state, commands: commands) }
-            if state.chromeLayout.sidebarShowsAddress {
+            // Not while the address bar sits above the page (`showsPageAddressBar`).
+            if state.chromeLayout.sidebarShowsAddress && !state.showsPageAddressBar {
                 if chrome.isEditingAddress(of: state.activeTabID) {
                     InlineAddressField(model: palette, fontSize: 13, alignment: .left, commands: commands)
                         .padding(.horizontal, 12)

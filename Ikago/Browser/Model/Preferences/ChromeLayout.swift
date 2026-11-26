@@ -71,10 +71,14 @@ enum ChromeZone: String, Codable, CaseIterable {
     case sidebarBottomLeading, sidebarBottom, sidebarBottomTrailing
     /// Top Tabs: the window's left and right edges, and either side of the address field.
     case toolbarLeading, toolbarNearLeading, toolbarNearTrailing, toolbarTrailing
+    /// The Sidebar layout's address bar above the page: either side of the address.
+    case pageBarLeading, pageBarTrailing
     case rail
 
     var allowed: [ChromeItem] { ChromeItem.allCases }
-    var isTop: Bool { [.sidebarTopLeading, .sidebarTopCenter, .sidebarTop].contains(self) || Self.toolbarRow.contains(self) }
+    var isTop: Bool {
+        [.sidebarTopLeading, .sidebarTopCenter, .sidebarTop].contains(self) || Self.toolbarRow.contains(self) || Self.pageBarRow.contains(self)
+    }
     var title: String {
         switch self {
         case .sidebarTopLeading, .sidebarBottomLeading: "Left"
@@ -84,6 +88,8 @@ enum ChromeZone: String, Codable, CaseIterable {
         case .toolbarNearLeading: "Left of the address"
         case .toolbarNearTrailing: "Right of the address"
         case .toolbarTrailing: "Right edge"
+        case .pageBarLeading: "Left of the address"
+        case .pageBarTrailing: "Right of the address"
         case .rail: "Icons-only sidebar"
         }
     }
@@ -92,12 +98,14 @@ enum ChromeZone: String, Codable, CaseIterable {
         switch self {
         case .toolbarLeading, .toolbarNearLeading, .toolbarNearTrailing, .toolbarTrailing: Self.toolbarRow
         case .rail: [.rail]
+        case .pageBarLeading, .pageBarTrailing: Self.pageBarRow
         default: Self.topRow + Self.bottomRow
         }
     }
     static let topRow: [ChromeZone] = [.sidebarTopLeading, .sidebarTopCenter, .sidebarTop]
     static let bottomRow: [ChromeZone] = [.sidebarBottomLeading, .sidebarBottom, .sidebarBottomTrailing]
     static let toolbarRow: [ChromeZone] = [.toolbarLeading, .toolbarNearLeading, .toolbarNearTrailing, .toolbarTrailing]
+    static let pageBarRow: [ChromeZone] = [.pageBarLeading, .pageBarTrailing]
 }
 
 /// Which controls show where, in order. Anything not placed is hidden.
@@ -115,6 +123,10 @@ struct ChromeLayout: Codable, Equatable {
     /// Top Tabs: controls right beside the address field, on its left and right (empty by default).
     var toolbarNearLeading: [ChromeItem] = []
     var toolbarNearTrailing: [ChromeItem] = []
+    /// The Sidebar layout's address bar above the page: controls either side of the address (empty by default: the
+    /// sidebar keeps the navigation).
+    var pageBarLeading: [ChromeItem] = []
+    var pageBarTrailing: [ChromeItem] = []
     /// The controls at the foot of the icons-only sidebar.
     var rail: [ChromeItem] = [.sidebarToggle]
     var sidebarShowsAddress = true
@@ -150,6 +162,8 @@ struct ChromeLayout: Codable, Equatable {
         toolbarTrailing = try items(.toolbarTrailing) ?? top.filter { !Self.navigation.contains($0) }
         toolbarNearLeading = try items(.toolbarNearLeading) ?? []
         toolbarNearTrailing = try items(.toolbarNearTrailing) ?? []
+        pageBarLeading = try items(.pageBarLeading) ?? []
+        pageBarTrailing = try items(.pageBarTrailing) ?? []
         rail = try items(.rail) ?? d.rail
         addressShowsReload = try c.decodeIfPresent(Bool.self, forKey: .addressShowsReload) ?? true
         addressShowsSiteInfo = try c.decodeIfPresent(Bool.self, forKey: .addressShowsSiteInfo) ?? true
@@ -168,6 +182,8 @@ struct ChromeLayout: Codable, Equatable {
             case .toolbarTrailing: toolbarTrailing
             case .toolbarNearLeading: toolbarNearLeading
             case .toolbarNearTrailing: toolbarNearTrailing
+            case .pageBarLeading: pageBarLeading
+            case .pageBarTrailing: pageBarTrailing
             case .rail: rail
             }
         }
@@ -183,6 +199,8 @@ struct ChromeLayout: Codable, Equatable {
             case .toolbarTrailing: toolbarTrailing = newValue
             case .toolbarNearLeading: toolbarNearLeading = newValue
             case .toolbarNearTrailing: toolbarNearTrailing = newValue
+            case .pageBarLeading: pageBarLeading = newValue
+            case .pageBarTrailing: pageBarTrailing = newValue
             case .rail: rail = newValue
             }
         }

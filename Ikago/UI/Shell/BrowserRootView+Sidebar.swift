@@ -53,6 +53,27 @@ extension BrowserRootView {
                         .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
+            // The Sidebar layout's address bar above the page (Dia's place for it): the top of the page's card, the
+            // address only, since the sidebar keeps the controls.
+            if state.showsPageAddressBar {
+                // The margin above it moves the window, as it does above the page.
+                if inset > 1 {
+                    WindowDragArea().frame(height: inset).padding(.trailing, inset)
+                        .recordLayout("sidebar-page-drag-margin")
+                }
+                IsolatedHost(chrome: chrome) {
+                    TabsToolbar(state: state, chrome: chrome, palette: palette, commands: commands, addressOnly: true)
+                }
+                .frame(height: state.tabsToolbarHeight)
+                .background {
+                    UnevenRoundedRectangle(topLeadingRadius: state.pageCornerRadius, topTrailingRadius: state.pageCornerRadius,
+                                           style: .continuous)
+                        .fill(state.tabSheetColor)
+                }
+                .padding(.top, inset > 1 ? 0 : inset)
+                .padding(.trailing, trailing)
+                .transition(.opacity)
+            }
             contentCard
         }
     }

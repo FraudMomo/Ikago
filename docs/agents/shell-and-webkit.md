@@ -90,3 +90,10 @@
   covered), stays still on screen, and is clipped to the page card's corners; it fills the host again 0.12 s after the
   size stops changing. One resize per change on both engines (`sidebarmotionchecks`).
 
+- The Sidebar layout can put the address bar above the page (`addressAbovePage`, Settings ▸ Sidebar & Toolbar ▸ Sidebar ▸
+  Address bar, `showsPageAddressBar`): `TabsToolbar(addressOnly:)` in its own host as the top of the page's card, in
+  every sidebar state (full, icons, hidden), edited in place (`canUseInlineAddress`); the sidebar drops its address
+  field. `pageHasTopBar` squares the page's top corners under it, as under Top Tabs, and suggestions hang from it.
+  Its own places either side of the address (`ChromeZone.pageBarLeading`/`pageBarTrailing`, empty by default, their own
+  family; Customize shows them over the mockup's page) and its own style (`pageBarStyle`, unset: Full Width, like
+  Chrome's bar with vertical tabs; `tabsAddressStyle` returns whichever bar is on screen).

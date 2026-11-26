@@ -10,8 +10,9 @@ struct CustomizeSection: View {
     var body: some View {
         let colors = state.palette
         let tabs = state.usesTabsLayout
+        let pageBar = !tabs && state.browserPreferences.addressAbovePage == true
         PageSection(title: "Customize",
-                    footer: "Drag items to the left, centre or right of a row. Hover and click − to remove; click an item in Available to add it.") {
+                    footer: "Drag items to the left, centre or right of a row, or into the icons-only sidebar. Drag the address between the sidebar and above the page. Hover and click − to remove; click an item in Available to add it.") {
             VStack(alignment: .leading, spacing: 16) {
                 HStack {
                     Spacer()
@@ -32,7 +33,8 @@ struct CustomizeSection: View {
                 .environment(\.colorScheme, colors.isDark ? .dark : .light)
                 CustomizeExtras(state: state, colors: colors)
                 AvailableTray(state: state, colors: colors,
-                              zones: tabs ? ChromeZone.toolbarRow : ChromeZone.topRow + ChromeZone.bottomRow,
+                              zones: tabs ? ChromeZone.toolbarRow
+                                  : ChromeZone.topRow + ChromeZone.bottomRow + (pageBar ? ChromeZone.pageBarRow : []),
                               home: tabs ? .toolbarTrailing : .sidebarTop)
             }
             .padding(.vertical, 16)
@@ -49,14 +51,29 @@ private struct SidebarMockup: View {
 
     var body: some View {
         HStack(spacing: 8) {
+            // The icons-only sidebar, with its own place for controls.
+            VStack(spacing: 6) {
+                VStack(spacing: 3) { ForEach(0..<3, id: \.self) { _ in Circle().fill(colors.tertiary).frame(width: 7, height: 7) } }
+                    .padding(.top, 4)
+                ZoneView(zone: .rail, state: state, colors: colors, vertical: true)
+                ForEach(0..<4, id: \.self) { i in
+                    RoundedRectangle(cornerRadius: Radius.inner).fill(i == 0 ? colors.selected : colors.hover).frame(width: 22, height: 22)
+                }
+                Spacer(minLength: 0)
+                Text("Icons").font(.system(size: 9, weight: .medium)).foregroundStyle(colors.tertiary)
+            }
+            .padding(6)
+            .frame(width: 46, height: 250)
+            .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(colors.panel.opacity(0.8)))
+            .help("Icons-only sidebar")
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 4) {
                     TrafficLights()
                     row(ChromeZone.topRow)
                 }
-                ToggleRow(title: "Address", shown: state.chromeLayout.sidebarShowsAddress, colors: colors, filled: true) {
-                    state.chromeLayout.sidebarShowsAddress.toggle()
-                }
+                // The address: drag it between the sidebar and the bar above the page.
+                if pageBar { AddressDropSlot(state: state, colors: colors, abovePage: false) }
+                else { AddressChip(state: state, colors: colors) }
                 ToggleRow(title: "New Tab", shown: state.chromeLayout.sidebarShowsNewTab, colors: colors, filled: false) {
                     state.chromeLayout.sidebarShowsNewTab.toggle()
                 }
@@ -67,12 +84,33 @@ private struct SidebarMockup: View {
                 row(ChromeZone.bottomRow)
             }
             .padding(8)
-            .frame(minWidth: 250, maxWidth: 300)
+            .frame(minWidth: 230, maxWidth: 280)
             .frame(height: 250)
             .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(colors.panel.opacity(0.8)))
-            RoundedRectangle(cornerRadius: Radius.control, style: .continuous).fill(colors.pageBackground).frame(height: 250)
+            VStack(spacing: 0) {
+                // Above the page: the address with its two places either side, or a spot to drop it.
+                HStack(spacing: 8) {
+                    if pageBar {
+                        ZoneView(zone: .pageBarLeading, state: state, colors: colors)
+                        AddressChip(state: state, colors: colors)
+                        ZoneView(zone: .pageBarTrailing, state: state, colors: colors)
+                    } else {
+                        AddressDropSlot(state: state, colors: colors, abovePage: true)
+                    }
+                }
+                .padding(6)
+                .background(UnevenRoundedRectangle(topLeadingRadius: Radius.control, topTrailingRadius: Radius.control,
+                                                   style: .continuous).fill(pageBar ? colors.tabSheet : .clear))
+                UnevenRoundedRectangle(topLeadingRadius: pageBar ? 0 : Radius.control, bottomLeadingRadius: Radius.control,
+                                       bottomTrailingRadius: Radius.control, topTrailingRadius: pageBar ? 0 : Radius.control,
+                                       style: .continuous)
+                    .fill(colors.pageBackground)
+            }
+            .frame(height: 250)
         }
     }
+
+    private var pageBar: Bool { state.browserPreferences.addressAbovePage == true }
 
     /// A row's three places: left, centre (centred while there's room, never over the others) and right.
     private func row(_ zones: [ChromeZone]) -> some View {
@@ -85,16 +123,79 @@ private struct SidebarMockup: View {
     }
 }
 
+/// What a dragged address field carries in the mockup.
+private let addressPayload = "ikago-address"
+
+/// The address field in the mockup, wherever it is: drag it to the other place; the eye hides it (in the sidebar).
+private struct AddressChip: View {
+    let state: BrowserState
+    let colors: Palette
+
+    var body: some View {
+        let above = state.browserPreferences.addressAbovePage == true
+        let shown = above || state.chromeLayout.sidebarShowsAddress
+        HStack(spacing: 6) {
+            Image(systemName: "line.3.horizontal").font(.system(size: 9, weight: .semibold)).foregroundStyle(colors.tertiary)
+            Text("Address").font(.system(size: 11)).foregroundStyle(colors.secondary)
+            Spacer(minLength: 4)
+            if !above {
+                Button { withAnimation(.ikago) { state.chromeLayout.sidebarShowsAddress.toggle() } } label: {
+                    Image(systemName: shown ? "eye" : "eye.slash").font(.system(size: 10)).foregroundStyle(colors.tertiary)
+                }
+                .buttonStyle(.plain).help(shown ? "Hide the address field" : "Show the address field")
+            }
+        }
+        .padding(.horizontal, 8)
+        .frame(height: 24)
+        .frame(minWidth: 80, maxWidth: .infinity)
+        .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(colors.hover.opacity(1.5)))
+        .opacity(shown ? 1 : 0.45)
+        .contentShape(Rectangle())
+        .draggable(addressPayload) {
+            Text("Address").font(.system(size: 11)).padding(.horizontal, 10).padding(.vertical, 4)
+                .background(Capsule().fill(Color.settingsAccent.opacity(0.2)))
+        }
+        .help(above ? "Drag into the sidebar to put the address there" : "Drag above the page to put the address there")
+    }
+}
+
+/// The place the address isn't: drop it here to move it.
+private struct AddressDropSlot: View {
+    let state: BrowserState
+    let colors: Palette
+    let abovePage: Bool
+    @State private var targeted = false
+
+    var body: some View {
+        Text(abovePage ? "Drop the address here to put it above the page" : "Drop the address here")
+            .font(.system(size: 10)).foregroundStyle(colors.tertiary)
+            .frame(maxWidth: .infinity).frame(height: 24)
+            .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                .strokeBorder(targeted ? Color.settingsAccent : colors.separator, style: StrokeStyle(lineWidth: 1, dash: [3, 3])))
+            .dropDestination(for: String.self) { items, _ in
+                guard items.first == addressPayload else { return false }
+                withAnimation(.ikago) {
+                    state.browserPreferences.addressAbovePage = abovePage ? true : nil
+                    if !abovePage { state.chromeLayout.sidebarShowsAddress = true }
+                }
+                return true
+            } isTargeted: { targeted = $0 }
+    }
+}
+
 /// A spot that holds items: drop onto an item to go before it, onto the spot to go last.
 struct ZoneView: View {
     let zone: ChromeZone
     let state: BrowserState
     let colors: Palette
+    /// Items stacked top to bottom (the icons-only sidebar).
+    var vertical = false
     @State private var targeted = false
 
     var body: some View {
         let items = state.chromeLayout[zone]
-        HStack(spacing: 2) {
+        let stack = vertical ? AnyLayout(VStackLayout(spacing: 2)) : AnyLayout(HStackLayout(spacing: 2))
+        stack {
             ForEach(items) { item in
                 ItemChip(item: item, zone: zone, colors: colors, spacesAsDots: !zone.isTop && zone != .rail) {
                     withAnimation(.ikago) { state.chromeLayout.remove(item, from: zone.family) }
@@ -104,7 +205,7 @@ struct ZoneView: View {
             if items.isEmpty {
                 // An empty place: a small slot, so a row's three places fit beside each other.
                 Image(systemName: "plus").font(.system(size: 9, weight: .medium)).foregroundStyle(colors.tertiary)
-                    .frame(width: 22)
+                    .frame(width: 22, height: vertical ? 22 : nil)
             }
         }
         .frame(minWidth: 26, minHeight: 30)

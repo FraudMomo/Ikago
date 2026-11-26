@@ -550,37 +550,6 @@ enum TestDriver {
             if let root = c.window?.contentView { walk(root) }
         case "pinsome":  // <n>: pins the Space's first n loose tabs into the essentials grid
             for tab in state.looseTabs.prefix(Int(arg) ?? 4) { state.movePin(tab.id, intoGrid: true) }
-        case "groupamong":  // <name>: a group of the Space's last two loose tabs, placed after the first loose tab
-            let folder = state.createFolder(named: arg.isEmpty ? "Research" : arg)
-            for tab in state.looseTabs.suffix(2) { state.moveToFolder(tab.id, folderID: folder.id) }
-            state.setFolderTag(folder.id, to: .blue)
-            state.placeFolderAmongTabs(folder.id, relativeTo: state.looseTabs.first?.id, after: true)
-        case "homebg":  // color:<hex> | image:<path> | blur | plain: Ikago Home's background (screenshots)
-            let parts = arg.split(separator: ":", maxSplits: 1).map(String.init)
-            switch parts.first {
-            case "color": state.browserPreferences.homeBackgroundColor = UInt32(parts.last ?? "", radix: 16); state.browserPreferences.homeBackgroundImage = nil
-            case "image": if HomeBackground.save(from: URL(fileURLWithPath: parts.last ?? "")) { state.browserPreferences.homeBackgroundImage = true }
-            case "blur": state.browserPreferences.homeBackgroundBlur = true
-            default: state.browserPreferences.homeBackgroundColor = nil; state.browserPreferences.homeBackgroundImage = nil; state.browserPreferences.homeBackgroundBlur = nil; HomeBackground.remove()
-            }
-            print("IKTEST homebg \(arg) image=\(HomeBackground.image != nil)")
-        case "railclick":  // <layout name>: a real click at the middle of a recorded rail control; prints what it hit
-            if let frame = LayoutChecks.frames[arg], let window = c.window, let content = window.contentView {
-                let point = content.convert(NSPoint(x: frame.midX, y: content.isFlipped ? frame.midY : content.bounds.height - frame.midY), to: nil)
-                var chain: [String] = []
-                var v = window.contentView?.superview?.hitTest(window.contentView!.superview!.convert(point, from: nil))
-                while let view = v, chain.count < 6 { chain.append(String(describing: type(of: view))); v = view.superview }
-                print("IKTEST railclick \(arg) at=\(point) hit=\(chain.joined(separator: " < "))")
-                for type: NSEvent.EventType in [.mouseMoved, .leftMouseDown, .leftMouseUp] {
-                    if let event = NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
-                                                      windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1) {
-                        window.sendEvent(event)
-                    }
-                    try? await Task.sleep(for: .milliseconds(120))
-                }
-                try? await Task.sleep(for: .milliseconds(500))
-                print("IKTEST railclick after compact=\(state.browserPreferences.sidebarCompact == true) visible=\(state.sidebarVisible)")
-            } else { print("IKTEST railclick none \(LayoutChecks.frames.keys.filter { $0.hasPrefix("rail") })") }
         case "railstyle":  // expand | magnify | off: the icon sidebar, with that hover effect
             state.browserPreferences.sidebarCompact = true; state.sidebarVisible = true
             state.browserPreferences.railHover = RailHoverEffect(rawValue: arg)

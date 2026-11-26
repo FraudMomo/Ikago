@@ -80,6 +80,7 @@ enum SettingsSearch {
         .init(title: "Peek search results", category: .tabs, section: "Peek", keywords: "automatic google"),
         .init(title: "Peek links that open a new tab", category: .tabs, section: "Peek", keywords: "automatic target blank"),
         .init(title: "Page thumbnail in previews", category: .tabs, section: "Tab Previews", keywords: "hover screenshot image"),
+        .init(title: "Address bar above the page", category: .toolbar, section: "Customize", keywords: "url bar address field top dia toolbar location", layout: .sidebar),
         .init(title: "Space header and shortcuts", category: .toolbar, section: "Sidebar", keywords: "space name assistant bookmarks history navigation", layout: .sidebar),
         .init(title: "Keep pinned tabs and groups in view", category: .toolbar, section: "Sidebar", keywords: "pinned pins fixed sticky scroll top", layout: .sidebar),
         .init(title: "Show essentials", category: .toolbar, section: "Sidebar Essentials", keywords: "essentials pins pinned tabs grid hide"),

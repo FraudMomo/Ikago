@@ -39,7 +39,17 @@ extension BrowserState {
     var sidebarGroupStyle: SidebarGroupStyle { browserPreferences.sidebarGroupStyle ?? .cards }
     /// The sidebar's three states: full, a rail of icons, or hidden (`sidebarVisible`).
     /// Top Tabs: how the address bar sits under the tabs.
-    var tabsAddressStyle: TabsAddressStyle { browserPreferences.tabsAddressStyle ?? .centered }
+    /// The style of the address bar on screen: Top Tabs' (unset: Centered), or the Sidebar layout's bar above the page
+    /// (`pageBarStyle`, unset: Full Width).
+    var tabsAddressStyle: TabsAddressStyle {
+        showsPageAddressBar ? browserPreferences.pageBarStyle ?? .wide : browserPreferences.tabsAddressStyle ?? .centered
+    }
+    /// Sidebar layout with the address bar above the page (`addressAbovePage`): the bar is the top of the page's card,
+    /// whatever the sidebar shows (full, icons or hidden), and the sidebar keeps no address field.
+    var showsPageAddressBar: Bool { !usesTabsLayout && !isImmersive && webApp == nil && browserPreferences.addressAbovePage == true }
+    /// A bar is the top of the page's card (Top Tabs' address bar, or the Sidebar layout's above the page): the page's
+    /// top corners are square under it.
+    var pageHasTopBar: Bool { showsSidebarTopTabs || showsPageAddressBar }
     /// A hidden sidebar slides in at the window's edge (Settings ▸ Appearance ▸ Window and Sidebar).
     var sidebarEdgePeek: Bool { browserPreferences.sidebarEdgePeek ?? true }
     /// Top Tabs: with essentials on, pinned tabs live in the icon sidebar, also while it is hidden and slides in at

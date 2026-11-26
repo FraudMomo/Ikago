@@ -138,6 +138,8 @@ extension BrowserWindowController {
         // Top Tabs edits in its address bar above the page; in split view each pane has its own bar, and the command bar
         // floats instead.
         if state.showsSidebarTopTabs { return !state.showsPaneBars }
+        // The Sidebar layout's address bar above the page edits in place, whatever the sidebar shows.
+        if state.showsPageAddressBar { return true }
         return state.sidebarVisible && !state.showsSidebarRail && state.chromeLayout.sidebarShowsAddress
     }
 }

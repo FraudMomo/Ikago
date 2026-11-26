@@ -35,7 +35,7 @@ struct ContentHost: FillingViewRepresentable {
            context.transaction.animation != nil, !context.transaction.disablesAnimations {
             // This update starts an animation from the current size to one `sideChrome - previous` narrower.
             container.holdPage(finalWidth: container.bounds.width - (sideChrome - previous), alignTrailing: anchorTrailing,
-                               radius: state.pageCornerRadius, squareTop: state.showsSidebarTopTabs)
+                               radius: state.pageCornerRadius, squareTop: state.pageHasTopBar)
         }
         attach(to: container)
     }

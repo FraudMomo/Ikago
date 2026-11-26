@@ -77,9 +77,6 @@ struct BrowserPreferences: Codable, Equatable {
     var addressAbovePage: Bool? = nil
     /// That bar's style. Unset: Full Width, like Chrome's address bar over the page with vertical tabs.
     var pageBarStyle: TabsAddressStyle? = nil
-    /// Shortcuts the person changed (Settings ▸ General ▸ Keyboard Shortcuts), by menu command id (`KeyBindings`). An
-    /// empty key removes a command's shortcut. Unset: the built-in ones.
-    var keyBindings: [String: KeyCombo]? = nil
     /// Ikago Home's sections (Customize on the page). Unset: shown.
     var homeShowsFavorites: Bool? = nil
     var homeShowsFrequent: Bool? = nil

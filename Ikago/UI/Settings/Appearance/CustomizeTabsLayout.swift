@@ -47,7 +47,16 @@ struct CustomizeExtras: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            line("Icons-only sidebar") { ZoneView(zone: .rail, state: state, colors: colors) }
+            // Top Tabs has no full sidebar mockup: the icons-only sidebar's place is listed here instead.
+            if state.usesTabsLayout { line("Icons-only sidebar") { ZoneView(zone: .rail, state: state, colors: colors) } }
+            if !state.usesTabsLayout && state.browserPreferences.addressAbovePage == true {
+                line("Address style") {
+                    SettingsMenu(selection: Binding(
+                        get: { state.browserPreferences.pageBarStyle ?? .wide },
+                        set: { new in withAnimation(.ikago) { state.browserPreferences.pageBarStyle = new == .wide ? nil : new } }
+                    ), options: TabsAddressStyle.allCases.map { ($0, $0.name) })
+                }
+            }
             line("In the address field") {
                 HStack(spacing: 6) {
                     toggle("Reload", symbol: "arrow.clockwise", shown: state.chromeLayout.addressShowsReload) {

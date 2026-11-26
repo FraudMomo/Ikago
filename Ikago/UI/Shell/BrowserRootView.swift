@@ -237,13 +237,13 @@ struct BrowserRootView: View {
             .overlay { SplitDropOverlay(state: state, chrome: chrome) }
             .padding(.trailing, (chrome.showPageAssistant && state.browserPreferences.pageIntelligence == true) ? PageAssistantView.width : 0)
             .padding(.top, state.sidebarOnRight && !state.sidebarLightsFollow && !state.showsSidebarTopTabs && !state.isImmersive ? 40 : 0)
-            // Under the Sidebar layout's tab row the page meets the active tab directly.
-            .padding(.top, state.showsSidebarTopTabs ? 0 : inset)
+            // Under the Sidebar layout's tab row, or the address bar above the page, the page meets the bar directly.
+            .padding(.top, state.pageHasTopBar ? 0 : inset)
             .padding([.trailing, .bottom], inset)
             // The window's margins around the page move the window in every layout (the page itself is on top).
             .background(WindowDragArea())
             .overlay(alignment: .top) {
-                if inset > 1 && !state.showsSidebarTopTabs {
+                if inset > 1 && !state.pageHasTopBar {
                     WindowDragArea().frame(height: inset).padding(.trailing, inset)
                         .recordLayout("sidebar-page-drag-margin")
                 }
@@ -284,7 +284,7 @@ struct BrowserRootView: View {
                 .padding(.leading, pageLeadingOffset)  // centred on the page, not the window
                 .transition(.scale(scale: 0.96, anchor: .top).combined(with: .opacity))
         }
-        if showsSidebarSuggestions, state.showsSidebarTopTabs, let field = chrome.addressFieldFrame {
+        if showsSidebarSuggestions, state.pageHasTopBar, let field = chrome.addressFieldFrame {
             // Hanging from the address bar above the page, at least wide enough to read.
             let width = max(field.width, 460)
             SuggestionList(model: palette, colors: state.palette)
@@ -307,7 +307,8 @@ struct BrowserRootView: View {
         if chrome.showFind {
             FindBarView(model: find, colors: state.palette)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                .padding(.top, state.showsSidebarTopTabs ? SidebarTopTabs.height(state) + state.tabsToolbarHeight + 12 : 20)
+                .padding(.top, state.showsSidebarTopTabs ? SidebarTopTabs.height(state) + state.tabsToolbarHeight + 12
+                         : state.showsPageAddressBar ? state.frameInset + state.tabsToolbarHeight + 12 : 20)
                 .padding(.trailing, 20)
                 .transition(.move(edge: .top).combined(with: .opacity))
         }

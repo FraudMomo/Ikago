@@ -8,15 +8,18 @@ struct TabsToolbar: View {
     let chrome: ChromeModel
     let palette: CommandPaletteModel
     weak var commands: BrowserCommands?
+    /// The Sidebar layout's bar above the page: the address and the controls placed beside it (`pageBar*` zones).
+    var addressOnly = false
 
     var body: some View {
         let colors = state.palette
         let layout = state.chromeLayout
-        let leading = state.visibleChromeItems(layout.toolbarLeading)
-        var trailing = state.visibleChromeItems(layout.toolbarTrailing)
-        let nearLeading = state.visibleChromeItems(layout.toolbarNearLeading)
-        let nearTrailing = state.visibleChromeItems(layout.toolbarNearTrailing)
-        if (DownloadCenter.shared.showsToolbarButton || chrome.showDownloads)
+        // Above the page in the Sidebar layout the bar has its own two places (Customize), the sidebar keeping the rest.
+        let leading = state.visibleChromeItems(addressOnly ? layout.pageBarLeading : layout.toolbarLeading)
+        var trailing = state.visibleChromeItems(addressOnly ? layout.pageBarTrailing : layout.toolbarTrailing)
+        let nearLeading = addressOnly ? [] : state.visibleChromeItems(layout.toolbarNearLeading)
+        let nearTrailing = addressOnly ? [] : state.visibleChromeItems(layout.toolbarNearTrailing)
+        if !addressOnly, (DownloadCenter.shared.showsToolbarButton || chrome.showDownloads)
             && !ChromeZone.toolbarRow.contains(where: { layout.contains(.downloads, in: $0) }) {
             trailing.append(.downloads)
         }

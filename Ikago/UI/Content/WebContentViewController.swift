@@ -168,7 +168,7 @@ final class WebContentViewController: NSViewController {
         let switchedTab = state.activeTabID != lastActiveID
         let radius: CGFloat = state.pageCornerRadius
         // Under the Top Tabs address bar the page's top corners are square: the bar is the card's top.
-        let squareTop = state.showsSidebarTopTabs
+        let squareTop = state.pageHasTopBar
         if WebTabContainerView.cornerRadius != radius || WebTabContainerView.squareTop != squareTop {
             WebTabContainerView.cornerRadius = radius
             WebTabContainerView.squareTop = squareTop
