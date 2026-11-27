@@ -25,8 +25,6 @@ final class PermissionRequest {
         once = OneShot(handler)
     }
 
-    var isResolved: Bool { once.isFired }
-
     func resolve(_ decision: Decision) { once.fire(decision == .allow ? .grant : .deny) }
 
     func invalidate() {
@@ -56,8 +54,6 @@ private final class OneShot: @unchecked Sendable {
     private var handler: (@MainActor @Sendable (WKPermissionDecision) -> Void)?
 
     init(_ handler: @escaping @MainActor @Sendable (WKPermissionDecision) -> Void) { self.handler = handler }
-
-    @MainActor var isFired: Bool { handler == nil }
 
     @MainActor func fire(_ decision: WKPermissionDecision) {
         guard let handler else { return }

@@ -50,7 +50,7 @@ final class AppDelegate: NSObject, IKCEFApplicationDelegate {
         // Extensions load first so their content scripts reach the first page load.
         Task { @MainActor in
             state = BrowserState()
-            CrashReports.shared.start { [weak self] in self?.state?.tabs.count ?? 0 }
+            CrashReports.shared.start { self.state?.tabs.count ?? 0 }
             let profiles = Set(state.spaces.map(\.profileID))
             if BrowserRuntime.runs(.chromium) {
                 while !IKCEFRuntime.ready { try? await Task.sleep(for: .milliseconds(10)) }

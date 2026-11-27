@@ -6,7 +6,6 @@ import AppKit
 @MainActor
 enum LayoutChecks {
     static var frames: [String: CGRect] = [:]
-    static var tabEdges = TabScrollEdges()
 
     static func seed(_ controller: BrowserWindowController) {
         let state = controller.state
@@ -86,17 +85,6 @@ enum LayoutChecks {
         }
     }
 
-    private static func scrollFrames(_ controller: BrowserWindowController) -> [CGRect] {
-        var frames: [CGRect] = []
-        func inspect(_ view: NSView) {
-            if let scroll = view as? NSScrollView, !scroll.isHiddenOrHasHiddenAncestor {
-                frames.append(scroll.convert(scroll.bounds, to: controller.window?.contentView))
-            }
-            view.subviews.forEach(inspect)
-        }
-        if let root = controller.window?.contentView { inspect(root) }
-        return frames
-    }
 
     static func dump(_ controller: BrowserWindowController) {
         for key in frames.keys.sorted() {

@@ -194,8 +194,7 @@ private struct TabsAddressField: View {
         let range = host.isEmpty ? nil : full.range(of: host)
         return Group {
             if let range {
-                Text(full[..<range.upperBound]).foregroundStyle(colors.text.opacity(0.92))
-                    + Text(full[range.upperBound...]).foregroundStyle(colors.secondary)
+                Text("\(Text(full[..<range.upperBound]).foregroundStyle(colors.text.opacity(0.92)))\(Text(full[range.upperBound...]).foregroundStyle(colors.secondary))")
             } else {
                 Text(full).foregroundStyle(colors.text.opacity(0.88))
             }

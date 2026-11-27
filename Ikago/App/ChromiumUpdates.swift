@@ -12,7 +12,6 @@ final class ChromiumUpdates {
         var pinned: String?
         var latest: String?
         var message: String?
-        var checkedAt: Double?
     }
 
     private(set) var status = Status()

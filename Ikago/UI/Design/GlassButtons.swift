@@ -19,9 +19,6 @@ extension View {
         environment(\.usesGlass, enabled).buttonStyle(IkagoButtonStyle())
     }
 
-    /// The main action in a group: tinted Liquid Glass.
-    func glassProminentButton() -> some View { buttonStyle(IkagoProminentButtonStyle()) }
-
     /// A control's own Liquid Glass, which brightens under the pointer and flexes when pressed.
     /// `active: false` shows nothing, without changing the view's identity.
     func glassControl<S: Shape>(_ shape: S, _ colors: Palette, active: Bool = true, reacts: Bool = true) -> some View {
@@ -30,25 +27,15 @@ extension View {
 }
 
 struct IkagoButtonStyle: PrimitiveButtonStyle {
-    func makeBody(configuration: Configuration) -> some View { StyledButton(configuration: configuration, prominent: false) }
-}
-
-struct IkagoProminentButtonStyle: PrimitiveButtonStyle {
-    func makeBody(configuration: Configuration) -> some View { StyledButton(configuration: configuration, prominent: true) }
+    func makeBody(configuration: Configuration) -> some View { StyledButton(configuration: configuration) }
 }
 
 private struct StyledButton: View {
     let configuration: PrimitiveButtonStyleConfiguration
-    let prominent: Bool
     @Environment(\.usesGlass) private var usesGlass
 
-    var body: some View {
-        switch (usesGlass, prominent) {
-        case (true, false): Button(configuration).buttonStyle(.glass)
-        case (true, true): Button(configuration).buttonStyle(.glassProminent)
-        case (false, false): Button(configuration).buttonStyle(.bordered)
-        case (false, true): Button(configuration).buttonStyle(.borderedProminent)
-        }
+    @ViewBuilder var body: some View {
+        if usesGlass { Button(configuration).buttonStyle(.glass) } else { Button(configuration).buttonStyle(.bordered) }
     }
 }
 

@@ -19,10 +19,12 @@ enum TestDriver {
         atexit { fputs("IKTEST exit\n", stdout); fflush(stdout) }
         print("IKTEST pid \(getpid())")  // so the crash explorer only takes reports from its own launch
         // Why a walk ended: every window that closes, and what is left open afterwards.
-        NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: nil, queue: nil) { note in
+        NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: nil, queue: .main) { note in
             let window = note.object as? NSWindow
-            let left = NSApp.windows.filter { $0 !== window && $0.isVisible }.map { "\(type(of: $0))" }
-            print("IKTEST windowclose \(window.map { "\(type(of: $0)) main=\($0.canBecomeMain) visible=\($0.isVisible)" } ?? "?") left=\(left)")
+            MainActor.assumeIsolated {
+                let left = NSApp.windows.filter { $0 !== window && $0.isVisible }.map { "\(type(of: $0))" }
+                print("IKTEST windowclose \(window.map { "\(type(of: $0)) main=\($0.canBecomeMain) visible=\($0.isVisible)" } ?? "?") left=\(left)")
+            }
         }
         let actions = script.split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces) }
         Task { @MainActor in
@@ -307,7 +309,6 @@ enum TestDriver {
         case "palette": c.showCommandPalette(newTab: arg == "new")
         case "palettecommit": c.palette.query = arg; c.palette.commit()  // <text>: types into the open address field and presses Return
         case "palettequery": c.palette.userEdited(arg)
-        case "palettecommit": c.palette.commit()
         case "palettescope": _ = c.palette.toggleScope(Int(arg) ?? 0)
         case "palettedown": c.palette.moveSelection(1); c.palette.query = c.palette.query  // same text written back
         case "suggestions": print("IKTEST suggestions \(c.palette.selection) " + c.palette.suggestions.map(\.title).joined(separator: " | "))
@@ -550,14 +551,6 @@ enum TestDriver {
                 try? await Task.sleep(for: .milliseconds(1200))
                 print("IKTEST devicesshot \(PeekShot.measure(content, window: window, save: arg))")
             }
-        case "savecard":  // <png>: the "Save password?" card over the current page, captured with the window
-            if let window = c.window, let content = window.contentView {
-                PasswordSavePresenter.shared.offer(site: "appstoreconnect.apple.com", username: "sam@example.com",
-                                                   password: "sample", update: false, in: c)
-                try? await Task.sleep(for: .milliseconds(900))
-                print("IKTEST savecard \(PeekShot.measure(content, window: window, save: arg))")
-                PasswordSavePresenter.shared.dismiss()
-            }
         case "railpoint":  // <points from the rail's top>|off[,<png prefix>[,<ms>]]: a pretend pointer on the rail, for looking at its
             // hover effect; with a prefix, the window and the effects' window each saved as <prefix>-<n>.png
             let model = c.chrome.rail
@@ -792,7 +785,6 @@ enum TestDriver {
             print("IKTEST chrome \(state.chromeLayout.sidebarTop.map(\.rawValue)) \(state.chromeLayout.sidebarBottom.map(\.rawValue))")
         case "newtabfocus": state.focusAddressBarOnNewTab = arg == "on"
         case "newtab": c.newTab()
-        case "newtabmode": if let m = NewTabMode(rawValue: arg) { state.newTabMode = m }
         case "homepage": state.homepage = arg
         case "separate": if let id = state.activeTabID { state.separate(id) }
         case "unsplitall": state.splits = []
@@ -930,7 +922,6 @@ enum TestDriver {
                 scroll.contentView.scroll(to: NSPoint(x: 0, y: (document.isFlipped ? fraction : 1 - fraction) * maximum))
                 scroll.reflectScrolledClipView(scroll.contentView)
             }
-        case "pingrid": state.browserPreferences.showPinnedGrid = arg != "off"
         case "importprobe":  // every detected browser profile: what an import reads (counts and notes only, no contents)
             let home = FileManager.default.homeDirectoryForCurrentUser
             for profile in BrowserProfileDiscovery.discover(home: home, installedBrowsers: BrowserProfileDiscovery.installedBrowsers()) {

@@ -128,9 +128,6 @@ final class CommandPaletteModel {
         }
     }
 
-    /// Tab key (kept for callers that only know the forward direction).
-    func completeSelection() { focusNext(forward: true) }
-
     /// Esc first restores what was typed; a second Esc closes the field.
     func cancel() {
         let floor = isZeroSuggest ? -1 : 0

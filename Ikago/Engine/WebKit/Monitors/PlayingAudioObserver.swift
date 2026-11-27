@@ -19,8 +19,6 @@ final class PlayingAudioObserver: NSObject {
         webView.addObserver(self, forKeyPath: Self.key, options: [.new], context: nil)
     }
 
-    var isPlaying: Bool { (webView?.value(forKey: Self.key) as? Bool) ?? false }
-
     func stop() {
         webView?.removeObserver(self, forKeyPath: Self.key)
         webView = nil

@@ -143,8 +143,6 @@ final class PasswordSuggestionsPresenter {
     /// The list a click outside closed, so the same click on the key or field toggles it shut instead of reopening it.
     private var closedByClick: (window: ObjectIdentifier, anchor: CGRect, at: Date)?
 
-    var isShowing: Bool { chrome?.passwordSuggestions != nil }
-
     /// nil when the window can't show it (not a browser window), or when the person dismissed it. `typed` is what the
     /// field holds now; `readTyped` reads it again as they type.
     func present(_ logins: [PasswordVault.Login], site: String, anchor: CGRect, in window: NSWindow, generated: String? = nil,

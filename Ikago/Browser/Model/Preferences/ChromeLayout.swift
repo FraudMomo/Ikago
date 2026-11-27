@@ -206,8 +206,7 @@ struct ChromeLayout: Codable, Equatable {
         }
     }
 
-    /// Everything in the top row or the bottom bar, left to right.
-    var topItems: [ChromeItem] { topLeading + topCenter + sidebarTop }
+    /// Everything in the bottom bar, left to right.
     var bottomItems: [ChromeItem] { bottomLeading + sidebarBottom + bottomTrailing }
 
     /// Moves (or adds) `item` into `zone` before `target`, or at the end. An item appears at most once per family.

@@ -62,6 +62,4 @@ struct ExtensionDescriptor: Identifiable, Equatable {
     var id: String { "\(engine.rawValue):\(key)" }
 
     @MainActor func wants(_ url: URL) -> Bool { ExtensionAccess.wants(patterns, url) }
-    /// It asks for every website (all URLs or all hosts).
-    var wantsEverySite: Bool { patterns.contains { $0 == "<all_urls>" || $0.hasPrefix("*://*/") || $0.hasPrefix("http://*/") || $0.hasPrefix("https://*/") } }
 }

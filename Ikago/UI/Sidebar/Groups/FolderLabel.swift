@@ -88,10 +88,6 @@ extension TabFolder {
         return showsCount ? "\(expansion), \(count) \(count == 1 ? "tab" : "tabs")" : expansion
     }
 
-    func disclosureHelp(count: Int, showsCount: Bool) -> String {
-        let action = "\(isOpen ? "Collapse" : "Expand") \(name)"
-        return showsCount ? "\(action) · \(count) \(count == 1 ? "tab" : "tabs")" : action
-    }
 }
 
 /// Right-click menu for a group's sidebar header.

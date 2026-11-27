@@ -58,7 +58,7 @@ enum PasswordStrongChecks {
             return true
             """, in: nil, contentWorld: .page)
         func key() async -> [String: Any]? {
-            try? await page.webView.callAsyncJavaScript("document.getElementById('pw').focus(); return true", in: nil, contentWorld: .defaultClient)
+            _ = try? await page.webView.callAsyncJavaScript("document.getElementById('pw').focus(); return true", in: nil, contentWorld: .defaultClient)
             try? await Task.sleep(for: .milliseconds(400))
             return try? await page.webView.callAsyncJavaScript("return window.__ikagoPasswordKey.state()", in: nil, contentWorld: .defaultClient)
                 as? [String: Any]
