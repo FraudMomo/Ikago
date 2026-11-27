@@ -205,7 +205,8 @@ enum TestDriver {
             if let tab = c.activeController?.page as? CEFWebTab {
                 _ = try? await tab.devTools("Runtime.evaluate", ["expression": open, "userGesture": true])
             } else { _ = try? await c.activeController?.page?.callAsync("return \(open)") }
-        case "crashnow":  // ends Ikago the way a crash does, for the crash report saved at the next launch (IKAGO_CRASH_REPORTS=1)
+        case "crashcard": print("IKTEST crashcard asking=\(CrashReports.shared.asking)")  // whether the card asks about a crash
+        case "crashnow":  // ends Ikago the way a crash does, for the crash report the next launch asks about (IKAGO_CRASH_REPORTS=1)
             CrashReports.shared.note("test crash"); abort()
         case "pagekind":  // which engine draws the active page (the crash explorer checks every walk ran where it meant to)
             // The engine this launch runs, then the active page's kind (Ikago's own pages always use WebKit).

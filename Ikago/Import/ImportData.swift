@@ -194,6 +194,7 @@ extension BrowserState {
         }
         if selection.tabs, !data.tabs.isEmpty {
             let result = mergeImportedTabs(data.tabs, into: spaceID)
+            CrashReports.shared.note("imported \(result.tabs) tabs")
             let other = max(0, data.tabs.count - result.tabs - result.limited)
             report.items.append(.init(kind: "Tabs", noun: "tabs", symbol: "square.on.square", found: data.tabs.count, imported: result.tabs,
                                       details: [result.groups > 0 ? "in \(result.groups) groups" : nil,

@@ -120,6 +120,11 @@ enum MainMenu {
             $0.item("Zoom", #selector(NSWindow.performZoom(_:)))
         }
         NSApp.windowsMenu = window
+        let help = main.addSubmenu("Help") {
+            // Saves a zip of recent crash reports to Downloads for the person to pass on; nothing is sent.
+            $0.item("Save Crash Report", #selector(CrashReports.saveCrashReport(_:))).target = CrashReports.shared
+        }
+        NSApp.helpMenu = help
         return main
     }
 }

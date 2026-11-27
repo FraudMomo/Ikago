@@ -39,7 +39,7 @@ Read these rules before changing code, and the topic file for the area you touch
 
 ```text
 Ikago/
-├── App/         main.swift, AppDelegate, MainMenu (all shortcuts + ShortcutRouter), AppIdentity, ProtectedStorage
+├── App/         main.swift, AppDelegate, MainMenu (all shortcuts + ShortcutRouter), AppIdentity, ProtectedStorage, CrashReports
 ├── Browser/     No views. State/ (BrowserState and its extensions by topic), Model/ (Storage/, Tabs/, Preferences/),
 │                Address/ (omnibox engine, input, suggestions), Downloads/, Favicons/, Passwords/, Notifications/,
 │                Reader/, Translation/, WebApps/, Continuity/

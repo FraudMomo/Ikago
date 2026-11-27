@@ -85,6 +85,20 @@ Public releases are made by `scripts/release.py` and published as GitHub Release
 - `install.sh` refuses to replace a downloaded release (Info.plist has `SUFeedURL`) unless `IKAGO_REPLACE_RELEASE=1`,
   and the Chromium rebuild job (`auto_update.py`) does nothing while one is installed; `--remove-agent` turns it off.
 
+## Crash reports from testers
+
+`App/CrashReports.swift` never sends anything. Ikago keeps `Running.json` in its data folder while it runs (version,
+engine, tabs, windows, memory and the last event, rewritten when the app goes to the background or imports tabs) and
+an `atexit` handler removes it, so a crash, memory kill or force quit leaves it behind. The next launch waits 8 s for
+ReportCrash, then zips a summary plus Ikago's `.ips` files and JetsamEvents created since that run started (by creation
+date: macOS rewrites older reports' modification dates) into Downloads through `DownloadCenter.save`, so it shows in
+the downloads list. JetsamEvents keep only the ten largest processes, Ikago's and any that were ended. The home folder,
+user and Mac names are replaced. `Crash reports handled.txt` stops a report going out twice. Help ▸ Save Crash Report
+does the same for the last 7 days. macOS can write no `.ips` at all (it killed `ReportCrashService` on a Mac short of
+memory, and it throttles an app that crashes often), so the summary must stand alone. Debug test runs skip all of this
+unless `IKAGO_CRASH_REPORTS=1`; the driver's `crashnow` step aborts for a test. Symbolicate Ikago's frames with the
+matching binary in `out/symbols/`.
+
 ## Credits
 `package_app.py` copies the required notices into `Contents/Resources/Acknowledgements` (Ikago's license, the
 third-party notices, Chromium's generated credits, CEF's license, SVT-AV1's license and patent license, Sparkle's

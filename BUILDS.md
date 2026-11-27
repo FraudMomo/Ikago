@@ -5,15 +5,51 @@ What changed in each release of Ikago, newest first. Add changes under **Unrelea
 
 ## Unreleased
 
+- **Fewer, simpler settings:** some options that only changed where or how the same things show are gone, and what
+  they held moved somewhere you'll find it:
+  - The sidebar is always on the left. A sidebar set to the right opens on the left.
+  - "Keep pinned tabs and groups in view" is gone: pinned tabs and groups scroll with the rest of the list.
+  - Tab Animations are gone: the highlight fades quickly to the tab you pick, and the page changes at once.
+  - The Space header and shortcut rows at the top of the sidebar are gone. Shortcuts you used are now pinned tabs
+    (Bookmarks, History, Downloads, Performance, Settings), and Assistant and Notes are buttons in the sidebar's top
+    row. Pinned tabs can now sit above Essentials as well as below: drag them there.
+  - Buttons have six places instead of thirteen: the sidebar's top and bottom rows, the left and right of the Top Tabs
+    toolbar, the icons-only sidebar, and inside the address field, where any button can now go (Reload and Site &
+    Extensions live there). Buttons you had placed elsewhere moved to the nearest place.
+  - The window has a thin, fixed border, and the sidebar meets the page: the Window border and Sidebar gap sliders
+    are gone.
+  - The sidebar is Full, Icons or Hidden, and with Top Tabs also Off. Hidden slides in when the pointer reaches the
+    window's edge, Off doesn't; this replaces "Reveal at the window edge".
+  - The address bar is Full Width or Page Title; Centered is gone, and the Top Tabs bar has one height.
+  - The top of the page always moves the window: press and hold, then drag, and double-click there to zoom. Its
+    settings and the drop-down header are gone.
+  - Tab groups have one switch, Color pill: colored names in tinted cards, or a simple folder list when it's off. Tab
+    counts are gone, and Top Tabs shows groups in the tab row or the icon sidebar.
+  - Essentials have three or four columns, and stay at the top of the sidebar while the tabs scroll, in both the full
+    and the icons-only sidebar.
+  - Pin Group is gone: anything above the New Tab line is pinned, groups too. Tabs in a group there stay when you
+    close them, like pinned tabs, and groups you had pinned are back in the list. With no Essentials yet, a box at the
+    top shows where to drag tabs to add them.
+- **Icon sidebar Expand:** it opens from anywhere on the icon sidebar, and the full sidebar slides out at its full
+  width instead of growing out of the icons.
+- **Dragging in the sidebar:** a tab or group dropped just above a group could end up inside a group, and among the
+  groups at the top a row dropped between two groups went into one of them. Rows now land exactly where the gap
+  shows. Dropping onto a group's name puts the row in that group. A tab dragged out of a group no longer looks like
+  part of it, and dragging tabs into and out of groups no longer closes Ikago.
+- **Tab order:** in a group that holds other groups, Control-Tab now goes through the tabs in the order the sidebar
+  shows them.
+- **Location on WebKit:** sites asking for your location got no prompt and were always refused. They now ask
+  like every other permission.
 - **Quitting after a link preview:** with Chromium, quitting Ikago while a link preview was open, or after one,
   could leave it stuck and never quit. It now quits normally.
 - **Importing a damaged file no longer closes Ikago:** some unusual history exports made Ikago close while importing.
   Now it imports what it can read.
 - **Damaged videos no longer close Ikago:** with Chromium, a damaged or unusual video on X could close Ikago.
   Now it plays another way.
-- **Crash reports you can pass on:** if Ikago closes unexpectedly, the next launch saves a crash report to your
-  Downloads folder, and it shows in Ikago's downloads list. Nothing is sent anywhere: send the file to the person
-  who asked for it. Help ▸ Save Crash Report saves one on request, with reports from the past week.
+- **Crash reports you can pass on:** if Ikago closes unexpectedly, the next launch asks whether to save a crash
+  report. Save Report puts it in your Downloads folder, without your name or home folder, ready to send to the
+  developer in a GitHub issue or another way. Nothing is saved unless you say so, and nothing is sent by itself. Help ▸ Save Crash
+  Report saves one on request, with reports from the past week.
 - **Many tabs with Chromium:** with lots of tabs open, closing a tab right after switching to it could close
   Ikago. That no longer happens.
 - **Google sign-in no longer crashes with Chromium:** entering your email and pressing Next could close Ikago,
