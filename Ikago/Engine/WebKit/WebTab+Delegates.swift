@@ -189,7 +189,7 @@ extension WebKitTab: WKUIDelegate {
     /// Location goes through the same prompt as every other permission (public from macOS 27; before it, WebKit denies).
     /// Only the top frame's own site may ask.
     @available(macOS 27.0, *)
-    func webView(_ webView: WKWebView, requestGeolocationPermissionFor origin: WKSecurityOrigin, initiatedBy frame: WKFrameInfo,
+    func webView(_ webView: WKWebView, requestGeolocationPermissionFor origin: WKSecurityOrigin, initiatedByFrame frame: WKFrameInfo,
                  decisionHandler: @escaping @MainActor @Sendable (WKPermissionDecision) -> Void) {
         guard frame.isMainFrame else { return decisionHandler(.deny) }
         let origin = "\(origin.protocol)://\(origin.host)\(origin.port > 0 ? ":\(origin.port)" : "")"
