@@ -48,6 +48,29 @@ struct Session: Codable, Equatable {
     #endif
     static let maxClosed = 20, maxHistory = 1000
 
+    /// The session without the entries this version can't use (a tab on a page it doesn't know, a damaged history entry
+    /// or bookmark), so one bad entry never costs the whole profile: a session from a newer Ikago, or a slightly damaged
+    /// one, still opens with everything else. What `validate` would reject as a whole is left to it.
+    func repaired() -> Session {
+        var session = self
+        func usable(_ tab: SavedTab) -> Bool {
+            Self.isValidID(tab.id) && tab.title.utf8.count <= 2048
+                && (AddressResolver.isPageURL(tab.url) || InternalPage(url: tab.url) != nil || ExtensionURL.isExtension(tab.url))
+        }
+        var seen = Set<String>()
+        session.tabs = tabs.filter { usable($0) && seen.insert($0.id).inserted }
+        session.closed = Array(closed.filter(usable).prefix(Self.maxClosed))
+        session.history = Array(history.filter { AddressResolver.isWebURL($0.url) && $0.title.utf8.count <= 2048 }.prefix(Self.maxHistory))
+        if let marks = bookmarks {
+            var ids = Set<String>()
+            session.bookmarks = marks.filter {
+                Self.isValidID($0.id) && AddressResolver.isWebURL($0.url) && $0.title.utf8.count <= 2048 && ids.insert($0.id).inserted
+            }
+        }
+        if let active, !session.tabs.contains(where: { $0.id == active }) { session.active = session.tabs.first?.id }
+        return session
+    }
+
     /// Rejects sessions that exceed the limits or repeat tab IDs.
     func validate() throws {
         struct Invalid: Error {}
@@ -242,8 +265,11 @@ struct SessionStore {
     private func read(_ url: URL) -> Session? {
         guard let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize, size <= 8_000_000,
               let raw = try? Data(contentsOf: url), let data = try? SealedStorage.open(raw),
-              let session = try? JSONDecoder().decode(Session.self, from: data),
-              (try? session.validate()) != nil
+              let decoded = try? JSONDecoder().decode(Session.self, from: data)
+        else { return nil }
+        // Entries this version can't use are dropped, never the whole session.
+        let session = decoded.repaired()
+        guard (try? session.validate()) != nil
         else { return nil }
         return session
     }

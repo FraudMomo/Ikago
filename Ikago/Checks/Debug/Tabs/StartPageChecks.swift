@@ -56,6 +56,23 @@ enum StartPageChecks {
         for tab in mainState.tabs where tab.url == "ikago://home" { mainState.closeTab(tab.id) }
         mainState.newTabMode = savedMode
 
+        // A session holding a tab this version doesn't know (a newer Ikago's page) still opens, without that one tab:
+        // a strict check once set a whole profile aside over one Ikago Home tab.
+        do {
+            let dir = root.appending(path: "repair")
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            var session = Session()
+            session.tabs = [SavedTab(id: "good-tab", url: "https://example.com", title: "Example", pinned: false),
+                            SavedTab(id: "future-tab", url: "ikago://from-the-future", title: "Future", pinned: false)]
+            session.active = "future-tab"
+            try SealedStorage.seal(JSONEncoder().encode(session)).write(to: dir.appending(path: "session.json"))
+            if case .loaded(let loaded) = SessionStore(directory: dir).load() {
+                check(loaded.tabs.map(\.id) == ["good-tab"] && loaded.active == "good-tab", "a session with an unknown tab opens without just that tab")
+            } else {
+                check(false, "a session with an unknown tab opens without just that tab")
+            }
+        } catch { check(false, "the repair check could write its session (\(error))") }
+
         // A private window opens like ⌘N: with the command bar, no page loads by itself.
         let main = browser.state
         let saved = (main.newTabMode, main.searchEngine)
