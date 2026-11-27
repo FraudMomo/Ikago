@@ -564,6 +564,62 @@ enum TestDriver {
             default: state.browserPreferences.homeBackgroundColor = nil; state.browserPreferences.homeBackgroundImage = nil; state.browserPreferences.homeBackgroundBlur = nil; HomeBackground.remove()
             }
             print("IKTEST homebg \(arg) image=\(HomeBackground.image != nil)")
+        case "railclick":  // <layout name>: a real click at the middle of a recorded rail control; prints what it hit
+            if let frame = LayoutChecks.frames[arg], let window = c.window, let content = window.contentView {
+                let point = content.convert(NSPoint(x: frame.midX, y: content.isFlipped ? frame.midY : content.bounds.height - frame.midY), to: nil)
+                var chain: [String] = []
+                var v = window.contentView?.superview?.hitTest(window.contentView!.superview!.convert(point, from: nil))
+                while let view = v, chain.count < 6 { chain.append(String(describing: type(of: view))); v = view.superview }
+                print("IKTEST railclick \(arg) at=\(point) hit=\(chain.joined(separator: " < "))")
+                for type: NSEvent.EventType in [.mouseMoved, .leftMouseDown, .leftMouseUp] {
+                    if let event = NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                      windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1) {
+                        window.sendEvent(event)
+                    }
+                    try? await Task.sleep(for: .milliseconds(120))
+                }
+                try? await Task.sleep(for: .milliseconds(500))
+                print("IKTEST railclick after compact=\(state.browserPreferences.sidebarCompact == true) visible=\(state.sidebarVisible)")
+            } else { print("IKTEST railclick none \(LayoutChecks.frames.keys.filter { $0.hasPrefix("rail") })") }
+        case "menukeys":  // every menu item with a key equivalent: title, key, modifiers
+            func visit(_ menu: NSMenu, _ path: String) {
+                for item in menu.items {
+                    if let sub = item.submenu { visit(sub, path + "/" + item.title); continue }
+                    if !item.keyEquivalent.isEmpty || item.title.contains("Dictation") || item.title.contains("Emoji") {
+                        print("IKTEST menukeys \(path)/\(item.title) key='\(item.keyEquivalent)' mask=\(item.keyEquivalentModifierMask.rawValue) action=\(item.action.map(NSStringFromSelector) ?? "-")")
+                    }
+                }
+            }
+            NSApp.mainMenu.map { visit($0, "") }
+        case "rowclick":  // <n>: a real click on the n-th loose tab's sidebar row; prints the active tab before and after
+            let loose = state.looseTabs
+            if let target = loose.dropFirst(Int(arg) ?? 0).first, let frame = LayoutChecks.frames["sidebar-tab-\(target.id)"],
+               let window = c.window, let content = window.contentView {
+                let point = content.convert(NSPoint(x: frame.minX + 40, y: content.isFlipped ? frame.midY : content.bounds.height - frame.midY), to: nil)
+                let before = state.activeTabID
+                if let frameView = window.contentView?.superview {
+                    var chain: [String] = []
+                    var v = frameView.hitTest(frameView.convert(point, from: nil))
+                    while let view = v, chain.count < 5 { chain.append(String(describing: type(of: view))); v = view.superview }
+                    print("IKTEST rowclick frame=\(frame) hit=\(chain.joined(separator: " < "))")
+                }
+                // The release goes in the queue first: a list's mouse-down tracks the press until it reads the release there.
+                func mouse(_ type: NSEvent.EventType) -> NSEvent? {
+                    NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                       windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)
+                }
+                if let up = mouse(.leftMouseUp) { NSApp.postEvent(up, atStart: false) }
+                if let down = mouse(.leftMouseDown) { window.sendEvent(down) }
+                try? await Task.sleep(for: .milliseconds(300))
+                print("IKTEST rowclick target=\(target.id == state.activeTabID) changed=\(before != state.activeTabID)")
+            } else { print("IKTEST rowclick none") }
+        case "liftimage":  // <row>,<path>: saves the picture a drag of the sidebar list's row at that index lifts
+            let parts = arg.split(separator: ",", maxSplits: 1).map(String.init)
+            if parts.count == 2, let row = Int(parts[0]), let image = SidebarOutlineController.shown(in: c.window)?.liftedImage(row: row),
+               let tiff = image.tiffRepresentation, let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+                try? png.write(to: URL(fileURLWithPath: parts[1]))
+                print("IKTEST liftimage saved row=\(row) id=\((SidebarOutlineController.shown(in: c.window)?.outlineView.item(atRow: row) as? OutlineNode)?.id ?? "") size=\(image.size)")
+            } else { print("IKTEST liftimage none") }
         case "railstyle":  // expand | magnify | off: the icon sidebar, with that hover effect
             state.browserPreferences.sidebarCompact = true; state.sidebarVisible = true
             state.browserPreferences.railHover = RailHoverEffect(rawValue: arg)

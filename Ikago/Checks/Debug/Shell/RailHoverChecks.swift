@@ -124,6 +124,32 @@ enum RailHoverChecks {
             try? await Task.sleep(for: settled)
         }
 
+        // The rail's own buttons (the sidebar button at the top, Tab Groups at the foot) take real clicks in both effects:
+        // the overlay window lies over them, and the window server gives it the click unless it lets the pointer through.
+        // A hidden group puts Tab Groups in the foot.
+        let hiddenGroup = state.createFolder(named: "Rail Hidden", with: made.last)
+        _ = state.hideFolder(hiddenGroup.id)
+        try? await Task.sleep(for: .milliseconds(500))
+        let buttonNames = ["rail-sidebar-toggle", "rail-foot-tabGroups"]
+        if let content = browser.window?.contentView {
+            for effect in [RailHoverEffect.magnify, .expand] {
+                state.browserPreferences.railHover = effect
+                try? await Task.sleep(for: .milliseconds(400))
+                for name in buttonNames {
+                    guard let frame = LayoutChecks.frames[name] else { check(false, "the rail shows \(name)"); continue }
+                    point(onRail: true, effect: effect)
+                    try? await Task.sleep(for: .milliseconds(effect == .expand ? 300 : 150))
+                    let open = model.shown
+                    model.pretendPointer = .some(content.convert(NSPoint(x: frame.midX, y: content.isFlipped ? frame.midY : content.bounds.height - frame.midY), to: nil))
+                    try? await Task.sleep(for: .milliseconds(100))
+                    check(open && model.passingThrough == true, "\(effect): over \(name) the overlay lets the click through")
+                    point(onRail: false, effect: effect)
+                    try? await Task.sleep(for: settled)
+                }
+            }
+        }
+        state.deleteFolder(hiddenGroup.id)
+
         // After switching sidebar styles back and forth, the effects open on the rail that is there and go back.
         var follows = true
         for (compact, visible) in [(false, true), (true, true), (true, false), (true, true), (false, true), (true, true)] {

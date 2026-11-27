@@ -117,6 +117,12 @@ final class RailHoverModel {
     @ObservationIgnored var pretendPointer: NSPoint??
     #endif
 
+    /// The rail's own buttons (the sidebar button, the foot's controls), in the window's SwiftUI coordinates (from the
+    /// top), by who reported them. The overlay always lets the pointer through over them, in every effect: a click there
+    /// is for the button, and the overlay window (which the window server routes the pointer to) swallowed it.
+    @ObservationIgnored private var buttons: [String: CGRect] = [:]
+    func reportButton(_ key: String, frame: CGRect?) { buttons[key] = frame }
+
     @ObservationIgnored private var timer: Timer?
     @ObservationIgnored private var lastRail: CGRect?
     /// Each item's frame, by the views that drew it (one at a time, but a rebuilt one registers before the last goes).
@@ -274,13 +280,22 @@ final class RailHoverModel {
         let onRail = point.map(rail.contains) ?? false
         // Expand opens only from the tiles: over the rail's own buttons (the sidebar button, Tab Groups, Spaces at the foot)
         // the full sidebar would cover them, and a click meant for them landed on it instead.
-        let onTiles = effect != .expand || (point.map { tilesRect(rail)?.contains($0) ?? true } ?? false)
+        // The rail's own buttons are never under the effects: over them they let go at once and let the click through.
+        let overButtons = point.map { point in
+            let height = window.contentView?.bounds.height ?? 0
+            return buttons.values.contains { CGRect(x: $0.minX, y: height - $0.maxY, width: $0.width, height: $0.height).contains(point) }
+        } ?? false
+        let onTiles = !overButtons && (effect != .expand || (point.map { tilesRect(rail)?.contains($0) ?? false } ?? false))
         let onRight = rail.midX > window.frame.width / 2
-        // Expand: the rail's own buttons (outside its tiles) are never under the panel; over them it lets go at once and
-        // lets the click through.
-        let overButtons = effect == .expand && onRail && !onTiles
         let inZone = !overButtons && (onRail || (point.map { zone(rail, onRight: onRight)?.contains($0) ?? false } ?? false))
         let dragging = isDragging()
+        // Magnify steps aside for a drag: its rows and grown icons stayed over the tiles the row moves among, and the
+        // rail's own icons stayed hidden under them.
+        if effect == .magnify && dragging {
+            if passingThrough != true { passingThrough = true; onPassThrough?(true) }
+            if phase != .idle { phase = .idle }
+            return
+        }
         let overLights = point.map { lightsRect()?.insetBy(dx: -4, dy: -4).contains($0) ?? false } ?? false
         let through = !shown || overLights || overButtons || (dragging && !inZone)
         if through != passingThrough { passingThrough = through; onPassThrough?(through) }

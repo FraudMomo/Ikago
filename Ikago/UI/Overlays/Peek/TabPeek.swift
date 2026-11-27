@@ -134,5 +134,6 @@ private final class TabPeekAnchor: NSView {
         if window == nil { retire() }
     }
     func retire() { pending?.cancel(); pending = nil; commands?.hideTabHover(tabID) }
-    isolated deinit { pending?.cancel() }
+    // No `isolated deinit`: rows freed from AppKit's autorelease pool (a list reloading) crashed in the Swift runtime
+    // checking the deinit's actor. Leaving the window retires the card, and the pending work holds the view weakly.
 }

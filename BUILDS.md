@@ -5,6 +5,33 @@ What changed in each release of Ikago, newest first. Add changes under **Unrelea
 
 ## Unreleased
 
+- **Dragging in the sidebar:** a tab or group dropped just above a group could end up inside a group, and among the
+  groups at the top a row dropped between two groups went into one of them. Rows now land exactly where the gap
+  shows. Dropping onto a group's name puts the row in that group. A tab dragged out of a group no longer looks like
+  part of it, and dragging tabs into and out of groups no longer closes Ikago.
+- **Tab order:** in a group that holds other groups, Control-Tab now goes through the tabs in the order the sidebar
+  shows them.
+- **Location on WebKit:** sites asking for your location got no prompt and were always refused. They now ask
+  like every other permission.
+- **Quitting after a link preview:** with Chromium, quitting Ikago while a link preview was open, or after one,
+  could leave it stuck and never quit. It now quits normally.
+- **Importing a damaged file no longer closes Ikago:** some unusual history exports made Ikago close while importing.
+  Now it imports what it can read.
+- **Damaged videos no longer close Ikago:** with Chromium, a damaged or unusual video on X could close Ikago.
+  Now it plays another way.
+- **Crash reports you can pass on:** if Ikago closes unexpectedly, the next launch saves a crash report to your
+  Downloads folder, and it shows in Ikago's downloads list. Nothing is sent anywhere: send the file to the person
+  who asked for it. Help ▸ Save Crash Report saves one on request, with reports from the past week.
+- **Many tabs with Chromium:** with lots of tabs open, closing a tab right after switching to it could close
+  Ikago. That no longer happens.
+- **Google sign-in no longer crashes with Chromium:** entering your email and pressing Next could close Ikago,
+  because macOS ended it when Chromium checked for a phone to sign in with. Ikago now asks for Bluetooth
+  access like other browsers do.
+- **Importing from other browsers:** on recent macOS, Chrome, Safari and other browsers showed an empty "Default
+  profile" or imported nothing, because macOS keeps their data private until you allow it. Import now asks you once
+  to allow each browser, then finds your real profiles and imports the one you use. Safari's saved logins and open
+  tabs need Full Disk Access, and Import now says so with a button that opens the right setting.
+
 ## 0.7.1 — 2026-11-21
 
 - **Chromium 158:** the Chromium engine is updated to Chromium 158 with its latest security fixes. Picture in

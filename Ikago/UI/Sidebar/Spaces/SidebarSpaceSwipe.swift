@@ -86,9 +86,9 @@ final class SidebarSpaceSwipeView: NSView {
         }
     }
 
-    isolated deinit {
-        if let monitor { NSEvent.removeMonitor(monitor) }
-    }
+    // No `isolated deinit`: a view freed from AppKit's autorelease pool crashed in the Swift runtime checking the
+    // deinit's actor. Leaving the window (always before the view goes) already removes the monitor, which holds the view
+    // weakly.
 
     private func handle(_ event: NSEvent) -> NSEvent? {
         guard let window, event.window === window else { return event }

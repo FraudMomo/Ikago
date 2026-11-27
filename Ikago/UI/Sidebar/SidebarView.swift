@@ -35,8 +35,16 @@ struct SidebarView: View {
                     SidebarEssentials(state: state, chrome: chrome, commands: commands)
                     PinnedGroupRows(state: state, chrome: chrome, commands: commands)
                     if gridAbove { SidebarShortcuts(state: state, chrome: chrome, commands: commands) }
-                    TabListView(state: state, chrome: chrome, colors: colors, commands: commands)
-                        .id(state.activeSpaceID).transition(.opacity.combined(with: .offset(x: 18)))
+                    // The native list (lift-to-reorder); the SwiftUI list stays only for "Keep pinned tabs and groups in view",
+                    // which pins the top part above the scrolling list.
+                    Group {
+                        if state.browserPreferences.pinnedRowsStayInView == true {
+                            TabListView(state: state, chrome: chrome, colors: colors, commands: commands)
+                        } else {
+                            SidebarOutlineList(state: state, chrome: chrome, colors: colors, commands: commands)
+                        }
+                    }
+                    .id(state.activeSpaceID).transition(.opacity.combined(with: .offset(x: 18)))
                 }
             }
 

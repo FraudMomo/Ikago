@@ -14,6 +14,17 @@ extension TestDriver {
         case "featurebatchchecks": await FeatureBatchChecks.run(c)
         case "nestedgroupchecks": NestedGroupChecks.run(c)
         case "shortcutchecks": ShortcutChecks.run(c)
+        case "outlinechecks": OutlineChecks.run(c)
+        case "outlinedragchecks": await OutlineDragChecks.run(c)
+        case "raildragchecks": await OutlineDragChecks.run(c, rail: true)
+        case "outlinestresschecks": await OutlineStressChecks.run(c, rail: false)
+        case "railstresschecks": await OutlineStressChecks.run(c, rail: true)
+        case "outlinedropchecks": await OutlineDropChecks.run(c)
+        case "raildropchecks": await OutlineDropChecks.run(c, rail: true)
+        case "outlinebugchecks": await OutlineBugChecks.run(c)
+        case "railbugchecks": await OutlineBugChecks.run(c, rail: true)
+        case "sidebardrag":  // <seed>: one random drag in the sidebar's list, when it is on screen (crash walks)
+            await OutlineDragRig(c)?.randomDrag(seed: UInt64(arg) ?? 1)
         case "reopenchecks": ReopenChecks.run(c)
         case "settingsshot":
             // settingsshot:<category>|<dark or light>|<file.png>[|<width>]: renders Settings to an image.

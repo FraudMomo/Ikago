@@ -36,6 +36,7 @@ struct SidebarRail: View {
                 sidebarToggle(colors)
                     .padding(.leading, Self.tileInset)
                     .opacity(magnified ? 0 : 1)
+                    .modifier(RailButtonArea(key: "top", model: model, reports: !isCopy))
             }
             // Essentials: pinned tabs as tiles at the top (Settings ▸ Show essentials). Off, they are ordinary tiles in the
             // list, or in Top Tabs icon tabs at the start of the tab row.
@@ -50,46 +51,19 @@ struct SidebarRail: View {
                 Capsule().fill(colors.separator).frame(width: 20, height: 1).frame(width: BrowserState.sidebarRailWidth)
                     .opacity(magnified ? 0 : 1)
             }
-            // The full sidebar's order: pinned tabs, groups, a line, New Tab, then the tabs.
-            SidebarScrollView {
-                VStack(alignment: .leading, spacing: 4) {
-                    // Top Tabs can keep groups in the tab row only (Settings ▸ Appearance ▸ Tab Groups).
-                    if !state.showsPinnedGrid && !state.showsSidebarTopTabs {
-                        ForEach(state.pinnedTabs) { tab in tabTile(tab, colors: colors) }
-                    }
-                    // Pinned groups sit with the pins, whatever the group placement: a tile each with a menu of its tabs.
-                    if !magnified {
-                        ForEach(state.pinnedFolders) { folder in
-                            PinnedGroupTile(folder: folder, state: state, chrome: chrome, commands: commands)
-                        }
-                    }
-                    if state.showsGroupsInSidebar {
-                        // Groups in the block; under Top Tabs (no loose tabs here) the ones placed among tabs follow them.
-                        ForEach(state.showsSidebarTopTabs ? state.listedFolders : state.blockFolders) { folder in group(folder, colors: colors) }
-                    }
-                    if !state.showsSidebarTopTabs {
-                        if state.chromeLayout.sidebarShowsNewTab {
-                            if hasItemsAboveNewTab {
-                                Capsule().fill(colors.separator).frame(width: 20, height: 1).frame(width: 36)
-                                    .padding(.vertical, 4)
-                                    .opacity(magnified ? 0 : 1)
-                            }
-                            tile(symbol: "plus", label: "New Tab", colors: colors) { commands?.newTab() }
-                        }
-                        ForEach(state.looseTabs) { tab in tabTile(tab, colors: colors) }
-                        // Below the last tile: a tab dropped here goes last; a group leaves the group it was in.
-                        if !magnified {
-                            Color.clear.frame(width: 36, height: 44).tabListEndDrop(state: state, chrome: chrome)
-                        }
+            // Pinned groups sit with the pins, whatever the group placement: a tile each with a menu of its tabs.
+            if !magnified && !state.pinnedFolders.isEmpty {
+                VStack(spacing: 4) {
+                    ForEach(state.pinnedFolders) { folder in
+                        PinnedGroupTile(folder: folder, state: state, chrome: chrome, commands: commands)
                     }
                 }
-                .padding(.vertical, 2)
                 .padding(.leading, Self.tileInset)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .railSpace(surface.list) { model.listScrolled(surface.list) }
-                // The rows live in the scroll view's own host: an animation set out here never reaches them.
-                .animation(reduceMotion ? nil : .ikagoQuick, value: state.listedFolders.map { $0.id + "@" + ($0.afterTabID ?? "-") })
             }
+            // The full sidebar's order and list (`SidebarOutlineList`): pinned tabs, groups, a line, New Tab, then the
+            // tabs, as tiles. Rows lift and move like the full sidebar's, with the same slot where they will land.
+            SidebarOutlineList(state: state, chrome: chrome, colors: colors, commands: commands,
+                               rail: railCells(colors, model: model))
             .frame(maxHeight: .infinity)
             // The foot stays a column of icons, wider or not.
             Group {
@@ -99,11 +73,13 @@ struct SidebarRail: View {
                         sidebarToggle(colors)
                     } else {
                         ChromeItemView(item: item, state: state, colors: colors, commands: commands, size: 32)
+                            .recordLayout("rail-foot-\(item.rawValue)", enabled: !magnified)
                     }
                 }
             }
             .opacity(magnified ? 0 : 1)
             .frame(width: BrowserState.sidebarRailWidth)
+            .modifier(RailButtonArea(key: "foot", model: model, reports: !isCopy))
         }
         .padding(.bottom, 10)
         // While Expand's sidebar lies over this one, this one's items step aside: through a see-through material they
@@ -179,63 +155,90 @@ struct SidebarRail: View {
 
     // MARK: Groups
 
-    @ViewBuilder private func group(_ folder: TabFolder, colors: Palette) -> some View {
-        let tabs = state.tabs(inSubtree: folder)
-        let hidden = folder.isClosed == true
-        let open = folder.isOpen && !hidden
-        let tint = folder.tagValue?.color ?? colors.secondary
-        VStack(spacing: 0) {
-            // The same open state as the full sidebar's group, so switching between them keeps it.
-            // A hidden group shows faded with a mark; a click brings it back with its tabs.
-            Button {
-                if hidden { state.reopenFolder(folder.id) } else { state.toggleFolder(folder.id) }
-            } label: {
-                railIcon(folder.name, colors: colors) {
-                    FolderIcon(folder: folder, colors: colors, size: 15)
-                    .railMagnify(.folder(folder.id), iconSize: 15)
-                    .opacity(hidden ? 0.35 : TabListView.isSleeping(tabs, activeID: state.activeTabID) && !open ? 0.45 : 1)
-                    .overlay(alignment: .topTrailing) {
-                        if hidden && !magnified {
-                            Image(systemName: "eye.slash.fill").font(.system(size: 7.5, weight: .bold))
-                                .foregroundStyle(colors.secondary).offset(x: 8, y: -7)
+    /// The rail's list as tiles (`OutlineRailCells`): a tab, a split row's tabs stacked, a group, the New Tab tile.
+    private func railCells(_ colors: Palette, model: RailHoverModel) -> OutlineRailCells {
+        let state = state
+        let rowsAbove = hasItemsAboveNewTab
+        return OutlineRailCells(
+            cell: { row in
+                switch row.kind {
+                case .tabs(let ids):
+                    return AnyView(VStack(alignment: .leading, spacing: 4) {
+                        ForEach(ids.compactMap(state.tab)) { tab in tabTile(tab, colors: colors, listed: true) }
+                    })
+                case .group(let id):
+                    guard let folder = state.folders.first(where: { $0.id == id }) else { return AnyView(EmptyView()) }
+                    return AnyView(groupTile(folder, colors: colors))
+                case .divider:
+                    return AnyView(VStack(alignment: .leading, spacing: 4) {
+                        if rowsAbove {
+                            Capsule().fill(colors.separator).frame(width: 20, height: 1).frame(width: 36)
+                                .padding(.vertical, 4)
+                                .opacity(magnified ? 0 : 1)
                         }
-                    }
-                    .frame(width: 36, height: 36)
-                    .overlay(alignment: .bottomTrailing) {
-                        // How many tabs it holds, as a small badge that never covers the icon (Settings ▸ Show tab counts).
-                        if state.showsGroupTabCounts && !hidden && !magnified { badge(tabs.count, colors: colors, open: open) }
+                        tile(symbol: "plus", label: "New Tab", colors: colors) { commands?.newTab() }
+                    })
+                }
+            },
+            height: { row in
+                switch row.kind {
+                case .tabs(let ids): CGFloat(ids.count) * 36 + CGFloat(max(0, ids.count - 1)) * 4
+                case .group: 36
+                case .divider: rowsAbove ? 32 + 9 + 4 : 32
+                }
+            },
+            filter: { outline in
+                // Essentials (or the tab row under Top Tabs) show every pin; groups kept in the tab row stay there.
+                let pinsElsewhere = state.showsPinnedGrid || state.showsSidebarTopTabs
+                let groups = state.showsGroupsInSidebar
+                @MainActor func keep(_ rows: [SidebarOutline.Row]) -> [SidebarOutline.Row] {
+                    rows.compactMap { row in
+                        if row.groupID != nil {
+                            guard groups else { return nil }
+                            var row = row
+                            row.children = keep(row.children)
+                            return row
+                        }
+                        if pinsElsewhere, let id = row.tabIDs.first, state.tab(id)?.pinned == true { return nil }
+                        return row
                     }
                 }
-                .frame(height: 36)
-                .background {
-                    // An active tab hidden in a closed group still shows where it is.
-                    if !open, !magnified, tabs.contains(where: { $0.id == state.activeTabID }) {
-                        RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(colors.selected)
-                            .matchedGeometryEffect(id: "rail-active", in: selection)
-                    }
+                return SidebarOutline(rows: keep(outline.rows))
+            },
+            space: surface.list,
+            onScroll: { [surface] in model.listScrolled(surface.list) },
+            inset: Self.tileInset)
+    }
+
+    /// A group's tile: its icon in its colour (faded while its tabs sleep) and a count badge; a click (the list's) opens
+    /// or shuts it, and its tabs follow it as tiles of their own.
+    private func groupTile(_ folder: TabFolder, colors: Palette) -> some View {
+        let tabs = state.tabs(inSubtree: folder)
+        let open = folder.isOpen
+        return railIcon(folder.name, colors: colors) {
+            FolderIcon(folder: folder, colors: colors, size: 15)
+                .railMagnify(.folder(folder.id), iconSize: 15)
+                .opacity(TabListView.isSleeping(tabs, activeID: state.activeTabID) && !open ? 0.45 : 1)
+                .frame(width: 36, height: 36)
+                .overlay(alignment: .bottomTrailing) {
+                    // How many tabs it holds, as a small badge that never covers the icon (Settings ▸ Show tab counts).
+                    if state.showsGroupTabCounts && !magnified { badge(tabs.count, colors: colors, open: open) }
                 }
-                .contentShape(RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
-            }
-            .buttonStyle(RailButtonStyle(colors: colors, quiet: magnified))
-            .help(effect != nil ? "" : hidden ? "\(folder.name) · hidden — click to show" : "\(folder.name) · \(tabs.count) \(tabs.count == 1 ? "tab" : "tabs")")
-            .contextMenu { FolderContextMenu(folder: folder, state: state, commands: commands) }
-            // Dragged like the full sidebar's group headers: tabs dropped on it join the group; groups go before,
-            // into or after it.
-            .modifier(RailGroupDrag(folder: folder, state: state, chrome: chrome, colors: colors))
-            // Opens and closes like the full sidebar's groups: the rows' measured height grows on the same spring and
-            // the clip reveals them, so the tiles below move with it.
-            RailDisclosure(isOpen: open) {
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(tabs) { tab in tabTile(tab, colors: colors) }
-                }
-                .padding(.top, 4).padding(.bottom, 3)
+        }
+        .frame(height: 36)
+        .background {
+            // An active tab hidden in a closed group still shows where it is.
+            if !open, !magnified, tabs.contains(where: { $0.id == state.activeTabID }) {
+                RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(colors.selected)
             }
         }
-        // The open group's tint sits behind the tile and its tabs; it never takes clicks (it used to cover the tile, so
-        // a group opened but couldn't be closed).
-        .background(RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(tint.opacity(0.12))
-            .opacity(open && !magnified ? 1 : 0).allowsHitTesting(false))
-        .animation(reduceMotion ? nil : .groupDisclosure, value: open)
+        .contentShape(RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
+        .modifier(RailTileHover(colors: colors, quiet: magnified))
+        .help(effect != nil ? "" : "\(folder.name) · \(tabs.count) \(tabs.count == 1 ? "tab" : "tabs")")
+        .contextMenu { FolderContextMenu(folder: folder, state: state, commands: commands) }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(folder.name)
+        .accessibilityAddTraits(.isButton)
     }
 
     private func badge(_ count: Int, colors: Palette, open: Bool) -> some View {
@@ -250,53 +253,52 @@ struct SidebarRail: View {
 
     // MARK: Tiles
 
-    private func tabTile(_ tab: TabItem, colors: Palette, essential: Bool = false) -> some View {
+    /// A tab's tile. In the list (`listed`) the list takes its clicks and drags (select, lift and move); Essentials are
+    /// buttons with their own drags.
+    @ViewBuilder
+    private func tabTile(_ tab: TabItem, colors: Palette, essential: Bool = false, listed: Bool = false) -> some View {
         let active = tab.id == state.activeTabID
-        return Button { if NSEvent.modifierFlags.contains(.option) { commands?.peekTab(tab.id) } else { state.select(tab.id) } } label: {
-            railIcon(tab.displayTitle, colors: colors) {
-                FaviconView(tab: tab, size: essential ? 18 : 16)
-                    .railMagnify(.tab(tab.id), iconSize: essential ? 18 : 16)
-                    .opacity(tab.isUnloaded && !active ? 0.55 : 1)
-                    .frame(width: 36, height: 36)
+        let face = railIcon(tab.displayTitle, colors: colors) {
+            FaviconView(tab: tab, size: essential ? 18 : 16)
+                .railMagnify(.tab(tab.id), iconSize: essential ? 18 : 16)
+                .opacity(tab.isUnloaded && !active ? 0.55 : 1)
+                .frame(width: 36, height: 36)
+        }
+            .frame(height: 36)
+            .background {
+                if essential && !colors.glass && !magnified {
+                    RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(colors.text.opacity(0.06))
+                }
             }
-                .frame(height: 36)
-                .background {
-                    if essential && !colors.glass && !magnified {
-                        RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(colors.text.opacity(0.06))
-                    }
+            // Essentials are glass tiles with Liquid Glass on, like the sidebar's pinned grid.
+            .glassControl(RoundedRectangle(cornerRadius: Radius.row, style: .continuous), colors, active: essential && !magnified)
+            .background {
+                if active && !magnified {
+                    RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(colors.selected)
+                        .matchedGeometryEffect(id: "rail-active", in: selection)
                 }
-                // Essentials are glass tiles with Liquid Glass on, like the sidebar's pinned grid.
-                .glassControl(RoundedRectangle(cornerRadius: Radius.row, style: .continuous), colors, active: essential && !magnified)
-                .background {
-                    if active && !magnified {
-                        RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(colors.selected)
-                            .matchedGeometryEffect(id: "rail-active", in: selection)
-                    }
+            }
+            .contentShape(RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
+        if listed {
+            face
+                .modifier(RailTileHover(colors: colors, quiet: magnified))
+                .modifier(RailTileExtras(tab: tab, colors: colors, magnified: magnified, state: state, commands: commands))
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(tab.displayTitle)
+                .accessibilityAddTraits(.isButton)
+        } else {
+            Button { if NSEvent.modifierFlags.contains(.option) { commands?.peekTab(tab.id) } else { state.select(tab.id) } } label: { face }
+                .buttonStyle(RailButtonStyle(colors: colors, quiet: magnified))
+                .modifier(RailTileExtras(tab: tab, colors: colors, magnified: magnified, state: state, commands: commands))
+                // Essentials' drags: reorder among them, onto the page to split it, or out of the window into a new one.
+                .onDrag {
+                    chrome.beginTabDrag(tab.id)
+                    return TabDrag.provider(tab.id)
+                } preview: {
+                    TabDragPreview(tab: tab, colors: colors, count: chrome.selectedTabIDs.contains(tab.id) ? chrome.selectedTabIDs.count : 1)
                 }
-                .contentShape(RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
+                .tabDropTarget(tab, axis: .vertical, state: state, chrome: chrome)
         }
-        .buttonStyle(RailButtonStyle(colors: colors, quiet: magnified))
-        // A mute badge on the tile while it plays or is muted.
-        .overlay(alignment: .bottomTrailing) {
-            if !magnified { audio(tab, colors: colors) }
-        }
-        .tabPeek(tab, commands: commands)
-        .contextMenu { TabContextMenu(tab: tab, state: state, commands: commands) }
-        // The full sidebar's drags: reorder among the tiles, into a group, onto the page to split it, or out of the
-        // window into a new one.
-        .onDrag {
-            chrome.beginTabDrag(tab.id)
-            return TabDrag.provider(tab.id)
-        } preview: {
-            TabDragPreview(tab: tab, colors: colors, count: chrome.selectedTabIDs.contains(tab.id) ? chrome.selectedTabIDs.count : 1)
-        }
-        .tabDropTarget(tab, axis: .vertical, state: state, chrome: chrome)
-    }
-
-    private func audio(_ tab: TabItem, colors: Palette) -> some View {
-            TabAudioButton(tab: tab, colors: colors, commands: commands)
-                .background { if tab.isMuted || tab.isPlayingAudio { Circle().fill(colors.panel) } }
-                .offset(x: 5, y: 3)
     }
 
     /// A tile's icon in its 36 pt box. Its name shows on hover, or in Magnify's tab row (`RailMagnifyRow`).
@@ -340,6 +342,43 @@ struct SidebarRail: View {
     }
 }
 
+/// A tab tile's sound badge, hover card and menu.
+private struct RailTileExtras: ViewModifier {
+    let tab: TabItem
+    let colors: Palette
+    let magnified: Bool
+    let state: BrowserState
+    weak var commands: BrowserCommands?
+
+    func body(content: Content) -> some View {
+        content
+            // A mute badge on the tile while it plays or is muted.
+            .overlay(alignment: .bottomTrailing) {
+                if !magnified {
+                    TabAudioButton(tab: tab, colors: colors, commands: commands)
+                        .background { if tab.isMuted || tab.isPlayingAudio { Circle().fill(colors.panel) } }
+                        .offset(x: 5, y: 3)
+                }
+            }
+            .tabPeek(tab, commands: commands)
+            .contextMenu { TabContextMenu(tab: tab, state: state, commands: commands) }
+    }
+}
+
+/// A list tile's faint fill under the pointer (the list takes its clicks, so there is no pressed state).
+private struct RailTileHover: ViewModifier {
+    let colors: Palette
+    var quiet = false
+    @State private var hovering = false
+
+    func body(content: Content) -> some View {
+        content
+            .background(RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(colors.text.opacity(quiet || !hovering ? 0 : 0.06)))
+            .sidebarHover($hovering)
+            .animation(.easeOut(duration: hovering ? 0.1 : 0.2), value: hovering)
+    }
+}
+
 /// A faint fill under the pointer, deeper while pressed.
 private struct RailButtonStyle: ButtonStyle {
     let colors: Palette
@@ -353,57 +392,6 @@ private struct RailButtonStyle: ButtonStyle {
                 .fill(colors.text.opacity(quiet ? 0 : configuration.isPressed ? 0.12 : hovering ? 0.06 : 0)))
             .sidebarHover($hovering)
             .animation(.easeOut(duration: hovering ? 0.1 : 0.2), value: hovering)
-    }
-}
-
-/// A rail group's tiles, opened and closed like the full sidebar's rows (`SidebarFolderSection`): mounted shut first so
-/// their height is known, then only the frame's height animates on `Animation.groupDisclosure` while the clip reveals them.
-private struct RailDisclosure<Content: View>: View {
-    let isOpen: Bool
-    @ViewBuilder let content: Content
-    @State private var open: Bool?
-    @State private var mounted = false
-    @State private var height: CGFloat?
-    @State private var closing: DispatchWorkItem?
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        let shown = open ?? isOpen
-        Group {
-            if mounted || shown {
-                content
-                    .fixedSize(horizontal: false, vertical: true)
-                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
-                    .frame(height: shown ? height : 0, alignment: .top)
-                    .clipped()
-                    .opacity(shown ? 1 : 0)
-                    // Shut, its tiles are not under the pointer (`railMagnify`).
-                    .environment(\.railItemsHidden, !shown)
-            }
-        }
-        .onAppear { if open == nil { open = isOpen; mounted = isOpen } }
-        .onChange(of: isOpen) { _, now in set(now) }
-    }
-
-    private func set(_ now: Bool) {
-        closing?.cancel()
-        let animation: Animation? = reduceMotion ? nil : .groupDisclosure
-        if now {
-            if !mounted {
-                mounted = true
-                var transaction = Transaction()
-                transaction.disablesAnimations = true
-                withTransaction(transaction) { open = false }
-                DispatchQueue.main.async { withAnimation(animation) { open = true } }
-            } else {
-                withAnimation(animation) { open = true }
-            }
-        } else {
-            withAnimation(animation) { open = false }
-            let work = DispatchWorkItem { mounted = false }
-            closing = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + (reduceMotion ? 0 : Animation.groupDisclosureDuration * 1.6), execute: work)
-        }
     }
 }
 
@@ -437,38 +425,21 @@ struct RailTabCloseButton: View {
     }
 }
 
-/// A rail group tile as a drag source and target, like the full sidebar's group header (`SidebarFolderSection`).
-private struct RailGroupDrag: ViewModifier {
-    let folder: TabFolder
-    let state: BrowserState
-    let chrome: ChromeModel
-    let colors: Palette
-    @State private var targeted = false
-    @State private var zone: GroupDropZone?
-    @State private var height = MeasuredLength(36)
+/// Tells the hover effects where the rail's own buttons are (window coordinates from the top), so their overlay always
+/// lets clicks through to them (`RailHoverModel.reportButton`).
+private struct RailButtonArea: ViewModifier {
+    let key: String
+    let model: RailHoverModel
+    let reports: Bool
+    @State private var id = UUID()
 
     func body(content: Content) -> some View {
-        content
-            .overlay {
-                if targeted {
-                    RoundedRectangle(cornerRadius: Radius.row, style: .continuous)
-                        .strokeBorder(folder.tagValue?.color ?? colors.accent, lineWidth: 1.5)
-                }
-            }
-            .overlay(alignment: zone == .after ? .bottom : .top) {
-                if zone == .before || zone == .after { GroupInsertionLine(colors: colors).offset(y: zone == .after ? 1 : -1) }
-            }
-            .opacity(chrome.draggingFolderID == folder.id ? 0.5 : 1)
-            .onDrag {
-                chrome.beginFolderDrag(folder.id)
-                return GroupDrag.provider(folder.id)
-            } preview: {
-                GroupDragPreview(folder: folder, colors: colors)
-            }
-            .onDrop(of: [.ikagoTab, .ikagoGroup], delegate: FolderHeaderDropDelegate(
-                folder: folder, state: state, chrome: chrome, length: height, tabTargeted: $targeted, zone: $zone))
-            .onChange(of: chrome.draggingFolderID) { _, id in if id == nil { zone = nil } }
-            .animation(.ikagoQuick, value: targeted)
-            .animation(.ikagoQuick, value: zone)
+        if reports {
+            content
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { model.reportButton(key + id.uuidString, frame: $0) }
+                .onDisappear { model.reportButton(key + id.uuidString, frame: nil) }
+        } else {
+            content
+        }
     }
 }

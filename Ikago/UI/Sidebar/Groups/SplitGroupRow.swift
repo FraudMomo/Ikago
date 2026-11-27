@@ -48,6 +48,8 @@ struct SplitGroupRow: View {
     let colors: Palette
     let selection: Namespace.ID
     weak var commands: BrowserCommands?
+    /// Off in the native list (`SidebarOutlineList`), which takes the drops itself.
+    var dropsHere = true
     @State private var hovering = false
 
     var body: some View {
@@ -86,7 +88,7 @@ struct SplitGroupRow: View {
             }
         }
         .contentShape(Rectangle())
-        .tabDropTarget(tabs[0], axis: .vertical, state: state, chrome: chrome)
+        .modifier(SplitRowDrops(tab: tabs[0], state: state, chrome: chrome, on: dropsHere))
         .sidebarHover($hovering)
         .animation(.ikagoQuick, value: hovering)
         .contextMenu {
@@ -120,5 +122,15 @@ struct SplitChip: View {
         .overlay(alignment: .bottom) { PageLoadProgress(tab: tab, colors: colors).padding(.horizontal, 7) }
         .contentShape(Rectangle())
         .help(tab.displayTitle)
+    }
+}
+
+private struct SplitRowDrops: ViewModifier {
+    let tab: TabItem
+    let state: BrowserState
+    let chrome: ChromeModel
+    let on: Bool
+    func body(content: Content) -> some View {
+        if on { content.tabDropTarget(tab, axis: .vertical, state: state, chrome: chrome) } else { content }
     }
 }

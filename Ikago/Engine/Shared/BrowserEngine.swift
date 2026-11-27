@@ -19,5 +19,5 @@ extension BrowserPreferences {
 }
 
 enum CEFVersion {
-    static let chromium = "158.0.8127.18"
+    static let chromium = "158.0.8127.89"
 }

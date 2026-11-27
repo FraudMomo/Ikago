@@ -38,7 +38,22 @@ extension View {
 extension View {
     /// Middle-click (the wheel button) runs `action`. SwiftUI has no gesture for it.
     func onMiddleClick(_ action: @escaping () -> Void) -> some View {
-        overlay(MiddleClickCatcher(action: action))
+        modifier(MiddleClick(action: action))
+    }
+}
+
+extension EnvironmentValues {
+    /// The view is being drawn into a picture (`ImageRenderer`, as for a lifted drag row), which can't draw AppKit
+    /// views: interaction-only AppKit overlays leave themselves out, or the picture shows a placeholder over them.
+    @Entry var drawsPicture = false
+}
+
+private struct MiddleClick: ViewModifier {
+    let action: () -> Void
+    @Environment(\.drawsPicture) private var drawsPicture
+
+    func body(content: Content) -> some View {
+        if drawsPicture { content } else { content.overlay(MiddleClickCatcher(action: action)) }
     }
 }
 

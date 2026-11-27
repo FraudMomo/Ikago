@@ -239,26 +239,11 @@ extension BrowserState {
 }
 
 extension BrowserState {
+    /// Tabs in the sidebar's order: the pin grid, then the list's rows (`sidebarOutline`). Hidden groups aren't in the
+    /// sidebar, so ⌃Tab and closing tabs never land on them.
     var orderedSidebarTabs: [TabItem] {
-        let rows = pinnedTabs.filter { !presentsSidebarPinGrid || $0.pinAsRow || splitGroup(of: $0.id) != nil }
-        let folderIDs = shownFolderIDs
-        let anchors = Dictionary(grouping: rows) { tab in tab.pinAfterFolderID.flatMap { folderIDs.contains($0) ? $0 : nil } ?? "" }
         let grid = presentsSidebarPinGrid ? sidebarGridPinnedTabs : []
-        let ordered = orderedSpaceFolders.filter { folderIDs.contains($0.id) }
-        // A group with the groups inside it, then the pins placed after it. Hidden groups aren't in the sidebar, so ⌃Tab
-        // and closing tabs never land on them.
-        func subtree(_ root: TabFolder) -> [TabItem] {
-            let ids = folderSubtreeIDs(root.id)
-            return ordered.filter { ids.contains($0.id) }.flatMap { tabs(in: $0) + (anchors[$0.id] ?? []) }
-        }
-        let block = blockFolders.flatMap(subtree)
-        let loose = looseEntries.flatMap { entry -> [TabItem] in
-            switch entry {
-            case .tab(let tab): [tab]
-            case .folder(let folder): subtree(folder)
-            }
-        }
-        return grid + (anchors[""] ?? []) + block + loose
+        return grid + sidebarOutline.tabOrder.compactMap { tab($0) }
     }
 
     /// Groups the sidebar shows (listed groups and the shown groups inside them): pins placed after any other group
