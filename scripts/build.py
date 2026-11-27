@@ -17,8 +17,16 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 STATE = ROOT/'out/build-process.json'
-APPS = {'release': 'build/Ikago.app', 'checks': 'build/checks/Ikago.app', 'debug': 'build/debug/Ikago.app'}
-SWIFT_FLAGS = {'release': ['-O'], 'checks': ['-Onone', '-D', 'IKAGO_CHECKS'], 'debug': ['-Onone', '-D', 'DEBUG']}
+APPS = {'release': 'build/Ikago.app', 'checks': 'build/checks/Ikago.app', 'debug': 'build/debug/Ikago.app',
+        'asan': 'build/asan/Ikago.app'}
+SWIFT_FLAGS = {'release': ['-O'], 'checks': ['-Onone', '-D', 'IKAGO_CHECKS'], 'debug': ['-Onone', '-D', 'DEBUG'],
+               # Address Sanitizer: the debug build with Ikago's Swift and its Chromium bridge instrumented (not Chromium).
+               'asan': ['-Onone', '-D', 'DEBUG', '-sanitize=address']}
+
+
+def cef_build(flavor):
+    """The bridge's build folder: the sanitizer build keeps its own, so it never mixes with the others."""
+    return ROOT/('out/cef-asan' if flavor == 'asan' else 'out/cef')
 
 
 def compile_swift(app, flavor, threads):
@@ -31,8 +39,8 @@ def compile_swift(app, flavor, threads):
     (app/'Contents/MacOS').mkdir(parents=True, exist_ok=True)
     return ['xcrun', 'swiftc', '-module-cache-path', str(ROOT/'out/ModuleCache'), '-swift-version', '6',
             *SWIFT_FLAGS[flavor], '-whole-module-optimization', '-num-threads', str(threads),
-            '-target', 'arm64-apple-macos26.0', '-I', str(ROOT/'CEF/Bridge'), '-I', str(ROOT/'out/cef'),
-            '-L', str(ROOT/'out/cef'), '-lIKCEFBridge', '-L', str(ROOT/'out/cef/libcef_dll_wrapper'), '-lcef_dll_wrapper',
+            '-target', 'arm64-apple-macos26.0', '-I', str(ROOT/'CEF/Bridge'), '-I', str(cef_build(flavor)),
+            '-L', str(cef_build(flavor)), '-lIKCEFBridge', '-L', str(cef_build(flavor)/'libcef_dll_wrapper'), '-lcef_dll_wrapper',
             '-L', str(ROOT/'out/svtav1/install/lib'), '-lSvtAv1Enc', '-lc++', '-Xlinker', '-ObjC', '-framework', 'AppKit', '-framework', 'WebKit', '-framework', 'Security',
             '-framework', 'CoreAudio', '-framework', 'AVFoundation', '-framework', 'Accelerate',
             '-F', str(ROOT/'.sparkle/Sparkle'), '-framework', 'Sparkle', '-Xlinker', '-rpath', '-Xlinker', '@executable_path/../Frameworks', '-o', str(app/'Contents/MacOS/Ikago'), *map(str, sorted(snapshot.rglob('*.swift')))]
@@ -89,10 +97,12 @@ def main():
          '-DCMAKE_OSX_ARCHITECTURES=arm64', '-DCMAKE_OSX_DEPLOYMENT_TARGET=26.0', '-DBUILD_SHARED_LIBS=OFF', '-DBUILD_APPS=OFF',
          '-DBUILD_TESTING=OFF', '-DREPRODUCIBLE_BUILDS=ON', '-DLOG_QUIET=ON', '-DCMAKE_INSTALL_PREFIX=' + str(ROOT/'out/svtav1/install')],
         ['cmake', '--build', str(ROOT/'out/svtav1/build'), '--target', 'install', '--parallel', str(args.jobs)],
-        ['cmake', '-S', str(ROOT/'CEF'), '-B', str(ROOT/'out/cef'), '-G', 'Ninja', '-DCMAKE_BUILD_TYPE=Release', '-DCMAKE_OSX_ARCHITECTURES=arm64'],
-        ['cmake', '--build', str(ROOT/'out/cef'), '--parallel', str(args.jobs)],
+        ['cmake', '-S', str(ROOT/'CEF'), '-B', str(cef_build(args.flavor)), '-G', 'Ninja', '-DCMAKE_BUILD_TYPE=Release', '-DCMAKE_OSX_ARCHITECTURES=arm64',
+         *([f'-DCMAKE_{lang}_FLAGS=-fsanitize=address -fno-omit-frame-pointer' for lang in ('C', 'CXX', 'OBJCXX')]
+           + ['-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'] if args.flavor == 'asan' else [])],
+        ['cmake', '--build', str(cef_build(args.flavor)), '--parallel', str(args.jobs)],
         lambda: compile_swift(app, args.flavor, min(4, args.jobs)),
-        [sys.executable, str(ROOT/'scripts/package_app.py'), str(app), args.flavor],
+        [sys.executable, str(ROOT/'scripts/package_app.py'), str(app), args.flavor, str(cef_build(args.flavor))],
     ]
     try:
         for step in commands:

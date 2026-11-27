@@ -1,5 +1,6 @@
 #if DEBUG
 import AppKit
+import IOBluetooth
 import SwiftUI
 import WebKit
 
@@ -14,6 +15,15 @@ enum TestDriver {
         let env = ProcessInfo.processInfo.environment
         guard env["IKAGO_TEST_MODE"] != nil, let script = env["IKAGO_TEST_ACTIONS"] else { return }
         setvbuf(stdout, nil, _IOLBF, 0)  // keep output if the process dies
+        // Only a normal quit runs exit handlers: no line here after an early end means the process was killed.
+        atexit { fputs("IKTEST exit\n", stdout); fflush(stdout) }
+        print("IKTEST pid \(getpid())")  // so the crash explorer only takes reports from its own launch
+        // Why a walk ended: every window that closes, and what is left open afterwards.
+        NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: nil, queue: nil) { note in
+            let window = note.object as? NSWindow
+            let left = NSApp.windows.filter { $0 !== window && $0.isVisible }.map { "\(type(of: $0))" }
+            print("IKTEST windowclose \(window.map { "\(type(of: $0)) main=\($0.canBecomeMain) visible=\($0.isVisible)" } ?? "?") left=\(left)")
+        }
         let actions = script.split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces) }
         Task { @MainActor in
             for action in actions { await perform(action, controller) }
@@ -115,8 +125,146 @@ enum TestDriver {
             let overlay = c.window?.contentView?.subviews.first { $0 is PerformanceOverlay }
             print("IKTEST perfstats pid=\(getpid()) frame=\(overlay?.frame ?? .zero) text=\(overlay.map(labels) ?? [])")
         case "new": state.newTab(url: arg)
+        case "tabs":  // <count>[,<url>]: opens that many background tabs (the url gets ?n=<index>)
+            let parts = arg.split(separator: ",", maxSplits: 1).map(String.init)
+            let url = parts.count > 1 ? parts[1] : "about:blank"
+            for index in 0..<(Int(parts.first ?? "") ?? 50) {
+                _ = state.newTab(url: url == "about:blank" ? url : "\(url)?n=\(index)", select: false)
+            }
+            print("IKTEST tabs count=\(state.tabs.count)")
+        case "importtabs":  // <count>[,<url>]: runs Ikago's own import merge with that many tabs (some pinned, most in
+            // groups, like another browser's window), plus bookmarks and history, into the current Space; nothing is read from disk
+            let parts = arg.split(separator: ",", maxSplits: 1).map(String.init)
+            let count = Int(parts.first ?? "") ?? 100, base = parts.count > 1 ? parts[1] : "https://example.com/"
+            var data = BrowserImportData()
+            data.sourceName = "Test Browser"
+            data.tabs = (0..<count).map { index in
+                let group = index % 5 == 4 ? nil : "Group \(index / 12)"
+                return ImportTab(url: "\(base)?import=\(index)", title: "Imported \(index)", pinned: index < 3,
+                                 group: group, groupID: group.map { "g-\($0)" }, groupColor: "blue", groupCollapsed: index % 24 >= 12)
+            }
+            data.bookmarks = (0..<min(count * 10, 4000)).map {
+                ImportedBookmark(url: "\(base)?bookmark=\($0)", title: "Bookmark \($0)", folders: ["Bookmarks Bar", "Folder \($0 / 50)"])
+            }
+            data.history = (0..<min(count * 10, 1000)).map { Visit(url: "\(base)?visit=\($0)", title: "Visit \($0)", time: UInt64(Date().timeIntervalSince1970 * 1000) - UInt64($0) * 60_000) }
+            var selection = ImportSelection()
+            selection.passwords = false
+            let report = await state.applyImport(data, selection: selection, to: state.activeSpaceID)
+            print("IKTEST importtabs count=\(state.tabs.count) folders=\(state.folders.count) \(report.summary)")
+        case "cdptype":  // <text>: inserts text into the focused field of the active Chromium page (DevTools Input)
+            if let tab = c.activeController?.page as? CEFWebTab {
+                c.window?.makeFirstResponder(tab.contentView)
+                _ = try? await tab.devTools("Runtime.evaluate", ["expression": "document.querySelector('input[type=email],input[type=text]')?.focus()"])
+                _ = try? await tab.devTools("Input.insertText", ["text": arg])
+                print("IKTEST cdptype ok")
+            } else { print("IKTEST cdptype not a Chromium page") }
+        case "realimport":  // <browser>: today's flow on the real home folder, read only: counts what it could read, imports nothing
+            let home = FileManager.default.homeDirectoryForCurrentUser
+            let found = BrowserProfileDiscovery.discover(home: home, installedBrowsers: BrowserProfileDiscovery.installedBrowsers())
+            guard let source = found.first(where: { $0.browser == arg && $0.preferred }) ?? found.first(where: { $0.browser == arg }) else {
+                print("IKTEST realimport \(arg): not discovered"); break
+            }
+            print("IKTEST realimport \(arg): discovered \(source.name) at \(source.directory.lastPathComponent)")
+            do {
+                let grant = try await BrowserImportAccess.prepare(source)
+                defer { grant?.end() }
+                let data = try await Task.detached { try BrowserProfileImporter.read(source.directory, kind: source.kind, decryptWith: nil) }.value
+                print("IKTEST realimport \(arg): bookmarks=\(data.bookmarks.count) history=\(data.history.count) tabs=\(data.tabs.count) cookies=\(data.cookies.count) accessIssues=\(data.accessIssues)")
+                for note in data.notes { print("IKTEST realimport note: \(note.prefix(160))") }
+            } catch { print("IKTEST realimport \(arg): error \(error)") }
+        case "accesspanel":  // <path under home>: the folder picker at that folder; then whether its files open
+            let url = FileManager.default.homeDirectoryForCurrentUser.appending(path: arg)
+            let panel = NSOpenPanel()
+            panel.message = "Access test: click Allow to let this test build read this folder."
+            panel.prompt = "Allow"
+            panel.canChooseFiles = false; panel.canChooseDirectories = true
+            panel.directoryURL = url
+            NSApp.activate()
+            let response = panel.runModal()
+            print("IKTEST accesspanel response=\(response == .OK) selected=\(panel.url?.path ?? "-")")
+            let listed = (try? FileManager.default.contentsOfDirectory(atPath: url.path).count).map { "list ok (\($0))" } ?? "list denied"
+            let child = ["Local State", "Bookmarks.plist", "Default/Bookmarks"].map { url.appending(path: $0) }
+                .first { FileManager.default.fileExists(atPath: $0.path) }
+            let opened = child.map { file in (try? FileHandle(forReadingFrom: file)).map { try? $0.close(); return "\(file.lastPathComponent) open ok" } ?? "\(file.lastPathComponent) denied" } ?? "-"
+            print("IKTEST accesspanel after: \(listed); \(opened)")
+            if FileManager.default.fileExists(atPath: url.appending(path: "Default/History").path) {
+                let history = (try? FileHandle(forReadingFrom: url.appending(path: "Default/History"))).map { try? $0.close(); return "ok" } ?? "denied"
+                print("IKTEST accesspanel after: Default/History \(history)")
+            }
+        case "pressure":  // <warning|critical|normal>: what macOS memory pressure makes Ikago do, in every window
+            let level: BrowserMemoryPressure = arg == "critical" ? .critical : arg == "normal" ? .normal : .warning
+            for window in [c] + BrowserWindows.others { await window.content.memoryManagement.reclaim(level) }
+            print("IKTEST pressure \(arg) tabs=\(state.tabs.count)")
+        case "ask":  // <location|notifications>: the page asks; walks answer with permission:block|dismiss, never a macOS prompt
+            let request = arg == "notifications" ? "Notification.requestPermission()" : "navigator.geolocation.getCurrentPosition(() => {}, () => {})"
+            if let tab = c.activeController?.page as? CEFWebTab {
+                _ = try? await tab.devTools("Runtime.evaluate", ["expression": request, "userGesture": true])
+            } else { _ = try? await c.activeController?.page?.callAsync("\(request); return true") }
+        case "popup":  // <url>: the page opens a window; Chromium with a click's activation, WebKit's blocker without one
+            let open = "window.open(\(String(reflecting: arg))) !== null"
+            if let tab = c.activeController?.page as? CEFWebTab {
+                _ = try? await tab.devTools("Runtime.evaluate", ["expression": open, "userGesture": true])
+            } else { _ = try? await c.activeController?.page?.callAsync("return \(open)") }
+        case "crashnow":  // ends Ikago the way a crash does, for the crash report saved at the next launch (IKAGO_CRASH_REPORTS=1)
+            CrashReports.shared.note("test crash"); abort()
+        case "pagekind":  // which engine draws the active page (the crash explorer checks every walk ran where it meant to)
+            // The engine this launch runs, then the active page's kind (Ikago's own pages always use WebKit).
+            print("IKTEST pagekind \(c.activeController?.page.map { String(describing: type(of: $0)) } ?? "none") engine=\(BrowserRuntime.engine.rawValue)")
+        case "bluetoothprobe":  // the call Chromium makes for phone passkeys; macOS ends the app if Info.plist lacks the Bluetooth key
+            print("IKTEST bluetooth paired=\((IOBluetoothDevice.pairedDevices() ?? []).count)")
+        case "accessprobe":  // what macOS lets this process open in other browsers' folders: open/list only, nothing read
+            let home = FileManager.default.homeDirectoryForCurrentUser
+            let paths = ["Library/Application Support/Google/Chrome", "Library/Application Support/Google/Chrome/Local State",
+                         "Library/Application Support/Google/Chrome/Default", "Library/Application Support/Google/Chrome/Default/Bookmarks",
+                         "Library/Application Support/Google/Chrome/Default/History", "Library/Application Support/Google/Chrome/Default/Cookies",
+                         "Library/Application Support/Arc/User Data", "Library/Application Support/Firefox/profiles.ini",
+                         "Library/Safari", "Library/Safari/Bookmarks.plist", "Library/Safari/History.db",
+                         "Library/Containers/com.apple.Safari/Data/Library/Cookies/Cookies.binarycookies"]
+            for path in paths {
+                let url = home.appending(path: path)
+                var isDirectory: ObjCBool = false
+                guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else { print("IKTEST access \(path): absent"); continue }
+                do {
+                    if isDirectory.boolValue { print("IKTEST access \(path): list ok (\(try FileManager.default.contentsOfDirectory(atPath: url.path).count))") }
+                    else { try FileHandle(forReadingFrom: url).close(); print("IKTEST access \(path): open ok") }
+                } catch { print("IKTEST access \(path): \((error as NSError).domain) \((error as NSError).code) \((error as NSError).userInfo[NSUnderlyingErrorKey] ?? "")") }
+            }
+            for profile in BrowserProfileDiscovery.discover(home: home, installedBrowsers: BrowserProfileDiscovery.installedBrowsers()) {
+                print("IKTEST discovered \(profile.browser) | \(profile.name) | blocked=\(BrowserImportAccess.blockedResources(profile))")
+            }
+        case "cdpeval":  // <expression>: runs in the active Chromium page's main world as if from a click (probe pages only)
+            if let tab = c.activeController?.page as? CEFWebTab {
+                let result = try? await tab.devTools("Runtime.evaluate", ["expression": arg, "userGesture": true, "awaitPromise": false])
+                print("IKTEST cdpeval \(result.map { "\($0)" }?.prefix(200) ?? "failed")")
+            }
+        case "cdpenter":  // Return through DevTools Input, a trusted key press for the page whether or not Ikago is active
+            if let tab = c.activeController?.page as? CEFWebTab {
+                for type in ["rawKeyDown", "char", "keyUp"] {
+                    _ = try? await tab.devTools("Input.dispatchKeyEvent", ["type": type, "key": "Enter", "code": "Enter",
+                                                                          "windowsVirtualKeyCode": 13, "text": type == "char" ? "\r" : ""])
+                }
+                print("IKTEST cdpenter ok")
+            }
+        case "returnkey":  // a real Return through AppKit, so Ikago's key monitors see it as they see a person's
+            if let window = c.window, let responder = window.firstResponder { print("IKTEST returnkey responder=\(type(of: responder))") }
+            for type in [NSEvent.EventType.keyDown, .keyUp] {
+                if let event = NSEvent.keyEvent(with: type, location: .zero, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                windowNumber: c.window?.windowNumber ?? 0, context: nil, characters: "\r",
+                                                charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36) {
+                    NSApp.postEvent(event, atStart: false)
+                }
+            }
+        case "deactivate": NSApp.deactivate()  // what ⌘Tab to another app does to Ikago
+        case "activate": NSApp.activate(); c.window?.makeKeyAndOrderFront(nil)
+        case "apptoggle":  // <times>: deactivate and reactivate, 0.4 s apart, like ⌘Tab away and back
+            for _ in 0..<(Int(arg) ?? 5) {
+                NSApp.deactivate(); try? await Task.sleep(for: .milliseconds(400))
+                NSApp.activate(); c.window?.makeKeyAndOrderFront(nil); try? await Task.sleep(for: .milliseconds(400))
+            }
+            print("IKTEST apptoggle done")
         case "open": c.open(arg, inNewTab: false)
-        case "close": c.closeCurrentTab(nil)
+        case "close":  // ⌘W, but never on an empty Space, where it closes the window (and the last one quits Ikago)
+            if state.activeTabID == nil { print("IKTEST close skipped: no tab, it would close the window") } else { c.closeCurrentTab(nil) }
         case "reopen": c.reopenClosedTab(nil)
         case "split": c.splitView(nil)
         case "unsplit": c.unsplitView(nil)

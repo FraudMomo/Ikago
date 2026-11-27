@@ -94,7 +94,6 @@ def steps():
         (2, lambda m: m.spaces > 1 and m.tabs > 0, lambda m, r: f'tospace:{r.randint(1, m.spaces)}', None),
         (2, lambda m: m.tabs > 0, lambda m, r: f'folder:Group {m.folders + 1}', lambda m, a: setattr(m, 'folders', m.folders + 1)),
         (2, lambda m: m.folders > 0, lambda m, r: r.choice(['togglefolder', 'unfolder']), None),
-        (4, lambda m: m.tabs > 1, lambda m, r: f'sidebardrag:{r.randint(1, 1 << 30)}', None),
         (3, lambda m: True, lambda m, r: r.choice(['sidebar', 'rail', 'layout:tabs', 'layout:sidebar']), None),
         (2, lambda m: True, lambda m, r: 'mode:' + r.choice(['light', 'dark', 'system']), None),
         (1, lambda m: True, lambda m, r: 'addressstyle:' + r.choice(['integrated', 'floating']), None),

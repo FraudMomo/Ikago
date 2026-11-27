@@ -112,5 +112,9 @@ Rules that bite everywhere:
 - AppKit views in SwiftUI that fill their space conform to `FillingViewRepresentable`; sidebar lists scroll in AppKit.
 - Overlays live in the window's SwiftUI tree and show through `ChromeModel`; floating surfaces use `.surface`.
 - Scripts the browser runs use isolated worlds, never the page world; permissions fail closed.
+- Finding crashes: `scripts/check_crash_risks.py` catches the ones no click path shows (a privacy API without its
+  Info.plist key; packaging runs it), and `scripts/crash_explore.py` walks random, replayable sequences of test-driver
+  steps in a normally launched debug build, then `--replay … --minimize` shrinks a failing walk. Read a user's `.ips`
+  first: its `termination` says why macOS ended the app.
 - Measure before claiming a fix: the Debug test driver (`IKAGO_TEST_ACTIONS`) and the Chromium checks
   (`python3 scripts/build.py --flavor checks` first, then `scripts/run_chromium_checks.py`).

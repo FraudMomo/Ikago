@@ -221,6 +221,9 @@ final class AppDelegate: NSObject, IKCEFApplicationDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        #if DEBUG
+        if WebProfiles.isTestMode { print("IKTEST terminate from:\n" + Thread.callStackSymbols.prefix(14).joined(separator: "\n")) }
+        #endif
         // handleQuitEvent normally catches Apple Event quits first. Anything still landing here
         // can't use .terminateLater, whose nested loop CEF's message loop cannot exit, so
         // cancel AppKit's quit and finish through the CEF path.

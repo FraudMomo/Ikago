@@ -147,6 +147,7 @@ def package_acknowledgements(folder):
 
 def main():
     app, flavor = Path(sys.argv[1]), sys.argv[2]
+    cef_build = Path(sys.argv[3]) if len(sys.argv) > 3 else ROOT/'out/cef'
     contents = app/'Contents'
     for folder in ('MacOS', 'Resources', 'Frameworks'):
         (contents/folder).mkdir(parents=True, exist_ok=True)
@@ -211,7 +212,7 @@ def main():
         name = 'Ikago Helper' + suffix
         helper = contents/'Frameworks'/(name + '.app')/'Contents'
         (helper/'MacOS').mkdir(parents=True, exist_ok=True)
-        shutil.copy2(ROOT/'out/cef/IkagoHelper', helper/'MacOS'/name)
+        shutil.copy2(cef_build/'IkagoHelper', helper/'MacOS'/name)
         role = suffix.replace(' (', '.').replace(')', '').lower()
         (helper/'Info.plist').write_bytes(plistlib.dumps({
             'CFBundleExecutable': name, 'CFBundleIdentifier': f'{BUNDLE_ID}.helper{role}', 'CFBundleName': name,
@@ -232,6 +233,8 @@ def main():
         identity = '-'
         sign_bundle(app, framework, identity, ROOT/'CEF/development.entitlements')
     subprocess.run(['codesign', '--verify', '--deep', '--strict', str(app)], check=True)
+    # A privacy API without its Info.plist key makes macOS end the app on first use (0.7.2's Google sign-in crash).
+    subprocess.run([sys.executable, str(ROOT/'scripts/check_crash_risks.py'), str(app)], check=True)
     print(f'Signed {app} with {"an ad hoc signature" if identity == "-" else identity}')
 
 
