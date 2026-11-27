@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 scripts/build.py:*)",
+      "Bash(python3 scripts/run_chromium_checks.py:*)",
+      "Bash(python3 scripts/crash_explore.py:*)",
+      "Bash(python3 scripts/check_crash_risks.py:*)",
+      "Bash(open -n -W -g --env IKAGO_TEST_MODE=1:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)"
+    ]
+  }
+}

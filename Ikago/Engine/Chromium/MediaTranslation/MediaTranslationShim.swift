@@ -4,7 +4,7 @@
 /// page's own origin, as GET parts, answered natively; see `IKCEFMediaBridge`). Everything else is the player's own code, so
 /// its controls, seeking, quality switching and autoplay keep working.
 ///
-/// This is the one browser script outside an isolated world (docs/agents/shell-and-webkit.md, rule 6 exception): it only rewires the
+/// This is the one browser script outside an isolated world (AGENTS.md, rule 6 exception): it only rewires the
 /// page's own media, and a page that tampers with it only affects its own videos.
 enum MediaTranslationShim {
     static let hosts = ["x.com", "twitter.com"]

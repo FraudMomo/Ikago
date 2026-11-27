@@ -21,7 +21,9 @@ __pycache__/
 # Editors and local tooling
 .vscode/
 .idea/
-.claude/
+.claude/*
+!.claude/skills/
+!.claude/settings.json
 *.swp
 
 # Logs
