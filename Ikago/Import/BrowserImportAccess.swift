@@ -1,7 +1,9 @@
 import AppKit
 
-/// Permission recovery uses the system file picker, never Full Disk Access or another process.
-/// Apple: https://developer.apple.com/videos/play/wwdc2023/10053/ (19:13–20:38).
+/// Permission recovery uses the system file picker: choosing a browser's data folder there is the person allowing
+/// Ikago to read it, and macOS remembers that. Apple: https://developer.apple.com/videos/play/wwdc2023/10053/ (19:13–20:38).
+/// The picker opens on the browser's whole data folder (`accessRoot`), so one approval also reveals its profiles.
+/// Only Safari's own container (its cookies and open tabs) can't be allowed this way; that needs Full Disk Access.
 @MainActor
 enum BrowserImportAccess {
     struct Grant {
@@ -17,17 +19,17 @@ enum BrowserImportAccess {
     static func prepare(_ source: DetectedBrowserProfile, force: Bool = false) async throws -> Grant? {
         guard source.kind != .file else { return nil }
         let blocked = await Task.detached { blockedResources(source) }.value
-        guard force || !blocked.isEmpty else { return nil }
+        guard force || source.needsAccess || !blocked.isEmpty else { return nil }
         let panel = NSOpenPanel()
         panel.title = "Allow \(source.browser) Import"
-        panel.message = "Allow Ikago to read this \(source.browser) profile to import bookmarks, history, tabs, groups and available website logins. Click Allow Import to continue."
+        panel.message = "macOS asks you to allow Ikago to read \(source.browser)’s data. Click Allow Import to import its bookmarks, history, tabs, groups and available website logins."
         panel.prompt = "Allow Import"
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.canCreateDirectories = false
         panel.allowsMultipleSelection = false
-        // Opening the profile itself makes approval a single click without navigating Library.
-        panel.directoryURL = source.directory
+        // Opening the browser's data folder makes approval a single click, and covers every profile in it.
+        panel.directoryURL = source.accessRoot ?? source.directory
         let response: NSApplication.ModalResponse = await withCheckedContinuation { continuation in
             if let window = NSApp.keyWindow {
                 panel.beginSheetModal(for: window) { continuation.resume(returning: $0) }
@@ -40,7 +42,7 @@ enum BrowserImportAccess {
         let targetPath = source.directory.standardizedFileURL.resolvingSymlinksInPath().path
         guard selectedPath == targetPath || targetPath.hasPrefix(selectedPath + "/") else {
             throw NSError(domain: "Ikago.ImportAccess", code: 1, userInfo: [NSLocalizedDescriptionKey:
-                "Choose the detected \(source.browser) profile folder, \(source.directory.lastPathComponent), to allow this import."])
+                "Choose \(source.browser)’s folder, \((source.accessRoot ?? source.directory).lastPathComponent), to allow this import."])
         }
         let grant = Grant(directory: selected)
         let remaining = await Task.detached { blockedResources(source) }.value

@@ -120,7 +120,7 @@ enum BrowserProfileImporter {
                 result.history = try ImportDatabase(path).rows("SELECT i.url, v.title, v.visit_time FROM history_visits v JOIN history_items i ON v.history_item=i.id ORDER BY v.visit_time DESC LIMIT 1000").compactMap { row in
                     guard let address = row["url"] as? String, AddressResolver.isWebURL(address) else { return nil }
                     let seconds = (row["visit_time"] as? Double ?? 0) + 978_307_200
-                    return Visit(url: address, title: String((row["title"] as? String ?? address).prefix(512)), time: UInt64(max(0, seconds * 1000)))
+                    return Visit(url: address, title: String((row["title"] as? String ?? address).prefix(512)), time: seconds.isFinite ? UInt64(min(max(0, seconds * 1000), 9e15)) : 0)
                 }
             }
             // Cookies and tabs live in Safari's container, which macOS shows only to apps with Full Disk Access.
@@ -147,9 +147,7 @@ enum BrowserProfileImporter {
                     }
                 }
             }
-            if blocked {
-                result.notes.append("Safari’s website logins and open tabs need Full Disk Access for Ikago: System Settings › Privacy & Security › Full Disk Access. Then import again.")
-            }
+            if blocked { result.needsFullDiskAccess = true }
         case .file: break
         }
         if kind == .chromium, !result.tabs.isEmpty {

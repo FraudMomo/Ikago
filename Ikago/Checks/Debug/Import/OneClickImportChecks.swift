@@ -43,10 +43,16 @@ enum OneClickImportChecks {
             check(firefox.count == 2 && firefox.first?.name == "Work Firefox", "Firefox named and absolute-path profiles detected with install default")
             check(model.profiles.contains { $0.browser == "Safari" }, "Safari source detected without choosing a folder")
             check(!model.profiles.contains { $0.directory.lastPathComponent == "Other" }, "Chromium metadata cannot traverse outside its profile root")
+            // macOS can hide even Google's folder: an installed Chrome then asks for access to its data folder.
             let hidden = home.appending(path: "InaccessibleHome")
+            let google = hidden.appending(path: "Library/Application Support/Google")
+            try FileManager.default.createDirectory(at: google, withIntermediateDirectories: true)
+            try FileManager.default.setAttributes([.posixPermissions: 0], ofItemAtPath: google.path)
             let fallback = BrowserProfileDiscovery.discover(home: hidden, installedBrowsers: ["Google Chrome"])
-            check(fallback.count == 1 && fallback.first?.browser == "Google Chrome" && fallback.first?.directory.lastPathComponent == "Default",
-                  "installed Chrome stays selectable when profile metadata is inaccessible")
+            try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: google.path)
+            check(fallback.count == 1 && fallback.first?.browser == "Google Chrome" && fallback.first?.needsAccess == true
+                  && fallback.first?.accessRoot?.lastPathComponent == "Chrome",
+                  "installed Chrome stays selectable, asking for access, when macOS hides its data folder")
             let metadataHome = home.appending(path: "MetadataOnly")
             let metadataRoot = metadataHome.appending(path: "Library/Application Support/Google/Chrome")
             try FileManager.default.createDirectory(at: metadataRoot, withIntermediateDirectories: true)

@@ -5,16 +5,6 @@ What changed in each release of Ikago, newest first. Add changes under **Unrelea
 
 ## Unreleased
 
-- **Dragging in the sidebar:** a tab or group dropped just above a group could end up inside a group, and among the
-  groups at the top a row dropped between two groups went into one of them. Rows now land exactly where the gap
-  shows. Dropping onto a group's name puts the row in that group. A tab dragged out of a group no longer looks like
-  part of it, and dragging tabs into and out of groups no longer closes Ikago.
-- **Tab order:** in a group that holds other groups, Control-Tab now goes through the tabs in the order the sidebar
-  shows them.
-- **Location on WebKit:** sites asking for your location got no prompt and were always refused. They now ask
-  like every other permission.
-- **Quitting after a link preview:** with Chromium, quitting Ikago while a link preview was open, or after one,
-  could leave it stuck and never quit. It now quits normally.
 - **Importing a damaged file no longer closes Ikago:** some unusual history exports made Ikago close while importing.
   Now it imports what it can read.
 - **Damaged videos no longer close Ikago:** with Chromium, a damaged or unusual video on X could close Ikago.

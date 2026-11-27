@@ -17,6 +17,8 @@ final class BrowserImportModel {
     private(set) var notes: [String] = []
     private(set) var failed = false
     private(set) var accessNeededFor: DetectedBrowserProfile?
+    /// Safari's logins and open tabs are in its container, which only Full Disk Access opens.
+    private(set) var fullDiskAccessNeeded = false
     @ObservationIgnored private let home: URL
     @ObservationIgnored private let reader: Reader
     @ObservationIgnored private let prepareAccess: AccessPreparer
@@ -39,6 +41,10 @@ final class BrowserImportModel {
         guard !discovering, importingID == nil else { return }
         discovering = true
         defer { discovering = false }
+        await discover()
+    }
+
+    private func discover() async {
         let root = home
         let installed = includeInstalledApps ? BrowserProfileDiscovery.installedBrowsers() : []
         let found = await Task.detached { BrowserProfileDiscovery.discover(home: root, installedBrowsers: installed) }.value
@@ -50,15 +56,32 @@ final class BrowserImportModel {
         guard importingID == nil, !state.isFrozen else { return }
         let destination = state.activeSpace
         importingID = source.id
-        result = nil; report = nil; notes = []; failed = false; accessNeededFor = nil
+        result = nil; report = nil; notes = []; failed = false; accessNeededFor = nil; fullDiskAccessNeeded = false
         defer { importingID = nil }
+        var source = source
         do {
             let grant = try await prepareAccess(source, requestAccess)
             defer { grant?.end() }
             guard !Task.isCancelled, !state.isFrozen else { return }
+            if source.needsAccess {
+                // Allowed: the browser's profiles are visible now. Import the one it last used.
+                await discover()
+                guard let profile = profiles.first(where: { $0.browser == source.browser && !$0.needsAccess && $0.preferred })
+                        ?? profiles.first(where: { $0.browser == source.browser && !$0.needsAccess }) else {
+                    failed = true
+                    result = profiles.contains(where: { $0.browser == source.browser && $0.needsAccess })
+                        ? "macOS is still blocking \(source.browser)’s data. Allow access to its folder to continue importing."
+                        : "\(source.browser) has no profile with data to import."
+                    if profiles.contains(where: { $0.browser == source.browser && $0.needsAccess }) { accessNeededFor = source }
+                    return
+                }
+                source = profile
+                importingID = profile.id
+            }
             var data = try await reader(source)
             data.sourceName = source.kind == .file ? "" : source.browser
             notes = data.notes
+            fullDiskAccessNeeded = data.needsFullDiskAccess
             guard data.hasData else {
                 failed = true
                 if !data.accessIssues.isEmpty { showAccessRequired(source) }

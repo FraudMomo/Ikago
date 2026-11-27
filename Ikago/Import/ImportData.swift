@@ -53,6 +53,8 @@ struct BrowserImportData: Sendable {
     var passwordsSkipped = 0
     var notes: [String] = []
     var accessIssues: [String] = []
+    /// Some data is in a place only Full Disk Access opens (Safari's container: its cookies and open tabs).
+    var needsFullDiskAccess = false
     /// The browser it came from, for the "Imported from …" bookmark folder.
     var sourceName = ""
     /// Ikago's own export: its bookmarks go back where they were (the Bookmarks Bar and its folders), not into an
@@ -65,6 +67,7 @@ struct BrowserImportData: Sendable {
         bookmarks += other.bookmarks; history += other.history; tabs += other.tabs; cookies += other.cookies
         passwords += other.passwords; passwordsSkipped += other.passwordsSkipped
         notes += other.notes; accessIssues += other.accessIssues
+        needsFullDiskAccess = needsFullDiskAccess || other.needsFullDiskAccess
         fromIkago = fromIkago || other.fromIkago
     }
 }

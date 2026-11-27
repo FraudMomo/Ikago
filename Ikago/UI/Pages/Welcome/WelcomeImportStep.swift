@@ -18,6 +18,13 @@ struct WelcomeImportStep: View {
                 Text(result).font(.system(size: 12)).foregroundStyle(.secondary).multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            if model.fullDiskAccessNeeded {
+                VStack(spacing: 8) {
+                    Text("Safari’s logins and open tabs need Full Disk Access. Turn on Ikago there, then import again.")
+                        .font(.system(size: 12)).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                    FullDiskAccessButton()
+                }
+            }
         }
         .task { await model.refresh() }
     }

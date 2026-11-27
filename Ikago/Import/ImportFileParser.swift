@@ -91,7 +91,10 @@ enum ImportFileParser {
         if let visits = (root["history"] ?? root["history_visits"]) as? [[String: Any]] {
             result.history = visits.compactMap { row in
                 guard let url = row["url"] as? String, AddressResolver.isWebURL(url) else { return nil }
-                func number(_ key: String) -> UInt64? { (row[key] as? NSNumber).map { UInt64(max(0, $0.doubleValue)) } }
+                // The file decides these numbers: keep them in a range every later use can take, never trap on them.
+                func number(_ key: String) -> UInt64? {
+                    (row[key] as? NSNumber).map { let value = $0.doubleValue; return value.isFinite ? UInt64(min(max(0, value), 9e15)) : 0 }
+                }
                 let time = number("time") ?? number("time_usec").map { $0 / 1000 } ?? number("visit_time_unix_epoch_usec").map { $0 / 1000 } ?? 0
                 let title = (row["title"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? url
                 return Visit(url: url, title: String(title.prefix(512)), time: time,
@@ -193,7 +196,7 @@ enum ImportFileParser {
                 let expiry = double(start + 40)
                 cookies.append(ImportedCookie(domain: domain, path: path.isEmpty ? "/" : path, name: name, value: value,
                                               secure: flags & 1 != 0, httpOnly: flags & 4 != 0,
-                                              expires: expiry > 0 ? Date(timeIntervalSinceReferenceDate: expiry) : nil))
+                                              expires: (1...1e11).contains(expiry) ? Date(timeIntervalSinceReferenceDate: expiry) : nil))
                 if cookies.count >= 50_000 { return cookies }
             }
         }
@@ -205,7 +208,7 @@ enum ImportFileParser {
         let expiry = (row["expirationDate"] ?? row["expires"]) as? NSNumber
         return ImportedCookie(domain: domain, path: row["path"] as? String ?? "/", name: name, value: value,
                               secure: row["secure"] as? Bool ?? false, httpOnly: row["httpOnly"] as? Bool ?? false,
-                              expires: expiry.flatMap { $0.doubleValue > 0 ? Date(timeIntervalSince1970: $0.doubleValue) : nil })
+                              expires: expiry.flatMap { (1...1e11).contains($0.doubleValue) ? Date(timeIntervalSince1970: $0.doubleValue) : nil })
     }
 
     private static func cookiesText(_ text: String) -> BrowserImportData {

@@ -7,13 +7,20 @@ struct DetectedBrowserProfile: Identifiable, Sendable, Equatable {
     let kind: BrowserProfileImporter.Kind
     let cookieKey: ChromiumCookieCrypto.Browser?
     var preferred = false
+    /// The browser's whole data folder (Chrome's `Google/Chrome`, `~/Library/Safari`): what the Allow picker opens, so one
+    /// approval covers every profile and the list of profiles itself.
+    var accessRoot: URL? = nil
+    /// macOS hides this browser's data from Ikago until the person allows it, so its profiles aren't known yet.
+    var needsAccess = false
 
     var id: String { directory.standardizedFileURL.path }
     var title: String { browser }
-    var subtitle: String { name.isEmpty ? "Ready to import" : name }
+    var subtitle: String { needsAccess ? "Allow access to find your profiles" : name.isEmpty ? "Ready to import" : name }
 }
 
-/// Discovery reads profile metadata, never browsing records or cookies.
+/// Discovery reads profile metadata, never browsing records or cookies. macOS (14 and later) hides other apps' data
+/// folders from Ikago until the person allows each one; a folder that exists but can't be listed shows as one
+/// "allow access" entry for its browser rather than as a guessed, empty profile.
 enum BrowserProfileDiscovery {
     private struct ChromiumSource {
         let browser: String
@@ -54,6 +61,13 @@ enum BrowserProfileDiscovery {
         var found: [DetectedBrowserProfile] = []
         for source in sources {
             let root = support.appending(path: source.path)
+            let hidden = isBlocked(root) || (installedBrowsers.contains(source.browser)
+                && !FileManager.default.fileExists(atPath: root.path) && isBlocked(root.deletingLastPathComponent()))
+            if hidden {
+                found.append(.init(browser: source.browser, name: "", directory: root, kind: .chromium, cookieKey: source.key,
+                                   preferred: true, accessRoot: root, needsAccess: true))
+                continue
+            }
             let localState = dictionary(root.appending(path: "Local State"))
             let profile = localState["profile"] as? [String: Any] ?? [:]
             let cache = profile["info_cache"] as? [String: [String: Any]] ?? [:]
@@ -62,14 +76,14 @@ enum BrowserProfileDiscovery {
             for child in children(root) where child.lastPathComponent == "Default" || child.lastPathComponent.hasPrefix("Profile ") {
                 folders.insert(child.lastPathComponent)
             }
-            if source.rootProfile && (hasProfileData(root, kind: .chromium) || installedBrowsers.contains(source.browser)) {
-                folders = [""]
-            } else if folders.isEmpty && installedBrowsers.contains(source.browser) { folders.insert("Default") }
+            // A profile folder without data (a browser installed but never used) has nothing to import.
+            if source.rootProfile { folders = hasProfileData(root, kind: .chromium) ? [""] : [] }
             for folder in folders.sorted() {
                 let directory = folder.isEmpty ? root : root.appending(path: folder)
                 let name = cache[folder]?["name"] as? String ?? (folder == "Default" || folder.isEmpty ? "Default profile" : folder)
                 found.append(.init(browser: source.browser, name: String(name.prefix(128)), directory: directory,
-                                   kind: .chromium, cookieKey: source.key, preferred: folder == recent || folder.isEmpty))
+                                   kind: .chromium, cookieKey: source.key, preferred: folder == recent || folder.isEmpty,
+                                   accessRoot: root))
             }
         }
         for (browser, path) in [("Firefox", "Firefox"), ("Zen", "zen"), ("Zen", "Zen"),
@@ -79,7 +93,9 @@ enum BrowserProfileDiscovery {
         for (browser, folder) in [("Safari", "Safari"), ("Safari Technology Preview", "SafariTechnologyPreview")] {
             let safari = home.appending(path: "Library/\(folder)")
             if FileManager.default.fileExists(atPath: safari.path) {
-                found.append(.init(browser: browser, name: "Bookmarks and history", directory: safari, kind: .safari, cookieKey: nil, preferred: true))
+                let hidden = isBlocked(safari)
+                found.append(.init(browser: browser, name: "Bookmarks and history", directory: safari, kind: .safari, cookieKey: nil,
+                                   preferred: true, accessRoot: safari, needsAccess: hidden))
             }
         }
         var seen = Set<String>()
@@ -90,7 +106,7 @@ enum BrowserProfileDiscovery {
         }
     }
 
-    /// Installed apps remain selectable when macOS withholds profile metadata until access is allowed.
+    /// Installed apps remain selectable when macOS hides even their data folder's parent until access is allowed.
     @MainActor static func installedBrowsers() -> Set<String> {
         let chromium = ["Google Chrome", "Chrome Beta", "Chrome Canary", "Microsoft Edge", "Brave", "Arc", "Dia",
                         "Vivaldi", "Chromium", "Opera", "Opera GX", "Comet"]
@@ -101,6 +117,9 @@ enum BrowserProfileDiscovery {
     }
 
     private static func firefox(browser: String, root: URL) -> [DetectedBrowserProfile] {
+        if isBlocked(root) {
+            return [.init(browser: browser, name: "", directory: root, kind: .firefox, cookieKey: nil, preferred: true, accessRoot: root, needsAccess: true)]
+        }
         let sections = ini(root.appending(path: "profiles.ini"))
         let installs = ini(root.appending(path: "installs.ini"))
         let defaults = Set((sections + installs).compactMap { section -> String? in
@@ -114,13 +133,14 @@ enum BrowserProfileDiscovery {
             guard hasProfileData(directory, kind: .firefox) else { continue }
             profiles.append(.init(browser: browser, name: String((section.values["Name"] ?? directory.lastPathComponent).prefix(128)),
                                   directory: directory, kind: .firefox, cookieKey: nil,
-                                  preferred: defaults.isEmpty ? section.values["Default"] == "1" : defaults.contains(path)))
+                                  preferred: defaults.isEmpty ? section.values["Default"] == "1" : defaults.contains(path), accessRoot: root))
         }
         // Include selectable profiles not listed individually in older profiles.ini files.
         for directory in children(root.appending(path: "Profiles")) where hasProfileData(directory, kind: .firefox) {
             if !profiles.contains(where: { $0.directory.standardizedFileURL == directory.standardizedFileURL }) {
                 profiles.append(.init(browser: browser, name: directory.lastPathComponent, directory: directory,
-                                      kind: .firefox, cookieKey: nil, preferred: directory.lastPathComponent.hasSuffix(".default-release")))
+                                      kind: .firefox, cookieKey: nil, preferred: directory.lastPathComponent.hasSuffix(".default-release"),
+                                      accessRoot: root))
             }
         }
         return profiles
@@ -130,6 +150,12 @@ enum BrowserProfileDiscovery {
         let names = kind == .chromium ? ["Bookmarks", "History", "Cookies", "Network/Cookies", "Sessions"]
             : ["places.sqlite", "cookies.sqlite", "sessionstore.jsonlz4", "sessionstore-backups"]
         return names.contains { FileManager.default.fileExists(atPath: directory.appending(path: $0).path) }
+    }
+
+    /// Whether the folder exists but macOS won't let Ikago list it (privacy protection, not absence).
+    static func isBlocked(_ folder: URL) -> Bool {
+        do { _ = try FileManager.default.contentsOfDirectory(atPath: folder.path); return false }
+        catch { return ImportAccessError.isPermissionDenied(error) }
     }
 
     private static func validFolder(_ name: String) -> Bool {

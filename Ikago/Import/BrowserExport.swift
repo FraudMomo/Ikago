@@ -72,7 +72,7 @@ enum BrowserExport {
         let entries: [String] = visits.compactMap { visit in
             guard AddressResolver.isWebURL(visit.url) else { return nil }
             let entry: [String: Any] = ["url": visit.url, "title": visit.title,
-                                        "time_usec": Int64(visit.time) * 1000, "visit_count": max(1, visit.visits ?? 1)]
+                                        "time_usec": Int64(min(visit.time, 9_000_000_000_000_000)) * 1000, "visit_count": max(1, visit.visits ?? 1)]
             return json(entry)
         }
         return "{\"metadata\":\(json(metadata)),\"history\":[\(entries.joined(separator: ","))]}"

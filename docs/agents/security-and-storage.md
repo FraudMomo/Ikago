@@ -154,3 +154,8 @@
   the token is the only credential. `AgentServer` keeps session → agent so each request is logged under its agent
   (`AgentActivity.current`). Setup snippets (`AgentSetup`) all carry the token, so they leave Ikago only on Copy; Reset
   token stops every agent.
+- Parsers of files Ikago didn't write (other browsers' sessions, cookies and databases, export archives, bookmarks,
+  passwords CSV, extension packages): numbers from the file are clamped or checked before any integer conversion,
+  arithmetic or range, and damage throws. `parserfuzzchecks` (Debug driver) fuzzes each parser from valid seeds and
+  tries numbers past every integer type; it found a history JSON with `1e300` that ended Ikago. Add a seed when you
+  add a parser.

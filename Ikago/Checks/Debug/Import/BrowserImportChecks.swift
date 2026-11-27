@@ -76,6 +76,7 @@ enum BrowserImportChecks {
         await OneClickImportChecks.run()
         await ChromiumGroupImportChecks.run()
         await BrowserImportAccessChecks.run()
+        await BrowserDiscoveryAccessChecks.run()
         print("IKTEST importchecks \(failures == 0 ? "PASS" : "FAIL") failures=\(failures)")
     }
 

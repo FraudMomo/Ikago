@@ -36,10 +36,17 @@
   must never expand the shell or push Settings navigation outside the window.
 - Settings categories render separate pages. Browser import discovers profiles and uses one
   explicit Import action for bookmarks, history, tabs and available website logins into the current
-  Space, without replacing tabs or Spaces. Discovery uses metadata and installed-app fallback,
-  so protected Chromium browsing records cannot hide the browser from the import list. The button includes compatible Keychain decryption;
+  Space, without replacing tabs or Spaces. macOS (measured on 27) hides other browsers' data folders, Chrome's
+  `Application Support/Google/Chrome` included, from an app launched normally (EPERM), until the person allows each one;
+  apps started from a terminal with Full Disk Access don't see this, so check import by launching with `open`. A folder
+  that exists but can't be listed is one `needsAccess` entry ("Allow access to find your profiles"), never a guessed
+  empty "Default" profile; an installed browser without data isn't listed. Import on it opens the native folder picker
+  at the browser's data folder (`accessRoot`), which macOS remembers, then discovers again and imports the profile the
+  browser last used. Safari's container (logins, open tabs) only opens with Full Disk Access: `needsFullDiskAccess`
+  shows a row with a button to that Settings pane. `discoveryaccesschecks` (in `importchecks`) covers this with
+  folder permissions on a fixture home. The button includes compatible Keychain decryption;
   preserve required macOS authorization prompts. Preflight opens read-only handles only after
-  Import; access denials use a native folder picker at the detected profile, with a retry action.
+  Import; access denials use the same folder picker, with a retry action.
   Retain security-scoped access through the read, handle cancellation without importing, and
   never mark blocked/partial imports complete. SQLite failures must retain their actual cause. Read source profiles through SQLite read-only
   handles, never log or persist decryption keys, and read browsing records only after Import. Report unsupported/encrypted formats instead of silently claiming

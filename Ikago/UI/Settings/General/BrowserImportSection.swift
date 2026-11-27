@@ -45,6 +45,13 @@ struct BrowserImportSection: View {
                 } else {
                     Text(result).frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 14)
                 }
+                if model.fullDiskAccessNeeded {
+                    PageDivider()
+                    PageRow(title: "Safari logins and open tabs",
+                            subtitle: "macOS keeps these behind Full Disk Access. Turn on Ikago there, then import again.") {
+                        FullDiskAccessButton()
+                    }
+                }
                 if model.accessNeededFor != nil {
                     HStack {
                         Button("Allow Access & Retry") { Task { await model.retryWithAccess(into: state) } }
@@ -80,6 +87,20 @@ struct BrowserImportSection: View {
         guard panel.runModal() == .OK, let url = panel.url else { return }
         showDetails = false
         Task { await model.importFile(url, into: state) }
+    }
+}
+
+/// Opens System Settings at Full Disk Access, the only way macOS lets Ikago read Safari's logins and open tabs.
+struct FullDiskAccessButton: View {
+    var prominent = false
+
+    var body: some View {
+        Button("Open Full Disk Access") {
+            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles") {
+                NSWorkspace.shared.open(url)
+            }
+        }
+        .buttonStyle(SettingsButtonStyle(prominent: prominent))
     }
 }
 
