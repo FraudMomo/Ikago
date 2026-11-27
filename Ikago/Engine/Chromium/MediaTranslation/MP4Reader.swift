@@ -21,6 +21,13 @@ struct MP4Reader {
         return Array(bytes[o..<o + count])
     }
 
+    /// The boxes between two offsets read from the file. A box too short for its fixed fields gives `from > to`, which
+    /// must fail the segment: building `from..<to` from those numbers would trap.
+    func boxes(from: Int, to: Int) throws -> [Box] {
+        guard from <= to else { throw Failure(description: "box too short") }
+        return try boxes(from..<to)
+    }
+
     func boxes(_ range: Range<Int>) throws -> [Box] {
         var found: [Box] = []
         var o = range.lowerBound
@@ -28,7 +35,7 @@ struct MP4Reader {
             var size = Int(try u32(o)), header = 8
             let type = String(decoding: try slice(o + 4, 4), as: UTF8.self)
             if size == 1 { size = Int(clamping: try u64(o + 8)); header = 16 } else if size == 0 { size = range.upperBound - o }
-            guard size >= header, o + size <= range.upperBound else { throw Failure(description: "bad \(type) box") }
+            guard size >= header, size <= range.upperBound - o else { throw Failure(description: "bad \(type) box") }
             found.append(Box(type: type, start: o, content: o + header, end: o + size))
             o += size
         }
@@ -36,7 +43,7 @@ struct MP4Reader {
     }
 
     func child(_ box: Box, _ type: String, skip: Int = 0) throws -> Box? {
-        try boxes(box.content + skip..<box.end).first { $0.type == type }
+        try boxes(from: box.content + skip, to: box.end).first { $0.type == type }
     }
 
     func path(_ box: Box, _ types: [String]) throws -> Box? {
@@ -62,19 +69,23 @@ struct MP4Reader {
         }
         let id = try u8(tkhd.content) == 1 ? try u32(tkhd.content + 20) : try u32(tkhd.content + 12)
         let timescale = try u8(mdhd.content) == 1 ? try u32(mdhd.content + 20) : try u32(mdhd.content + 12)
-        guard let entry = try boxes(stsd.content + 8..<stsd.end).first, timescale > 0 else { throw Failure(description: "no sample entry") }
+        // The page's own file decides these numbers: anything the translators can't take is a failed segment, never a trap.
+        guard let entry = try boxes(from: stsd.content + 8, to: stsd.end).first, (1...UInt32(Int32.max)).contains(timescale) else {
+            throw Failure(description: "no sample entry")
+        }
         var defaultDuration: UInt32 = 0
-        if let mvex = try child(moov, "mvex"), let trex = try boxes(mvex.content..<mvex.end).first(where: { $0.type == "trex" }) {
+        if let mvex = try child(moov, "mvex"), let trex = try boxes(from: mvex.content, to: mvex.end).first(where: { $0.type == "trex" }) {
             defaultDuration = try u32(trex.content + 12)
         }
         switch entry.type {
         case "avc1", "avc3":
             let width = Int(try u16(entry.content + 24)), height = Int(try u16(entry.content + 26))
-            guard let avcC = try boxes(entry.content + 78..<entry.end).first(where: { $0.type == "avcC" }) else { throw Failure(description: "no avcC") }
+            guard (16...8192).contains(width), (16...8192).contains(height) else { throw Failure(description: "unsupported picture size") }
+            guard let avcC = try boxes(from: entry.content + 78, to: entry.end).first(where: { $0.type == "avcC" }) else { throw Failure(description: "no avcC") }
             return Track(id: id, timescale: timescale, codec: .avc(config: try slice(avcC.content, avcC.end - avcC.content), width: width, height: height),
                          defaultDuration: defaultDuration)
         case "mp4a":
-            guard let esds = try boxes(entry.content + 28..<entry.end).first(where: { $0.type == "esds" }) else { throw Failure(description: "no esds") }
+            guard let esds = try boxes(from: entry.content + 28, to: entry.end).first(where: { $0.type == "esds" }) else { throw Failure(description: "no esds") }
             let descriptor = try slice(esds.content + 4, esds.end - esds.content - 4)
             let config = try Self.decoderSpecificInfo(descriptor)
             let (rate, channels) = try Self.audioSpecificConfig(config)
@@ -130,6 +141,7 @@ struct MP4Reader {
         var o = tfhd.content + 8
         var base = moof.start
         if tfhdFlags & 0x01 != 0 { base = Int(clamping: try u64(o)); o += 8 }
+        guard base <= bytes.count else { throw Failure(description: "fragment base outside data") }
         if tfhdFlags & 0x02 != 0 { o += 4 }
         var duration = defaultDuration, size: UInt32 = 0, flags: UInt32 = 0
         if tfhdFlags & 0x08 != 0 { duration = try u32(o); o += 4 }
@@ -137,9 +149,11 @@ struct MP4Reader {
         if tfhdFlags & 0x20 != 0 { flags = try u32(o) }
         var decodeTime: UInt64 = 0
         if let tfdt = try child(traf, "tfdt") { decodeTime = try u8(tfdt.content) == 1 ? try u64(tfdt.content + 4) : UInt64(try u32(tfdt.content + 4)) }
+        // Centuries of media at any timescale, and far from Int64's end, so sample times below can't overflow.
+        guard decodeTime < 1 << 48 else { throw Failure(description: "decode time out of range") }
         var samples: [Sample] = []
         var position = base, time: Int64 = 0
-        for trun in try boxes(traf.content..<traf.end) where trun.type == "trun" {
+        for trun in try boxes(from: traf.content, to: traf.end) where trun.type == "trun" {
             let version = try u8(trun.content), runFlags = try u24(trun.content + 1)
             let count = Int(try u32(trun.content + 4))
             guard count < 100_000 else { throw Failure(description: "too many samples") }
@@ -153,7 +167,7 @@ struct MP4Reader {
                 if runFlags & 0x200 != 0 { s = try u32(p); p += 4 }
                 if runFlags & 0x400 != 0 { f = try u32(p); p += 4 }
                 if runFlags & 0x800 != 0 { let raw = try u32(p); cts = version == 0 ? Int64(raw) : Int64(Int32(bitPattern: raw)); p += 4 }
-                guard position >= 0, position + Int(s) <= bytes.count else { throw Failure(description: "sample outside data") }
+                guard position >= 0, position <= bytes.count, Int(s) <= bytes.count - position else { throw Failure(description: "sample outside data") }
                 samples.append(Sample(offset: position, size: Int(s), duration: d, composition: Int64(decodeTime) + time + cts,
                                       sync: (f >> 16) & 1 == 0))
                 position += Int(s)

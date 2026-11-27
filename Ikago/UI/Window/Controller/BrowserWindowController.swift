@@ -411,6 +411,12 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
 
     // MARK: NSWindowDelegate
 
+    /// Every page this window owns, the link preview's included: Chromium can't shut down while one is still open.
+    func closeAllPages() {
+        closePeek()
+        content.shutdown()
+    }
+
     func windowWillClose(_ notification: Notification) {
         chrome.textPrompt?.finish(nil)
         closePeek()

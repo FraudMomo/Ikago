@@ -17,6 +17,17 @@ class PDFCallback : public CefPdfPrintCallback {
 };
 }
 
+namespace {
+// CreateBrowser hands Chromium this view as the parent of the browser's own view, unretained, and builds that view
+// later, after a queue of other tabs when many open at once. A tab closed in that gap must not free the parent under
+// Chromium (0.7.x crash: open 30 background tabs, show one and close it at once). Pages stay here from creation until
+// Chromium attaches the browser, or, when the tab already closed, until the browser is gone. Main thread only.
+NSMutableSet<IKCEFPage *> *IKCEFUnsettledPages() {
+  static NSMutableSet<IKCEFPage *> *pages = [NSMutableSet set];
+  return pages;
+}
+}
+
 @implementation IKCEFPage
 @synthesize topInset = _topInset;
 - (void)setTopInset:(CGFloat)inset {
@@ -62,11 +73,13 @@ class PDFCallback : public CefPdfPrintCallback {
     if (error) *error = IKCEFError(@"CEF rejected browser creation.");
     return nil;
   }
+  [IKCEFUnsettledPages() addObject:page];
   return page;
 }
 - (void)attached:(CefRefPtr<CefBrowser>)browser {
   _browser = browser;
-  if (_closing) { browser->GetHost()->CloseBrowser(true); return; }
+  if (_closing) { browser->GetHost()->CloseBrowser(true); return; }  // kept until browserClosed
+  [IKCEFUnsettledPages() removeObject:self];
   NSView *child = (__bridge NSView *)browser->GetHost()->GetWindowHandle();
   child.frame = self.bounds;
   child.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
@@ -101,6 +114,8 @@ class PDFCallback : public CefPdfPrintCallback {
   }
   [self loadQueuedURL];
 }
+- (void)browserClosed { [IKCEFUnsettledPages() removeObject:self]; }
+- (void)holdUntilSettled { [IKCEFUnsettledPages() addObject:self]; }
 - (void)loadQueuedURL {
   if (_queuedURL) { NSString *url = _queuedURL; _queuedURL = nil; [self loadURL:url]; }
 }

@@ -238,7 +238,7 @@ final class AppDelegate: NSObject, IKCEFApplicationDelegate {
             EngineCookieSync.exportIfSwitching(state: self.state) {
                 WebProfiles.flushCookies {
                     CEFSessions.flush {
-                        for controller in [self.windowController].compactMap({ $0 }) + BrowserWindows.others + self.privateWindows { controller.content.shutdown() }
+                        for controller in [self.windowController].compactMap({ $0 }) + BrowserWindows.others + self.privateWindows { controller.closeAllPages() }
                         ChromiumExtensions.shared.shutDown()
                         IKCEFNativeTools.closeAll()
                         if !WebProfiles.isTestMode && ProtectedStorage.isOnlyInstance { ProtectedStorage.removeTemporaryFiles() }

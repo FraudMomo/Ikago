@@ -94,6 +94,20 @@
 	<string>Websites you allow can know your location.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Websites you allow can know your location.</string>
+	<!-- Chromium reads Bluetooth for passkeys on a phone (e.g. Google sign-in) and for Web Bluetooth. Without these keys
+	     macOS ends the app instead of asking. Keep in step with the privacy keys Chrome itself declares. -->
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Sign in with a passkey from your phone, and let websites you allow use Bluetooth devices.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Sign in with a passkey from your phone, and let websites you allow use Bluetooth devices.</string>
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>Websites you allow can share your Mac’s audio when you share your screen.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Find devices on your network, such as screens to cast to.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Websites you allow can turn your speech into text.</string>
+	<key>NSWebBrowserPublicKeyCredentialUsageDescription</key>
+	<string>Sign in to websites with your passkeys.</string>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>

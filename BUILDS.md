@@ -5,6 +5,8 @@ What changed in each release of Ikago, newest first. Add changes under **Unrelea
 
 ## Unreleased
 
+- **Quitting after a link preview:** with Chromium, quitting Ikago while a link preview was open, or after one,
+  could leave it stuck and never quit. It now quits normally.
 - **Importing a damaged file no longer closes Ikago:** some unusual history exports made Ikago close while importing.
   Now it imports what it can read.
 - **Damaged videos no longer close Ikago:** with Chromium, a damaged or unusual video on X could close Ikago.

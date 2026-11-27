@@ -75,6 +75,7 @@ class Client final : public CefClient, public CefLifeSpanHandler,
     page->_client = nullptr;
     page->_closing = YES;
     [page emit:@"closed" payload:@{}];
+    [page browserClosed];
   }
   bool OnBeforePopup(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>, int popup,
       const CefString& url, const CefString&, WindowOpenDisposition disposition, bool gesture,
@@ -98,6 +99,7 @@ class Client final : public CefClient, public CefLifeSpanHandler,
     window.SetAsChild((__bridge CefWindowHandle)child, CefRect(0, 0, 800, 600));
     window.runtime_style = CEF_RUNTIME_STYLE_ALLOY;
     opener->_pendingPopups[@(popup)] = child;
+    [child holdUntilSettled];  // the opener (and its _pendingPopups) may be gone before Chromium attaches the popup
     IKCEFTrackBrowser(1);
     return false;
   }
@@ -109,6 +111,7 @@ class Client final : public CefClient, public CefLifeSpanHandler,
     IKCEFTrackBrowser(-1);
     [child closePage];
     [child emit:@"closed" payload:@{}];
+    [child browserClosed];  // no browser will ever attach
   }
   // A page entered or left element fullscreen (a video's fullscreen button); Ikago gives it the screen.
   void OnFullscreenModeChange(CefRefPtr<CefBrowser>, bool fullscreen) override {

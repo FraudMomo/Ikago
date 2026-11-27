@@ -38,6 +38,11 @@ NSError *IKCEFError(NSString *message);
 - (instancetype)initContainer;
 - (void)emit:(NSString *)name payload:(NSDictionary *)payload;
 - (void)attached:(CefRefPtr<CefBrowser>)browser;
+/// Chromium has destroyed the browser; the bridge stops keeping the page alive for it.
+- (void)browserClosed;
+/// Keeps a page Chromium will parent a browser to alive until `attached:` or `browserClosed` (popups use it too: their
+/// opener may close, and its `_pendingPopups` with it, before Chromium builds the popup's view).
+- (void)holdUntilSettled;
 @end
 @interface IKCEFPermissionPrompt (Internal)
 - (instancetype)initWithOrigin:(NSString *)origin promptID:(uint64_t)promptID permissions:(uint32_t)permissions

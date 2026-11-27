@@ -55,7 +55,7 @@ final class VideoTranslator {
         let durations = fragment.samples.map(\.duration).filter { $0 > 0 }.sorted()
         let typical = durations.isEmpty ? max(1, timescale / 30) : durations[durations.count / 2]
         let encoder = try IKAV1Encoder(width: Int32(width), height: Int32(height), timescale: Int32(timescale),
-                                       frameDuration: Int32(typical), lowPower: lowPower)
+                                       frameDuration: Int32(clamping: typical), lowPower: lowPower)
         var luma = [UInt8](repeating: 0, count: width * height)
         var cb = [UInt8](repeating: 0, count: width / 2 * (height / 2)), cr = cb
         for frame in frames {

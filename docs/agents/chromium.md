@@ -8,6 +8,23 @@
   the overlay is clipped to the visible area, autoplays muted at ≥ 50 % visible and forwards scrolling to the page.
   Inspect real pages with the checks build: `--cef-smoke <url> --cef-smoke-dump --cef-smoke-root <ikago-cef-smoke-…>`
   (add `--cef-smoke-translate` to play X through the translation layer and print the player's state).
+- Page lifetime: `CreateBrowser` keeps an unretained pointer to the parent `IKCEFPage` and builds the browser's view
+  later (much later when many tabs open at once). `IKCEFUnsettledPages` holds each page from creation until
+  `attached:`, or until `OnBeforeClose` when the tab closed first. Popups get the same hold (`holdUntilSettled`): their
+  opener's `_pendingPopups` dies with the opener, which can close first. Only these two paths give Chromium a parent view. Dropping that
+  hold brings back the crash found by `crash_explore.py`: 30 background tabs, `select:10;close` in one turn.
+- Privacy keys: Chromium touches macOS-protected services on its own (Bluetooth for phone passkeys on
+  `accounts.google.com`, screen audio, local network, speech). A missing `NS…UsageDescription` in `Info.plist` makes
+  macOS abort the app (TCC crash, `__TCC_CRASHING_DUE_TO_PRIVACY_VIOLATION__`) instead of asking. Keep Ikago's keys a
+  superset of Chrome's (`Google Chrome.app/Contents/Resources/en.lproj/InfoPlist.strings`). Test with `open -n` (a shell
+  launch charges the access to the terminal and hides the crash); `bluetoothprobe` makes the call from the 0.7.2 report.
+- Quitting waits until every Chromium browser has closed (`IKCEFRuntime.canShutdown`). A page that no window's
+  `content` owns, like the link preview's, must close in `BrowserWindowController.closeAllPages()`, or ⌘Q hangs
+  forever (found by the explorer's `peeklink` step).
+- Media parsing: `MP4Reader` reads bytes from X's pages, so every number from the file is checked before it's used in
+  arithmetic, a range or an `Int32`/`Int64` conversion; a bad file throws (the shim reports an error and the page
+  plays another way), it never traps. `mediaparserchecks` (Debug driver) covers targeted cases and a seeded fuzz of
+  20,000 corrupted segments; the fuzz found a short-box range trap. Run it after touching the parser.
 - Media translation (on by default, Settings ▸ Engine): `MediaTranslationShim` runs in X's main world before its scripts
   (`IKCEFPage.documentStartScript`: `Page.enable` + `Page.addScriptToEvaluateOnNewDocument` before the first navigation,
   which waits up to 2 s; the registration survives navigation events). It reports H.264/AAC MP4 as supported, including

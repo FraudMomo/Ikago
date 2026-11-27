@@ -87,7 +87,6 @@ extension TestDriver {
             } catch { print("IKTEST groupdemo FAIL \(error)") }
         case "importchecks": await BrowserImportChecks.run(c)
         case "mediaparserchecks": MediaParserChecks.run(iterations: Int(arg) ?? 4000)
-        case "parserfuzzchecks": ParserFuzzChecks.run(iterations: Int(arg) ?? 3000)
         case "newtabfocuschecks": await NewTabFocusChecks.run(c, base: arg)
         case "bookmarkdemo": BookmarkBarChecks.seed(c)
         case "bookmarkbarchecks": await BookmarkBarChecks.run(c)

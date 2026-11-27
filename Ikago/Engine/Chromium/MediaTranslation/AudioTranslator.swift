@@ -44,7 +44,9 @@ final class AudioTranslator {
         lastEnd = start + fragment.samples.reduce(0) { $0 + Int64($1.duration) }
         let frames = pcm.count / channels
         guard frames > 0 else { return [] }
-        let firstSample = Int64(Double(start) * Double(sampleRate) / Double(timescale))
+        let first = Double(start) * Double(sampleRate) / Double(timescale)
+        guard first.isFinite, abs(first) < 1e15 else { throw Failure(description: "segment time out of range") }
+        let firstSample = Int64(first)
         var samples: [MP4Writer.OutputSample] = []
         var offset = 0
         while offset < frames {
