@@ -102,6 +102,10 @@ final class BrowserImportModel {
             if data.accessIssues.isEmpty { completed.insert(source.id) }
             else { showAccessRequired(source) }
             result = "\(summary) Destination: \(destination.name)." + (accessNeededFor == nil ? "" : " Some browser data is blocked. Allow access and retry to finish importing.")
+            // Safari's logins and open tabs: say why, and only then take the person to System Settings.
+            if fullDiskAccessNeeded, await ImportAccessPrompt.shared.ask(.fullDiskAccess(browser: source.browser)) {
+                ImportAccessPrompt.openFullDiskAccess()
+            }
         } catch is CancellationError {
             result = "Import cancelled. No data was imported."
             accessNeededFor = source.kind == .file ? nil : source

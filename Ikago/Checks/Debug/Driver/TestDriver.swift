@@ -207,6 +207,13 @@ enum TestDriver {
             if let tab = c.activeController?.page as? CEFWebTab {
                 _ = try? await tab.devTools("Runtime.evaluate", ["expression": open, "userGesture": true])
             } else { _ = try? await c.activeController?.page?.callAsync("return \(open)") }
+        case "importprompt":  // folder | fda | off: the card an import shows before macOS asks for access (screenshots)
+            ImportAccessPrompt.shared.showForCheck(arg == "folder" ? .folder(browser: "Google Chrome", folder: "Chrome")
+                : arg == "fda" ? .fullDiskAccess(browser: "Safari") : nil)
+            NSApp.activate(); c.window?.makeKeyAndOrderFront(nil)
+        case "crashprompt":  // on | off: the card asking to report a crash, in the frontmost window (screenshots)
+            CrashReports.shared.showForCheck(arg != "off")
+            NSApp.activate(); c.window?.makeKeyAndOrderFront(nil)
         case "crashcard": print("IKTEST crashcard asking=\(CrashReports.shared.asking)")  // whether the card asks about a crash
         case "crashnow":  // ends Ikago the way a crash does, for the crash report the next launch asks about (IKAGO_CRASH_REPORTS=1)
             CrashReports.shared.note("test crash"); abort()

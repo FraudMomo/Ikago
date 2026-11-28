@@ -46,6 +46,9 @@ What changed in each release of Ikago, newest first. Add changes under **Unrelea
   Now it imports what it can read.
 - **Damaged videos no longer close Ikago:** with Chromium, a damaged or unusual video on X could close Ikago.
   Now it plays another way.
+- **Importing explains itself first:** before macOS asks you to allow Ikago to read another browser's data, Ikago says
+  what will happen and what to click. For Safari's logins and open tabs, it explains Full Disk Access before opening
+  System Settings, and only if you choose to.
 - **Crash reports you can pass on:** if Ikago closes unexpectedly, the next launch asks whether to save a crash
   report. Save Report puts it in your Downloads folder, without your name or home folder, ready to send to the
   developer in a GitHub issue or another way. Nothing is saved unless you say so, and nothing is sent by itself. Help ▸ Save Crash

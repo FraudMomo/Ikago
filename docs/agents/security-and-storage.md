@@ -24,7 +24,8 @@
   per-site access on both engines, and `ExtensionSync` keeps Web Store extensions in step between them. Safari
   extensions are found (`SafariExtensionScanner`), never added by themselves.
 - **Import** reads other browsers' files read-only (`Import/`, `ImportFileParser`). macOS hides their folders until the
-  person allows each one, so discovery shows a "needs access" entry and opens the folder picker.
+  person allows each one, so discovery shows a "needs access" entry and opens the folder picker, after a card that says
+  what comes (`ImportAccessPrompt`; Full Disk Access for Safari gets one too, before System Settings opens).
 - **Agents.** `AgentServer` listens on loopback only, refuses requests with an `Origin`, and needs the sealed token.
   An agent's name only labels it and grants nothing.
 

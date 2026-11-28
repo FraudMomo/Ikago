@@ -20,6 +20,11 @@ enum BrowserImportAccess {
         guard source.kind != .file else { return nil }
         let blocked = await Task.detached { blockedResources(source) }.value
         guard force || source.needsAccess || !blocked.isEmpty else { return nil }
+        // Say what comes first: a folder window out of the blue reads like a mistake.
+        let root = source.accessRoot ?? source.directory
+        guard await ImportAccessPrompt.shared.ask(.folder(browser: source.browser, folder: root.lastPathComponent)) else {
+            throw CancellationError()
+        }
         let panel = NSOpenPanel()
         panel.title = "Allow \(source.browser) Import"
         panel.message = "macOS asks you to allow Ikago to read \(source.browser)’s data. Click Allow Import to import its bookmarks, history, tabs, groups and available website logins."

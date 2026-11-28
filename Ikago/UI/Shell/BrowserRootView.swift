@@ -40,6 +40,12 @@ struct BrowserRootView: View {
                 SavePageSheet(state: state, commands: commands) { chrome.showSavePage = false }
                     .frame(maxWidth: .infinity, maxHeight: .infinity).transition(.opacity.combined(with: .scale(scale: 0.98)))
             }
+            // An import is about to ask macOS for access: say so first, in the frontmost window.
+            if let kind = ImportAccessPrompt.shared.kind {
+                Color.black.opacity(state.isDark ? 0.25 : 0.1)
+                ImportAccessSheet(prompt: .shared, kind: kind, colors: state.palette)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity).transition(.opacity.combined(with: .scale(scale: 0.98)))
+            }
             if chrome.showClearData {
                 Color.black.opacity(state.isDark ? 0.25 : 0.1).onTapGesture { chrome.showClearData = false }
                 ClearDataSheet(state: state) { chrome.showClearData = false }

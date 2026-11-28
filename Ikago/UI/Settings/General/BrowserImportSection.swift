@@ -95,11 +95,7 @@ struct FullDiskAccessButton: View {
     var prominent = false
 
     var body: some View {
-        Button("Open Full Disk Access") {
-            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles") {
-                NSWorkspace.shared.open(url)
-            }
-        }
+        Button("Open Full Disk Access") { ImportAccessPrompt.openFullDiskAccess() }
         .buttonStyle(SettingsButtonStyle(prominent: prominent))
     }
 }

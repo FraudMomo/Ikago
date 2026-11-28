@@ -102,6 +102,11 @@ final class CrashReports: NSObject {
         }
     }
 
+    #if DEBUG
+    /// Shows the card without a crash (screenshots).
+    func showForCheck(_ on: Bool) { withAnimation(.ikago) { asking = on } }
+    #endif
+
     /// No on the card: this crash isn't asked about again.
     func dismiss() {
         if let previous = unexpected { markHandled(Self.reportFiles(since: previous.started.addingTimeInterval(-60))) }

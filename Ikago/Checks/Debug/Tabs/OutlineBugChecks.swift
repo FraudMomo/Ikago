@@ -118,14 +118,14 @@ enum OutlineBugChecks {
         try? await Task.sleep(for: .milliseconds(300))
         rig.shot("\(tag)2-after")
         let placed = rig.list.placeForCheck("tab:" + leaving.id)
-        check(took && leaving.folderID == nil && placed?.leading == SidebarOutlineList.margin && placed?.card == nil, "2: a tab dragged out of a group among the tabs has no card or indent")
+        check(took && leaving.folderID == nil && placed?.leading == (rail ? 0 : SidebarOutlineList.margin) && placed?.card == nil, "2: a tab dragged out of a group among the tabs has no card or indent")
         took = await rig.drag(PretendDrag(tab: f.tabs[0].id, window: rig.window), from: rig.point(over: "tab:" + f.tabs[0].id, upper: true),
                               over: "group:" + f.home.id, upper: true)
         _ = await rig.settle()
         try? await Task.sleep(for: .milliseconds(300))
         rig.shot("\(tag)2-after-right-below")
         let pinnedOut = rig.list.placeForCheck("tab:" + f.tabs[0].id)
-        check(took && f.tabs[0].folderID == nil && pinnedOut?.leading == SidebarOutlineList.margin && pinnedOut?.card == nil,
+        check(took && f.tabs[0].folderID == nil && pinnedOut?.leading == (rail ? 0 : SidebarOutlineList.margin) && pinnedOut?.card == nil,
               "2: a tab dragged out to right below its group has no card or indent")
         await clear(f)
 
