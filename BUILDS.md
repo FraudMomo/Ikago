@@ -5,6 +5,8 @@ What changed in each release of Ikago, newest first. Add changes under **Unrelea
 
 ## Unreleased
 
+## 0.8.0 — 2026-11-28
+
 - **Ikago Home:** a new start page with your bookmarks and favorite sites, and a background of your choice.
 - **Passwords and autofill:** Ikago suggests strong passwords and fills in your addresses and cards.
 - **AI agents:** let an AI assistant browse for you, in its own tabs where you can watch, only on sites you allow.
