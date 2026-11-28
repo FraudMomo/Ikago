@@ -20,6 +20,16 @@ final class BrowserWindow: NSWindow {
     var fullScreenTopBand: CGFloat = 0
     static let willExitIkagoFullScreen = Notification.Name("app.ikago.willExitFullScreen")
 
+    /// Movable for macOS's window management (Window ▸ Fill, Center, Move & Resize, another display, tiling, which it
+    /// offers only for a movable window), but not while a press is handled: then only the empty chrome moves it
+    /// (`WindowDragArea` and `PageWindowGrab` allow it for their own drag), so tabs and buttons never drag the window.
+    override var isMovable: Bool {
+        get { allowsDragFromPress || !handlingPress }
+        set { allowsDragFromPress = newValue }
+    }
+    private var allowsDragFromPress = false
+    private var handlingPress = false
+
     override func toggleFullScreen(_ sender: Any?) {
         if let fullScreenHandler { fullScreenHandler() } else { super.toggleFullScreen(sender) }
     }
@@ -50,6 +60,9 @@ final class BrowserWindow: NSWindow {
             dismissAddress()
         }
         // The same click still reaches sidebar buttons, tabs, or the page.
+        let press = event.type == .leftMouseDown
+        if press { handlingPress = true }
+        defer { if press { handlingPress = false } }
         super.sendEvent(event)
     }
 

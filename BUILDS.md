@@ -46,6 +46,8 @@ What changed in each release of Ikago, newest first. Add changes under **Unrelea
   Now it imports what it can read.
 - **Damaged videos no longer close Ikago:** with Chromium, a damaged or unusual video on X could close Ikago.
   Now it plays another way.
+- **Window management:** the Window menu has macOS's own Fill, Center and Move & Resize, so you can tile Ikago, move
+  it to another display, and arrange it with keyboard shortcuts like any Mac app.
 - **Importing explains itself first:** before macOS asks you to allow Ikago to read another browser's data, Ikago says
   what will happen and what to click. For Safari's logins and open tabs, it explains Full Disk Access before opening
   System Settings, and only if you choose to.

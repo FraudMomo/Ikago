@@ -211,6 +211,12 @@ enum TestDriver {
             ImportAccessPrompt.shared.showForCheck(arg == "folder" ? .folder(browser: "Google Chrome", folder: "Chrome")
                 : arg == "fda" ? .fullDiskAccess(browser: "Safari") : nil)
             NSApp.activate(); c.window?.makeKeyAndOrderFront(nil)
+        case "windowmenu":  // prints the Window menu and whether macOS may move the window (its window management)
+            if let menu = NSApp.windowsMenu {
+                menu.delegate?.menuNeedsUpdate?(menu); menu.update()
+                print("IKTEST windowmenu \(menu.items.map { $0.isSeparatorItem ? "-" : $0.title })")
+            }
+            print("IKTEST windowmovable \(c.window?.isMovable ?? false)")
         case "crashprompt":  // on | off: the card asking to report a crash, in the frontmost window (screenshots)
             CrashReports.shared.showForCheck(arg != "off")
             NSApp.activate(); c.window?.makeKeyAndOrderFront(nil)

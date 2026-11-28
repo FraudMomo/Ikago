@@ -50,7 +50,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
         window.backgroundColor = .clear
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
-        // Only `WindowDragArea` moves the window: tabs must never start a window drag.
+        // A press moves the window only from empty chrome (`WindowDragArea`); macOS's window management still can.
         window.isMovable = false
         window.titlebarSeparatorStyle = .none
         window.minSize = NSSize(width: 420, height: 320)

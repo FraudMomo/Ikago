@@ -118,6 +118,9 @@ enum MainMenu {
         let window = main.addSubmenu("Window") {
             $0.item("Minimize", #selector(NSWindow.performMiniaturize(_:)), "m")
             $0.item("Zoom", #selector(NSWindow.performZoom(_:)))
+            // macOS adds Fill, Center, Move & Resize and the open windows here, as in every Mac app.
+            $0.separator()
+            $0.item("Bring All to Front", #selector(NSApplication.arrangeInFront(_:)))
         }
         NSApp.windowsMenu = window
         let help = main.addSubmenu("Help") {

@@ -10,9 +10,9 @@ struct WindowDragArea: FillingViewRepresentable {
     final class DragView: NSView {
         override var isFlipped: Bool { true }
 
-        // The window is not movable (see BrowserWindowController), so nothing else can start a
-        // drag. Here it is movable just for the system drag: edge tiling, snapping and
-        // Option-arrange all work, as in a native title bar.
+        // A press can't move the window (see `BrowserWindow.isMovable`), so nothing else can start a
+        // drag. Here it can, just for the system drag: edge tiling, snapping and Option-arrange all
+        // work, as in a native title bar.
         override func mouseDown(with event: NSEvent) {
             // Inside a child window over the browser window (the icon rail's Expand), the browser window moves.
             guard let window = window?.parent ?? window else { return }
