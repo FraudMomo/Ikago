@@ -12,8 +12,6 @@ struct SidebarView: View {
         let colors = state.palette
         VStack(alignment: .leading, spacing: 10) {
             topRow(colors)
-            let shortcuts = state.browserPreferences.sidebarShortcuts == true
-            if shortcuts && state.browserPreferences.sidebarSpaceName != false { SidebarSpaceHeader(state: state, commands: commands) }
             // Not while the address bar sits above the page (`showsPageAddressBar`).
             if state.chromeLayout.sidebarShowsAddress && !state.showsPageAddressBar {
                 if chrome.isEditingAddress(of: state.activeTabID) {
@@ -27,43 +25,24 @@ struct SidebarView: View {
                     AddressField(state: state, colors: colors, commands: commands)
                 }
             }
-            // The pinned grid goes below the shortcuts, or above them when chosen (Settings ▸ Sidebar).
-            let gridAbove = shortcuts && state.browserPreferences.pinnedGridAboveShortcuts == true
-            if shortcuts && !gridAbove { SidebarShortcuts(state: state, chrome: chrome, commands: commands) }
             SpaceSwipeContent(swipe: chrome.spaceSwipe, width: CGFloat(state.sidebarWidth)) {
-                VStack(alignment: .leading, spacing: 10) {
-                    SidebarEssentials(state: state, chrome: chrome, commands: commands)
-                    PinnedGroupRows(state: state, chrome: chrome, commands: commands)
-                    if gridAbove { SidebarShortcuts(state: state, chrome: chrome, commands: commands) }
-                    // The native list (lift-to-reorder); the SwiftUI list stays only for "Keep pinned tabs and groups in view",
-                    // which pins the top part above the scrolling list.
-                    Group {
-                        if state.browserPreferences.pinnedRowsStayInView == true {
-                            TabListView(state: state, chrome: chrome, colors: colors, commands: commands)
-                        } else {
-                            SidebarOutlineList(state: state, chrome: chrome, colors: colors, commands: commands)
-                        }
-                    }
+                // One list: pins above the essentials, the essentials' row (the grid), groups, tabs. With nothing
+                // above them, the essentials' band reaches up into the space over them, where a tab is dropped to go
+                // above them; with pins above, it is the space between those and the grid.
+                SidebarOutlineList(state: state, chrome: chrome, colors: colors, commands: commands)
+                    .padding(.top, state.pinnedTabs.contains(where: \.pinAboveGrid) ? 0 : -SidebarEssentials.band)
+                    .padding(.horizontal, -SidebarOutlineList.margin)
                     .id(state.activeSpaceID).transition(.opacity.combined(with: .offset(x: 18)))
-                }
             }
 
             if state.showsBookmarksBar && !state.showsSidebarTopTabs { SidebarBookmarksDrawer(state: state, chrome: chrome, commands: commands) }
             SidebarMediaPlayer(state: state, commands: commands)
-            let extraGroups = state.addsTabGroupsButton(in: .sidebarBottomTrailing)
-            if !state.visibleChromeItems(state.chromeLayout.bottomItems).isEmpty || extraGroups {
-                // Left, centre and right groups, as placed in Settings ▸ Sidebar & Toolbar ▸ Customize; the centre stays
-                // centred whatever the sides hold.
-                ZStack {
-                    HStack(spacing: 0) {
-                        controls(state.visibleChromeItems(state.chromeLayout.bottomLeading), colors, height: 36, dots: true)
-                        Spacer(minLength: 0)
-                        controls(state.visibleChromeItems(state.chromeLayout.bottomTrailing) + (extraGroups ? [.tabGroups] : []),
-                                 colors, height: 36, dots: true)
-                    }
-                    controls(state.visibleChromeItems(state.chromeLayout.sidebarBottom), colors, height: 36, dots: true)
-                }
-                .frame(height: 36)
+            // The bottom row, centred, as placed in Settings ▸ Sidebar & Toolbar ▸ Customize.
+            let bottom = state.visibleChromeItems(state.chromeLayout.sidebarBottom)
+                + (state.addsTabGroupsButton(in: .sidebarBottom) ? [.tabGroups] : [])
+            if !bottom.isEmpty {
+                controls(bottom, colors, height: 36, dots: true)
+                    .frame(maxWidth: .infinity).frame(height: 36)
             }
         }
         .padding(.horizontal, 10)
@@ -79,38 +58,22 @@ struct SidebarView: View {
         .animation(.ikago, value: state.showsBookmarksBar)
     }
 
-    /// The traffic lights, then the customizable controls, in one row that never slides under the lights. When the
+    /// The traffic lights, then the customizable controls at the row's end, never under the lights. When the
     /// controls don't fit at full size they get smaller; when they still don't fit, the plain buttons move into a
     /// "More" menu at the end. Controls that anchor a popover (Downloads, Devices, Spaces, Share, Site Info) stay.
     private func topRow(_ colors: Palette) -> some View {
         let layout = state.chromeLayout
-        let leading = state.visibleChromeItems(layout.topLeading), center = state.visibleChromeItems(layout.topCenter)
-        var trailing = state.visibleChromeItems(layout.sidebarTop)
+        var all = state.visibleChromeItems(layout.sidebarTop)
         if (DownloadCenter.shared.showsToolbarButton || chrome.showDownloads) && !layout.contains(.downloads) {
-            trailing.append(.downloads)
+            all.append(.downloads)
         }
-        let all = leading + center + trailing
         let fitsFull = all.count <= Self.topRowCapacity(state: state)
         let compactFit = Self.topRowCapacity(state: state, step: Self.compactStep)
         let size: CGFloat = fitsFull ? 28 : Self.compactSize
-        return Group {
-            if fitsFull || all.count <= compactFit {
-                // Left, centre and right groups; all of them start after the traffic lights, never under them.
-                // Each group in its own stack, so an empty one still holds its slot.
-                ThreeSlotLayout {
-                    HStack(spacing: 0) { controls(leading, colors, size: size) }
-                    HStack(spacing: 0) { controls(center, colors, size: size) }
-                    HStack(spacing: 0) { controls(trailing, colors, size: size) }
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.leading, leading.isEmpty && center.isEmpty ? 0 : Self.lightsReserve(state: state))
-            } else {
-                let split = Self.overflow(all, slots: compactFit - 1)
-                HStack(spacing: 0) {
-                    Spacer(minLength: 0)
-                    controls(split.shown, colors, size: size, more: split.more)
-                }
-            }
+        let split = fitsFull || all.count <= compactFit ? (shown: all, more: []) : Self.overflow(all, slots: compactFit - 1)
+        return HStack(spacing: 0) {
+            Spacer(minLength: 0)
+            controls(split.shown, colors, size: size, more: split.more)
         }
         .frame(height: BrowserState.sidebarRowHeight)
     }
@@ -128,8 +91,7 @@ struct SidebarView: View {
 
     /// Room the traffic lights take at the start of the sidebar's top row.
     static func lightsReserve(state: BrowserState) -> CGFloat {
-        let lightsInSidebar = !state.sidebarOnRight || state.sidebarLightsFollow
-        return lightsInSidebar ? max(0, 79 + 8 - CGFloat(state.frameInset) - 10) : 0
+        max(0, 79 + 8 - CGFloat(state.frameInset) - 10)
     }
 
     @ViewBuilder private func controls(_ items: [ChromeItem], _ colors: Palette, height: CGFloat = 34, dots: Bool = false,
@@ -152,9 +114,8 @@ struct SidebarView: View {
     static func topRowCapacity(state: BrowserState, step: CGFloat = 30) -> Int {
         let content = CGFloat(state.sidebarWidth) - 20  // the sidebar's horizontal padding
         let inset = CGFloat(state.frameInset)
-        let lightsInSidebar = !state.sidebarOnRight || state.sidebarLightsFollow
         // The lights end 79 pt into the window (19 pt + three 14 pt buttons 9 pt apart); keep 8 pt clear of them.
-        let reserved = lightsInSidebar ? max(0, 79 + 8 - inset - 10) : 0
+        let reserved = max(0, 79 + 8 - inset - 10)
         return max(1, Int((content - reserved - 8 + 2) / step))
     }
 }
@@ -178,13 +139,7 @@ struct AddressField: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity).contentShape(Rectangle())
             }.buttonStyle(.plain).help("Search or enter address (⌘L)")
-            if let tab, tab.isLoading || (hovering && state.chromeLayout.addressShowsReload) {
-                PageLoadButton(tab: tab, colors: colors, commands: commands)
-            }
-            if state.chromeLayout.addressShowsSiteInfo, hovering || SiteInfoButton.isShown(commands) {
-                SiteInfoButton(state: state, colors: colors, commands: commands)
-                    .transition(.opacity.combined(with: .scale(scale: 0.7)))
-            }
+            AddressFieldControls(state: state, colors: colors, commands: commands, hovering: hovering)
         }
         .font(.system(size: 13, weight: .medium))
         .padding(.leading, 12).padding(.trailing, 7).frame(height: 36)

@@ -18,6 +18,8 @@ final class TabItem: Identifiable {
     var pinAsRow = false
     /// Standalone row follows this group; nil places it above the groups.
     var pinAfterFolderID: String?
+    /// With essentials shown: this pinned row sits above the grid instead of in the list below it.
+    var pinAboveGrid = false
     var spaceID: UUID
     var folderID: String?
 
@@ -91,7 +93,7 @@ final class TabItem: Identifiable {
     }
 
     var saved: SavedTab {
-        SavedTab(id: id, url: url, title: title, pinned: pinned, space: spaceID.uuidString, folder: folderID, favicon: faviconURL?.absoluteString, unloaded: isHibernating, pinAsRow: pinAsRow, pinAfterFolderID: pinAfterFolderID, history: history?.isEmpty == false ? history : nil)
+        SavedTab(id: id, url: url, title: title, pinned: pinned, space: spaceID.uuidString, folder: folderID, favicon: faviconURL?.absoluteString, unloaded: isHibernating, pinAsRow: pinAsRow, pinAfterFolderID: pinAfterFolderID, pinAboveGrid: pinAboveGrid ? true : nil, history: history?.isEmpty == false ? history : nil)
     }
 }
 
@@ -108,6 +110,7 @@ struct SavedTab: Codable, Equatable {
     var unloaded: Bool? = nil
     var pinAsRow: Bool? = nil
     var pinAfterFolderID: String? = nil
+    var pinAboveGrid: Bool? = nil
     /// Closed tabs only: the tab it followed in its Space, so ⌘⇧T puts it back in its place.
     var after: String? = nil
     var history: TabHistory? = nil

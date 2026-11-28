@@ -1,58 +1,38 @@
 import SwiftUI
 
-/// Top Tabs: the bar between the tab row and the page, the top of the page's own card. The address sits centred
-/// in a quiet field between the controls placed on its left and right (Settings ▸ Sidebar & Toolbar ▸ Customize). It sits in its own host (`IsolatedHost`):
+/// Top Tabs: the bar between the tab row and the page, the top of the page's own card. The address spans a quiet field
+/// between the controls placed on its left and right (Settings ▸ Sidebar & Toolbar ▸ Customize); the
+/// Sidebar layout's bar above the page holds the address alone. It sits in its own host (`IsolatedHost`):
 /// it follows the active page's address and progress, which the rest of the window doesn't need to hear about.
 struct TabsToolbar: View {
     let state: BrowserState
     let chrome: ChromeModel
     let palette: CommandPaletteModel
     weak var commands: BrowserCommands?
-    /// The Sidebar layout's bar above the page: the address and the controls placed beside it (`pageBar*` zones).
+    /// The Sidebar layout's bar above the page: the address only (its controls are the address field's own).
     var addressOnly = false
 
     var body: some View {
         let colors = state.palette
         let layout = state.chromeLayout
-        // Above the page in the Sidebar layout the bar has its own two places (Customize), the sidebar keeping the rest.
-        let leading = state.visibleChromeItems(addressOnly ? layout.pageBarLeading : layout.toolbarLeading)
-        var trailing = state.visibleChromeItems(addressOnly ? layout.pageBarTrailing : layout.toolbarTrailing)
-        let nearLeading = addressOnly ? [] : state.visibleChromeItems(layout.toolbarNearLeading)
-        let nearTrailing = addressOnly ? [] : state.visibleChromeItems(layout.toolbarNearTrailing)
-        if !addressOnly, (DownloadCenter.shared.showsToolbarButton || chrome.showDownloads)
-            && !ChromeZone.toolbarRow.contains(where: { layout.contains(.downloads, in: $0) }) {
+        // Above the page in the Sidebar layout the bar is the address alone; the sidebar keeps the controls.
+        let leading = addressOnly ? [] : state.visibleChromeItems(layout.toolbarLeading)
+        var trailing = addressOnly ? [] : state.visibleChromeItems(layout.toolbarTrailing)
+        if !addressOnly, (DownloadCenter.shared.showsToolbarButton || chrome.showDownloads) && !layout.contains(.downloads, in: .toolbarTrailing) {
             trailing.append(.downloads)
         }
-        // Four places: the window's edges, and either side of the address. Each pair takes the same width on both
-        // sides, so the address stays centred on the page.
-        let pad: CGFloat = colors.glass ? 8 : 0
-        let side = CGFloat(max(leading.count, trailing.count)) * 30 + pad
-        let near = nearLeading.isEmpty && nearTrailing.isEmpty ? 0 : CGFloat(max(nearLeading.count, nearTrailing.count)) * 30 + pad
-        // Centered keeps the address over the middle of the page; Full Width and Page Title let it span the bar between
-        // the controls, each side only as wide as its own controls.
-        let centered = state.tabsAddressStyle == .centered
+        // The address spans the bar between the controls, each side only as wide as its own controls.
         return HStack(spacing: 10) {
-            controls(leading, colors).frame(width: centered ? side : nil, alignment: .leading)
-            HStack(spacing: 8) {
-                if !nearLeading.isEmpty || (centered && near > 0) {
-                    controls(nearLeading, colors).frame(width: centered ? near : nil, alignment: .trailing)
-                }
-                TabsAddressField(state: state, chrome: chrome, palette: palette, commands: commands)
-                    .frame(maxWidth: centered ? 680 : .infinity)
-                if !nearTrailing.isEmpty || (centered && near > 0) {
-                    controls(nearTrailing, colors).frame(width: centered ? near : nil, alignment: .leading)
-                }
-            }
-            .frame(maxWidth: centered ? 680 + 2 * (near + 8) : .infinity)
-            .frame(maxWidth: .infinity)
-            controls(trailing, colors).frame(width: centered ? side : nil, alignment: .trailing)
+            controls(leading, colors)
+            TabsAddressField(state: state, chrome: chrome, palette: palette, commands: commands)
+                .frame(maxWidth: .infinity)
+            controls(trailing, colors)
         }
         .padding(.horizontal, 8)
         .frame(height: state.tabsToolbarHeight)
         .background(WindowDragArea())
         .environment(\.colorScheme, colors.isDark ? .dark : .light)
         .animation(.ikagoQuick, value: trailing)
-        .animation(.ikagoQuick, value: nearLeading + nearTrailing)
         .recordLayout("tabs-toolbar")
     }
 
@@ -74,8 +54,8 @@ struct TabsToolbar: View {
     }
 }
 
-/// The address: at rest the site centred (Centered), the whole address from the start (Full Width), or the page's title
-/// and site with the address on hover (Page Title); the full field while editing.
+/// The address: at rest the whole address from the start (Full Width), or the page's title and site with the address
+/// on hover (Page Title); the full field while editing.
 private struct TabsAddressField: View {
     let state: BrowserState
     let chrome: ChromeModel
@@ -102,10 +82,10 @@ private struct TabsAddressField: View {
                         restingLabel(tab, colors: colors)
                     }
                     .font(.system(size: 13))
-                    // Centered: clear of the buttons on the right, and still centred. Otherwise from the field's start.
-                    .padding(.leading, style == .centered ? 64 : style == .title ? 8 : 12)
-                    .padding(.trailing, 64)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: style == .centered ? .center : .leading)
+                    // From the field's start, clear of the controls inside it at the end.
+                    .padding(.leading, style == .title ? 8 : 12)
+                    .padding(.trailing, controlsRoom)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -114,12 +94,7 @@ private struct TabsAddressField: View {
                 // the click (and started editing) instead of these.
                 HStack(spacing: 0) {
                     Spacer(minLength: 0)
-                    if let tab, tab.isLoading || (hovering && state.chromeLayout.addressShowsReload) {
-                        PageLoadButton(tab: tab, colors: colors, commands: commands)
-                    }
-                    if state.chromeLayout.addressShowsSiteInfo, hovering || SiteInfoButton.isShown(commands) {
-                        SiteInfoButton(state: state, colors: colors, commands: commands)
-                    }
+                    AddressFieldControls(state: state, colors: colors, commands: commands, hovering: hovering)
                 }
                 .padding(.trailing, 4)
                 .transition(.opacity)
@@ -154,14 +129,12 @@ private struct TabsAddressField: View {
     }
 
     private var style: TabsAddressStyle { state.tabsAddressStyle }
+    /// Room at the field's end for the controls inside it.
+    private var controlsRoom: CGFloat { max(64, CGFloat(state.chromeLayout.address.count) * 28 + 8) }
 
     @ViewBuilder private func restingLabel(_ tab: TabItem?, colors: Palette) -> some View {
         if let tab {
             switch style {
-            case .centered:
-                Text(tab.addressLabel).lineLimit(1).truncationMode(.middle)
-                    .foregroundStyle(colors.text.opacity(0.88))
-                    .contentTransition(.opacity)
             case .wide:
                 addressText(tab, colors: colors)
             case .title:

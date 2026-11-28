@@ -23,27 +23,30 @@ struct SidebarOutlineList: View {
     @Environment(\.self) private var environment
 
     var body: some View {
-        // Reading the structure here is what makes the list follow it; each row observes its own tab or group.
+        // Reading the structure here is what makes the list follow it; each row observes its own tab or group. The
+        // essentials row's height too: the list must be told when it changes.
         let outline = Self.shown(state, rail: rail)
-        let style = OutlineStyle(cards: rail != nil || state.sidebarGroupStyle != .folders,
-                                 pills: rail == nil && state.groupLabelStyle == .colorPill,
-                                 counts: state.showsGroupTabCounts, isDark: colors.isDark,
+        let essentials = rail == nil ? SidebarEssentials.height(state) : 0
+        let style = OutlineStyle(cards: rail != nil || state.groupsAsPills, pills: rail == nil && state.groupsAsPills,
+                                 isDark: colors.isDark,
                                  // The rows live in other hosts: a change of mode reaches them only when they're given it.
                                  scheme: environment.colorScheme)
         OutlineRepresentable(outline: outline, style: style, state: state, chrome: chrome, colors: colors,
-                             commands: commands, onSelection: onSelection, environment: environment, rail: rail)
+                             commands: commands, onSelection: onSelection, environment: environment, rail: rail,
+                             essentialsHeight: essentials)
             .recordLayout(rail == nil ? "sidebar-tab-list" : "rail-tab-list")
     }
 
     /// The rows this list shows: the model's, without the divider when New Tab is off, without the loose tabs under Top
-    /// Tabs (the tab row has them), and through the icon sidebar's filter.
+    /// Tabs (the tab row has them), and through the icon sidebar's filter (which shows the essentials as its own tiles).
     @MainActor static func shown(_ state: BrowserState, rail: OutlineRailCells?) -> SidebarOutline {
-        let full = state.sidebarOutline
+        var full = state.sidebarOutline.rows
+        if rail != nil { full.removeAll { $0.kind == .essentials } }
         let topTabs = state.showsSidebarTopTabs
         let divider = state.chromeLayout.sidebarShowsNewTab && !topTabs
         var loose = false
         var rows: [SidebarOutline.Row] = []
-        for row in full.rows {
+        for row in full {
             if row.kind == .divider {
                 loose = true
                 if divider { rows.append(row) }
@@ -75,7 +78,6 @@ struct OutlineRailCells {
 struct OutlineStyle: Equatable {
     var cards: Bool
     var pills: Bool
-    var counts: Bool
     var isDark: Bool
     var scheme: ColorScheme
 }
@@ -90,6 +92,7 @@ private struct OutlineRepresentable: FillingViewRepresentable {
     let onSelection: (() -> Void)?
     let environment: EnvironmentValues
     let rail: OutlineRailCells?
+    let essentialsHeight: CGFloat
 
     func makeCoordinator() -> SidebarOutlineController {
         SidebarOutlineController(state: state, chrome: chrome, rail: rail)
@@ -98,10 +101,15 @@ private struct OutlineRepresentable: FillingViewRepresentable {
     func makeNSView(context: Context) -> NSScrollView {
         let controller = context.coordinator
         let scrollView = OutlineScrollView()
+        scrollView.contentView = OutlineClipView()
         scrollView.drawsBackground = false
         scrollView.contentView.drawsBackground = false
         scrollView.automaticallyAdjustsContentInsets = false
+        // The full sidebar's list spans the sidebar's 10 pt margins and its rows sit in from them (`insets(for:)`), so the
+        // scroller runs in the trailing margin, clear of the rows. (Not content insets: AppKit placed the floating
+        // essentials row by them, partway, while a drag moved the gap, and the grid jumped sideways.)
         scrollView.contentInsets = NSEdgeInsetsZero
+        scrollView.scrollerInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: rail == nil ? 1 : 0)
         scrollView.verticalScroller = SlimScroller()
         scrollView.hasVerticalScroller = true
         scrollView.autohidesScrollers = true
@@ -109,6 +117,10 @@ private struct OutlineRepresentable: FillingViewRepresentable {
         scrollView.hasHorizontalScroller = false
         scrollView.horizontalScrollElasticity = .none
         scrollView.documentView = controller.outlineView
+        if rail == nil {
+            scrollView.takesDrops(like: controller.outlineView)
+            scrollView.essentialsRect = { [weak controller] in controller?.essentialsRect }
+        }
         controller.attachRail(to: scrollView)
         return scrollView
     }
@@ -118,7 +130,11 @@ private struct OutlineRepresentable: FillingViewRepresentable {
         controller.colors = colors
         controller.commands = commands
         controller.onSelection = onSelection
+        // The icon sidebar's tiles take part in Magnify through their environment: each row's view holds the one it was
+        // made with, so when the effect comes or goes the rows are made again, or tiles made before stayed out of it.
+        if controller.environment.railHover !== environment.railHover { controller.needsRebuild = true }
         controller.environment = environment
+        controller.essentialsHeight = essentialsHeight
         if let rail { controller.rail = rail }
         controller.show(outline, style: style)
     }
@@ -151,18 +167,23 @@ final class SidebarOutlineController: NSObject, NSOutlineViewDataSource, NSOutli
     weak var commands: BrowserCommands?
     var onSelection: (() -> Void)?
     var environment = EnvironmentValues()
+    /// The rows' views must be made again (their environment changed), at the next `show`.
+    var needsRebuild = false
     let outlineView = SidebarOutlineTable()
     /// What the list shows now.
     private(set) var outline = SidebarOutline(rows: [])
     private var roots: [OutlineNode] = []
     private var nodes: [String: OutlineNode] = [:]
-    private var style = OutlineStyle(cards: true, pills: true, counts: false, isDark: false, scheme: .light)
+    private var style = OutlineStyle(cards: true, pills: true, isDark: false, scheme: .light)
 
     /// The icon sidebar's tiles in place of the rows.
     var rail: OutlineRailCells?
     /// Each tile's own space for the hover effects (a tile measures itself in its cell, which converts to the window).
     private var railSpaces: [String: RailSpace] = [:]
     private var scrollObserver: NSObjectProtocol?
+
+    /// The essentials row's height (`SidebarEssentials.height`), given with each update.
+    var essentialsHeight: CGFloat = 0
 
     init(state: BrowserState, chrome: ChromeModel, rail: OutlineRailCells? = nil) {
         self.state = state
@@ -189,7 +210,9 @@ final class SidebarOutlineController: NSObject, NSOutlineViewDataSource, NSOutli
         outlineView.columnAutoresizingStyle = .uniformColumnAutoresizingStyle
         outlineView.selectionHighlightStyle = .none
         outlineView.allowsEmptySelection = true
-        outlineView.floatsGroupRows = false
+        // The full sidebar's essentials stay at the top while the rest scrolls, as the icon sidebar's do: their row is
+        // AppKit's floating group row (`isGroupItem`), and rows passing under it are hidden (`maskUnderEssentials`).
+        outlineView.floatsGroupRows = rail == nil
         outlineView.focusRingType = .none
         outlineView.draggingDestinationFeedbackStyle = .gap
         outlineView.setDraggingSourceOperationMask([.move, .generic], forLocal: true)
@@ -206,7 +229,14 @@ final class SidebarOutlineController: NSObject, NSOutlineViewDataSource, NSOutli
 
     /// The icon sidebar: its list space is this list, and its scrolling is reported (the hover effects' copy follows).
     func attachRail(to scrollView: NSScrollView) {
-        guard let rail else { return }
+        guard let rail else {
+            let clip = scrollView.contentView
+            clip.postsBoundsChangedNotifications = true
+            scrollObserver = NotificationCenter.default.addObserver(forName: NSView.boundsDidChangeNotification, object: clip, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.maskUnderEssentials() }
+            }
+            return
+        }
         rail.space.view = outlineView
         let clip = scrollView.contentView
         clip.postsBoundsChangedNotifications = true
@@ -218,8 +248,16 @@ final class SidebarOutlineController: NSObject, NSOutlineViewDataSource, NSOutli
     // MARK: Following the model
 
     /// Shows `new`, animated unless `animated` is false (a drop: its rows go where the gap was) or Reduce Motion is on.
+    /// While a drag from this list is under way the rows stay as AppKit knows them (`isDragSource`), and the list
+    /// catches up when the drag ends (`dropFinished`): a drop elsewhere (the essentials grid, the list above it) changed
+    /// them mid-drag, and AppKit's end of the drag crashed in `setGapRow:`.
     func show(_ new: SidebarOutline, style: OutlineStyle, animated: Bool = true) {
-        let restyle = style != self.style
+        guard !outlineView.isDragSource else {
+            heldWhileDragging = true
+            return
+        }
+        let restyle = style != self.style || needsRebuild
+        needsRebuild = false
         self.style = style
         // The rows' system colors (`.secondary` symbols) follow the sidebar's mode, which can differ from the window's.
         outlineView.appearance = NSAppearance(named: style.scheme == .dark ? .darkAqua : .aqua)
@@ -228,6 +266,7 @@ final class SidebarOutlineController: NSObject, NSOutlineViewDataSource, NSOutli
             update(to: new, animated: animated && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
         }
         noteChangedHeights()
+        maskUnderEssentials()
         place(rebuilding: restyle)
     }
 
@@ -356,6 +395,49 @@ final class SidebarOutlineController: NSObject, NSOutlineViewDataSource, NSOutli
 
     private func children(of parent: OutlineNode?) -> [OutlineNode] { parent?.children ?? roots }
 
+    /// The essentials' row where it shows now (outline coordinates): floating at the top, or in its place.
+    var essentialsRect: NSRect? {
+        if let floating = floatingEssentials { return floating.rect }
+        guard rail == nil, let node = nodes["essentials"] else { return nil }
+        let row = outlineView.row(forItem: node)
+        return row >= 0 ? outlineView.rect(ofRow: row) : nil
+    }
+
+    /// The essentials' row while it floats at the top of the scrolled list: its index, and where it shows (outline
+    /// coordinates). Nil while it sits in its place.
+    var floatingEssentials: (row: Int, rect: NSRect)? {
+        guard rail == nil, let node = nodes["essentials"] else { return nil }
+        let row = outlineView.row(forItem: node)
+        let visible = outlineView.visibleRect
+        guard row >= 0, outlineView.rect(ofRow: row).minY < visible.minY - 0.5 else { return nil }
+        return (row, NSRect(x: visible.minX, y: visible.minY, width: outlineView.bounds.width, height: essentialsHeight))
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, isGroupItem item: Any) -> Bool {
+        rail == nil && (item as? OutlineNode)?.row.kind == .essentials
+    }
+
+    /// While the essentials float at the top of the scrolled list, the rows scrolling under them are hidden: the sidebar
+    /// behind can be see-through, so the floating row has no background of its own to cover them with.
+    func maskUnderEssentials() {
+        guard rail == nil else { return }
+        outlineView.wantsLayer = true
+        guard let floating = floatingEssentials else {
+            outlineView.layer?.mask = nil
+            return
+        }
+        let mask = outlineView.layer?.mask ?? CALayer()
+        mask.backgroundColor = NSColor.black.cgColor
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        // The outline is flipped (so is its layer): everything from just under the floating essentials down shows.
+        let bounds = outlineView.bounds
+        let top = floating.rect.maxY
+        mask.frame = CGRect(x: 0, y: top, width: bounds.width, height: max(0, bounds.height - top))
+        outlineView.layer?.mask = mask
+        CATransaction.commit()
+    }
+
     func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
         (item as? OutlineNode)?.row.groupID != nil
     }
@@ -374,6 +456,7 @@ final class SidebarOutlineController: NSObject, NSOutlineViewDataSource, NSOutli
         switch node.row.kind {
         case .tabs: return 34
         case .divider: return 45
+        case .essentials: return essentialsHeight
         case .group: return node.depth > 0 ? 30 : style.pills ? 32 : 34
         }
     }
@@ -415,8 +498,9 @@ final class SidebarOutlineController: NSObject, NSOutlineViewDataSource, NSOutli
         let fill = folder.tagValue.map { NSColor($0.color).withAlphaComponent(style.isDark ? 0.16 : 0.11) }
             ?? NSColor(colors.text).withAlphaComponent(style.isDark ? 0.06 : 0.04)
         rowView.card = (piece, fill)
-        // The icon sidebar's tint sits behind its tile column only.
+        // The icon sidebar's tint sits behind its tile column only; the full sidebar's inside its margins.
         rowView.cardColumn = rail.map { ($0.inset, 36) }
+        rowView.margin = rail == nil ? SidebarOutlineList.margin : 0
     }
 
     private func lastShown(in node: OutlineNode) -> OutlineNode {
@@ -428,8 +512,9 @@ final class SidebarOutlineController: NSObject, NSOutlineViewDataSource, NSOutli
     /// folder. The icon sidebar's tiles all sit in one column.
     private func insets(for node: OutlineNode) -> (leading: CGFloat, trailing: CGFloat) {
         guard rail == nil else { return (0, 0) }
-        guard style.cards else { return (CGFloat(node.depth) * 22, 0) }
-        return node.parent == nil ? (0, 0) : (4 + CGFloat(node.depth - 1) * 16, 4)
+        let margin = SidebarOutlineList.margin
+        guard style.cards else { return (margin + CGFloat(node.depth) * 22, margin) }
+        return node.parent == nil ? (margin, margin) : (margin + 4 + CGFloat(node.depth - 1) * 16, margin + 4)
     }
 
     /// The row's content, the same wherever it sits (its place is the cell's insets).
@@ -463,6 +548,8 @@ final class SidebarOutlineController: NSObject, NSOutlineViewDataSource, NSOutli
             view = AnyView(OutlineGroupHeader(id: id, state: state, chrome: chrome, colors: colors, commands: commands))
         case .divider:
             view = AnyView(OutlineNewTabRow(colors: colors) { [weak self] in self?.commands?.newTab() })
+        case .essentials:
+            view = AnyView(SidebarEssentials(state: state, chrome: chrome, commands: commands, onSelection: onSelection))
         }
         return AnyView(view.environment(\.self, environment))
     }
@@ -482,6 +569,7 @@ final class SidebarOutlineController: NSObject, NSOutlineViewDataSource, NSOutli
             withAnimation(.groupDisclosure) { state.toggleFolder(id) }
         case .divider:
             commands?.newTab()
+        case .essentials: break
         }
     }
 
@@ -497,7 +585,7 @@ final class SidebarOutlineController: NSObject, NSOutlineViewDataSource, NSOutli
         case .group(let id):
             guard let data = try? JSONEncoder().encode(GroupDrag(id: id)) else { return nil }
             pasteboardItem.setData(data, forType: NSPasteboard.PasteboardType(UTType.ikagoGroup.identifier))
-        case .divider:
+        case .divider, .essentials:
             return nil
         }
         return pasteboardItem
@@ -511,7 +599,7 @@ final class SidebarOutlineController: NSObject, NSOutlineViewDataSource, NSOutli
         switch first.row.kind {
         case .tabs(let ids): chrome.beginTabDrag(ids[0])
         case .group(let id): chrome.beginFolderDrag(id)
-        case .divider: break
+        case .divider, .essentials: break
         }
         // The icon sidebar's Magnify closes for the drag before the row's picture is taken (its rows covered the tiles).
         if rail != nil { chrome.rail.tick() }
@@ -521,18 +609,23 @@ final class SidebarOutlineController: NSObject, NSOutlineViewDataSource, NSOutli
             guard index < draggedNodes.count else { return }
             let row = outlineView.row(forItem: draggedNodes[index])
             guard row >= 0, let rowView = outlineView.rowView(atRow: row, makeIfNecessary: false) else { return }
-            let image = self.lifted(draggedNodes[index], size: rowView.bounds.size, scale: outlineView.window?.backingScaleFactor ?? 2)
-            let frame = outlineView.convert(rowView.bounds, from: rowView).insetBy(dx: -8, dy: -8)
+            // The row inside the sidebar's margins, as it shows.
+            let shown = rowView.bounds.insetBy(dx: self.rowMargin, dy: 0)
+            let image = self.lifted(draggedNodes[index], size: shown.size, scale: outlineView.window?.backingScaleFactor ?? 2)
+            let frame = outlineView.convert(shown, from: rowView).insetBy(dx: -8, dy: -8)
             item.setDraggingFrame(frame, contents: image)
         }
     }
 
     /// A picture of the row raised off the list: the row on the sidebar's own surface, rounded, with a soft shadow.
     /// Drawn from its SwiftUI view: a snapshot of the hosting view (`cacheDisplay`) leaves out SwiftUI's text layers.
+    /// The full sidebar's margins, which its list spans and its rows sit inside.
+    private var rowMargin: CGFloat { rail == nil ? SidebarOutlineList.margin : 0 }
+
     private func lifted(_ node: OutlineNode, size: NSSize, scale: CGFloat) -> NSImage {
         let inset = insets(for: node)
         let renderer = ImageRenderer(content: content(for: node, picture: true)
-            .padding(.leading, inset.leading).padding(.trailing, inset.trailing)
+            .padding(.leading, inset.leading - rowMargin).padding(.trailing, inset.trailing - rowMargin)
             .frame(width: size.width, height: size.height))
         renderer.scale = scale
         let picture = renderer.nsImage
@@ -562,15 +655,32 @@ final class SidebarOutlineController: NSObject, NSOutlineViewDataSource, NSOutli
 
     /// Where a drop is, from what the pointer is over on screen (the rows' rects include the open gap). Over the upper
     /// half of a row: before it. Over the lower half of a group's header: into the group. Over the lower half of a tab
-    /// row, or in a gap: before the row below. Below every row: the end. AppKit offers each gap at the deepest level it
-    /// could belong to (it tells levels apart by the pointer's x, and the rows have no indentation), so its proposal
-    /// isn't used: one gap has one meaning, and a drop into a group shows as the group's highlight instead of a gap.
+    /// row, or in a gap: before the row below. Below every row: the end. The essentials row takes a drag only over its band
+    /// (`SidebarEssentials.band`): its grid is a drop target of its own. AppKit offers each gap at the
+    /// deepest level it could belong to (it tells levels apart by the pointer's x, and the rows have no indentation), so
+    /// its proposal isn't used: one gap has one meaning, and a drop into a group shows as the group's highlight instead.
     private func target(_ info: any NSDraggingInfo) -> SidebarOutline.Target {
         let pointer = outlineView.convert(info.draggingLocation, from: nil)
         let count = outlineView.numberOfRows
-        let row = outlineView.row(at: pointer)
+        // Over the essentials floating at the top of the scrolled list: them, not the row hidden under them.
+        let floating = floatingEssentials.flatMap { $0.rect.minY <= pointer.y && pointer.y < $0.rect.maxY ? $0 : nil }
+        let row = floating?.row ?? outlineView.row(at: pointer)
         if row >= 0, let node = outlineView.item(atRow: row) as? OutlineNode {
-            if pointer.y < outlineView.rect(ofRow: row).midY { return .before(node.id) }
+            let rect = floating?.rect ?? outlineView.rect(ofRow: row)
+            if let floating, SidebarEssentials.spot(inRow: CGPoint(x: pointer.x - rect.minX, y: pointer.y - rect.minY), width: rect.width, state) == .after {
+                // Under the grid: before the first row the header doesn't cover.
+                let below = (0..<count).first { outlineView.rect(ofRow: $0).minY >= floating.rect.maxY }
+                return below.flatMap { outlineView.item(atRow: $0) as? OutlineNode }.map { .before($0.id) } ?? .end
+            }
+            if node.row.kind == .essentials {
+                switch SidebarEssentials.spot(inRow: CGPoint(x: pointer.x - rect.minX, y: pointer.y - rect.minY), width: rect.width, state) {
+                case .band: return .before(node.id)
+                case .grid(let before): return .essential(before: before)
+                case .after: break
+                }
+            } else if pointer.y < rect.midY {
+                return .before(node.id)
+            }
             if let group = node.row.groupID { return .into(group) }
             return row + 1 < count ? (outlineView.item(atRow: row + 1) as? OutlineNode).map { .before($0.id) } ?? .end : .end
         }
@@ -578,12 +688,20 @@ final class SidebarOutlineController: NSObject, NSOutlineViewDataSource, NSOutli
         return below.flatMap { outlineView.item(atRow: $0) as? OutlineNode }.map { .before($0.id) } ?? .end
     }
 
-    /// Shows where a drop lands: the group's highlight for a drop into it, else the gap among the rows on screen.
-    private func showDrop(_ target: SidebarOutline.Target, at place: SidebarOutline.Place, moving: [SidebarOutline.Row]) {
-        if case .into(let group) = target {
+    /// Shows where a drop lands: the group's highlight for a drop into it, the essentials' for one into them, else the
+    /// gap among the rows on screen.
+    private func showDrop(_ target: SidebarOutline.Target, moving: [SidebarOutline.Row]) {
+        switch target {
+        case .into(let group):
             outlineView.setDropItem(nodes["group:" + group], dropChildIndex: NSOutlineViewDropOnItemIndex)
             return
+        case .essential:
+            outlineView.setDropItem(nodes["essentials"], dropChildIndex: NSOutlineViewDropOnItemIndex)
+            return
+        case .before, .end:
+            break
         }
+        guard let place = state.sidebarOutline.place(for: moving, at: target) else { return }
         let ids = Set(moving.map(\.id))
         let staying = (state.sidebarOutline.rows(in: place.parent) ?? []).filter { !ids.contains($0.id) }
         let parent = place.parent.flatMap { nodes["group:" + $0] }
@@ -610,8 +728,8 @@ final class SidebarOutlineController: NSObject, NSOutlineViewDataSource, NSOutli
         let target = target(info)
         let moving = draggedRows(info, includingCompanions: false)
         var operation: NSDragOperation = []
-        if !moving.isEmpty, let place = state.sidebarOutline.place(for: moving, at: target) {
-            showDrop(target, at: place, moving: moving)
+        if state.acceptsSidebarRows(moving, at: target) {
+            showDrop(target, moving: moving)
             operation = .move
         }
         shownDrop = (info.draggingSequenceNumber, target, operation)
@@ -641,22 +759,27 @@ final class SidebarOutlineController: NSObject, NSOutlineViewDataSource, NSOutli
             outlineView.layoutSubtreeIfNeeded()
         }
         outlineView.enumerateAvailableRowViews { rowView, _ in rowView.layer?.removeAnimation(forKey: "position") }
-        guard shown.operation == .move, !moving.isEmpty, state.sidebarOutline.place(for: moving, at: shown.target) != nil else { return false }
+        guard shown.operation == .move, state.acceptsSidebarRows(moving, at: shown.target) else { return false }
         takenDrop = (moving, shown.target)
         return true
     }
 
     /// A drop taken, its rows not moved yet: they move once AppKit is done with the drag (`dropFinished`).
     private var takenDrop: (moving: [SidebarOutline.Row], target: SidebarOutline.Target)?
+    /// The model changed while a drag from this list was under way: the list shows it when the drag ends.
+    private var heldWhileDragging = false
 
     /// AppKit is done with the drag: the dropped rows move now, straight to their place. A drag from this list ends
     /// last as its source (`draggingSession(_:endedAt:operation:)`): AppKit gives the dragged row its space back there by
     /// its old row, and rows moved before that crashed it.
     func dropFinished() {
-        guard let (moving, target) = takenDrop else { return }
-        takenDrop = nil
-        guard state.moveSidebarRows(moving, to: target) else { return }
-        show(SidebarOutlineList.shown(state, rail: rail), style: style, animated: false)
+        var changed = heldWhileDragging
+        heldWhileDragging = false
+        if let (moving, target) = takenDrop {
+            takenDrop = nil
+            changed = state.moveSidebarRows(moving, to: target) || changed
+        }
+        if changed { show(SidebarOutlineList.shown(state, rail: rail), style: style, animated: false) }
     }
 
     /// The rows a drag carries: a group, or a tab's row with the selected tabs travelling with it (brought into this
@@ -684,7 +807,7 @@ final class SidebarOutlineController: NSObject, NSOutlineViewDataSource, NSOutli
     func liftedImage(row: Int) -> NSImage? {
         guard let node = outlineView.item(atRow: row) as? OutlineNode, node.row.kind != .divider else { return nil }
         guard let rowView = outlineView.rowView(atRow: row, makeIfNecessary: false) else { return nil }
-        return lifted(node, size: rowView.bounds.size, scale: outlineView.window?.backingScaleFactor ?? 2)
+        return lifted(node, size: rowView.bounds.insetBy(dx: rowMargin, dy: 0).size, scale: outlineView.window?.backingScaleFactor ?? 2)
     }
     func nodeForCheck(_ id: String) -> OutlineNode? { nodes[id] }
     func heightForCheck(_ node: OutlineNode) -> CGFloat { height(of: node) }
@@ -701,4 +824,9 @@ final class SidebarOutlineController: NSObject, NSOutlineViewDataSource, NSOutli
         return (cell.insets.leading, rowView?.card?.piece)
     }
     #endif
+}
+
+extension SidebarOutlineList {
+    /// How far the full sidebar's list reaches past its rows on each side (`SidebarView`'s margins).
+    static let margin: CGFloat = 10
 }

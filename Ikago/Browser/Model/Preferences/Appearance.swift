@@ -8,29 +8,24 @@ enum GroupLabelStyle: String, CaseIterable, Identifiable {
     var detail: String { self == .minimal ? "A small color marker." : "A softly colored background." }
 }
 
-/// How the vertical sidebar draws a group: a softly tinted card, or a plain folder with its tabs indented below.
-enum SidebarGroupStyle: String, Codable, CaseIterable, Identifiable {
-    case cards, folders
-    var id: String { rawValue }
-    var name: String { self == .cards ? "Cards" : "Folders" }
-}
-
-/// Where Top Tabs shows tab groups: as chips in the tab row, as tiles in the icon sidebar, or both.
+/// Where Top Tabs shows tab groups: as chips in the tab row, or as tiles in the icon sidebar.
 enum GroupPlacement: String, Codable, CaseIterable, Identifiable {
-    case both, topBar, sidebar
+    case topBar, sidebar
     var id: String { rawValue }
+
+    /// A saved placement this version no longer has (both) reads as the tab row, so it never fails the session.
+    init(from decoder: Decoder) throws {
+        self = Self(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .topBar
+    }
+
     var name: String {
         switch self {
-        case .both: "Both"
         case .topBar: "Tab Row"
         case .sidebar: "Sidebar"
         }
     }
 }
 
-/// Top Tabs: how the address bar sits under the tabs. Centered shows the site in the middle (unset); Full Width
-/// spans the bar with the address at its start; Title spans it too but shows the page's title and site, with the full
-/// address on hover.
 /// The icon sidebar's response to the pointer (Settings ▸ Appearance ▸ Layout ▸ Window and Sidebar).
 enum RailHoverEffect: String, Codable, CaseIterable, Identifiable {
     /// Icons near the pointer grow in place like the Dock's, the one under it most; names show in help tags.
@@ -41,19 +36,25 @@ enum RailHoverEffect: String, Codable, CaseIterable, Identifiable {
     var name: String { self == .magnify ? "Magnify" : "Expand" }
 }
 
+/// How the address bar above the page reads, in Top Tabs and in the Sidebar layout's bar above the page: Full Width
+/// (unset) spans the bar with the address at its start; Title spans it too but shows the page's title and site, with
+/// the full address on hover.
 enum TabsAddressStyle: String, Codable, CaseIterable, Identifiable {
-    case centered, wide, title
+    case wide, title
     var id: String { rawValue }
+
+    /// A saved style this version no longer has (Centered) reads as Full Width, so it never fails the session.
+    init(from decoder: Decoder) throws {
+        self = Self(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .wide
+    }
     var name: String {
         switch self {
-        case .centered: "Centered"
         case .wide: "Full Width"
         case .title: "Page Title"
         }
     }
     var summary: String {
         switch self {
-        case .centered: "The site, centred over the page"
         case .wide: "The whole address across the bar"
         case .title: "The page's title and site; the address on hover"
         }

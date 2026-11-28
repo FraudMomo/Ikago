@@ -3,13 +3,11 @@ import SwiftUI
 extension BrowserRootView {
     var sidebarLayout: some View {
         HStack(spacing: 0) {
-            if state.sidebarOnRight { pageColumn.padding(.leading, inset) }
-            if state.sidebarOnRight && docksSidebar { sidebarResize }
             if docksSidebar || sidebarMountedForPlacement {
                 sidebarDock
             }
-            if !state.sidebarOnRight && docksSidebar { sidebarResize }
-            if !state.sidebarOnRight { pageColumn.padding(.leading, docksSidebar ? 0 : inset) }
+            if docksSidebar { sidebarResize }
+            pageColumn.padding(.leading, docksSidebar ? 0 : inset)
         }
         // Every margin of the window moves it, the side ones too when the sidebar is hidden (bars and the page are on top).
         .background(WindowDragArea())
@@ -56,11 +54,6 @@ extension BrowserRootView {
             // The Sidebar layout's address bar above the page (Dia's place for it): the top of the page's card, the
             // address only, since the sidebar keeps the controls.
             if state.showsPageAddressBar {
-                // The margin above it moves the window, as it does above the page.
-                if inset > 1 {
-                    WindowDragArea().frame(height: inset).padding(.trailing, inset)
-                        .recordLayout("sidebar-page-drag-margin")
-                }
                 IsolatedHost(chrome: chrome) {
                     TabsToolbar(state: state, chrome: chrome, palette: palette, commands: commands, addressOnly: true)
                 }
@@ -81,7 +74,7 @@ extension BrowserRootView {
     /// Room at the tab row's start for the traffic lights, which end 79 pt into the window. The same tabs position
     /// with the rail shown or hidden, so the row doesn't shift when the rail comes and goes.
     private var tabRowLeadingReserve: CGFloat {
-        let column = docksSidebar && !state.sidebarOnRight ? inset + BrowserState.sidebarRailWidth + CGFloat(state.sidebarGap) : inset
+        let column = docksSidebar ? inset + BrowserState.sidebarRailWidth + CGFloat(state.sidebarGap) : inset
         return max(0, 87 - column)
     }
 
@@ -106,8 +99,8 @@ extension BrowserRootView {
         // Joined to the window (glass off), the sidebar draws nothing of its own: it and the tab row above the page are
         // one surface, the window's, and only the page is a card. With glass on it keeps its glass panel.
         .modifier(SidebarDockSurface(state: state, radius: radius))
-        .padding(state.sidebarOnRight ? [.trailing, .top, .bottom] : [.leading, .top, .bottom], inset)
-        .frame(width: docksSidebar ? sidebarShownWidth + inset : 0, alignment: state.sidebarOnRight ? .leading : .trailing)
+        .padding([.leading, .top, .bottom], inset)
+        .frame(width: docksSidebar ? sidebarShownWidth + inset : 0, alignment: .trailing)
         .clipped().allowsHitTesting(docksSidebar)
     }
 }

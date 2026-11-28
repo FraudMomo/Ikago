@@ -49,7 +49,7 @@ extension BrowserState {
 
     /// Reads everything the windows share (for observation), and copies it to the other windows when it changes.
     func readShared() {
-        _ = (history, bookmarks, bookmarkFolders, browserPreferences, colorMode, sidebarWidth, useGlass, frameInset, sidebarGap,
+        _ = (history, bookmarks, bookmarkFolders, browserPreferences, colorMode, sidebarWidth, useGlass,
              searchShowsHistory, addressStyle, developerTools, chromeLayout, newTabMode, focusAddressBarOnNewTab, homepage,
              newTabExtensionID, searchEngine, spaces)
     }
@@ -65,7 +65,7 @@ extension BrowserState {
             if self[keyPath: path] != other[keyPath: path] { self[keyPath: path] = other[keyPath: path] }
         }
         take(\.history); take(\.bookmarks); take(\.bookmarkFolders); take(\.browserPreferences); take(\.colorMode)
-        take(\.sidebarWidth); take(\.useGlass); take(\.frameInset); take(\.sidebarGap); take(\.searchShowsHistory)
+        take(\.sidebarWidth); take(\.useGlass); take(\.searchShowsHistory)
         take(\.addressStyle); take(\.developerTools); take(\.chromeLayout); take(\.newTabMode); take(\.focusAddressBarOnNewTab)
         take(\.homepage); take(\.newTabExtensionID); take(\.searchEngine); take(\.spaces)
         // A Space deleted in another window: its tabs here move to the first Space instead of vanishing.

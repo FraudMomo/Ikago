@@ -1,7 +1,7 @@
 import AppKit
 
 /// Browser commands and settings the address field finds by name, like Spotlight's actions: "private" offers New
-/// Private Window, "dark" Dark Mode, "split" the split view commands, "tab counts" the setting in Settings. They rank
+/// Private Window, "dark" Dark Mode, "split" the split view commands, "color pill" the setting in Settings. They rank
 /// below what-you-typed and earlier searches, so Return still searches; ↓ or a click runs one. Each runs a window
 /// action through the responder chain (the same one its menu item or shortcut uses), with an optional argument.
 /// The catalogue is `PaletteAction.builtIn` (PaletteActionCatalog.swift) plus every setting (`settings`, filled by the UI).

@@ -61,10 +61,9 @@ extension BrowserWindowController: BrowserCommands, NSMenuItemValidation {
         let delete = { [weak self] in
             guard let self else { return }
             withAnimation(.ikago) {
-                // Unpinned first: a pinned group's tabs only unload when closed.
-                self.state.setFolderPinned(id, false)
-                for tab in members { self.closeTab(tab.id) }
+                // The group goes first: a tab in a group above the New Tab line only unloads when closed.
                 self.state.deleteFolderTree(id)
+                for tab in members { self.closeTab(tab.id) }
             }
         }
         guard members.count > 1, let window else { return delete() }

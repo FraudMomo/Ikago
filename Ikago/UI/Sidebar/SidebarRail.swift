@@ -14,7 +14,6 @@ struct SidebarRail: View {
     var magnified = false
     /// One of the copies drawn over the rail by the hover effects, not the rail in the window.
     private var isCopy: Bool { magnified }
-    @Namespace private var selection
     /// This rail for the hover effects (`RailHover`): where its tiles measure themselves (the rail, and its list's own
     /// host), kept apart from any other rail on screen.
     @State private var surface = RailSurface()
@@ -30,7 +29,7 @@ struct SidebarRail: View {
         // exactly where the rail has it and only the names grow out.
         VStack(alignment: .leading, spacing: 8) {
             // Under the Top Tabs row the lights stay in that row, beside the tabs.
-            Color.clear.frame(height: state.showsSidebarTopTabs ? 4 : state.sidebarOnRight && !state.sidebarLightsFollow ? 10 : Self.lightsHeight)
+            Color.clear.frame(height: state.showsSidebarTopTabs ? 4 : Self.lightsHeight)
             // The sidebar button sits where the full sidebar has it: at the top when its top row holds it.
             if toggleOnTop {
                 sidebarToggle(colors)
@@ -50,15 +49,6 @@ struct SidebarRail: View {
             if state.showsSidebarTopTabs && !state.pinnedTabs.isEmpty && state.pinsInRail {
                 Capsule().fill(colors.separator).frame(width: 20, height: 1).frame(width: BrowserState.sidebarRailWidth)
                     .opacity(magnified ? 0 : 1)
-            }
-            // Pinned groups sit with the pins, whatever the group placement: a tile each with a menu of its tabs.
-            if !magnified && !state.pinnedFolders.isEmpty {
-                VStack(spacing: 4) {
-                    ForEach(state.pinnedFolders) { folder in
-                        PinnedGroupTile(folder: folder, state: state, chrome: chrome, commands: commands)
-                    }
-                }
-                .padding(.leading, Self.tileInset)
             }
             // The full sidebar's order and list (`SidebarOutlineList`): pinned tabs, groups, a line, New Tab, then the
             // tabs, as tiles. Rows lift and move like the full sidebar's, with the same slot where they will land.
@@ -107,7 +97,7 @@ struct SidebarRail: View {
 
     /// Anything above the New Tab tile (essentials, pinned tiles, groups), so the line before it separates something.
     private var hasItemsAboveNewTab: Bool {
-        !state.pinnedTabs.isEmpty || !state.pinnedFolders.isEmpty || (state.showsGroupsInSidebar && !state.blockFolders.isEmpty)
+        !state.pinnedTabs.isEmpty || (state.showsGroupsInSidebar && !state.blockFolders.isEmpty)
     }
 
     /// Tiles sit this far in from the rail's leading edge: a 36 pt tile centred in its 64 pt column.
@@ -136,7 +126,7 @@ struct SidebarRail: View {
     static func togglesAtTop(_ state: BrowserState) -> Bool {
         let layout = state.chromeLayout
         return !state.showsSidebarTopTabs && layout.rail.contains(.sidebarToggle)
-            && (layout.topLeading + layout.topCenter + layout.sidebarTop).contains(.sidebarToggle)
+            && layout.sidebarTop.contains(.sidebarToggle)
     }
 
     /// Opens the full sidebar from the icons (the next step up); its menu hides the sidebar. Under Top Tabs, which has no
@@ -178,6 +168,8 @@ struct SidebarRail: View {
                         }
                         tile(symbol: "plus", label: "New Tab", colors: colors) { commands?.newTab() }
                     })
+                case .essentials:
+                    return AnyView(EmptyView())
                 }
             },
             height: { row in
@@ -185,6 +177,7 @@ struct SidebarRail: View {
                 case .tabs(let ids): CGFloat(ids.count) * 36 + CGFloat(max(0, ids.count - 1)) * 4
                 case .group: 36
                 case .divider: rowsAbove ? 32 + 9 + 4 : 32
+                case .essentials: 0
                 }
             },
             filter: { outline in
@@ -218,19 +211,14 @@ struct SidebarRail: View {
         return railIcon(folder.name, colors: colors) {
             FolderIcon(folder: folder, colors: colors, size: 15)
                 .railMagnify(.folder(folder.id), iconSize: 15)
-                .opacity(TabListView.isSleeping(tabs, activeID: state.activeTabID) && !open ? 0.45 : 1)
+                .opacity(TabItem.allAsleep(tabs, activeID: state.activeTabID) && !open ? 0.45 : 1)
                 .frame(width: 36, height: 36)
-                .overlay(alignment: .bottomTrailing) {
-                    // How many tabs it holds, as a small badge that never covers the icon (Settings ▸ Show tab counts).
-                    if state.showsGroupTabCounts && !magnified { badge(tabs.count, colors: colors, open: open) }
-                }
         }
         .frame(height: 36)
         .background {
             // An active tab hidden in a closed group still shows where it is.
-            if !open, !magnified, tabs.contains(where: { $0.id == state.activeTabID }) {
-                RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(colors.selected)
-            }
+            TabSelectionHighlight(shape: RoundedRectangle(cornerRadius: Radius.row, style: .continuous),
+                                  active: !open && !magnified && tabs.contains { $0.id == state.activeTabID }, color: colors.selected)
         }
         .contentShape(RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
         .modifier(RailTileHover(colors: colors, quiet: magnified))
@@ -239,16 +227,6 @@ struct SidebarRail: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(folder.name)
         .accessibilityAddTraits(.isButton)
-    }
-
-    private func badge(_ count: Int, colors: Palette, open: Bool) -> some View {
-        Text("\(count)")
-            .font(.system(size: 8.5, weight: .bold).monospacedDigit())
-            .foregroundStyle(colors.secondary)
-            .padding(.horizontal, 3.5).frame(minWidth: 13, minHeight: 13)
-            .background(Capsule().fill(colors.text.opacity(0.08)))
-            .offset(x: 1, y: 1)
-            .opacity(open ? 0 : 1)
     }
 
     // MARK: Tiles
@@ -273,10 +251,8 @@ struct SidebarRail: View {
             // Essentials are glass tiles with Liquid Glass on, like the sidebar's pinned grid.
             .glassControl(RoundedRectangle(cornerRadius: Radius.row, style: .continuous), colors, active: essential && !magnified)
             .background {
-                if active && !magnified {
-                    RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(colors.selected)
-                        .matchedGeometryEffect(id: "rail-active", in: selection)
-                }
+                TabSelectionHighlight(shape: RoundedRectangle(cornerRadius: Radius.row, style: .continuous), active: active && !magnified,
+                                      color: colors.selected)
             }
             .contentShape(RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
         if listed {

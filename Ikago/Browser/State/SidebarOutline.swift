@@ -2,10 +2,13 @@ import Foundation
 
 /// The sidebar's list as a tree of rows, and the one rule for where a dragged row lands.
 ///
-/// Top level, in order: the block (pinned rows, and the groups kept above the tabs with the pins placed after each),
-/// the divider (the New Tab line), then the loose tabs with the groups placed among them. A group's rows are its
+/// Top level, in order: the pinned rows above the essentials, the essentials' own row (the grid); the block (pinned rows,
+/// and the groups kept above the tabs with the pins placed after each), the divider (the New Tab line), then the loose
+/// tabs with the groups placed among them. Everything above the divider is pinned: its tabs, and its groups' tabs, stay
+/// when closed. A group's rows are its
 /// groups, then its tabs. Split tabs are one row. The outline always holds every row; a view leaves out what it doesn't
-/// show (the divider when New Tab is off, the loose tabs under Top Tabs, the icon sidebar's pins).
+/// show (the divider when New Tab is off, the loose tabs under Top Tabs, the icon sidebar's pins). The sidebar shows the
+/// essentials as one row of the list, so a row goes above or below them like anywhere else.
 ///
 /// A move is three steps, all here: `place(for:at:)` says where rows dropped at a target land, `moving(_:to:)` is the
 /// outline with them there, and `BrowserState.apply(_:)` writes an outline back to the tabs and groups.
@@ -17,6 +20,9 @@ struct SidebarOutline: Equatable {
             case group(String)
             /// The line (and New Tab row) between the block and the loose tabs.
             case divider
+            /// The essentials' grid: pinned rows before it sit above it. Never moved: always the first row after the pins
+            /// above it.
+            case essentials
         }
         let kind: Kind
         var children: [Row] = []
@@ -28,13 +34,14 @@ struct SidebarOutline: Equatable {
             case .tabs(let ids): (ids.count == 1 ? "tab:" : "split:") + ids.joined(separator: ",")
             case .group(let id): "group:" + id
             case .divider: "divider"
+            case .essentials: "essentials"
             }
         }
         var tabIDs: [String] {
             switch kind {
             case .tabs(let ids): ids
             case .group: children.flatMap(\.tabIDs)
-            case .divider: []
+            case .divider, .essentials: []
             }
         }
         var groupID: String? { if case .group(let id) = kind { id } else { nil } }
@@ -82,6 +89,8 @@ struct SidebarOutline: Equatable {
         /// Into this group: first when it is open (AppKit shows the gap under its header), last when it is shut.
         case into(String)
         case end
+        /// Into the essentials grid, before this tile (nil: last). Tabs only: not a row of the list.
+        case essential(before: String?)
     }
 
     /// Where moving rows land: under `parent` (nil: the top level), at `index` among the rows that stay there.
@@ -91,8 +100,9 @@ struct SidebarOutline: Equatable {
     }
 
     /// The one rule for drops: where `moving` lands when dropped at `target`, or nil when it can't go there (a group
-    /// into itself). Rows that aren't in the outline yet (from another window, the pin grid) are welcome. Inside a
-    /// group its groups come first, then its tabs, so a row lands at the nearest place its kind can be.
+    /// into itself, a group above the essentials grid). Rows that aren't in the outline yet (from another window, the pin
+    /// grid) are welcome. Inside a group its groups come first, then its tabs, so a row lands at the nearest place its
+    /// kind can be.
     func place(for moving: [Row], at target: Target) -> Place? {
         let ids = Set(moving.map(\.id))
         let movingGroups = Set(moving.compactMap(\.groupID))
@@ -107,6 +117,8 @@ struct SidebarOutline: Equatable {
         case .into(let id):
             guard let group = row("group:" + id) else { return nil }
             (parent, index) = (id, group.isOpen ? 0 : group.children.count)
+        case .essential:
+            return nil
         }
         // Never into a moving group or a group inside one.
         var ancestor = parent
@@ -121,6 +133,8 @@ struct SidebarOutline: Equatable {
         if parent != nil {
             let groups = staying.prefix { $0.groupID != nil }.count
             index = movingGroups.isEmpty ? max(index, groups) : min(index, groups)
+        } else if !movingGroups.isEmpty, let grid = staying.firstIndex(where: { $0.kind == .essentials }), index <= grid {
+            return nil
         }
         return Place(parent: parent, index: index)
     }
@@ -159,7 +173,7 @@ extension BrowserState {
     var sidebarOutline: SidebarOutline {
         let shown = shownFolderIDs
         let rowPins = pinnedTabs.filter { !presentsSidebarPinGrid || $0.pinAsRow || splitGroup(of: $0.id) != nil }
-        let anchors = Dictionary(grouping: rowPins) { tab in tab.pinAfterFolderID.flatMap { shown.contains($0) ? $0 : nil } ?? "" }
+        let anchors = Dictionary(grouping: rowPins.filter { !$0.pinAboveGrid }) { tab in tab.pinAfterFolderID.flatMap { shown.contains($0) ? $0 : nil } ?? "" }
         var seen = Set<String>()
 
         func tabRows(_ list: [TabItem]) -> [SidebarOutline.Row] {
@@ -181,7 +195,10 @@ extension BrowserState {
             return SidebarOutline.Row(kind: .group(folder.id), children: children, isOpen: folder.isOpen)
         }
 
-        var rows = tabRows(anchors[""] ?? [])
+        // Pinned rows above the essentials, then the essentials' own row.
+        var rows = tabRows(rowPins.filter(\.pinAboveGrid))
+        rows.append(SidebarOutline.Row(kind: .essentials))
+        rows += tabRows(anchors[""] ?? [])
         for folder in blockFolders {
             rows.append(groupRow(folder, depth: 0))
             // Pins placed after this group follow it.
@@ -210,12 +227,37 @@ extension BrowserState {
         return rows
     }
 
-    /// Moves rows to where they land at `target` (`SidebarOutline.place`); false when they can't go there. A group a
-    /// row is dropped into opens, so the row stays on screen.
+    /// Whether rows dropped at `target` go anywhere: the essentials take single tabs (a split stays a row), a row of the
+    /// list the place the one rule gives (`SidebarOutline.place`).
+    func acceptsSidebarRows(_ moving: [SidebarOutline.Row], at target: SidebarOutline.Target) -> Bool {
+        guard !moving.isEmpty else { return false }
+        switch target {
+        case .essential:
+            return moving.allSatisfy { row in if case .tabs(let ids) = row.kind { ids.count == 1 } else { false } }
+        case .before, .into, .end:
+            return sidebarOutline.place(for: moving, at: target) != nil
+        }
+    }
+
+    /// Moves rows to where they land at `target`; false when they can't go there. Into the essentials a tab becomes one
+    /// of them, before the tile named. In the list, rows go where the one rule says
+    /// (`SidebarOutline.place`), and a group a row is dropped into opens, so the row stays on screen.
     @discardableResult
     func moveSidebarRows(_ moving: [SidebarOutline.Row], to target: SidebarOutline.Target) -> Bool {
+        guard acceptsSidebarRows(moving, at: target) else { return false }
+        switch target {
+        case .essential(let before):
+            for id in moving.flatMap(\.tabIDs) {
+                movePin(id, intoGrid: true)
+                if let before, before != id, tab(before)?.pinned == true { move(id, before: before, pinned: true) }
+            }
+            scheduleSave()
+            return true
+        case .before, .into, .end:
+            break
+        }
         let outline = sidebarOutline
-        guard !moving.isEmpty, let place = outline.place(for: moving, at: target) else { return false }
+        guard let place = outline.place(for: moving, at: target) else { return false }
         apply(outline.moving(moving, to: place))
         var next = place.parent, steps = 0
         while let id = next, steps < 16, let index = folders.firstIndex(where: { $0.id == id }) {
@@ -227,10 +269,11 @@ extension BrowserState {
         return true
     }
 
-    /// Writes an outline back: every tab and group in it becomes what its place holds. Above the divider tabs are
-    /// pinned rows (placed after the group before them) and groups sit in the block; below it tabs are loose and groups
+    /// Writes an outline back: every tab and group in it becomes what its place holds. Above the essentials grid tabs are
+    /// pinned rows above it; above the divider tabs are pinned rows (placed after the group before them) and groups sit
+    /// in the block; below it tabs are loose and groups
     /// sit after the loose tab before them; inside a group tabs join it and groups nest. Tabs and groups the outline
-    /// doesn't hold (other Spaces, the pin grid, hidden and pinned groups) keep their places.
+    /// doesn't hold (other Spaces, the pin grid, hidden groups) keep their places.
     func apply(_ outline: SidebarOutline) {
         let tabOrder = outline.tabOrder
         // Hidden groups placed after a loose tab that stops being loose stay where they are.
@@ -250,7 +293,7 @@ extension BrowserState {
         }
         func member(_ id: String, of group: String) {
             guard let tab = tab(id) else { return }
-            tab.pinned = false; tab.pinAsRow = false; tab.pinAfterFolderID = nil; tab.folderID = group
+            tab.pinned = false; tab.pinAsRow = false; tab.pinAfterFolderID = nil; tab.pinAboveGrid = false; tab.folderID = group
         }
         func fill(_ group: SidebarOutline.Row) {
             guard let id = group.groupID else { return }
@@ -264,9 +307,12 @@ extension BrowserState {
             }
         }
         inBlock = true
+        var aboveGrid = outline.rows.contains { $0.kind == .essentials }
         var lastGroup: String?, lastLoose = ""
         for row in outline.rows {
             switch row.kind {
+            case .essentials:
+                aboveGrid = false
             case .divider:
                 inBlock = false
             case .group(let id):
@@ -279,7 +325,8 @@ extension BrowserState {
                     tab.folderID = nil
                     tab.pinned = inBlock
                     tab.pinAsRow = inBlock
-                    tab.pinAfterFolderID = inBlock ? lastGroup : nil
+                    tab.pinAfterFolderID = inBlock && !aboveGrid ? lastGroup : nil
+                    tab.pinAboveGrid = inBlock && aboveGrid
                     if !inBlock { lastLoose = id }
                 }
             }

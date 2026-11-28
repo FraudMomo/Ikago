@@ -38,32 +38,32 @@ enum OutlineChecks {
         let (ga, gb, gc) = ("group:" + a.id, "group:" + b.id, "group:" + c.id)
         func t(_ tab: TabItem) -> String { "tab:" + tab.id }
 
-        check(ids(outline().rows) == [t(pin), ga, gb, gc, "divider", t(l1), t(l2), t(l3), t(l4)], "pins, the block's groups, the divider, then the tabs")
+        check(ids(outline().rows) == ["essentials", t(pin), ga, gb, gc, "divider", t(l1), t(l2), t(l3), t(l4)], "the essentials, pins, the block's groups, the divider, then the tabs")
         check(outline().tabOrder == state.navigationOrder.map(\.id), "the list's tab order is next/previous tab's order")
 
         // The rule, case by case.
         let o = outline()
-        check(o.place(for: rows(t(l3)), at: .before(gb)) == .init(parent: nil, index: 2), "the gap above a group is before it, not the end of the open group above (bug 1)")
-        check(o.place(for: rows(ga), at: .before(gb)) == .init(parent: nil, index: 1), "a group dropped above the next group lands between them (bug 4)")
+        check(o.place(for: rows(t(l3)), at: .before(gb)) == .init(parent: nil, index: 3), "the gap above a group is before it, not the end of the open group above (bug 1)")
+        check(o.place(for: rows(ga), at: .before(gb)) == .init(parent: nil, index: 2), "a group dropped above the next group lands between them (bug 4)")
         check(o.place(for: rows(t(l3)), at: .into(a.id)) == .init(parent: a.id, index: 0), "onto an open group is first in it")
         check(o.place(for: rows(t(l3)), at: .into(c.id)) == .init(parent: c.id, index: 1), "onto a shut group is last in it")
         check(o.place(for: rows(t(l3)), at: .before(t(a1))) == .init(parent: a.id, index: 0), "the gap under an open group's header is first in it")
-        check(o.place(for: rows(t(l3)), at: .before("divider")) == .init(parent: nil, index: 4), "above the divider is the end of the block")
-        check(o.place(for: rows(t(l3)), at: .before(t(l1))) == .init(parent: nil, index: 5), "below the divider is the first loose tab")
-        check(o.place(for: rows(t(l1)), at: .end) == .init(parent: nil, index: 8), "below every row is last")
-        check(o.place(for: rows(t(l2)), at: .before(t(l2))) == .init(parent: nil, index: 6)
-              && o.place(for: rows(t(l2)), at: .before(t(l3))) == .init(parent: nil, index: 6), "a row dropped next to itself stays")
+        check(o.place(for: rows(t(l3)), at: .before("divider")) == .init(parent: nil, index: 5), "above the divider is the end of the block")
+        check(o.place(for: rows(t(l3)), at: .before(t(l1))) == .init(parent: nil, index: 6), "below the divider is the first loose tab")
+        check(o.place(for: rows(t(l1)), at: .end) == .init(parent: nil, index: 9), "below every row is last")
+        check(o.place(for: rows(t(l2)), at: .before(t(l2))) == .init(parent: nil, index: 7)
+              && o.place(for: rows(t(l2)), at: .before(t(l3))) == .init(parent: nil, index: 7), "a row dropped next to itself stays")
         check(o.place(for: rows(ga), at: .before(t(a1))) == nil && o.place(for: rows(ga), at: .into(a.id)) == nil
-              && o.place(for: rows(ga), at: .before(gb)) == .init(parent: nil, index: 1), "a group never goes inside itself, and next to itself it stays")
+              && o.place(for: rows(ga), at: .before(gb)) == .init(parent: nil, index: 2), "a group never goes inside itself, and next to itself it stays")
 
         // What rows become where they land.
         state.moveSidebarRows(rows(t(l4)), to: .before(t(b1)))
         check(state.tab(l4.id)?.folderID == b.id && state.tabs(in: b).map(\.id) == [l4.id, b1.id], "a tab dropped first in a group joins it there")
         state.moveSidebarRows(rows(t(l4)), to: .before(gc))
-        check(l4.pinned && l4.pinAsRow && l4.pinAfterFolderID == b.id && ids(outline().rows).prefix(5) == [t(pin), ga, gb, t(l4), gc],
+        check(l4.pinned && l4.pinAsRow && l4.pinAfterFolderID == b.id && ids(outline().rows).prefix(6) == ["essentials", t(pin), ga, gb, t(l4), gc],
               "a tab dropped between two block groups becomes a pinned row between them")
         state.moveSidebarRows(rows(t(l4)), to: .before(gc))
-        check(ids(outline().rows).prefix(5) == [t(pin), ga, gb, t(l4), gc], "and stays when dropped next to itself")
+        check(ids(outline().rows).prefix(6) == ["essentials", t(pin), ga, gb, t(l4), gc], "and stays when dropped next to itself")
         state.moveSidebarRows(rows(t(l4)), to: .end)
         check(!l4.pinned && l4.folderID == nil && ids(outline().rows).last == t(l4), "a pinned row dropped among the tabs is a loose tab")
         state.moveSidebarRows(rows(gc), to: .before(t(l3)))
@@ -76,7 +76,7 @@ enum OutlineChecks {
         state.moveSidebarRows(rows(gb), to: .before(t(a2)))
         check(outline().rows(in: a.id).map(ids) == [gc, gb, t(l1), t(a1), t(a2)], "a group dropped among a group's tabs goes after its groups")
         state.moveSidebarRows(rows(gb), to: .before(t(pin)))
-        check(ids(outline().rows).first == gb && state.folders.first { $0.id == b.id }?.parentID == nil, "a group dropped above the first row is first")
+        check(ids(outline().rows).dropFirst().first == gb && state.folders.first { $0.id == b.id }?.parentID == nil, "a group dropped above the first row is first")
         check(outline().tabOrder == state.navigationOrder.map(\.id), "after every move the orders still agree")
 
         // Pins placed after a group stay in the block when the group goes into another.
@@ -98,6 +98,20 @@ enum OutlineChecks {
             check(false, "a split row moves as one")
         }
 
+        // With essentials shown: pinned rows can sit above the grid's row; groups can't.
+        state.browserPreferences.showPinnedGrid = true
+        check(ids(outline().rows).first == "essentials" && ids(outline().rows).contains(t(pin)), "with the grid, its row comes first and the rows below follow it")
+        check(state.moveSidebarRows(rows(t(l3)), to: .before("essentials")) && ids(outline().rows).first == t(l3)
+              && state.tab(l3.id)?.pinned == true && state.tab(l3.id)?.pinAboveGrid == true, "a tab dropped above the grid is a pin above it")
+        check(outline().place(for: rows(ga), at: .before("essentials")) == nil
+              && outline().place(for: rows(ga), at: .before(t(l3))) == nil, "a group never goes above the grid")
+        check(state.moveSidebarRows(rows(t(l3)), to: .before(ga)) && state.tab(l3.id)?.pinAboveGrid == false
+              && ids(outline().rows).prefix(1) == ["essentials"], "moved below the grid it stops being above it")
+        state.moveSidebarRows(rows(t(l3)), to: .before("essentials"))
+        state.browserPreferences.showPinnedGrid = false
+        check(ids(outline().rows).first == t(l3) && state.tab(l3.id)?.pinAboveGrid == true, "without the grid the pin keeps its side")
+        state.browserPreferences.showPinnedGrid = true
+
         // Seeded random moves: the rows read back are the outline the move made, and nothing is lost.
         var random = SplitMix(seed: 5)
         for index in 0..<6 { _ = tab("r\(index)") }
@@ -108,12 +122,14 @@ enum OutlineChecks {
             rows.map { $0.id + ($0.children.isEmpty ? "" : "[" + tree($0.children) + "]") }.joined(separator: " ")
         }
         for step in 0..<3000 {
+            // Half with the essentials grid's row in the list, half without.
+            if step == 1500 { state.browserPreferences.showPinnedGrid = false }
             if step % 50 == 0, let id = state.spaceFolders.randomElement(using: &random)?.id { state.toggleFolder(id) }
             let now = outline()
             var everything: [SidebarOutline.Row] = []
             func collect(_ list: [SidebarOutline.Row]) { for row in list { everything.append(row); collect(row.children) } }
             collect(now.rows)
-            let movable = everything.filter { $0.kind != .divider }
+            let movable = everything.filter { $0.kind != .divider && $0.kind != .essentials }
             guard let moving = movable.randomElement(using: &random) else { break }
             let anchor = everything.randomElement(using: &random)!
             let target: SidebarOutline.Target = switch random.next() % 5 {
@@ -141,6 +157,24 @@ enum OutlineChecks {
         let big = state.sidebarOutline
         let ms = Date().timeIntervalSince(start) * 1000
         check(big.tabOrder.count >= 1000 && ms < 50, "1,000 tabs build in \(Int(ms)) ms")
+
+        // An older session's shortcut rows convert once: pages to pinned rows above the grid in every Space, the
+        // assistant and Notes to controls, and the old fields go.
+        var legacy = state.snapshot()
+        legacy.browser?.sidebarShortcuts = true
+        legacy.browser?.sidebarShortcutItems = ["assistant", "history", "notes", "settings"]
+        legacy.chrome?.remove(.assistant); legacy.chrome?.remove(.notes)
+        let converted = BrowserState(store: SessionStore(directory: root.appending(path: "converted")))
+        converted.apply(legacy)
+        let pins = { (space: UUID) in converted.tabs.filter { $0.spaceID == space && $0.pinned && $0.pinAboveGrid }.map(\.url) }
+        check(converted.spaces.allSatisfy { pins($0.id) == ["ikago://history", "ikago://settings"] },
+              "shortcut pages become pinned rows above the grid in every Space")
+        check(converted.chromeLayout.contains(.assistant, in: .sidebarTop) && converted.chromeLayout.contains(.notes, in: .sidebarTop),
+              "the assistant and Notes become controls")
+        check(converted.browserPreferences.sidebarShortcuts == nil && converted.browserPreferences.sidebarShortcutItems == nil,
+              "the old shortcut fields are cleared")
+        converted.apply(converted.snapshot())
+        check(converted.spaces.allSatisfy { pins($0.id).count == 2 }, "converting again adds nothing")
         print("IKTEST outlinechecks \(failures == 0 ? "PASS" : "FAIL") failures=\(failures)")
     }
 }

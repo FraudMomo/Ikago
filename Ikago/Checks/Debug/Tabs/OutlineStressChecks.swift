@@ -18,18 +18,16 @@ enum OutlineStressChecks {
         let steps = environment["IKAGO_STRESS_STEPS"].flatMap(Int.init) ?? 500
         let pause = environment["IKAGO_STRESS_PAUSE_MS"].flatMap(Int.init) ?? 0
         let state = browser.state
-        let saved = (state.browserPreferences.sidebarCompact, state.sidebarVisible, state.browserPreferences.pinnedRowsStayInView,
+        let saved = (state.browserPreferences.sidebarCompact, state.sidebarVisible,
                      state.browserPreferences.sidebarTopTabs, state.browserPreferences.showPinnedGrid)
         defer {
             state.browserPreferences.sidebarCompact = saved.0
             state.sidebarVisible = saved.1
-            state.browserPreferences.pinnedRowsStayInView = saved.2
-            state.browserPreferences.showPinnedGrid = saved.4
-            LayoutSwitch.set(tabs: saved.3 == true, state: state)
+            state.browserPreferences.showPinnedGrid = saved.3
+            LayoutSwitch.set(tabs: saved.2 == true, state: state)
         }
         LayoutSwitch.set(tabs: false, state: state)
         state.browserPreferences.sidebarCompact = rail ? true : nil
-        state.browserPreferences.pinnedRowsStayInView = nil
         // The icon sidebar shows pinned tabs as Essentials, so it leaves the pinned rows out of its list.
         state.browserPreferences.showPinnedGrid = rail
         state.sidebarVisible = true
@@ -81,6 +79,8 @@ enum OutlineStressChecks {
         func drop(_ drag: PretendDrag, at point: NSPoint, native: Bool, from start: NSPoint, label: String, step: Int) async {
             let moving = rig.moving(drag)
             var expected: SidebarOutline?
+            var rule = rig.expectedTarget(at: point)
+            var allowed = state.acceptsSidebarRows(moving, at: rule)
             var took = false
             if native {
                 drag.location = start
@@ -90,7 +90,8 @@ enum OutlineStressChecks {
                     drag.location = NSPoint(x: start.x + (point.x - start.x) * t, y: start.y + (point.y - start.y) * t)
                     operation = await rig.fromRunLoop { rig.outlineView.draggingUpdated(drag) }
                 }
-                let rule = rig.expectedTarget(at: point)
+                rule = rig.expectedTarget(at: point)
+                allowed = state.acceptsSidebarRows(moving, at: rule)
                 if let shown = rig.list.shownDropForCheck, shown != rule {
                     fail(step, label, ["the gap shows \(shown), the pointer is over \(rule)"])
                 }
@@ -102,13 +103,16 @@ enum OutlineStressChecks {
                     took = await rig.fromRunLoop { rig.drop(drag) }
                 }
             } else {
-                expected = rig.expectedOutline(moving, at: rig.expectedTarget(at: point))
+                expected = rig.expectedOutline(moving, at: rule)
                 took = await rig.drop(drag, at: point)
             }
             stats[took ? (native ? "drags" : "drops") : "refused", default: 0] += 1
-            if took != (expected != nil) {
+            let ids = moving.flatMap(\.tabIDs)
+            if took != allowed {
                 let local = rig.outlineView.convert(point, from: nil)
                 fail(step, label, [(took ? "the list took a drop the rule refuses" : "the list refused a drop the rule allows") + " (pointer at \(Int(local.y)) of \(Int(rig.outlineView.frame.height)), shown \(String(describing: rig.list.shownDropForCheck)))"])
+            } else if took, case .essential = rule, !ids.allSatisfy({ id in state.sidebarGridPinnedTabs.contains { $0.id == id } }) {
+                fail(step, label, ["dropped on the essentials, it isn't one"])
             } else if let expected, rig.tree(state.sidebarOutline) != rig.tree(expected) {
                 fail(step, label, ["landed as \(rig.tree(state.sidebarOutline)), the rule says \(rig.tree(expected))"])
             }

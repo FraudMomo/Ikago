@@ -60,6 +60,25 @@ enum RailHoverChecks {
         try? await Task.sleep(for: settled)
         check(model.phase == .idle && model.strength == 0 && model.hovered == nil && model.neighbours.isEmpty && !model.overlayOnScreen,
               "off the rail, Magnify goes back to idle")
+        // A drag that starts on the carousel's tiles: Magnify steps aside at once, but its copy of the rail (whose list is
+        // the drag's source) stays mounted until the drag is over, then goes.
+        point(onRail: true, effect: .magnify, fromTop: top + 50)
+        try? await Task.sleep(for: .milliseconds(400))
+        if model.phase == .open, let id = made.first {
+            chrome.draggingTabID = id
+            model.tick()
+            let stepsAside = model.phase == .idle && model.passingThrough == true && model.anchor != nil
+            point(onRail: false, effect: .magnify)
+            try? await Task.sleep(for: .milliseconds(150))
+            let kept = model.anchor != nil
+            chrome.draggingTabID = nil
+            model.tick()
+            check(stepsAside && kept && model.anchor == nil, "a drag from Magnify's tiles keeps its list until the drag ends")
+        } else {
+            check(false, "Magnify opens before a drag")
+        }
+        point(onRail: false, effect: .magnify)
+        try? await Task.sleep(for: settled)
         check(RailHover.scale(.hovered, strength: 1) > RailHover.scale(.neighbour, strength: 1) && RailHover.scale(.neighbour, strength: 1) > 1
               && RailHover.scale(nil, strength: 1) == 1, "the hovered icon grows most, its neighbours a little, others not at all")
 
@@ -105,40 +124,32 @@ enum RailHoverChecks {
         try? await Task.sleep(for: settled)
         check(model.anchor == nil, "back at idle the overlay holds nothing")
 
-        // Over the rail's own sidebar button Expand stays shut, so the button takes the click.
+        // Expand opens from anywhere on the rail, its buttons too (the full sidebar it brings has the same controls).
         if let toggle = LayoutChecks.frames["rail-sidebar-toggle"], let content = browser.window?.contentView {
             model.pretendPointer = .some(content.convert(NSPoint(x: toggle.midX, y: content.isFlipped ? toggle.midY : content.bounds.height - toggle.midY), to: nil))
             if let surface = model.surface { model.startForCheck(rail: surface, effect: .expand) }
             try? await Task.sleep(for: .milliseconds(400))
-            check(model.phase == .idle && !model.expanded, "over the rail's sidebar button Expand doesn't open")
-            // Opened from the tiles, moving onto the button lets the click through and lets go.
-            point(onRail: true, effect: .expand)
-            try? await Task.sleep(for: .milliseconds(300))
-            let wasOpen = model.expanded
-            model.pretendPointer = .some(content.convert(NSPoint(x: toggle.midX, y: content.isFlipped ? toggle.midY : content.bounds.height - toggle.midY), to: nil))
-            try? await Task.sleep(for: .milliseconds(100))
-            let through = model.passingThrough == true
-            try? await Task.sleep(for: settled)
-            check(wasOpen && through && model.phase == .idle, "moving from the tiles onto the rail's button lets the click through and closes Expand")
+            check(model.expanded && model.passingThrough == false, "over the rail's sidebar button Expand opens and takes the pointer")
             point(onRail: false, effect: .expand)
             try? await Task.sleep(for: settled)
         }
 
-        // The rail's own buttons (the sidebar button at the top, Tab Groups at the foot) take real clicks in both effects:
+        // The rail's own buttons (the sidebar button at the top, Tab Groups at the foot) take real clicks under Magnify:
         // the overlay window lies over them, and the window server gives it the click unless it lets the pointer through.
-        // A hidden group puts Tab Groups in the foot.
+        // (Expand covers them with the full sidebar, which has the same controls.) A hidden group puts Tab Groups in the
+        // foot.
         let hiddenGroup = state.createFolder(named: "Rail Hidden", with: made.last)
         _ = state.hideFolder(hiddenGroup.id)
         try? await Task.sleep(for: .milliseconds(500))
         let buttonNames = ["rail-sidebar-toggle", "rail-foot-tabGroups"]
         if let content = browser.window?.contentView {
-            for effect in [RailHoverEffect.magnify, .expand] {
+            for effect in [RailHoverEffect.magnify] {
                 state.browserPreferences.railHover = effect
                 try? await Task.sleep(for: .milliseconds(400))
                 for name in buttonNames {
                     guard let frame = LayoutChecks.frames[name] else { check(false, "the rail shows \(name)"); continue }
                     point(onRail: true, effect: effect)
-                    try? await Task.sleep(for: .milliseconds(effect == .expand ? 300 : 150))
+                    try? await Task.sleep(for: .milliseconds(150))
                     let open = model.shown
                     model.pretendPointer = .some(content.convert(NSPoint(x: frame.midX, y: content.isFlipped ? frame.midY : content.bounds.height - frame.midY), to: nil))
                     try? await Task.sleep(for: .milliseconds(100))

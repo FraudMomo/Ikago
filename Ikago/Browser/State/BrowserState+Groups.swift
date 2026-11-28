@@ -8,17 +8,16 @@ extension BrowserState {
         set { browserPreferences.groupLabelStyle = newValue.rawValue }
     }
 
+    /// Groups as color pills in tinted cards; off, a small color marker in an indented folder list (Settings ▸ Tab Groups).
+    var groupsAsPills: Bool { groupLabelStyle == .colorPill }
+
     /// Top Tabs: where groups show. The Sidebar layout always lists them in the sidebar.
-    var groupPlacement: GroupPlacement { browserPreferences.groupPlacement ?? .both }
+    var groupPlacement: GroupPlacement { browserPreferences.groupPlacement ?? .topBar }
     /// Group chips lead their tabs in the tab row (`TopBarGroupChip`).
     var showsGroupsInTopBar: Bool { showsSidebarTopTabs && groupPlacement != .sidebar }
     /// The icon sidebar (and the full sidebar) list groups.
     var showsGroupsInSidebar: Bool { !usesTabsLayout || groupPlacement != .topBar }
 
-    var showsGroupTabCounts: Bool {
-        get { browserPreferences.showGroupTabCounts ?? true }
-        set { browserPreferences.showGroupTabCounts = newValue }
-    }
 
     /// Creates a folder in the active Space, optionally inside another group and moving `tabID` into it.
     @discardableResult
@@ -140,27 +139,17 @@ extension BrowserState {
         for index in folders.indices where folders[index].afterTabID == tabID { folders[index].afterTabID = previous }
     }
 
-    // MARK: Pinned groups
+    /// Top-level groups listed as groups in the sidebar, the rail and the tab row: not the hidden ones (they come back
+    /// from the Tab Groups button).
+    var listedFolders: [TabFolder] { childFolders(of: nil).filter { $0.isClosed != true } }
 
-    /// Top-level groups pinned like tabs, in order: buttons among the pins, each with a menu of its tabs.
-    var pinnedFolders: [TabFolder] { childFolders(of: nil).filter { $0.isPinned == true } }
-    /// Top-level groups listed as groups in the sidebar, the rail and the tab row: not the pinned ones (pins instead) and
-    /// not the hidden ones (they come back from the Tab Groups button).
-    var listedFolders: [TabFolder] { childFolders(of: nil).filter { $0.isPinned != true && $0.isClosed != true } }
-
-    /// Pins or unpins a top-level group. A pinned group shows again if it was hidden, since a pin is always there.
-    func setFolderPinned(_ id: String, _ pinned: Bool) {
-        guard let index = folders.firstIndex(where: { $0.id == id }), folders[index].parentID == nil || !pinned else { return }
-        folders[index].isPinned = pinned ? true : nil
-        if pinned { folders[index].isClosed = nil }
-        scheduleSave()
-    }
-
-    /// The tab sits in a pinned group (or a group inside one): closing it keeps it, unloaded, like a pinned tab.
+    /// In the Sidebar layout the tab sits in a group above the New Tab line (or a group inside one): that is pinned, like
+    /// a tab there, so closing it keeps it, unloaded.
     func isInPinnedFolder(_ tab: TabItem) -> Bool {
+        guard !usesTabsLayout else { return false }
         var next = tab.folderID, steps = 0
         while let id = next, steps < 16, let folder = folders.first(where: { $0.id == id }) {
-            if folder.isPinned == true { return true }
+            if folder.parentID == nil { return folder.afterTabID == nil }
             next = folder.parentID; steps += 1
         }
         return false
@@ -356,6 +345,8 @@ extension BrowserState {
 extension BrowserState {
     var showsPinnedGrid: Bool { browserPreferences.showPinnedGrid ?? true }
     var presentsSidebarPinGrid: Bool { showsPinnedGrid }
+    /// Essentials columns: three or four (an older profile's other counts read as the nearest).
+    var essentialsColumns: Int { (browserPreferences.pinnedGridColumns ?? 3) >= 4 ? 4 : 3 }
     var sidebarGridPinnedTabs: [TabItem] {
         pinnedTabs.filter { !$0.pinAsRow && splitGroup(of: $0.id) == nil }
     }

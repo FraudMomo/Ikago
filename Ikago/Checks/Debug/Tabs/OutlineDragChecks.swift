@@ -16,18 +16,16 @@ enum OutlineDragChecks {
             if !value { failures += 1 }
         }
         let state = browser.state
-        let saved = (state.browserPreferences.sidebarCompact, state.sidebarVisible, state.browserPreferences.pinnedRowsStayInView,
+        let saved = (state.browserPreferences.sidebarCompact, state.sidebarVisible,
                      state.browserPreferences.sidebarTopTabs)
         defer {
             state.browserPreferences.sidebarCompact = saved.0
             state.sidebarVisible = saved.1
-            state.browserPreferences.pinnedRowsStayInView = saved.2
-            LayoutSwitch.set(tabs: saved.3 == true, state: state)
+            LayoutSwitch.set(tabs: saved.2 == true, state: state)
         }
         // The full sidebar on its own list, or the icon sidebar.
         LayoutSwitch.set(tabs: false, state: state)
         state.browserPreferences.sidebarCompact = rail ? true : nil
-        state.browserPreferences.pinnedRowsStayInView = nil
         state.sidebarVisible = true
         var made: [TabItem] = []
         for index in 0..<5 { if let tab = state.newTab(url: "about:blank#drag\(index)", select: false) { made.append(tab) } }
@@ -85,15 +83,15 @@ enum OutlineDragChecks {
         check(up && rig.rowIDs().firstIndex(of: "tab:" + t3.id).map { $0 < upFrom } == true, "a tab dropped up lands there")
         check(!sliding("tab:" + t3.id), "a row dropped up appears at its place at once")
 
-        // To the top of the tabs (right under New Tab), and a group to the very top of the list.
+        // To the top of the tabs (right under New Tab), and a group to the very top of the list, under the essentials (the rail leaves them out).
         if let line = rig.rowIDs().firstIndex(of: "divider") {
             let top = await rig.drop(PretendDrag(tab: t3.id, window: window), at: rig.point(over: "divider", upper: false))
             _ = await rig.settle()
             check(top && rig.rowIDs()[line + 1] == "tab:" + t3.id, "a tab dropped at the top of the tabs goes there")
         }
-        let groupTop = await rig.drop(PretendDrag(group: closed.id, window: window), at: rig.point(over: rig.rowIDs()[0], upper: true))
+        let groupTop = await rig.drop(PretendDrag(group: closed.id, window: window), at: rig.point(over: rig.rowIDs()[rail ? 0 : 1], upper: true))
         _ = await rig.settle()
-        check(groupTop && rig.rowIDs().first == "group:" + closed.id, "a group dropped at the top of the list goes there")
+        check(groupTop && rig.rowIDs().dropFirst(rail ? 0 : 1).first == "group:" + closed.id, "a group dropped at the top of the list goes there")
 
         // Onto a closed group: the tab goes in, last.
         let joined = await rig.drop(PretendDrag(tab: t1.id, window: window), at: rig.point(over: "group:" + closed.id, upper: false))

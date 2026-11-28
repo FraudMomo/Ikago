@@ -7,7 +7,9 @@
   windows' states when one changes them (`readShared`/`shareChanges`). The first window's state
   (`BrowserWindows.primary`) owns the session file and saves the other windows in it. Private windows stay apart.
 - **Session.** Saved atomically with a backup and encrypted (`SealedStorage`). Preferences live in
-  `BrowserPreferences`; new fields are optional so old sessions restore.
+  `BrowserPreferences`; new fields are optional so old sessions restore. A removed option's field just goes (old
+  sessions decode without it); one whose data must move somewhere else stays as a retired field, converted once at
+  restore and cleared (`convertSidebarShortcuts`).
 - **Window.** `BrowserWindowController` (`UI/Window/Controller/`, split by topic) owns the window, the content view
   controller and the commands. `BrowserRootView` (`UI/Shell/`) is the SwiftUI root: sidebar or rail, Top Tabs row,
   page card and overlays.
@@ -18,8 +20,11 @@
 - **Overlays** (site card, prompts, password list, command bar, update card) live in the window's SwiftUI tree and
   show through `ChromeModel`, so Liquid Glass samples the page behind them. The only exception is the icon rail's hover
   effects (`RailOverlay`), a click-through child window (see `tabs-and-sidebar.md`).
-- **Toolbar controls** come from `state.chromeLayout` (`ChromeLayout`, `ChromeItem`): the person places them in
-  Settings ▸ Customize. A new control gets a `ChromeItem` case. "Chrome" in names means Ikago's own UI.
+- **Toolbar controls** come from `state.chromeLayout` (`ChromeLayout`, `ChromeItem`): the person places them in Settings
+  ▸ Customize, in six places (`ChromeZone`): the sidebar's top and bottom rows, the Top Tabs toolbar's left and right,
+  inside the address field in every layout (`AddressFieldControls`), and the icon rail's foot. A new control gets a
+  `ChromeItem` case. Places that were retired are read once into the nearest one (`ChromeLayout.Retired`). "Chrome" in
+  names means Ikago's own UI.
 - **Shortcuts.** `MainMenu` holds every shortcut. `ShortcutRouter` sends ⌘/⌃ keys to the menu before the page (⌘C, V,
   X, A and Z stay with the page). Shortcuts are user-changeable (`KeyBindings`).
 - **Settings** are `ikago://settings` pages: categories, sub-pages (`SettingsSubpage`) and sections (`PageSection`).

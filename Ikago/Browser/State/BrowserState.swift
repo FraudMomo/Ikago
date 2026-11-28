@@ -32,11 +32,11 @@ final class BrowserState {
     /// Liquid Glass on floating surfaces; off draws flat panels.
     var useGlass = true { didSet { scheduleSave() } }
     /// Gap between the window edge and the sidebar/page, in points (0 = edge to edge).
-    var frameInset: Double = BrowserState.defaultFrameInset { didSet { scheduleSave() } }
-    static let defaultFrameInset: Double = 4
+    /// The margin around the window's panels, fixed: a hairline frame.
+    var frameInset: Double { 1 }
     /// Space between the sidebar and the page (the resize handle lives in it).
-    var sidebarGap: Double = BrowserState.defaultSidebarGap { didSet { scheduleSave() } }
-    static let defaultSidebarGap: Double = 6
+    /// The gap between the sidebar and the page, fixed: none (the resize handle straddles the seam).
+    var sidebarGap: Double { 0 }
     static let defaultSidebarWidth: Double = 260
     var searchShowsHistory = true { didSet { scheduleSave() } }
     var addressStyle: AddressStyle = .integrated { didSet { scheduleSave() } }
@@ -225,6 +225,7 @@ final class BrowserState {
         tab.history = last.history
         tab.pinAsRow = last.pinAsRow ?? false
         tab.pinAfterFolderID = last.pinAfterFolderID
+        tab.pinAboveGrid = last.pinned && last.pinAboveGrid == true
         // Its neighbour may have closed too: follow the closed tabs' own neighbours back to one that is open, like
         // Chrome restoring a run of closed tabs in their order.
         var anchor = last.after
@@ -258,6 +259,7 @@ final class BrowserState {
         tab.pinned.toggle()
         tab.pinAsRow = tab.pinned
         tab.pinAfterFolderID = nil
+        tab.pinAboveGrid = false
         tab.folderID = nil
         // Keep pinned tabs grouped first.
         tabs = tabs.filter(\.pinned) + tabs.filter { !$0.pinned }
@@ -270,7 +272,7 @@ final class BrowserState {
         guard let moving = tab(id), id != targetID else { return }
         if moving.folderID == nil, !moving.pinned { keepGroupsInPlace(leaving: id) }
         moving.pinned = pinned
-        if !pinned { moving.pinAsRow = false; moving.pinAfterFolderID = nil }
+        if !pinned { moving.pinAsRow = false; moving.pinAfterFolderID = nil; moving.pinAboveGrid = false }
         moving.folderID = pinned ? nil : folderID
         tabs.removeAll { $0.id == id }
         if let targetID, let index = tabs.firstIndex(where: { $0.id == targetID }) {

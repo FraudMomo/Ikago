@@ -19,18 +19,16 @@ enum OutlineDropChecks {
         }
         let state = browser.state
         var rigForDetail: OutlineDragRig?
-        let saved = (state.browserPreferences.sidebarCompact, state.sidebarVisible, state.browserPreferences.pinnedRowsStayInView,
+        let saved = (state.browserPreferences.sidebarCompact, state.sidebarVisible,
                      state.browserPreferences.sidebarTopTabs, state.browserPreferences.showPinnedGrid)
         defer {
             state.browserPreferences.sidebarCompact = saved.0
             state.sidebarVisible = saved.1
-            state.browserPreferences.pinnedRowsStayInView = saved.2
-            state.browserPreferences.showPinnedGrid = saved.4
-            LayoutSwitch.set(tabs: saved.3 == true, state: state)
+            state.browserPreferences.showPinnedGrid = saved.3
+            LayoutSwitch.set(tabs: saved.2 == true, state: state)
         }
         LayoutSwitch.set(tabs: false, state: state)
         state.browserPreferences.sidebarCompact = rail ? true : nil
-        state.browserPreferences.pinnedRowsStayInView = nil
         state.browserPreferences.showPinnedGrid = false
         state.sidebarVisible = true
         try? await Task.sleep(for: .milliseconds(800))
@@ -58,6 +56,8 @@ enum OutlineDropChecks {
             for tab in fixture.tabs { state.closeTab(tab.id, removingPin: true) }
             for folder in [fixture.first, fixture.second, fixture.loose] { state.deleteFolder(folder.id) }
         }
+        // The full sidebar's first row is the essentials' (the rail shows them as its own tiles).
+        let top = rail ? 0 : 1
         guard let rig = OutlineDragRig(browser) else {
             check(false, "the sidebar list is on screen")
             print("IKTEST \(name)checks FAIL failures=\(failures)")
@@ -95,7 +95,7 @@ enum OutlineDropChecks {
                 var fixture = await build(pinned: pinned)
                 var first = "group:" + fixture.first.id
                 var took = await dragOver(first, fraction: 0.15, fromBelow: fromBelow, PretendDrag(group: fixture.loose.id, window: rig.window))
-                check(took && sits("group:" + fixture.loose.id, before: first) && rig.rowIDs().firstIndex(of: first) == (pinned ? 2 : 1),
+                check(took && sits("group:" + fixture.loose.id, before: first) && rig.rowIDs().firstIndex(of: first) == (pinned ? 2 : 1) + top,
                       "a group over the top of the first group goes above it\(tag), \(way)")
                 clear(fixture)
 
@@ -105,16 +105,16 @@ enum OutlineDropChecks {
                 check(took && sits("tab:" + fixture.tabs[4].id, before: first) && fixture.tabs[4].pinned, "a tab over the top of the first group goes above it\(tag), \(way)")
                 clear(fixture)
 
-                // The very top of the list.
+                // The very top of the list, under the essentials (its first row).
                 if pinned {
                     fixture = await build(pinned: pinned)
                     took = await dragOver("tab:" + fixture.pin.id, fraction: 0.15, fromBelow: fromBelow, PretendDrag(group: fixture.loose.id, window: rig.window))
-                    check(took && rig.rowIDs().first == "group:" + fixture.loose.id, "a group over the top of the first row goes first\(tag), \(way)")
+                    check(took && rig.rowIDs().dropFirst(top).first == "group:" + fixture.loose.id, "a group over the top of the first row goes first\(tag), \(way)")
                     clear(fixture)
 
                     fixture = await build(pinned: pinned)
                     took = await dragOver("tab:" + fixture.pin.id, fraction: 0.15, fromBelow: fromBelow, PretendDrag(tab: fixture.tabs[4].id, window: rig.window))
-                    check(took && rig.rowIDs().first == "tab:" + fixture.tabs[4].id, "a tab over the top of the first row goes first\(tag), \(way)")
+                    check(took && rig.rowIDs().dropFirst(top).first == "tab:" + fixture.tabs[4].id, "a tab over the top of the first row goes first\(tag), \(way)")
                     clear(fixture)
                 }
                 guard fromBelow else { continue }

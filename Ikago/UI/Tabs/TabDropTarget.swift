@@ -5,10 +5,6 @@ extension View {
     func tabDropTarget(_ tab: TabItem, axis: Axis, state: BrowserState, chrome: ChromeModel) -> some View {
         modifier(TabDropTarget(tab: tab, axis: axis, state: state, chrome: chrome))
     }
-
-    func tabListEndDrop(state: BrowserState, chrome: ChromeModel) -> some View {
-        modifier(TabListEndDrop(state: state, chrome: chrome))
-    }
 }
 
 /// Pure SwiftUI tab rows share SwiftUI's drag lifecycle. Native destinations stay above web pages only.
@@ -66,65 +62,6 @@ private struct TabDropTarget: ViewModifier {
     }
 }
 
-private struct TabListEndDrop: ViewModifier {
-    let state: BrowserState
-    let chrome: ChromeModel
-    @State private var insertionAfter: Bool?
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    func body(content: Content) -> some View {
-        content
-            .contentShape(Rectangle())
-            .onDrop(of: [.ikagoTab, .ikagoGroup], delegate: ListEndDropDelegate(tabs: TabReorderDropDelegate(
-                axis: .vertical, length: MeasuredLength(), preview: $insertionAfter,
-                accepts: { state.tab($0)?.spaceID == state.activeSpaceID },
-                source: { chrome.draggingTabID }, perform: { id, _ in
-                    withAnimation(reduceMotion ? nil : .ikagoQuick) { _ = state.moveTabToListEnd(id) }
-                    chrome.endTabDrag()
-                }, into: state), state: state, chrome: chrome, preview: $insertionAfter))
-            .overlay(alignment: .top) {
-                if insertionAfter != nil { TabInsertionIndicator(horizontal: false) }
-            }
-            .onChange(of: chrome.draggingTabID) { _, id in if id == nil { insertionAfter = nil } }
-            .onChange(of: chrome.draggingFolderID) { _, id in if id == nil { insertionAfter = nil } }
-    }
-}
-
-/// The end of the list: tabs go last among the loose tabs; a group leaves any group it is in and goes last among the tabs.
-private struct ListEndDropDelegate: DropDelegate {
-    let tabs: TabReorderDropDelegate
-    let state: BrowserState
-    let chrome: ChromeModel
-    @Binding var preview: Bool?
-
-    /// Only while a group is dragged: a tab drag can report the group type too.
-    private func isGroup(_ info: DropInfo) -> Bool { chrome.draggingFolderID != nil && info.hasItemsConforming(to: [.ikagoGroup]) }
-    private var groupAccepted: Bool {
-        chrome.draggingFolderID.map { id in state.folders.contains { $0.id == id && $0.spaceID == state.activeSpaceID } } ?? false
-    }
-
-    func validateDrop(info: DropInfo) -> Bool { isGroup(info) ? groupAccepted : tabs.validateDrop(info: info) }
-    func dropEntered(info: DropInfo) {
-        if isGroup(info) { preview = groupAccepted ? true : nil } else { tabs.dropEntered(info: info) }
-    }
-    func dropUpdated(info: DropInfo) -> DropProposal? {
-        guard isGroup(info) else { return tabs.dropUpdated(info: info) }
-        preview = groupAccepted ? true : nil
-        return DropProposal(operation: groupAccepted ? .move : .cancel)
-    }
-    func dropExited(info: DropInfo) { preview = nil }
-    func performDrop(info: DropInfo) -> Bool {
-        guard isGroup(info), let provider = info.itemProviders(for: [.ikagoGroup]).first else { return tabs.performDrop(info: info) }
-        preview = nil
-        GroupDrag.load(provider) { id in
-            chrome.endFolderDrag()
-            guard state.folders.contains(where: { $0.id == id && $0.spaceID == state.activeSpaceID }) else { return }
-            withAnimation(.ikagoQuick) { state.placeFolderAmongTabs(id, relativeTo: state.looseTabs.last?.id, after: true) }
-        }
-        return true
-    }
-}
-
 /// The endpoints remain visible beside the drag image; the band makes the destination easy to follow.
 struct TabInsertionIndicator: View {
     let horizontal: Bool
@@ -175,8 +112,10 @@ private struct DragInsertionLine: View {
     let clear: () -> Void
 
     var body: some View {
+        // Shown for a tab or a group (a group drag sets only `draggingFolderID`: gating on the tab alone hid the line).
+        let dragging = chrome.draggingTabID != nil || chrome.draggingFolderID != nil
         TabInsertionIndicator(horizontal: horizontal)
-            .opacity(chrome.draggingTabID == nil ? 0 : 1)
-            .onChange(of: chrome.draggingTabID == nil) { _, ended in if ended { clear() } }
+            .opacity(dragging ? 1 : 0)
+            .onChange(of: dragging) { _, now in if !now { clear() } }
     }
 }

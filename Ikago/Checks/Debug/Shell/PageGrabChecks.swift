@@ -1,9 +1,8 @@
 #if DEBUG
 import AppKit
 
-/// The page's top edge (`PageWindowGrab`): press and hold reaches as far as the chosen height, the drop-down header
-/// appears after the pointer rests there and leaves after it goes, a double-click zooms unless turned off, and Off
-/// leaves every click to the page.
+/// The page's top edge (`PageWindowGrab`): a press within its 20 pt is the window's, below it the page's; a
+/// double-click on it zooms the window; Top Tabs leaves every click to the page.
 @MainActor
 enum PageGrabChecks {
     static func run(_ browser: BrowserWindowController, base: String) async {
@@ -13,11 +12,7 @@ enum PageGrabChecks {
             if !value { failures += 1 }
         }
         let state = browser.state
-        let saved = (state.browserPreferences.pageGrab, state.browserPreferences.pageGrabHeight, state.browserPreferences.pageGrabZoom)
-        defer {
-            (state.browserPreferences.pageGrab, state.browserPreferences.pageGrabHeight, state.browserPreferences.pageGrabZoom) = saved
-            print("IKTEST pagegrabchecks \(failures == 0 ? "PASS" : "FAIL") failures=\(failures)")
-        }
+        defer { print("IKTEST pagegrabchecks \(failures == 0 ? "PASS" : "FAIL") failures=\(failures)") }
         browser.open(base + "/login.html", inNewTab: true)
         for _ in 0..<250 where state.activeTab?.isLoading != false { try? await Task.sleep(for: .milliseconds(20)) }
         try? await Task.sleep(for: .milliseconds(300))
@@ -30,20 +25,8 @@ enum PageGrabChecks {
                                       context: nil, eventNumber: 0, clickCount: clicks, pressure: 1)!
         }
 
-        check(grab.mode == .hold && grab.starts(event(.leftMouseDown, y: 4)), "press and hold is the default")
-        check(!grab.starts(event(.leftMouseDown, y: 20)), "the default edge stops at 10 pt")
-        state.browserPreferences.pageGrabHeight = 24
-        check(grab.starts(event(.leftMouseDown, y: 20)) && !grab.starts(event(.leftMouseDown, y: 30)), "a taller edge reaches 24 pt")
-
-        state.browserPreferences.pageGrab = .header
-        check(!grab.starts(event(.leftMouseDown, y: 4)), "the header style doesn't grab on press")
-        _ = grab.observe(event(.mouseMoved, y: 4))
-        check(!grab.header.isShown, "the header waits for the pointer to rest")
-        try? await Task.sleep(for: .seconds(PageGrabHeader.dwell + 0.15))
-        check(grab.header.isShown && grab.header.superview === content, "the header drops down after resting on the edge")
-        _ = grab.observe(event(.mouseMoved, y: 80))
-        try? await Task.sleep(for: .seconds(PageGrabHeader.linger + 0.4))
-        check(!grab.header.isShown && grab.header.superview == nil, "the header goes once the pointer leaves")
+        check(grab.starts(event(.leftMouseDown, y: 4)) && grab.starts(event(.leftMouseDown, y: 18)), "the top 20 pt move the window")
+        check(!grab.starts(event(.leftMouseDown, y: 26)), "below them the page keeps its press")
 
         let zoomed = window.isZoomed
         check(!grab.observe(event(.leftMouseDown, y: 4, clicks: 2)), "a double-click on the edge is Ikago's")
@@ -53,20 +36,14 @@ enum PageGrabChecks {
         _ = grab.observe(event(.leftMouseDown, y: 4, clicks: 2))
         _ = grab.observe(event(.leftMouseUp, y: 4, clicks: 2))
         try? await Task.sleep(for: .milliseconds(400))
-        state.browserPreferences.pageGrabZoom = false
-        check(grab.observe(event(.leftMouseDown, y: 4, clicks: 2)), "with zoom off the double-click stays with the page")
 
-        state.browserPreferences.pageGrab = nil
         LayoutSwitch.set(tabs: true, state: state)
         try? await Task.sleep(for: .milliseconds(400))
-        check(grab.mode == .off && !grab.starts(event(.leftMouseDown, y: 4)), "Top Tabs leaves the page's edge to the page")
+        check(!grab.active && !grab.starts(event(.leftMouseDown, y: 4)), "Top Tabs leaves the page's edge to the page")
+        check(grab.observe(event(.leftMouseDown, y: 4, clicks: 2)), "and its double-clicks")
+        _ = grab.observe(event(.leftMouseUp, y: 4, clicks: 2))
         LayoutSwitch.set(tabs: false, state: state)
         try? await Task.sleep(for: .milliseconds(400))
-        state.browserPreferences.pageGrab = .off
-        check(!grab.starts(event(.leftMouseDown, y: 4)), "Off never grabs")
-        _ = grab.observe(event(.mouseMoved, y: 4))
-        try? await Task.sleep(for: .seconds(PageGrabHeader.dwell + 0.15))
-        check(!grab.header.isShown, "Off shows no header")
     }
 }
 #endif

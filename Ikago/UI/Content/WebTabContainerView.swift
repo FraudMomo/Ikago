@@ -36,20 +36,11 @@ final class WebTabContainerView: NSView {
     /// Places exactly `views` (keyed by tab ID) in the pane layout, parking everything else.
     /// Columns and rows are one split view; a grid nests split views (2 × 2, or one tall pane
     /// beside two stacked ones).
-    func show(_ views: [(id: String, view: NSView)], layout: SplitLayout, animate: Bool = true) {
+    /// Switching is instant: the new page is there on the next frame.
+    func show(_ views: [(id: String, view: NSView)], layout: SplitLayout) {
         let ids = views.map(\.id)
         let layout = layout.effective(count: views.count)
-        // Core Animation stores CATransition under its reserved transition key.
-        if !animate { layer?.removeAnimation(forKey: "transition") }
         guard ids != shownIDs || layout != shownLayout else { return }
-        if animate, window != nil, !shownIDs.isEmpty {
-            // Panes appearing, leaving or rotating cross-fade instead of jumping.
-            let fade = CATransition()
-            fade.type = .fade
-            fade.duration = 0.14
-            fade.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            layer?.add(fade, forKey: "transition")
-        }
         // Dismantle the old arrangement. Views never leave the window on the way (each moves straight to its pane or to
         // parking): a Chromium page taken out of the window is resized to 0×0, and pages like ChatGPT lost their scroll
         // position and blinked when shown again (`CEFTabSwitchChecks`).

@@ -14,8 +14,6 @@ struct ContentHost: FillingViewRepresentable {
     let state: BrowserState
     /// Width the chrome takes beside the page (sidebar, gaps, the page assistant), from the final layout.
     var sideChrome: CGFloat = 0
-    /// The sidebar is on the left, so the page's right edge stays put while it animates.
-    var anchorTrailing = true
 
     final class Coordinator { var sideChrome: CGFloat? }
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -34,7 +32,7 @@ struct ContentHost: FillingViewRepresentable {
         if let previous, previous != sideChrome, container.bounds.width > 0,
            context.transaction.animation != nil, !context.transaction.disablesAnimations {
             // This update starts an animation from the current size to one `sideChrome - previous` narrower.
-            container.holdPage(finalWidth: container.bounds.width - (sideChrome - previous), alignTrailing: anchorTrailing,
+            container.holdPage(finalWidth: container.bounds.width - (sideChrome - previous),
                                radius: state.pageCornerRadius, squareTop: state.pageHasTopBar)
         }
         attach(to: container)
@@ -57,7 +55,6 @@ final class ContentContainerView: NSView {
     weak var content: NSView?
     /// The page's width while the host animates; nil when it simply fills the host.
     private var heldWidth: CGFloat?
-    private var alignTrailing = true
     private var settle: DispatchWorkItem?
     /// How long the size must stay still before the motion counts as finished.
     private static let settleDelay: TimeInterval = 0.12
@@ -66,10 +63,9 @@ final class ContentContainerView: NSView {
     static var resizes = 0
     #endif
 
-    func holdPage(finalWidth: CGFloat, alignTrailing: Bool, radius: CGFloat, squareTop: Bool) {
+    func holdPage(finalWidth: CGFloat, radius: CGFloat, squareTop: Bool) {
         // Never narrower than now (a page about to shrink keeps its size until the end), never wider than needed.
         heldWidth = max(finalWidth, bounds.width).rounded()
-        self.alignTrailing = alignTrailing
         // Clip to the page card's own shape, so the edge the sidebar crosses stays rounded.
         wantsLayer = true
         layer?.masksToBounds = true
@@ -103,7 +99,7 @@ final class ContentContainerView: NSView {
             return
         }
         content.autoresizingMask = []
-        let frame = NSRect(x: alignTrailing ? bounds.width - heldWidth : 0, y: 0, width: heldWidth, height: bounds.height)
+        let frame = NSRect(x: bounds.width - heldWidth, y: 0, width: heldWidth, height: bounds.height)
         if content.frame != frame {
             #if DEBUG
             if content.frame.size != frame.size { Self.resizes += 1 }

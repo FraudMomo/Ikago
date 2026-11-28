@@ -22,6 +22,8 @@ extension TestDriver {
         case "outlinedropchecks": await OutlineDropChecks.run(c)
         case "raildropchecks": await OutlineDropChecks.run(c, rail: true)
         case "outlinebugchecks": await OutlineBugChecks.run(c)
+        case "pinsabovegridchecks": await PinsAboveGridChecks.run(c)
+        case "chromelayoutchecks": ChromeLayoutChecks.run()
         case "railbugchecks": await OutlineBugChecks.run(c, rail: true)
         case "sidebardrag":  // <seed>: one random drag in the sidebar's list, when it is on screen (crash walks)
             await OutlineDragRig(c)?.randomDrag(seed: UInt64(arg) ?? 1)
@@ -87,6 +89,7 @@ extension TestDriver {
             } catch { print("IKTEST groupdemo FAIL \(error)") }
         case "importchecks": await BrowserImportChecks.run(c)
         case "mediaparserchecks": MediaParserChecks.run(iterations: Int(arg) ?? 4000)
+        case "parserfuzzchecks": ParserFuzzChecks.run(iterations: Int(arg) ?? 3000)
         case "newtabfocuschecks": await NewTabFocusChecks.run(c, base: arg)
         case "bookmarkdemo": BookmarkBarChecks.seed(c)
         case "bookmarkbarchecks": await BookmarkBarChecks.run(c)

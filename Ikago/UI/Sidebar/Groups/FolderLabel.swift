@@ -83,9 +83,8 @@ extension TabFolder {
 }
 
 extension TabFolder {
-    func disclosureValue(count: Int, showsCount: Bool) -> String {
-        let expansion = isOpen ? "Expanded" : "Collapsed"
-        return showsCount ? "\(expansion), \(count) \(count == 1 ? "tab" : "tabs")" : expansion
+    func disclosureValue(count: Int) -> String {
+        "\(isOpen ? "Expanded" : "Collapsed"), \(count) \(count == 1 ? "tab" : "tabs")"
     }
 
 }
@@ -99,15 +98,7 @@ struct FolderContextMenu: View {
     var body: some View {
         Button("Rename Group…") { commands?.renameFolder(folder.id) }
         Button("Icon and Color…") { commands?.customizeFolder(folder.id) }
-        // Top-level groups pin like tabs: a button among the pins with a menu of the group's tabs.
-        if folder.isPinned == true {
-            Button("Unpin Group") { withAnimation(.ikago) { state.setFolderPinned(folder.id, false) } }
-        } else if folder.parentID == nil {
-            Button("Pin Group") { withAnimation(.ikago) { state.setFolderPinned(folder.id, true) } }
-        }
-        if folder.isPinned == true {
-            // A pin is always there: nothing to hide.
-        } else if folder.isClosed == true {
+        if folder.isClosed == true {
             Button("Show Group") { withAnimation(.ikago) { state.reopenFolder(folder.id) } }
         } else {
             Button("Hide Group") { withAnimation(.ikago) { commands?.hideGroup(folder.id) } }

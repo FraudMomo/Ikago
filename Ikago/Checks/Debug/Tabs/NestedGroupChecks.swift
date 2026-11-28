@@ -37,28 +37,28 @@ enum NestedGroupChecks {
         browser.deleteGroup(doomed.id)
         check(!state.folders.contains { [doomed.id, doomedInner.id].contains($0.id) } && state.tab(doomedTab.id) == nil,
               "deleting a group closes its tabs and nested groups")
-        // Pinned groups: out of the list, among the pins; their tabs stay when closed; only top-level groups pin.
+        // Above the New Tab line a group is pinned: its tabs (and its groups' tabs) stay when closed; among the loose tabs
+        // they close. Deleting the group closes them for good.
         let pinned = state.createFolder(named: "Pinned"), pinnedInner = state.createFolder(named: "Pinned inner", parentID: pinned.id)
-        let pinnedTab = state.newTab(url: "about:blank#pinned", select: false, folderID: pinned.id)!
-        state.setFolderPinned(pinned.id, true)
-        state.setFolderPinned(pinnedInner.id, true)
-        check(state.pinnedFolders.map(\.id) == [pinned.id] && !state.listedFolders.contains { $0.id == pinned.id }
-              && state.folders.first { $0.id == pinnedInner.id }?.isPinned == nil, "a pinned group leaves the list for the pins; nested groups don't pin")
+        state.placeFolderInBlock(pinned.id)
+        let pinnedTab = state.newTab(url: "about:blank#pinned", select: false, folderID: pinnedInner.id)!
         browser.closeTab(pinnedTab.id)
-        check(state.tab(pinnedTab.id)?.isHibernating == true, "closing a pinned group's tab keeps it, unloaded")
-        state.setFolderPinned(pinned.id, false)
-        check(state.listedFolders.contains { $0.id == pinned.id } && state.pinnedFolders.isEmpty, "unpinning returns the group to the list")
-        state.setFolderPinned(pinned.id, true)
+        check(state.usesTabsLayout || state.tab(pinnedTab.id)?.isHibernating == true, "closing a tab in a group above the line keeps it, unloaded")
+        state.placeFolderAmongTabs(pinned.id, relativeTo: nil, after: false)
+        let looseTab = state.newTab(url: "about:blank#loosegroup", select: false, folderID: pinned.id)!
+        browser.closeTab(looseTab.id)
+        check(state.tab(looseTab.id) == nil, "closing a tab in a group among the loose tabs closes it")
+        state.placeFolderInBlock(pinned.id)
         browser.deleteGroup(pinned.id)
-        check(state.tab(pinnedTab.id) == nil && !state.folders.contains { $0.id == pinned.id }, "deleting a pinned group closes its tabs for good")
+        check(state.tab(pinnedTab.id) == nil && !state.folders.contains { $0.id == pinned.id }, "deleting a group above the line closes its tabs for good")
         // Hiding a group takes it out of every list; the Tab Groups button appears to bring it back.
         let hiddenGroup = state.createFolder(named: "Hidden")
         let hiddenTab = state.newTab(url: "about:blank#hidden", select: false, folderID: hiddenGroup.id)!
         browser.hideGroup(hiddenGroup.id)
         check(!state.listedFolders.contains { $0.id == hiddenGroup.id } && !state.navigationOrder.contains { $0.id == hiddenTab.id }
-              && state.addsTabGroupsButton(in: .sidebarBottomTrailing), "a hidden group leaves the lists and the Tab Groups button shows")
+              && state.addsTabGroupsButton(in: .sidebarBottom), "a hidden group leaves the lists and the Tab Groups button shows")
         state.reopenFolder(hiddenGroup.id, selecting: false)
-        check(state.listedFolders.contains { $0.id == hiddenGroup.id } && !state.addsTabGroupsButton(in: .sidebarBottomTrailing)
+        check(state.listedFolders.contains { $0.id == hiddenGroup.id } && !state.addsTabGroupsButton(in: .sidebarBottom)
               && state.folders.first { $0.id == hiddenGroup.id }?.isOpen == false, "shown again, it is back in the list, collapsed")
         state.closeTab(hiddenTab.id); state.deleteFolder(hiddenGroup.id)
         // Groups among tabs: placed after a loose tab, kept in place when that tab goes, back to the block on request.
@@ -97,10 +97,10 @@ enum NestedGroupChecks {
         let pairFolder = ta.folderID
         for tab in [ta, tb, tc] { state.closeTab(tab.id) }
         if let pairFolder { state.deleteFolder(pairFolder) }
-        // ⌘K: the floating command bar on actions, with nothing typed.
+        // The command bar on actions (⇧⌘K), with nothing typed.
         browser.showCommandBar()
         check(browser.chrome.showPalette && browser.palette.scope == .actions && browser.palette.query.isEmpty
-              && !browser.palette.suggestions.isEmpty, "⌘K opens the command bar on actions")
+              && !browser.palette.suggestions.isEmpty, "the command bar opens on actions")
         browser.dismissCommandPalette()
         // Dragging groups by their headers: before, after, inside, and to the end of the list.
         let x = state.createFolder(named: "X"), y = state.createFolder(named: "Y")

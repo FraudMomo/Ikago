@@ -30,27 +30,6 @@ struct AppearanceSection: View {
     }
 }
 
-struct TabMotionSection: View {
-    let state: BrowserState
-
-    var body: some View {
-        PageSection(title: "Tab Animations") {
-            PageRow(title: "Instant tab switching", subtitle: "No fade between pages",
-                    figure: AnyView(PageSwitchFigure(instant: state.browserPreferences.instantTabSwitching ?? false, colors: state.palette))) {
-                Toggle("Instant tab switching", isOn: Binding(
-                    get: { state.browserPreferences.instantTabSwitching ?? false },
-                    set: { state.browserPreferences.instantTabSwitching = $0 }))
-                    .labelsHidden().toggleStyle(.switch)
-            }
-            PageDivider()
-            PageRow(title: "Tab highlight animation", subtitle: "How the selection moves between tabs",
-                    figure: AnyView(TabHighlightFigure(style: state.tabHighlightStyle, colors: state.palette))) {
-                SettingsMenu(selection: Binding(get: { state.tabHighlightStyle }, set: { state.tabHighlightStyle = $0 }), options: TabHighlightStyle.allCases.map { ($0, $0.title) })
-            }
-        }
-    }
-}
-
 /// Settings only the Top Tabs layout uses: how the address bar sits. Not shown in the Sidebar layout.
 struct TabsLayoutSection: View {
     let state: BrowserState
@@ -63,7 +42,7 @@ struct TabsLayoutSection: View {
                 HStack(spacing: 14) {
                     ForEach(TabsAddressStyle.allCases) { style in
                         TabsAddressCard(style: style, selected: state.tabsAddressStyle == style, colors: state.palette) {
-                            withAnimation(.ikago) { state.browserPreferences.tabsAddressStyle = style == .centered ? nil : style }
+                            withAnimation(.ikago) { state.browserPreferences.tabsAddressStyle = style == .wide ? nil : style }
                         }
                     }
                 }
@@ -81,35 +60,18 @@ struct SpacingSection: View {
 
     var body: some View {
         PageSection(title: "Window and Sidebar") {
-            SliderRow(title: "Window border", subtitle: "Space around the page", value: $state.frameInset,
-                      range: 0...24, defaultValue: BrowserState.defaultFrameInset,
-                      figure: AnyView(WindowSpacingFigure(inset: state.frameInset, gap: state.sidebarGap, onRight: state.sidebarOnRight, colors: state.palette)))
-            PageDivider()
             Group {
-                PageRow(title: "Sidebar", subtitle: "⌃⌘S switches, ⇧⌘S hides",
-                        figure: AnyView(SidebarModeFigure(mode: !state.sidebarVisible ? 2 : state.showsSidebarRail ? 1 : 0,
-                                                          onRight: state.sidebarOnRight, colors: state.palette))) {
+                PageRow(title: "Sidebar", subtitle: "Hidden slides in at the window's edge · ⌃⌘S switches, ⇧⌘S hides",
+                        figure: AnyView(SidebarModeFigure(mode: state.sidebarMode, rail: state.usesTabsLayout, colors: state.palette))) {
                     SettingsSegmented(selection: Binding(
-                        get: { !state.sidebarVisible ? 2 : state.showsSidebarRail ? 1 : 0 },
-                        set: { mode in
-                            withAnimation(.ikago) {
-                                state.sidebarVisible = mode != 2
-                                if mode != 2 { state.browserPreferences.sidebarCompact = mode == 1 ? true : nil }
-                            }
-                        }),
-                        // Top Tabs has no full sidebar.
-                        options: (state.usesTabsLayout ? [] : [(0, "Full")]) + [(1, "Icons"), (2, "Hidden")])
+                        get: { state.sidebarMode },
+                        set: { mode in withAnimation(.ikago) { state.sidebarMode = mode } }),
+                        // Top Tabs has no full sidebar. The Sidebar layout has no Off: its tabs are only in the sidebar.
+                        options: state.usesTabsLayout ? [(SidebarMode.icons, "Icons"), (.hidden, "Hidden"), (.off, "Off")]
+                            : [(.full, "Full"), (.icons, "Icons"), (.hidden, "Hidden")])
                 }
-                PageDivider()
-                PageRow(title: "Reveal at the window edge", subtitle: "A hidden sidebar slides in at the window's edge",
-                        figure: AnyView(EdgePeekFigure(on: state.sidebarEdgePeek, rail: state.usesTabsLayout, colors: state.palette))) {
-                    Toggle("Reveal at the window edge", isOn: Binding(
-                        get: { state.sidebarEdgePeek },
-                        set: { on in withAnimation(.ikago) { state.browserPreferences.sidebarEdgePeek = on ? nil : false } }))
-                        .labelsHidden().toggleStyle(.switch)
-                }
-                // Only where there is an icon sidebar: Top Tabs, or the Sidebar layout's Icons.
-                if state.usesTabsLayout || state.browserPreferences.sidebarCompact == true {
+                // Only with an icon sidebar: on screen, or hidden and sliding in from the window's edge.
+                if state.sidebarMode == .icons || (state.sidebarMode == .hidden && (state.usesTabsLayout || state.browserPreferences.sidebarCompact == true)) {
                     PageDivider()
                     PageRow(title: "Icon sidebar on hover", subtitle: "Grow the icons near the pointer, or open the full sidebar over the page",
                             figure: AnyView(RailHoverFigure(effect: state.browserPreferences.railHover, colors: state.palette))) {
@@ -119,24 +81,8 @@ struct SpacingSection: View {
                         ), options: [(nil, "Off")] + RailHoverEffect.allCases.map { (Optional($0), $0.name) })
                     }
                 }
-                PageDivider()
-                PageRow(title: "Sidebar side", subtitle: "Left or right of the page",
-                        figure: AnyView(WindowSpacingFigure(inset: state.frameInset, gap: state.sidebarGap, onRight: state.sidebarOnRight, colors: state.palette))) {
-                    SettingsSegmented(selection: Binding(get: { state.sidebarOnRight }, set: { state.sidebarOnRight = $0 }), options: [(false, "Left"), (true, "Right")])
-                }
-                if state.sidebarOnRight {
-                    PageDivider()
-                    PageRow(title: "Move window controls with sidebar") {
-                        Toggle("Move window controls with sidebar", isOn: Binding(get: { state.sidebarLightsFollow }, set: { state.sidebarLightsFollow = $0 })).labelsHidden().toggleStyle(.switch)
-                    }
-                }
-                PageDivider()
-                SliderRow(title: "Sidebar gap", subtitle: "Space between the sidebar and page",
-                          value: $state.sidebarGap, range: 0...24, defaultValue: BrowserState.defaultSidebarGap,
-                          figure: AnyView(WindowSpacingFigure(inset: state.frameInset, gap: state.sidebarGap, onRight: state.sidebarOnRight, colors: state.palette)))
             }
         }
-        PageGrabSection(state: state)
         PageSection(title: "Full Screen") {
             PageRow(title: "Use the area beside the camera", subtitle: "Otherwise a black band sits below it",
                     figure: AnyView(NotchFigure(besideCamera: state.browserPreferences.fullScreenUnderNotch == true, colors: state.palette))) {

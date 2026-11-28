@@ -46,7 +46,6 @@ struct SplitGroupRow: View {
     let state: BrowserState
     let chrome: ChromeModel
     let colors: Palette
-    let selection: Namespace.ID
     weak var commands: BrowserCommands?
     /// Off in the native list (`SidebarOutlineList`), which takes the drops itself.
     var dropsHere = true
@@ -82,7 +81,7 @@ struct SplitGroupRow: View {
         .frame(height: 34)
         .background {
             TabSelectionHighlight(shape: RoundedRectangle(cornerRadius: Radius.row, style: .continuous), active: shown,
-                                  color: colors.selected, selection: selection, id: "active-tab")
+                                  color: colors.selected)
             if !shown {
                 RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(hovering ? colors.hover.opacity(1.6) : colors.hover)
             }

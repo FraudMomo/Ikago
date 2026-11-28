@@ -22,10 +22,10 @@ extension SettingsCategory {
                     page("Advanced", "Advanced")]
         case .appearance:
             return [page("Theme", "Color & Theme", "Materials"),
-                    page("Layout", "Layout", "Top Tabs", "Window and Sidebar", "Moving the Window", "Full Screen"),
-                    page("Details", "Tab Groups", "Tab Animations")]
+                    page("Layout", "Layout", "Top Tabs", "Window and Sidebar", "Full Screen"),
+                    page("Details", "Tab Groups")]
         case .toolbar:
-            return [page("Sidebar", "Sidebar", "Sidebar Essentials", "Pinned Tabs", "Bookmarks Bar"),
+            return [page("Sidebar", "Sidebar Essentials", "Pinned Tabs", "Bookmarks Bar"),
                     page("Toolbar", "Customize")]
         case .tabs:
             return [page("New Tabs", "New Tab", "Tab Placement", "Background Tabs", "Opening Bookmarks"),

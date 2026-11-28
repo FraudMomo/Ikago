@@ -27,6 +27,8 @@ enum RailHover {
     /// Expand opening: a decelerating curve (fast start, soft landing), as Chrome-style vertical tabs widen.
     static let reveal = Animation.timingCurve(0.2, 0, 0, 1, duration: 0.17)
     static let conceal = Animation.timingCurve(0.3, 0, 0.8, 0.15, duration: 0.12)
+    /// How far Expand's sidebar slides in from as it comes out.
+    static let slide: CGFloat = 24
     /// How long the effects take to settle back onto the rail, after which the overlay goes.
     static let settle: Duration = .milliseconds(180)
     /// How long the pointer rests on the rail before it widens, so crossing it to the window's edge doesn't flash it.

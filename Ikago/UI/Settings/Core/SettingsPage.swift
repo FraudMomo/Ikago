@@ -192,7 +192,6 @@ struct SettingsPage: View {
             SpacingSection(state: state)
             AppearanceSection(state: state)
             GroupAppearanceSection(state: state)
-            TabMotionSection(state: state)
         case .toolbar:
             EssentialsSettingsSection(state: state)
             CustomizeSection(state: state)

@@ -79,14 +79,13 @@ struct FaviconView: View {
     }
 }
 
-/// One tab in the sidebar. The active tab's background slides between rows
-/// (`matchedGeometryEffect`); the close button appears on hover.
+/// One tab in the sidebar. The active tab's background fades between rows (`TabSelectionHighlight`); the close button
+/// appears on hover.
 struct TabRowView: View {
     let tab: TabItem
     let isActive: Bool
     let isInSplit: Bool
     let colors: Palette
-    let selection: Namespace.ID
     weak var commands: BrowserCommands?
     @State private var hovering = false
 
@@ -128,7 +127,7 @@ struct TabRowView: View {
         .frame(height: 34)
         .background {
             TabSelectionHighlight(shape: RoundedRectangle(cornerRadius: Radius.row, style: .continuous), active: isActive,
-                                  color: colors.selected, selection: selection, id: "active-tab")
+                                  color: colors.selected)
             if !isActive && isInSplit {
                 RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(colors.selected.opacity(0.45))
             } else if !isActive && hovering {

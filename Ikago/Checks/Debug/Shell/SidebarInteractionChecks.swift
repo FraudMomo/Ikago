@@ -59,25 +59,19 @@ enum SidebarInteractionChecks {
         }
         for visible in [true, false] {
             state.sidebarVisible = visible
-            for margin in [2.0, 8.0, 24.0] {
-                state.frameInset = margin
-                for width in [1100.0, 600.0] {
-                    window.setContentSize(NSSize(width: width, height: 750))
-                    try? await Task.sleep(for: .milliseconds(300))
-                    guard let frame = LayoutChecks.frames["sidebar-page-drag-margin"] else {
-                        check(false, "margin drag region is mounted"); continue
-                    }
-                    let top = NSPoint(x: frame.midX, y: frame.midY)
-                    let point = NSPoint(x: top.x, y: root.isFlipped ? top.y : root.bounds.height - top.y)
-                    let hit = root.hitTest(root.convert(point, to: root.superview))
-                    check(hit is WindowDragArea.DragView, "\(Int(margin)) pt top margin routes native window dragging at \(Int(width)) pt, sidebar=\(visible)")
-                    check(abs(frame.height - margin) < 0.5, "window drag region stays inside the configured margin")
-                }
+            // The 1 pt margin above the page moves the window (`WindowDragArea` behind the page card).
+            for width in [1100.0, 600.0] {
+                window.setContentSize(NSSize(width: width, height: 750))
+                try? await Task.sleep(for: .milliseconds(300))
+                guard let page = LayoutChecks.frames["content"] else { check(false, "the page is on screen"); continue }
+                let top = NSPoint(x: page.midX, y: page.minY - state.frameInset / 2)
+                let point = NSPoint(x: top.x, y: root.isFlipped ? top.y : root.bounds.height - top.y)
+                let hit = root.hitTest(root.convert(point, to: root.superview))
+                check(hit is WindowDragArea.DragView, "the margin above the page moves the window at \(Int(width)) pt, sidebar=\(visible)")
             }
         }
         // Top Tabs: the strip above the tabs moves the window; the tabs themselves stay tabs.
         state.browserPreferences.sidebarTopTabs = true
-        state.frameInset = 8
         window.setContentSize(NSSize(width: 1100, height: 750))
         try? await Task.sleep(for: .milliseconds(500))
         func hit(_ x: CGFloat, _ y: CGFloat) -> NSView? {

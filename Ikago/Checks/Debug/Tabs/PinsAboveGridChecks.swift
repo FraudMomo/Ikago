@@ -21,6 +21,11 @@ enum PinsAboveGridChecks {
         state.browserPreferences.showPinnedGrid = true
         state.sidebarVisible = true
         let tabs = (0..<6).compactMap { state.newTab(url: "about:blank#above\($0)", select: false) }
+        // Only these: tabs earlier checks left make the list long enough to scroll while the drags below move.
+        let mine = Set(tabs.map(\.id))
+        for tab in state.tabs where tab.spaceID == state.activeSpaceID && !mine.contains(tab.id) {
+            state.closeTab(tab.id, removingPin: true)
+        }
         let (essential, pin, l1, l2) = (tabs[0], tabs[1], tabs[2], tabs[3])
         state.movePin(essential.id, intoGrid: true)
         state.movePin(pin.id, intoGrid: false)
@@ -28,6 +33,9 @@ enum PinsAboveGridChecks {
         guard let rig = OutlineDragRig(browser) else {
             check(false, "the sidebar list is on screen"); finish(failures); return
         }
+        // From the top of the list: checks before this one may leave it scrolled, the essentials floating over it.
+        rig.outlineView.scrollRowToVisible(0)
+        try? await Task.sleep(for: .milliseconds(200))
         rig.shot("pins-1-before")
 
         // A tab dragged up and down the list: the essentials stay where they are (they jumped sideways under the pointer).
@@ -50,6 +58,9 @@ enum PinsAboveGridChecks {
                 if let x = gridX() { seen.append(x) }
             }
             _ = await rig.fromRunLoop { rig.outlineView.draggingExited(drag) }
+            // The drag scrolled the list near its edges, as a real one does: back to the top for what follows.
+            rig.outlineView.scroll(.zero)
+            try? await Task.sleep(for: .milliseconds(200))
             check(before != nil && seen.allSatisfy { abs($0 - before!) < 0.5 },
                   "the essentials hold still while a tab is dragged up and down (at \(seen.map { Int($0) }), from \(before.map { Int($0) } ?? -1))")
         }

@@ -51,24 +51,22 @@ private struct RailExpandPanel: View {
         if let anchor = model.anchor {
             let rail = flipped(anchor, in: size)
             let full = model.expandWidth()
-            let onRight = state.sidebarOnRight
-            let alignment: Alignment = onRight ? .trailing : .leading
-            let edge = out ? full : min(full, rail.width)
-            ZStack(alignment: alignment) {
+            // The full sidebar comes out whole, sliding in from the window's edge as a hidden sidebar does, never
+            // growing out of the rail.
+            ZStack(alignment: .leading) {
                 RailExpandBackdrop(state: state, raised: out)
-                    .frame(width: edge, height: rail.height)
                 SidebarView(state: state, chrome: chrome, palette: palette, commands: commands)
                     .environment(\.sidebarOverRail, true)
-                    .frame(width: full, height: rail.height)
-                    .opacity(out ? 1 : 0)
-                    .mask(alignment: alignment) { Rectangle().frame(width: edge) }
             }
+            .frame(width: full, height: rail.height)
+            .opacity(out ? 1 : 0)
+            .offset(x: out ? 0 : -RailHover.slide)
             .animation(out ? RailHover.reveal : RailHover.conceal, value: out)
-            .frame(width: full, height: rail.height, alignment: alignment)
+            .frame(width: full, height: rail.height, alignment: .leading)
             .opacity(model.shown ? 1 : 0)
             .animation(nil, value: model.shown)
             .allowsHitTesting(out)
-            .position(x: onRight ? rail.maxX - full / 2 : rail.minX + full / 2, y: rail.midY)
+            .position(x: rail.minX + full / 2, y: rail.midY)
             .frame(width: size.width, height: size.height)
             .mask { LightsHole(lights: lights.map { flipped($0, in: size) }).animation(out ? RailHover.reveal : RailHover.conceal, value: lights) }
         }
@@ -159,7 +157,6 @@ private struct RailMagnifyRow: View {
     weak var commands: BrowserCommands?
 
     var body: some View {
-        let onRight = state.sidebarOnRight
         // Room for the longest row; each row is as wide as it shows.
         let box: CGFloat = 300
         if let center = model.hovered {
@@ -168,17 +165,17 @@ private struct RailMagnifyRow: View {
             ZStack {
                 ForEach(rows, id: \.0.key) { item, main in
                     let tile = flipped(item.tile, in: size)
-                    RailRowContent(state: state, item: item, main: main, onRight: onRight, commands: commands) { width in
+                    RailRowContent(state: state, item: item, main: main, commands: commands) { width in
                         if main, abs(model.rowWidth - width) > 0.5 { model.rowWidth = width }
                     }
-                    .frame(width: box, height: tile.height, alignment: onRight ? .trailing : .leading)
-                    .position(x: onRight ? tile.maxX - box / 2 : tile.minX + box / 2, y: tile.midY)
+                    .frame(width: box, height: tile.height, alignment: .leading)
+                    .position(x: tile.minX + box / 2, y: tile.midY)
                     .zIndex(main ? 1 : 0)
                     .transition(.opacity)
                 }
             }
             .frame(width: size.width, height: size.height)
-            .scaleEffect(0.94 + 0.06 * model.strength, anchor: UnitPoint(x: (onRight ? rail.maxX : rail.minX) / max(size.width, 1),
+            .scaleEffect(0.94 + 0.06 * model.strength, anchor: UnitPoint(x: rail.minX / max(size.width, 1),
                                                                             y: rail.midY / max(size.height, 1)))
             .opacity(model.strength)
             .allowsHitTesting(model.shown)
@@ -194,7 +191,6 @@ private struct RailRowContent: View {
     let state: BrowserState
     let item: RailHoveredItem
     let main: Bool
-    let onRight: Bool
     weak var commands: BrowserCommands?
     /// Reports the width the row shows.
     let shows: (CGFloat) -> Void
@@ -209,27 +205,25 @@ private struct RailRowContent: View {
         let cut = !main && natural > Self.neighbourWidth
         let tab = main ? tabItem : nil
         HStack(spacing: 4) {
-            if onRight, let tab { controls(tab, colors) }
             Button(action: activate) {
                 HStack(spacing: 4) {
-                    if onRight { title(colors) }
                     Color.clear.frame(width: 36, height: 36)
-                    if !onRight { title(colors) }
+                    title(colors)
                 }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            if !onRight, let tab { controls(tab, colors) }
+            if let tab { controls(tab, colors) }
         }
-        .padding(onRight ? .leading : .trailing, tab == nil ? 12 : 7)
+        .padding(.trailing, tab == nil ? 12 : 7)
         .fixedSize()
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { natural = $0 }
-        .frame(width: width, alignment: onRight ? .trailing : .leading)
-        .mask(alignment: onRight ? .trailing : .leading) {
+        .frame(width: width, alignment: .leading)
+        .mask(alignment: .leading) {
             // The name fades out where a neighbour's row cuts it.
             LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: cut ? 0.8 : 1),
                                    .init(color: .black.opacity(cut ? 0 : 1), location: 1)],
-                           startPoint: onRight ? .trailing : .leading, endPoint: onRight ? .leading : .trailing)
+                           startPoint: .leading, endPoint: .trailing)
         }
         .frame(height: main ? 36 : 30)
         .background { if active { shape.fill(colors.selected) } }
@@ -260,7 +254,7 @@ private struct RailRowContent: View {
             Text(name).font(.system(size: 13, weight: main ? .semibold : .regular)).foregroundStyle(main ? colors.text : colors.secondary).lineLimit(1)
             if let detail { Text(detail).font(.system(size: 11)).foregroundStyle(colors.secondary).lineLimit(1) }
         }
-        .frame(maxWidth: 220, alignment: onRight ? .trailing : .leading)
+        .frame(maxWidth: 220, alignment: .leading)
     }
 
     private var active: Bool {

@@ -50,7 +50,7 @@ struct SidebarResizeHandle: View {
                 var instant = Transaction()
                 instant.disablesAnimations = true
                 withTransaction(instant) {
-                    state.sidebarWidth = min(420, max(200, (start + value.translation.width * (state.sidebarOnRight ? -1 : 1)).rounded()))
+                    state.sidebarWidth = min(420, max(200, (start + value.translation.width).rounded()))
                 }
             }
             .onEnded { _ in startWidth = nil }
@@ -65,7 +65,7 @@ struct SidebarPeek: View {
     weak var commands: BrowserCommands?
 
     var body: some View {
-        ZStack(alignment: state.sidebarOnRight ? .topTrailing : .topLeading) {
+        ZStack(alignment: .topLeading) {
             // Hovering the edge brings the sidebar in (unless that's turned off; full screen always does, since its
             // window controls come with it); pressing it moves the window, like the margin it sits on.
             WindowDragArea()
@@ -93,9 +93,9 @@ struct SidebarPeek: View {
                         chrome.peekHovered = inside
                         if inside { chrome.peek() } else { chrome.endPeek() }
                     }
-                    .transition(.move(edge: state.sidebarOnRight ? .trailing : .leading).combined(with: .opacity))
+                    .transition(.move(edge: .leading).combined(with: .opacity))
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: state.sidebarOnRight ? .trailing : .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 }

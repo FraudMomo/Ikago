@@ -10,7 +10,6 @@ struct PinnedTabsGrid: View {
     var columnCount = 3
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Namespace private var selection
     @State private var hoveredID: String?
     @Environment(\.sidebarScrolling) private var scrolling
     private var columns: [GridItem] { Array(repeating: GridItem(.flexible(), spacing: 8), count: columnCount) }
@@ -37,7 +36,7 @@ struct PinnedTabsGrid: View {
                             .fill(hoveredID == tab.id ? colors.hover.opacity(2) : colors.glass ? .clear : colors.hover)
                             .animation(reduceMotion ? nil : .easeOut(duration: hoveredID == tab.id ? 0.1 : 0.2), value: hoveredID == tab.id)
                         TabSelectionHighlight(shape: RoundedRectangle(cornerRadius: Radius.card, style: .continuous), active: active,
-                                              color: colors.selected, selection: selection, id: "pinned-active")
+                                              color: colors.selected)
                     }
                     // Glass tiles with Liquid Glass on, like every other control in the sidebar.
                     .glassControl(RoundedRectangle(cornerRadius: Radius.card, style: .continuous), colors, reacts: false)
@@ -56,7 +55,6 @@ struct PinnedTabsGrid: View {
                         chrome.beginTabDrag(tab.id)
                         return TabDrag.provider(tab.id)
                     }
-                    .tabDropTarget(tab, axis: .horizontal, state: state, chrome: chrome)
                 }
             }
         .animation(reduceMotion ? nil : .ikagoQuick, value: state.sidebarGridPinnedTabs.map(\.id))
@@ -170,37 +168,5 @@ private struct SelectedTabsMenu: View {
         }
         Divider()
         Button("Close \(ids.count) Tabs") { withAnimation(.ikago) { commands?.closeTabs(ids) } }
-    }
-}
-
-// MARK: - Pin boundary
-/// A drop line between sections that takes no room in the list: the target hangs over the gap between groups,
-/// so groups keep their usual spacing and nothing moves when a drag starts.
-struct SidebarPinBoundary: View {
-    let state: BrowserState
-    let chrome: ChromeModel
-    let afterFolderID: String?
-    @State private var targeted = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        Color.clear.frame(height: 0).overlay {
-            Capsule().fill(state.palette.accent.opacity(targeted ? 0.85 : 0))
-                .frame(height: 2).padding(.horizontal, 10).frame(height: 8)
-                .contentShape(Rectangle())
-                .onDrop(of: [.ikagoTab], isTargeted: $targeted) { providers in
-                    guard let provider = providers.first else { return false }
-                    TabDrag.load(provider, into: state) { id in
-                        withAnimation(reduceMotion ? nil : .ikagoQuick) {
-                            state.movePin(id, intoGrid: false, afterFolderID: afterFolderID)
-                        }
-                        chrome.endTabDrag()
-                    }
-                    return true
-                }
-        }
-        .animation(reduceMotion ? nil : .ikagoQuick, value: targeted)
-        .recordLayout("sidebar-pin-boundary-\(afterFolderID ?? "top")")
-        .accessibilityLabel(afterFolderID == nil ? "Pin above groups" : "Pin after group")
     }
 }

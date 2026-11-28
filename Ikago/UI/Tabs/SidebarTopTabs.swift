@@ -123,7 +123,7 @@ struct SidebarTopTabs: View {
 
     /// A group chip's slot in the row, with a little room on each side.
     static func chipSlot(_ folder: TabFolder, state: BrowserState) -> CGFloat {
-        folder.chipWidth(showsCount: state.showsGroupTabCounts) + 6
+        folder.chipWidth + 6
     }
 
     private func pinnedTab(_ tab: TabItem, colors: Palette) -> some View {
@@ -234,12 +234,11 @@ private struct AttachedTab<Label: View>: View {
             .frame(width: width, height: SidebarTopTabs.tabHeight)
             .background {
                 // No outline: the tab and the page are one sheet, and an edge would draw the seam between them.
-                if active {
-                    AttachedTabShape().fill(sheet)
-                } else if hovering {
+                if hovering && !active {
                     RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(colors.hover.opacity(1.6))
                         .padding(.vertical, 4).padding(.horizontal, 2)
                 }
+                TabSelectionHighlight(shape: AttachedTabShape(), active: active, color: sheet)
             }
             .overlay(alignment: .trailing) {
                 Rectangle().fill(colors.separator.opacity(1.8)).frame(width: 1, height: 16)

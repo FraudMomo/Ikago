@@ -1,8 +1,6 @@
 import Foundation
 
 struct BrowserPreferences: Codable, Equatable {
-    var sidebarOnRight: Bool? = nil
-    var sidebarLightsFollow: Bool? = nil
     var pageIntelligence: Bool? = nil
     var assistantToolbarInitialized: Bool? = nil
     var browserEngine: String? = nil
@@ -24,9 +22,7 @@ struct BrowserPreferences: Codable, Equatable {
     var siteEngineLists: [String: String]? = nil
 
     var showPinnedGrid: Bool? = nil
-    /// Pinned tab rows stay above the scrolling tab list instead of scrolling away with it. Unset: they scroll.
-    var pinnedRowsStayInView: Bool? = nil
-    /// Maximum sidebar pinned-tab columns. Unset: three.
+    /// Essentials columns, three or four. Unset: three.
     var pinnedGridColumns: Int? = nil
     var reuseBookmarkTabs: Bool? = nil
     var bookmarkMatchDomain: Bool? = nil
@@ -34,19 +30,14 @@ struct BrowserPreferences: Codable, Equatable {
     var translucentSidebar: Bool? = nil
     /// The shown sidebar is a rail of icons (`SidebarRail`) instead of the full list. Unset: full.
     var sidebarCompact: Bool? = nil
-    /// Sidebar groups as tinted cards or as a plain folder tree (`SidebarGroupStyle`). Unset: cards.
-    var sidebarGroupStyle: SidebarGroupStyle? = nil
-    /// Top Tabs: where tab groups show (`GroupPlacement`). Unset: both the tab row and the icon sidebar.
+    /// Top Tabs: where tab groups show (`GroupPlacement`). Unset: the tab row.
     var groupPlacement: GroupPlacement? = nil
     /// The Sidebar layout shows ungrouped tabs as tabs above the page instead of sidebar rows. Unset: off.
     var sidebarTopTabs: Bool? = nil
-    /// A Space header and rows for the assistant, bookmarks and history at the top of the sidebar. Unset: off.
+    /// Retired: the sidebar's shortcut rows (on, which rows, and the essentials grid above them). Read once from an older
+    /// session and converted to pinned tabs and toolbar controls (`convertSidebarShortcuts`), then cleared.
     var sidebarShortcuts: Bool? = nil
-    /// Which shortcut rows show, in order (`SidebarShortcut` raw values). Unset: Assistant, Bookmarks, History.
     var sidebarShortcutItems: [String]? = nil
-    /// The Space's name above the shortcuts. Unset: shown.
-    var sidebarSpaceName: Bool? = nil
-    /// The pinned-tab grid sits above the shortcut rows instead of below them. Unset: below.
     var pinnedGridAboveShortcuts: Bool? = nil
     /// The small card shown after resting on a tab, and whether it carries a page thumbnail. Unset: both on.
     var tabHoverPreviews: Bool? = nil
@@ -62,19 +53,16 @@ struct BrowserPreferences: Codable, Equatable {
     var sitePermissions: [String: SitePermissions]? = nil
     /// Full screen uses the whole display, around the camera housing, instead of starting below it. Unset: off.
     var fullScreenUnderNotch: Bool? = nil
-    /// Moving the window from the page's top edge (`PageGrabMode`, `PageWindowGrab`). Unset: press and hold.
-    var pageGrab: PageGrabMode? = nil
-    /// How far down from the page's top the edge reaches, in points (`PageGrabMode.heights`). Unset: 10.
-    var pageGrabHeight: Double? = nil
-    /// Double-clicking the page's top edge or its header zooms the window. Unset: on.
-    var pageGrabZoom: Bool? = nil
-    /// Top Tabs: the address bar's height in points (`TabsBarHeight`); unset is the standard 36.
-    var tabsBarHeight: Double? = nil
-    /// Top Tabs: how the address bar sits under the tabs (`TabsAddressStyle`). Unset: centred.
+    /// Top Tabs: how the address bar sits under the tabs (`TabsAddressStyle`). Unset: Full Width.
     var tabsAddressStyle: TabsAddressStyle? = nil
     /// Sidebar layout: the address bar sits above the page, the top of its card, instead of in the sidebar (Settings ▸
     /// Appearance ▸ Layout). Unset: in the sidebar.
     var addressAbovePage: Bool? = nil
+    /// That bar's style. Unset: Full Width, like Chrome's address bar over the page with vertical tabs.
+    var pageBarStyle: TabsAddressStyle? = nil
+    /// Shortcuts the person changed (Settings ▸ General ▸ Keyboard Shortcuts), by menu command id (`KeyBindings`). An
+    /// empty key removes a command's shortcut. Unset: the built-in ones.
+    var keyBindings: [String: KeyCombo]? = nil
     /// Ikago Home's sections (Customize on the page). Unset: shown.
     var homeShowsFavorites: Bool? = nil
     var homeShowsFrequent: Bool? = nil
@@ -149,10 +137,7 @@ struct BrowserPreferences: Codable, Equatable {
     var hibernationExceptions = ""
     var showSwitchToTabSuggestions: Bool? = nil
     var searchEngineAutocomplete: Bool? = nil
-    var instantTabSwitching: Bool? = nil
-    var tabHighlightStyle: String? = nil
     var groupLabelStyle: String? = nil
-    var showGroupTabCounts: Bool? = nil
     var showBookmarksBar: Bool? = nil
     var sidebarBookmarksExpanded: Bool? = nil
     var newTabPosition: String? = nil
@@ -167,7 +152,7 @@ struct BrowserPreferences: Codable, Equatable {
         copy.trackerExceptions = trackerExceptions.map { Array($0.prefix(200)).filter { !$0.isEmpty && $0.range(of: #"^[a-zA-Z0-9.-]+$"#, options: .regularExpression) != nil } }
         copy.downloadSites = downloadSites.map { Array($0.prefix(2000)) }
         copy.siteSafetyExceptions = siteSafetyExceptions.map { Array($0.prefix(2000)) }
-        copy.pinnedGridColumns = pinnedGridColumns.map { min(8, max(2, $0)) }
+        copy.pinnedGridColumns = pinnedGridColumns.map { $0 >= 4 ? 4 : 3 }
         return copy
     }
 
@@ -222,91 +207,3 @@ extension BrowserState {
     }
 }
 
-/// How the page's top edge moves the window: not at all, after a brief press and hold, or with a small header that
-/// drops down while the pointer rests there.
-enum PageGrabMode: String, Codable, CaseIterable {
-    case off, hold, header
-
-    static let defaultHeight = 10.0
-    static let heights = 4.0...32.0
-
-    var title: String {
-        switch self {
-        case .off: "Off"
-        case .hold: "Press and Hold"
-        case .header: "Drop-Down Header"
-        }
-    }
-}
-
-/// Top Tabs: how tall the address bar under the tabs is.
-enum TabsBarHeight: Double, CaseIterable {
-    case compact = 30, standard = 36, large = 44
-
-    var name: String {
-        switch self {
-        case .compact: "Compact"
-        case .standard: "Standard"
-        case .large: "Large"
-        }
-    }
-}
-
-/// A row in the sidebar's shortcuts (Settings ▸ Sidebar ▸ Space header and shortcuts).
-enum SidebarShortcut: String, CaseIterable, Identifiable {
-    case assistant, bookmarks, history, downloads, notes, performance, settings
-
-    static let defaults: [SidebarShortcut] = [.assistant, .bookmarks, .history]
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .assistant: "Assistant"
-        case .bookmarks: "Bookmarks"
-        case .history: "History"
-        case .downloads: "Downloads"
-        case .notes: "Notes"
-        case .performance: "Performance"
-        case .settings: "Settings"
-        }
-    }
-
-    var symbol: String {
-        switch self {
-        case .assistant: "sparkles"
-        case .bookmarks: "bookmark"
-        case .history: "clock"
-        case .downloads: "arrow.down.circle"
-        case .notes: "note.text"
-        case .performance: "gauge.with.dots.needle.33percent"
-        case .settings: "gearshape"
-        }
-    }
-
-    /// The Ikago page it opens; the assistant is a panel instead.
-    var page: InternalPage? {
-        switch self {
-        case .assistant: nil
-        case .bookmarks: .bookmarks
-        case .history: .history
-        case .downloads: .downloads
-        case .notes: .notes
-        case .performance: .performance
-        case .settings: .settings
-        }
-    }
-}
-
-extension BrowserPreferences {
-    var shortcutItems: [SidebarShortcut] {
-        sidebarShortcutItems.map { $0.compactMap(SidebarShortcut.init(rawValue:)) } ?? SidebarShortcut.defaults
-    }
-
-    /// Turns one shortcut on or off, keeping the rows in `SidebarShortcut` order.
-    mutating func setShortcut(_ item: SidebarShortcut, shown: Bool) {
-        var set = Set(shortcutItems)
-        if shown { set.insert(item) } else { set.remove(item) }
-        let items = SidebarShortcut.allCases.filter(set.contains)
-        sidebarShortcutItems = items == SidebarShortcut.defaults ? nil : items.map(\.rawValue)
-    }
-}

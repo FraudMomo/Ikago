@@ -47,7 +47,6 @@ extension PaletteAction {
         .init("sidebarFull", "Full Sidebar", "sidebar.left", "", "sidebar show full expand", "setSidebarStyleNamed:", argument: "full"),
         .init("sidebarIcons", "Icon Sidebar", "sidebar.squares.left", "⌃⌘S", "sidebar compact icons rail", "setSidebarStyleNamed:", argument: "icons"),
         .init("sidebarHide", "Hide Sidebar", "rectangle", "⇧⌘S", "sidebar hide collapse", "setSidebarStyleNamed:", argument: "hidden"),
-        .init("sidebarSide", "Move Sidebar to the Other Side", "arrow.left.arrow.right", "", "sidebar left right side", "toggleSidebarSide:"),
         .init("glass", "Turn Liquid Glass On or Off", "drop", "", "glass liquid transparency flat", "toggleLiquidGlass:"),
         .init("frosted", "Turn Frosted Sidebar On or Off", "square.on.square.dashed", "", "frosted blur translucent transparent sidebar", "toggleFrostedSidebar:"),
         .init("bookmarksBar", "Show or Hide Bookmarks", "book", "⇧⌘B", "bookmarks bar drawer", "toggleBookmarksBar:"),

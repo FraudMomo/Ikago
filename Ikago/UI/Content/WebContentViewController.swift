@@ -9,8 +9,6 @@ final class WebContentViewController: NSViewController {
     let state: BrowserState
     weak var host: TabHost?
     private let surface = WebTabContainerView()
-    /// The next tab switch shows its page at once: a Peek grown to the page's place becomes the tab (no fade).
-    var switchesInstantly = false
     /// Where pages sit, in `view`'s coordinates.
     var pageArea: NSView { surface }
     private var emptyView: NSView!
@@ -152,9 +150,7 @@ final class WebContentViewController: NSViewController {
         for controller in controllers.values where controller.tab.isHibernating && !controller.isActive { controller.hibernate() }
         let visible = state.visibleTabIDs.compactMap { id in controllers[id].map { (id: id, view: $0.hostView as NSView) } }
         emptyView.isHidden = !visible.isEmpty
-        let fades = state.browserPreferences.instantTabSwitching != true && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        surface.show(visible, layout: state.splitLayout, animate: fades && !switchesInstantly)
-        switchesInstantly = false
+        surface.show(visible, layout: state.splitLayout)
         surface.highlight(state.activeTabID, views: visible, color: state.palette.nsAccent)
         // Native video overlays stop monitoring while parked and resume when shown.
         for controller in controllers.values { controller.page?.visibilityChanged() }

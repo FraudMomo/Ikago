@@ -24,9 +24,6 @@ struct BrowserRootView: View {
             if !docksSidebar && state.webApp == nil {
                 SidebarPeek(state: state, chrome: chrome, palette: palette, commands: commands)
             }
-            if state.webApp == nil, state.sidebarOnRight && !state.sidebarLightsFollow && !state.showsSidebarTopTabs && !state.isImmersive {
-                Capsule().fill(.regularMaterial).frame(width: 86, height: 32).padding(.leading, 8).padding(.top, 7).allowsHitTesting(false)
-            }
             overlays
             IntegratedEditors(state: state, chrome: chrome, commands: commands)
             if chrome.showNotes {
@@ -168,7 +165,6 @@ struct BrowserRootView: View {
         .animation(reduceMotion ? nil : .ikago, value: chrome.passwordSave?.id)
         .animation(reduceMotion ? nil : .ikagoQuick, value: chrome.autofillSuggestions?.id)
         .animation(reduceMotion ? nil : .ikago, value: chrome.autofillSave?.id)
-        .environment(\.tabHighlightStyle, state.tabHighlightStyle)
         .environment(\.chromeModel, chrome)
         .recordLayout("shell")
         .overlayPreferenceValue(DownloadsAnchorKey.self) { anchors in
@@ -227,32 +223,23 @@ struct BrowserRootView: View {
     var sidebarShownWidth: CGFloat { state.showsSidebarRail ? BrowserState.sidebarRailWidth : state.sidebarWidth }
     /// Width the sidebar takes before the page starts (0 without a visible sidebar).
     private var pageLeadingOffset: CGFloat {
-        docksSidebar && !state.sidebarOnRight ? sidebarShownWidth + inset + CGFloat(state.sidebarGap) : 0
+        docksSidebar ? sidebarShownWidth + inset + CGFloat(state.sidebarGap) : 0
     }
     /// Corners follow the border: flush panels are square.
     var radius: CGFloat { inset == 0 ? 0 : Radius.card }
 
     var contentCard: some View {
         ContentHost(view: content, state: state,
-                    sideChrome: pageLeadingOffset + (state.sidebarOnRight && docksSidebar ? sidebarShownWidth + CGFloat(state.sidebarGap) : 0)
-                        + ((chrome.showPageAssistant && state.browserPreferences.pageIntelligence == true) ? PageAssistantView.width : 0),
-                    anchorTrailing: !state.sidebarOnRight)
+                    sideChrome: pageLeadingOffset + ((chrome.showPageAssistant && state.browserPreferences.pageIntelligence == true) ? PageAssistantView.width : 0))
             .anchorPreference(key: DownloadsAnchorKey.self, value: .bounds) { DownloadAnchors(page: $0) }
             .recordLayout("content")
             .overlay { SplitDropOverlay(state: state, chrome: chrome) }
             .padding(.trailing, (chrome.showPageAssistant && state.browserPreferences.pageIntelligence == true) ? PageAssistantView.width : 0)
-            .padding(.top, state.sidebarOnRight && !state.sidebarLightsFollow && !state.showsSidebarTopTabs && !state.isImmersive ? 40 : 0)
             // Under the Sidebar layout's tab row, or the address bar above the page, the page meets the bar directly.
             .padding(.top, state.pageHasTopBar ? 0 : inset)
             .padding([.trailing, .bottom], inset)
             // The window's margins around the page move the window in every layout (the page itself is on top).
             .background(WindowDragArea())
-            .overlay(alignment: .top) {
-                if inset > 1 && !state.pageHasTopBar {
-                    WindowDragArea().frame(height: inset).padding(.trailing, inset)
-                        .recordLayout("sidebar-page-drag-margin")
-                }
-            }
     }
 
     private var showsSidebarSuggestions: Bool {
@@ -304,9 +291,8 @@ struct BrowserRootView: View {
                 .frame(width: 520)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .padding(.top, 92)
-                .padding(.leading, state.sidebarOnRight ? 0 : state.frameInset + 10)
-                .padding(.trailing, state.sidebarOnRight ? state.frameInset + 10 : 0)
-                .frame(maxWidth: .infinity, alignment: state.sidebarOnRight ? .trailing : .leading)
+                .padding(.leading, state.frameInset + 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .transition(.scale(scale: 0.98, anchor: .topLeading).combined(with: .opacity))
         }
         if chrome.showFind {

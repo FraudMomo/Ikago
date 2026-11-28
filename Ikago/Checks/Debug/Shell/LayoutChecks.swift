@@ -34,7 +34,6 @@ enum LayoutChecks {
         seed(controller)
         let state = controller.state
         state.useGlass = false
-        state.frameInset = 2
         for sidebar in [true, false] {
             state.sidebarVisible = sidebar
             for (width, height) in [(1512.0, 860.0), (700.0, 650.0), (480.0, 650.0)] {

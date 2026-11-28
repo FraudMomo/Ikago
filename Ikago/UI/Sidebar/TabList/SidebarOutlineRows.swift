@@ -6,10 +6,64 @@ import SwiftUI
 
 /// The list's scroll view: the sidebar's slim overlay scroller (`SlimScroller`) at all times. AppKit resets the style to a
 /// classic scroll bar, with its track down the list's edge, when a mouse is connected; this one stays overlay.
+///
+/// The full sidebar's essentials row is AppKit's floating group row, which AppKit hosts in a view of its own over the
+/// list, not in the outline: drops there would find no destination. The scroll view takes them and hands them to the
+/// outline, which works out the target from the pointer like any other.
 final class OutlineScrollView: NSScrollView {
     override var scrollerStyle: NSScroller.Style {
         get { .overlay }
         set { super.scrollerStyle = .overlay }
+    }
+
+    private var outline: NSOutlineView? { documentView as? NSOutlineView }
+    /// The essentials' row as it shows now (outline coordinates): only drops there are the outline's. Elsewhere (the
+    /// margins beside the rows) the scroll view takes nothing, as before.
+    var essentialsRect: () -> NSRect? = { nil }
+    /// Whether the drag in progress was handed to the outline (so its exit and end go there too).
+    private var forwarding = false
+
+    func takesDrops(like outline: NSOutlineView) { registerForDraggedTypes(outline.registeredDraggedTypes) }
+
+    private func over(_ sender: any NSDraggingInfo) -> Bool {
+        guard let outline, let rect = essentialsRect() else { return false }
+        let point = outline.convert(sender.draggingLocation, from: nil)
+        return point.y >= rect.minY && point.y < rect.maxY && point.x >= 0 && point.x < outline.bounds.width
+    }
+    private func update(_ sender: any NSDraggingInfo, entering: Bool) -> NSDragOperation {
+        let now = over(sender)
+        if now != forwarding {
+            if now { forwarding = true; return outline?.draggingEntered(sender) ?? [] }
+            forwarding = false
+            outline?.draggingExited(sender)
+            return []
+        }
+        return now ? outline?.draggingUpdated(sender) ?? [] : []
+    }
+    override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation { update(sender, entering: true) }
+    override func draggingUpdated(_ sender: any NSDraggingInfo) -> NSDragOperation { update(sender, entering: false) }
+    override func draggingExited(_ sender: (any NSDraggingInfo)?) {
+        if forwarding { forwarding = false; outline?.draggingExited(sender) }
+    }
+    override func prepareForDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+        forwarding ? outline?.prepareForDragOperation(sender) ?? false : false
+    }
+    override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+        forwarding ? outline?.performDragOperation(sender) ?? false : false
+    }
+    override func concludeDragOperation(_ sender: (any NSDraggingInfo)?) {
+        if forwarding { outline?.concludeDragOperation(sender) }
+        forwarding = false
+    }
+}
+
+/// The list's clip view: it never scrolls sideways (a drag near the edge scrolled it a few points, and the rows slid
+/// under the pointer).
+final class OutlineClipView: NSClipView {
+    override func constrainBoundsRect(_ proposedBounds: NSRect) -> NSRect {
+        var rect = super.constrainBoundsRect(proposedBounds)
+        rect.origin.x = 0
+        return rect
     }
 }
 
@@ -26,6 +80,19 @@ final class SidebarOutlineTable: NSOutlineView {
 
     /// The outline tracks the press itself (a drag starts once it moves); a press it returns from without a drag, released
     /// over the same row, is a click.
+    /// Only tabs and groups lift: New Tab and the essentials' row stay put. (A nil pasteboard item alone didn't stop
+    /// AppKit: it started the drag anyway and hid the row, which stayed blank.)
+    override func canDragRows(with rowIndexes: IndexSet, at mouseDownPoint: NSPoint) -> Bool {
+        let movable = rowIndexes.allSatisfy { row in
+            guard let node = item(atRow: row) as? OutlineNode else { return false }
+            switch node.row.kind {
+            case .tabs, .group: return true
+            case .divider, .essentials: return false
+            }
+        }
+        return movable && super.canDragRows(with: rowIndexes, at: mouseDownPoint)
+    }
+
     override func mouseDown(with event: NSEvent) {
         dragStarted = false
         let row = self.row(at: convert(event.locationInWindow, from: nil))
@@ -41,14 +108,24 @@ final class SidebarOutlineTable: NSOutlineView {
     /// AppKit is done with a drop: after the drop concludes for a drag from elsewhere, after the drag session ends for a
     /// drag from this list (AppKit's own end of that session still reads the rows as they were).
     var onDragFinished: (() -> Void)?
+    /// A drag from this list is under way: from AppKit's start of the session to its end. AppKit holds the dragged rows'
+    /// indexes all that time and gives their space back by them at the end, so the rows must not change until then,
+    /// wherever the drop lands (this list, another list, the essentials grid, the page).
+    private(set) var isDragSource = false
 
     override func concludeDragOperation(_ sender: (any NSDraggingInfo)?) {
         super.concludeDragOperation(sender)
         if (sender?.draggingSource as? NSView) !== self { onDragFinished?() }
     }
 
+    override func draggingSession(_ session: NSDraggingSession, willBeginAt screenPoint: NSPoint) {
+        isDragSource = true
+        super.draggingSession(session, willBeginAt: screenPoint)
+    }
+
     override func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
         super.draggingSession(session, endedAt: screenPoint, operation: operation)
+        isDragSource = false
         onDragFinished?()
     }
 
@@ -80,27 +157,30 @@ final class OutlineRowView: NSTableRowView {
     var card: (piece: CardPiece, fill: NSColor)? { didSet { needsDisplay = true } }
     /// The icon sidebar's tile column (start, width): the card sits behind it only.
     var cardColumn: (start: CGFloat, width: CGFloat)? { didSet { needsDisplay = true } }
+    /// The full sidebar's margins: its list spans them, its rows (and cards) sit inside them.
+    var margin: CGFloat = 0 { didSet { if margin != oldValue { needsDisplay = true } } }
     private var area: NSRect {
-        guard let cardColumn else { return bounds }
+        guard let cardColumn else { return bounds.insetBy(dx: margin, dy: 0) }
         return NSRect(x: cardColumn.start, y: bounds.minY, width: cardColumn.width, height: bounds.height)
     }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     override func drawBackground(in dirtyRect: NSRect) {
         guard let card else { return }
-        // Rows sit apart: the middle pieces reach across the gaps so the card is one surface.
-        let gap: CGFloat = cardColumn == nil ? 1 : 2
-        var rect = area.insetBy(dx: 0, dy: -gap)
+        // A row view also holds the gap between rows (half above its row, half below): a card's ends stop at the row, so
+        // two shut groups' cards stay apart, and its middle fills the gaps, so an open group's card is one surface.
+        let half = ((enclosingScrollView?.documentView as? NSTableView)?.intercellSpacing.height ?? 0) / 2
+        let row = area.insetBy(dx: 0, dy: half)
         let radius = Radius.card
+        var rect = area
         switch card.piece {
-        case .top: rect.size.height += radius; if !isFlipped { rect.origin.y -= radius }
-        case .bottom: rect.size.height += radius; if isFlipped { rect.origin.y -= radius }
+        case .top: rect = row; rect.size.height += half + radius; if !isFlipped { rect.origin.y -= half + radius }
+        case .bottom: rect = row; rect.size.height += half + radius; if isFlipped { rect.origin.y -= half + radius }
         case .middle: break
-        case .whole: rect = area
+        case .whole: rect = row
         }
         card.fill.setFill()
-        let clip = NSBezierPath(rect: area.insetBy(dx: 0, dy: -gap))
-        clip.addClip()
+        NSBezierPath(rect: area).addClip()
         if card.piece == .middle { NSBezierPath(rect: rect).fill() } else {
             NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).fill()
         }
@@ -150,6 +230,12 @@ final class OutlineHostingCell: NSTableCellView {
             return nil
         }
         if case .tabs(let ids) = kind, ids.count > 1 { return hit }
+        // The essentials: their band is the list's (a drop above them), the grid its own.
+        if case .essentials = kind {
+            let local = convert(point, from: superview)
+            let band = isFlipped ? local.y < SidebarEssentials.band : local.y > bounds.height - SidebarEssentials.band
+            return band ? nil : hit
+        }
         // The row's own controls live at its trailing end (close, mute, camera, the group's count).
         let local = convert(point, from: superview)
         if case .tabs = kind, local.x > bounds.width - insets.trailing - 60 { return hit }
@@ -164,11 +250,10 @@ struct OutlineTabRow: View {
     let chrome: ChromeModel
     let colors: Palette
     weak var commands: BrowserCommands?
-    @Namespace private var selection
 
     var body: some View {
         if let tab = state.tab(id) {
-            TabRowView(tab: tab, isActive: tab.id == state.activeTabID, isInSplit: false, colors: colors, selection: selection, commands: commands)
+            TabRowView(tab: tab, isActive: tab.id == state.activeTabID, isInSplit: false, colors: colors, commands: commands)
                 .tabSelectionTint(chrome.selectedTabIDs.contains(tab.id), colors: colors)
                 .contextMenu { TabContextMenu(tab: tab, state: state, commands: commands) }
                 .onMiddleClick { withAnimation(.ikago) { commands?.closeTab(tab.id) } }
@@ -184,12 +269,11 @@ struct OutlineSplitRow: View {
     let chrome: ChromeModel
     let colors: Palette
     weak var commands: BrowserCommands?
-    @Namespace private var selection
 
     var body: some View {
         let tabs = ids.compactMap(state.tab)
         if !tabs.isEmpty {
-            SplitGroupRow(tabs: tabs, state: state, chrome: chrome, colors: colors, selection: selection, commands: commands, dropsHere: false)
+            SplitGroupRow(tabs: tabs, state: state, chrome: chrome, colors: colors, commands: commands, dropsHere: false)
         }
     }
 }
@@ -203,7 +287,6 @@ struct OutlineGroupHeader: View {
     let colors: Palette
     weak var commands: BrowserCommands?
     @State private var hovering = false
-    @Namespace private var selection
 
     var body: some View {
         if let folder = state.folders.first(where: { $0.id == id }) {
@@ -212,7 +295,7 @@ struct OutlineGroupHeader: View {
             let nested = folder.parentID.map { parent in state.folders.contains { $0.id == parent } } ?? false
             let pill = state.groupLabelStyle == .colorPill && !nested
             let containsActive = members.contains { $0.id == state.activeTabID }
-            let sleeping = TabListView.isSleeping(members, activeID: state.activeTabID)
+            let sleeping = TabItem.allAsleep(members, activeID: state.activeTabID)
             let tint = folder.tagValue?.color ?? colors.tertiary
             HStack(spacing: 9) {
                 FolderIcon(folder: folder, colors: colors, size: 13).frame(width: 16, height: 16)
@@ -222,10 +305,6 @@ struct OutlineGroupHeader: View {
                     if !pill { chevron(open: folder.isOpen).padding(.top, 1) }
                 }
                 Spacer(minLength: 4)
-                if state.showsGroupTabCounts {
-                    Text(members.count, format: .number).font(.system(size: 11, weight: .medium).monospacedDigit())
-                        .foregroundStyle(colors.tertiary).opacity(!folder.isOpen || hovering ? 1 : 0)
-                }
                 if pill { chevron(open: folder.isOpen).frame(width: 12) }
             }
             .padding(.horizontal, 10)
@@ -241,7 +320,7 @@ struct OutlineGroupHeader: View {
             .opacity(sleeping && !hovering ? 0.5 : 1)
             .background {
                 TabSelectionHighlight(shape: RoundedRectangle(cornerRadius: Radius.row, style: .continuous),
-                                      active: containsActive && !folder.isOpen, color: colors.selected, selection: selection, id: "active-tab")
+                                      active: containsActive && !folder.isOpen, color: colors.selected)
                 if hovering && !(containsActive && !folder.isOpen) {
                     RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(colors.hover)
                 }
@@ -253,7 +332,7 @@ struct OutlineGroupHeader: View {
             .recordLayout("sidebar-folder-\(folder.id)")
             .accessibilityElement(children: .combine)
             .accessibilityLabel(folder.name)
-            .accessibilityValue(folder.disclosureValue(count: members.count, showsCount: state.showsGroupTabCounts))
+            .accessibilityValue(folder.disclosureValue(count: members.count))
         }
     }
 

@@ -8,10 +8,8 @@ extension BrowserState {
     var usesTabsLayout: Bool { browserPreferences.sidebarTopTabs == true }
     /// The tab row and address bar are on screen (full screen gives the page the whole display).
     var showsSidebarTopTabs: Bool { usesTabsLayout && !isImmersive }
-    /// The address bar under the tab row, part of the page's card (Settings ▸ Sidebar & Toolbar ▸ Bar height).
-    var tabsToolbarHeight: CGFloat {
-        CGFloat((browserPreferences.tabsBarHeight ?? TabsBarHeight.standard.rawValue).clamped(to: 26...52))
-    }
+    /// The address bar under the tab row, part of the page's card: fixed.
+    var tabsToolbarHeight: CGFloat { 34 }
     /// The address field and control groups inside it.
     var tabsFieldHeight: CGFloat { tabsToolbarHeight - 8 }
     /// The sidebar's top row (traffic lights and toolbar controls), measured from the window's top edge. Everything
@@ -36,13 +34,12 @@ extension BrowserState {
         guard frostedChrome else { return palette.tabSheet }
         return palette.isDark ? Color.white.opacity(0.12) : palette.tabSheet.opacity(0.62)
     }
-    var sidebarGroupStyle: SidebarGroupStyle { browserPreferences.sidebarGroupStyle ?? .cards }
     /// The sidebar's three states: full, a rail of icons, or hidden (`sidebarVisible`).
     /// Top Tabs: how the address bar sits under the tabs.
-    /// The style of the address bar on screen: Top Tabs' (unset: Centered), or the Sidebar layout's bar above the page
-    /// (`pageBarStyle`, unset: Full Width).
+    /// The style of the address bar on screen: Top Tabs' (`tabsAddressStyle`), or the Sidebar layout's bar above the
+    /// page (`pageBarStyle`). Unset: Full Width.
     var tabsAddressStyle: TabsAddressStyle {
-        showsPageAddressBar ? browserPreferences.pageBarStyle ?? .wide : browserPreferences.tabsAddressStyle ?? .centered
+        (showsPageAddressBar ? browserPreferences.pageBarStyle : browserPreferences.tabsAddressStyle) ?? .wide
     }
     /// Sidebar layout with the address bar above the page (`addressAbovePage`): the bar is the top of the page's card,
     /// whatever the sidebar shows (full, icons or hidden), and the sidebar keeps no address field.
@@ -50,8 +47,20 @@ extension BrowserState {
     /// A bar is the top of the page's card (Top Tabs' address bar, or the Sidebar layout's above the page): the page's
     /// top corners are square under it.
     var pageHasTopBar: Bool { showsSidebarTopTabs || showsPageAddressBar }
-    /// A hidden sidebar slides in at the window's edge (Settings ▸ Appearance ▸ Window and Sidebar).
+    /// A hidden sidebar slides in at the window's edge: every mode but Off.
     var sidebarEdgePeek: Bool { browserPreferences.sidebarEdgePeek ?? true }
+    /// The sidebar as Settings offers it: Full, Icons, Hidden (it slides in at the window's edge) or Off. Top Tabs has
+    /// no full sidebar: its Icons is the rail.
+    var sidebarMode: SidebarMode {
+        get { sidebarVisible ? (showsSidebarRail ? .icons : .full) : (sidebarEdgePeek ? .hidden : .off) }
+        set {
+            sidebarVisible = newValue == .full || newValue == .icons
+            if sidebarVisible { browserPreferences.sidebarCompact = newValue == .icons ? true : nil }
+            browserPreferences.sidebarEdgePeek = newValue == .off ? false : nil
+            // With no sidebar at all, Top Tabs' groups go to the tab row, where they can still be seen.
+            if newValue == .off && usesTabsLayout { browserPreferences.groupPlacement = nil }
+        }
+    }
     /// Top Tabs: with essentials on, pinned tabs live in the icon sidebar, also while it is hidden and slides in at
     /// the window's edge. They lead the tab row as icon tabs only when essentials are off, or when the sidebar is hidden
     /// and can't slide in (edge peek off), so they are never out of reach.
@@ -69,19 +78,34 @@ extension BrowserState {
     var pageCornerRadius: CGFloat { frameInset == 0 || isImmersive ? 0 : Radius.card }
 }
 
-// MARK: - LayoutPlacement
 extension BrowserState {
-    var sidebarOnRight: Bool {
-        get { browserPreferences.sidebarOnRight == true }
-        set { browserPreferences.sidebarOnRight = newValue }
+    /// The retired shortcut rows, once: a row that opened a page becomes a pinned row in every Space, above the
+    /// essentials grid where the rows were above it; the assistant and Notes, which aren't pages, become controls in the
+    /// sidebar's top row; the Space header becomes the Spaces control. The old fields are then cleared.
+    func convertSidebarShortcuts() {
+        let old = browserPreferences
+        browserPreferences.sidebarShortcuts = nil
+        browserPreferences.sidebarShortcutItems = nil
+        browserPreferences.pinnedGridAboveShortcuts = nil
+        guard old.sidebarShortcuts == true else { return }
+        let items = old.sidebarShortcutItems ?? ["assistant", "bookmarks", "history"]
+        let pages = items.compactMap(InternalPage.init(rawValue:)).filter { $0 != .notes }
+        for item in items.compactMap(ChromeItem.init(rawValue:)) where (item == .assistant || item == .notes) && !chromeLayout.contains(item) {
+            chromeLayout.place(item, in: .sidebarTop)
+        }
+        if !chromeLayout.contains(.spaces, in: .sidebarTop) { chromeLayout.place(.spaces, in: .sidebarBottom) }
+        for space in spaces {
+            let new = pages.filter { page in !tabs.contains { $0.spaceID == space.id && $0.pinned && $0.url == page.url } }.map { page in
+                let tab = TabItem(url: page.url, title: page.title, pinned: true, spaceID: space.id)
+                tab.pinAsRow = true
+                tab.pinAboveGrid = old.pinnedGridAboveShortcuts != true
+                return tab
+            }
+            tabs.insert(contentsOf: new, at: 0)
+        }
+        tabs = tabs.filter(\.pinned) + tabs.filter { !$0.pinned }
     }
-    var sidebarLightsFollow: Bool {
-        get { browserPreferences.sidebarLightsFollow ?? true }
-        set { browserPreferences.sidebarLightsFollow = newValue }
-    }
-}
 
-extension BrowserState {
     /// Seed the sidebar's toolbar on enable; later customization, including removal, survives relaunch.
     func preparePageAssistantToolbar() {
         if !chromeLayout.contains(.assistant) { chromeLayout.add(.assistant) }
@@ -271,4 +295,8 @@ extension BrowserState {
         guard let from = URLComponents(string: pageURL)?.host?.lowercased() else { return true }
         return PublicSuffix.registrableDomain(host) != PublicSuffix.registrableDomain(from)
     }
+}
+
+enum SidebarMode: Hashable {
+    case full, icons, hidden, off
 }

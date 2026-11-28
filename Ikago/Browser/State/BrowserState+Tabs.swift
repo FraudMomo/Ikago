@@ -208,6 +208,7 @@ extension BrowserState {
             if let tab = tab(member), tab.pinned {
                 tab.pinAsRow = target.pinAsRow
                 tab.pinAfterFolderID = target.pinAfterFolderID
+                tab.pinAboveGrid = target.pinAboveGrid
             }
         }
         if let last = moving.last { for index in following { folders[index].afterTabID = last } }
@@ -233,6 +234,7 @@ extension BrowserState {
         for member in members {
             self.tab(member)?.pinAsRow = !intoGrid || members.count > 1
             self.tab(member)?.pinAfterFolderID = intoGrid ? nil : afterFolderID
+            self.tab(member)?.pinAboveGrid = false
             move(member, before: nil, pinned: true)
         }
     }

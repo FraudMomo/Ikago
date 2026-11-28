@@ -98,6 +98,7 @@ extension BrowserState {
             tab.isHibernating = saved.unloaded ?? false
             tab.pinAsRow = saved.pinAsRow ?? false
             tab.pinAfterFolderID = saved.pinAfterFolderID.flatMap { folderIDs.contains($0) ? $0 : nil }
+            tab.pinAboveGrid = saved.pinned && saved.pinAboveGrid == true
             tab.history = saved.history
             return tab
         }
@@ -122,8 +123,6 @@ extension BrowserState {
         colorMode = s.colorMode.flatMap(ColorMode.init(rawValue:)) ?? .system
         sidebarWidth = min(420, max(200, s.sidebarWidth ?? Self.defaultSidebarWidth))
         useGlass = s.ui?.glass ?? true
-        frameInset = min(24, max(0, s.ui?.inset ?? Self.defaultFrameInset))
-        sidebarGap = min(24, max(0, s.ui?.gap ?? Self.defaultSidebarGap))
         addressStyle = s.ui?.address.flatMap(AddressStyle.init(rawValue:)) ?? .integrated
         searchShowsHistory = s.ui?.history ?? true
         developerTools = s.ui?.devTools ?? true
@@ -131,6 +130,7 @@ extension BrowserState {
         if browserPreferences.pageIntelligence == true && s.browser?.assistantToolbarInitialized != true {
             preparePageAssistantToolbar()
         }
+        convertSidebarShortcuts()
         newTabMode = s.newTab.flatMap { NewTabMode(rawValue: $0.mode) } ?? .commandBar
         homepage = s.newTab?.homepage ?? ""
         newTabExtensionID = s.newTab?.extensionID

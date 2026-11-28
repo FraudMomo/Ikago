@@ -166,7 +166,6 @@ struct PageSection<Content: View>: View {
         case "Status": "checkmark.shield"
         case "Color & Theme", "Space theme": "paintpalette"
         case "Materials": "square.3.layers.3d"
-        case "Tab Animations": "arrow.left.arrow.right"
         case "Full Screen": "arrow.up.left.and.arrow.down.right"
         case "Secure Connections": "lock.shield"
         case "Website Safety": "exclamationmark.shield"

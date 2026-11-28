@@ -45,9 +45,6 @@ struct TabFolder: Codable, Identifiable, Equatable {
     var icon: String? = nil
     /// The group this one sits inside (nested groups); nil, or a group that no longer exists, is top level.
     var parentID: String? = nil
-    /// Pinned like a tab (top-level groups only): a button with a menu of its tabs among the pins, out of the list of
-    /// groups, its tabs kept when closed, like pinned tabs. Optional so older sessions restore.
-    var isPinned: Bool? = nil
     /// Where a top-level group sits: nil in the block above the tabs (above the New Tab line); "" first among the loose
     /// tabs; a tab's id right after that loose tab, as Chrome and Firefox place groups among tabs. Optional so older
     /// sessions restore into the block, as before.

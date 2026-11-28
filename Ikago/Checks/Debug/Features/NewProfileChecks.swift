@@ -13,10 +13,9 @@ enum NewProfileChecks {
 
         state.applyNewProfileDefaults()
         let prefs = state.browserPreferences
-        check(state.frameInset == 2 && state.sidebarGap == 3 && !state.useGlass
+        check(!state.useGlass
               && prefs.translucentSidebar == true && prefs.sidebarCompact == nil, "new profiles start with the docked sidebar look")
-        check(state.groupLabelStyle == .colorPill && !state.showsGroupTabCounts && state.tabHighlightStyle == .none
-              && prefs.instantTabSwitching == true, "new profiles use color pills, no counts and instant switching")
+        check(state.groupLabelStyle == .colorPill, "new profiles use color pills")
         check(prefs.preferredEngine == BrowserState.newProfileEngine && prefs.chromiumVideoTranslation == false,
               "new profiles start on Chromium with video translation off")
         check(prefs.resourcePolicy == .balanced, "new profiles start on Balanced: unused tabs sleep after 2 hours, warnings reclaim")
@@ -26,7 +25,7 @@ enum NewProfileChecks {
               && state.chromeLayout.sidebarBottom == [.spaces, .newSpace, .settings], "new profiles get the clean sidebar controls")
         state.saveNow()
         let restored = BrowserState(store: store)
-        check(restored.frameInset == 2 && restored.groupLabelStyle == .colorPill && restored.browserPreferences.preferredEngine == .chromium,
+        check(restored.groupLabelStyle == .colorPill && restored.browserPreferences.preferredEngine == .chromium,
               "new-profile defaults are saved as the profile's own values")
 
         check(InternalPage(url: "ikago://welcome") == .welcome && !BrowserState.isReopenableInternalPage(InternalPage.welcome.url),

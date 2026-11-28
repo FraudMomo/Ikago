@@ -35,7 +35,9 @@ enum TopBarGroupChecks {
         state.browserPreferences.groupPlacement = .topBar
         check(state.showsGroupsInTopBar && !state.showsGroupsInSidebar, "Tab Row keeps groups out of the icon sidebar")
         state.browserPreferences.groupPlacement = nil
-        check(state.showsGroupsInTopBar && state.showsGroupsInSidebar, "both by default")
+        check(state.showsGroupsInTopBar && !state.showsGroupsInSidebar, "the tab row by default")
+        let both = try? JSONDecoder().decode(GroupPlacement.self, from: Data("\"both\"".utf8))
+        check(both == .topBar, "a saved Both reads as the tab row")
 
         // Hiding: saved, asleep, out of the row; selecting a tab of it shows it again.
         state.select(b.id)
@@ -62,7 +64,7 @@ enum TopBarGroupChecks {
         state.browserPreferences.sidebarEdgePeek = false
         check(!state.sidebarEdgePeek, "the edge reveal can be turned off")
         check(state.pinsInTabRow, "with the sidebar hidden and no edge reveal, pins lead the tab row")
-        check(state.tabsAddressStyle == .centered, "the address bar is centred by default")
+        check(state.tabsAddressStyle == .wide, "the address bar is full width by default")
         let address = TabItem(url: "https://www.example.com/docs/a%20b?x=1")
         check(address.shortAddress == "example.com/docs/a b?x=1", "Full Width shows the address without scheme or www")
         check(TabItem(url: "https://example.com/").shortAddress == "example.com", "a lone trailing slash is dropped")

@@ -54,12 +54,10 @@ private struct TabsAddressFigure: View {
             // The bar: controls, then the address in its style.
             HStack(spacing: 4) {
                 ForEach(0..<3, id: \.self) { _ in Circle().fill(line).frame(width: 4, height: 4) }
-                ZStack(alignment: style == .centered ? .center : .leading) {
+                ZStack(alignment: .leading) {
                     // Page Title has no field at rest: the words sit on the bar.
                     RoundedRectangle(cornerRadius: 3).fill(colors.text.opacity(style == .title ? 0 : 0.07))
                     switch style {
-                    case .centered:
-                        Capsule().fill(strong).frame(width: 22, height: 3)
                     case .wide:
                         HStack(spacing: 1.5) {
                             Capsule().fill(strong).frame(width: 16, height: 3)
@@ -73,7 +71,6 @@ private struct TabsAddressFigure: View {
                         }.padding(.leading, 3)
                     }
                 }
-                .frame(maxWidth: style == .centered ? 70 : .infinity)
                 .frame(maxWidth: .infinity)
                 .frame(height: 10)
             }
@@ -157,48 +154,33 @@ private struct FigureSidebar: View {
 
 // MARK: - Window and sidebar
 
-/// The sidebar as chosen: full rows, a rail of icons, or hidden; on the left or right.
+/// The sidebar as chosen: full rows, a rail of icons, hidden (sliding in over the page at the window's edge, under the
+/// pointer), or off.
 struct SidebarModeFigure: View {
-    /// 0 full, 1 icons, 2 hidden (Settings ▸ Window and Sidebar).
-    let mode: Int
-    let onRight: Bool
-    let colors: Palette
-
-    var body: some View {
-        FigureWindow(colors: colors) {
-            HStack(spacing: 3) {
-                if !onRight && mode < 2 { FigureSidebar(colors: colors, rail: mode == 1).transition(.opacity) }
-                FigurePage(colors: colors)
-                if onRight && mode < 2 { FigureSidebar(colors: colors, rail: mode == 1).transition(.opacity) }
-            }
-        }
-        .animation(.ikagoQuick, value: mode)
-        .animation(.ikagoQuick, value: onRight)
-    }
-}
-
-/// A hidden sidebar sliding in at the window's edge under the pointer, or (off) staying away.
-struct EdgePeekFigure: View {
-    let on: Bool
+    let mode: SidebarMode
+    /// Top Tabs: its sidebar is the icon rail.
     var rail = false
     let colors: Palette
 
     var body: some View {
         FigureWindow(colors: colors) {
             ZStack(alignment: .leading) {
-                FigurePage(colors: colors)
-                if on {
+                HStack(spacing: 3) {
+                    if mode == .full || mode == .icons { FigureSidebar(colors: colors, rail: mode == .icons).transition(.opacity) }
+                    FigurePage(colors: colors)
+                }
+                if mode == .hidden {
                     FigureSidebar(colors: colors, rail: rail)
                         .padding(4)
                         .background(RoundedRectangle(cornerRadius: 3).fill(colors.panel).shadow(color: .black.opacity(0.2), radius: 2))
                         .padding(.vertical, 3)
                         .transition(.move(edge: .leading).combined(with: .opacity))
+                    Image(systemName: "cursorarrow").font(.system(size: 9)).foregroundStyle(colors.text.opacity(0.8))
+                        .offset(x: rail ? 12 : 22, y: 4)
                 }
-                Image(systemName: "cursorarrow").font(.system(size: 9)).foregroundStyle(colors.text.opacity(0.8))
-                    .offset(x: on ? (rail ? 12 : 22) : -3, y: 4)
             }
         }
-        .animation(.ikagoQuick, value: on)
+        .animation(.ikagoQuick, value: mode)
     }
 }
 
@@ -365,7 +347,8 @@ private struct TabsWindow<Row: View, Rail: View>: View {
 
 /// The full sidebar's groups: tinted cards, or an indented folder list. Part of the sidebar, so no window.
 struct GroupStyleFigure: View {
-    let style: SidebarGroupStyle
+    /// Color pills in tinted cards; off, a small marker over an indented folder list.
+    let pills: Bool
     let colors: Palette
 
     var body: some View {
@@ -373,23 +356,23 @@ struct GroupStyleFigure: View {
         FigureWindow(colors: colors, lights: false) {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 3) {
-                    RoundedRectangle(cornerRadius: 1).fill(tint).frame(width: 5, height: 4)
+                    RoundedRectangle(cornerRadius: 1).fill(tint.opacity(pills ? 0.35 : 1)).frame(width: pills ? 26 : 5, height: 4)
                     RoundedRectangle(cornerRadius: 1).fill(colors.text.opacity(0.4)).frame(width: 20, height: 3)
                 }
                 ForEach(0..<3, id: \.self) { _ in
-                    RoundedRectangle(cornerRadius: 1).fill(colors.figureLine).frame(width: style == .folders ? 38 : 46, height: 3)
-                        .padding(.leading, style == .folders ? 9 : 2)
+                    RoundedRectangle(cornerRadius: 1).fill(colors.figureLine).frame(width: pills ? 46 : 38, height: 3)
+                        .padding(.leading, pills ? 2 : 9)
                 }
             }
             .padding(5)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background { if style == .cards { RoundedRectangle(cornerRadius: 4).fill(tint.opacity(0.16)) } }
+            .background { if pills { RoundedRectangle(cornerRadius: 4).fill(tint.opacity(0.16)) } }
         }
-        .animation(.ikagoQuick, value: style)
+        .animation(.ikagoQuick, value: pills)
     }
 }
 
-/// Top Tabs: group chips in the tab row, tiles in the icon sidebar, or both.
+/// Top Tabs: group chips in the tab row, or tiles in the icon sidebar.
 struct GroupPlacementFigure: View {
     let placement: GroupPlacement
     let colors: Palette
@@ -404,170 +387,6 @@ struct GroupPlacementFigure: View {
             }
         }
         .animation(.ikagoQuick, value: placement)
-    }
-}
-
-// MARK: - Motion
-
-/// The tab highlight moving between rows the way the chosen style does. It plays while the pointer is over it, and a
-/// few steps when the style changes; at rest it is still, so an open Settings page costs nothing (measured: looping
-/// forever kept Ikago at ~10% CPU and WindowServer at ~37%). Part of the sidebar, so no window.
-struct TabHighlightFigure: View {
-    let style: TabHighlightStyle
-    let colors: Palette
-    @Namespace private var selection
-    @State private var active = 0
-    @State private var hovering = false
-    @State private var demo = 0
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        FigureWindow(colors: colors, lights: false) {
-            VStack(spacing: 2) {
-                ForEach(0..<3, id: \.self) { i in
-                    RoundedRectangle(cornerRadius: 1).fill(colors.text.opacity(0.22)).frame(width: 36, height: 3)
-                        .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 5).frame(height: 11)
-                        .background(TabSelectionHighlight(shape: RoundedRectangle(cornerRadius: 3, style: .continuous), active: active == i,
-                                                          color: colors.selected, selection: selection, id: "figure-highlight"))
-                }
-            }
-            .environment(\.tabHighlightStyle, style)
-        }
-        .onHover { hovering = $0 }
-        .onChange(of: style) { demo += 1 }
-        .task(id: "\(hovering)-\(demo)-\(reduceMotion)") {
-            guard !reduceMotion, hovering || demo > 0 else { return }
-            var steps = hovering ? Int.max : 3
-            while steps > 0, !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(hovering ? 900 : 650))
-                guard !Task.isCancelled else { return }
-                active = (active + 1) % 3
-                steps -= 1
-            }
-        }
-    }
-}
-
-/// Switching tabs: the page fades into the next, or changes at once. Plays while the pointer is over it and once when
-/// the setting changes; still at rest.
-struct PageSwitchFigure: View {
-    let instant: Bool
-    let colors: Palette
-    @State private var second = false
-    @State private var hovering = false
-    @State private var demo = 0
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        FigureWindow(colors: colors) {
-            HStack(spacing: 3) {
-                FigureSidebar(colors: colors, rows: 3)
-                ZStack {
-                    page(lines: [0.8, 0.5], accent: false).opacity(second ? 0 : 1)
-                    page(lines: [0.4, 0.9], accent: true).opacity(second ? 1 : 0)
-                }
-            }
-        }
-        .onHover { hovering = $0 }
-        .onChange(of: instant) { demo += 1 }
-        .task(id: "\(hovering)-\(demo)-\(reduceMotion)") {
-            guard !reduceMotion, hovering || demo > 0 else { return }
-            var steps = hovering ? Int.max : 2
-            while steps > 0, !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(hovering ? 1100 : 500))
-                guard !Task.isCancelled else { return }
-                if instant { second.toggle() } else { withAnimation(.easeInOut(duration: 0.25)) { second.toggle() } }
-                steps -= 1
-            }
-        }
-    }
-
-    private func page(lines: [CGFloat], accent: Bool) -> some View {
-        FigurePage(colors: colors)
-            .overlay(alignment: .topLeading) {
-                VStack(alignment: .leading, spacing: 3) {
-                    RoundedRectangle(cornerRadius: 1).fill(accent ? Color.blue.opacity(0.7) : colors.text.opacity(0.35)).frame(width: 20, height: 3.5)
-                    ForEach(lines, id: \.self) { w in Capsule().fill(colors.text.opacity(0.15)).frame(width: 40 * w, height: 2.5) }
-                }
-                .padding(4)
-            }
-    }
-}
-
-// MARK: - Spacing
-
-/// The window with its sidebar and page, spaced as chosen: `inset` around everything, `gap` between sidebar and page.
-struct WindowSpacingFigure: View {
-    var inset: Double = 4
-    var gap: Double = 6
-    var onRight = false
-    let colors: Palette
-
-    var body: some View {
-        // About a sixth of the real spacing, so 0–24 pt reads at this size.
-        let border = CGFloat(inset) * 0.22, between = max(1, CGFloat(gap) * 0.3)
-        FigureWindow(colors: colors) {
-            HStack(spacing: between) {
-                if !onRight { FigureSidebar(colors: colors) }
-                FigurePage(colors: colors)
-                if onRight { FigureSidebar(colors: colors) }
-            }
-            .padding(-2 + border)
-        }
-        .animation(.ikagoQuick, value: inset)
-        .animation(.ikagoQuick, value: gap)
-        .animation(.ikagoQuick, value: onRight)
-    }
-}
-
-// MARK: - Moving the window
-
-/// How the page's top edge moves the window: not at all, press and hold there, or a small header that drops down.
-struct PageGrabFigure: View {
-    let mode: PageGrabMode
-    let colors: Palette
-
-    var body: some View {
-        FigureWindow(colors: colors) {
-            HStack(spacing: 3) {
-                FigureSidebar(colors: colors)
-                FigurePage(colors: colors)
-                    .overlay(alignment: .top) {
-                        switch mode {
-                        case .off:
-                            EmptyView()
-                        case .hold:
-                            Image(systemName: "hand.raised.fill").font(.system(size: 8)).foregroundStyle(colors.text.opacity(0.7)).padding(.top, 2)
-                        case .header:
-                            Capsule().fill(colors.panel).frame(width: 22, height: 6)
-                                .shadow(color: .black.opacity(0.2), radius: 1.5)
-                                .overlay(Capsule().fill(colors.text.opacity(0.3)).frame(width: 8, height: 1.5))
-                                .padding(.top, 2)
-                        }
-                    }
-            }
-        }
-        .animation(.ikagoQuick, value: mode)
-    }
-}
-
-/// Double-clicking the edge fills the screen: the window and the arrows that grow it.
-struct ZoomFigure: View {
-    let on: Bool
-    let colors: Palette
-
-    var body: some View {
-        FigureWindow(colors: colors) {
-            HStack(spacing: 3) {
-                FigureSidebar(colors: colors)
-                FigurePage(colors: colors)
-                    .overlay {
-                        Image(systemName: on ? "arrow.up.left.and.arrow.down.right" : "rectangle")
-                            .font(.system(size: 10, weight: .medium)).foregroundStyle(colors.text.opacity(on ? 0.6 : 0.25))
-                    }
-            }
-        }
-        .animation(.ikagoQuick, value: on)
     }
 }
 
@@ -591,31 +410,5 @@ struct NotchFigure: View {
             .padding(-2)
         }
         .animation(.ikagoQuick, value: besideCamera)
-    }
-}
-
-// MARK: - Group counts
-
-/// A collapsed group's header, with or without how many tabs it holds. Part of the sidebar, so no window.
-struct TabCountFigure: View {
-    let on: Bool
-    let colors: Palette
-
-    var body: some View {
-        FigureWindow(colors: colors, lights: false) {
-            VStack(alignment: .leading, spacing: 4) {
-                ForEach([(Color.blue, "3"), (Color.orange, "5")], id: \.1) { tint, count in
-                    HStack(spacing: 3) {
-                        RoundedRectangle(cornerRadius: 1).fill(tint).frame(width: 5, height: 4)
-                        RoundedRectangle(cornerRadius: 1).fill(colors.text.opacity(0.4)).frame(width: 22, height: 3)
-                        Spacer(minLength: 0)
-                        Text(count).font(.system(size: 7, weight: .semibold).monospacedDigit()).foregroundStyle(colors.text.opacity(0.5))
-                            .opacity(on ? 1 : 0)
-                    }
-                }
-            }
-            .padding(.horizontal, 3).padding(.top, 3)
-        }
-        .animation(.ikagoQuick, value: on)
     }
 }

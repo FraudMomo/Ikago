@@ -53,12 +53,8 @@ enum FeatureBatchChecks {
 
         state.sidebarVisible = true
         state.browserPreferences.sidebarCompact = false
-        state.sidebarOnRight = true
         state.select(a.id)
         await settle()
-        if let frame = LayoutChecks.frames["content"], let shell = LayoutChecks.frames["shell"] {
-            check(frame.maxX < shell.maxX - CGFloat(state.sidebarWidth) + 10, "right sidebar reserves space beside content")
-        } else { check(false, "right sidebar reports content geometry") }
         for topTabs in [false, true] {
             state.browserPreferences.sidebarTopTabs = topTabs ? true : nil
             for _ in 0..<2 {

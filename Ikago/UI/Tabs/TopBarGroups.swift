@@ -54,12 +54,11 @@ extension TabFolder {
     /// The group's color for chips and underlines; nil for a group without one.
     var chipColor: Color? { tagValue?.color }
 
-    /// A chip's width: its name (or icon alone) and, while collapsed, its tab count.
-    func chipWidth(showsCount: Bool) -> CGFloat {
+    /// A chip's width: its name, or its icon alone.
+    var chipWidth: CGFloat {
         let text = name.isEmpty ? 0 : min(118, CGFloat(name.count) * 6.8 + 4)
         let icon: CGFloat = icon == nil && !name.isEmpty ? 0 : 16
-        let count: CGFloat = showsCount && !isOpen ? 20 : 0
-        return 20 + text + icon + count + (text > 0 && icon > 0 ? 4 : 0) + 8
+        return 20 + text + icon + (text > 0 && icon > 0 ? 4 : 0) + 8
     }
 }
 
@@ -86,7 +85,6 @@ struct TopBarGroupChip: View {
     }
 
     var body: some View {
-        let showsCount = state.showsGroupTabCounts && !folder.isOpen
         Button { withAnimation(reduceMotion ? nil : .ikagoQuick) { state.toggleFolder(folder.id) } } label: {
             HStack(spacing: 4) {
                 if folder.icon != nil || folder.name.isEmpty {
@@ -96,10 +94,6 @@ struct TopBarGroupChip: View {
                 }
                 if !folder.name.isEmpty {
                     Text(folder.name).font(.system(size: 11.5, weight: .semibold)).fadeTruncated(fade: 12)
-                }
-                if showsCount {
-                    Text(count, format: .number).font(.system(size: 10, weight: .bold).monospacedDigit())
-                        .opacity(0.75)
                 }
             }
             .foregroundStyle(ink)

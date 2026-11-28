@@ -62,152 +62,126 @@ enum ChromeItem: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-/// The places items can go: the left, centre and right of the sidebar's top row and of its bottom bar (`sidebarTop` is
-/// the top row's right and `sidebarBottom` the bottom bar's centre, where every control sat before rows had three
-/// places); the left and right of the Top Tabs toolbar; and the foot of the icons-only sidebar (the rail).
+/// The places items can go: the sidebar's top row (after the traffic lights) and its bottom row (centred); the left and
+/// right of the Top Tabs toolbar; inside the address field, in every layout; and the foot of the icons-only sidebar.
 /// Each layout has its own places, so an item can sit in the sidebar and in the toolbar at once.
 enum ChromeZone: String, Codable, CaseIterable {
-    case sidebarTopLeading, sidebarTopCenter, sidebarTop
-    case sidebarBottomLeading, sidebarBottom, sidebarBottomTrailing
-    /// Top Tabs: the window's left and right edges, and either side of the address field.
-    case toolbarLeading, toolbarNearLeading, toolbarNearTrailing, toolbarTrailing
-    /// The Sidebar layout's address bar above the page: either side of the address.
-    case pageBarLeading, pageBarTrailing
+    case sidebarTop, sidebarBottom
+    /// Top Tabs: the toolbar's left and right, the address between them.
+    case toolbarLeading, toolbarTrailing
+    /// Inside the address field, after the address. Reload and Site & Extensions there show while the pointer is over
+    /// it (and while a page loads, or when a site asks for something).
+    case address
     case rail
 
     var allowed: [ChromeItem] { ChromeItem.allCases }
-    var isTop: Bool {
-        [.sidebarTopLeading, .sidebarTopCenter, .sidebarTop].contains(self) || Self.toolbarRow.contains(self) || Self.pageBarRow.contains(self)
-    }
+    var isTop: Bool { self != .sidebarBottom && self != .rail }
     var title: String {
         switch self {
-        case .sidebarTopLeading, .sidebarBottomLeading: "Left"
-        case .sidebarTopCenter, .sidebarBottom: "Center"
-        case .sidebarTop, .sidebarBottomTrailing: "Right"
-        case .toolbarLeading: "Left edge"
-        case .toolbarNearLeading: "Left of the address"
-        case .toolbarNearTrailing: "Right of the address"
-        case .toolbarTrailing: "Right edge"
-        case .pageBarLeading: "Left of the address"
-        case .pageBarTrailing: "Right of the address"
+        case .sidebarTop: "Top row"
+        case .sidebarBottom: "Bottom row"
+        case .toolbarLeading: "Left"
+        case .toolbarTrailing: "Right"
+        case .address: "In the address field"
         case .rail: "Icons-only sidebar"
         }
     }
     /// The places an item moves between: placing it in one takes it out of the others in its family only.
     var family: [ChromeZone] {
         switch self {
-        case .toolbarLeading, .toolbarNearLeading, .toolbarNearTrailing, .toolbarTrailing: Self.toolbarRow
+        case .sidebarTop, .sidebarBottom: Self.sidebarRows
+        case .toolbarLeading, .toolbarTrailing: Self.toolbarRow
+        case .address: [.address]
         case .rail: [.rail]
-        case .pageBarLeading, .pageBarTrailing: Self.pageBarRow
-        default: Self.topRow + Self.bottomRow
         }
     }
-    static let topRow: [ChromeZone] = [.sidebarTopLeading, .sidebarTopCenter, .sidebarTop]
-    static let bottomRow: [ChromeZone] = [.sidebarBottomLeading, .sidebarBottom, .sidebarBottomTrailing]
-    static let toolbarRow: [ChromeZone] = [.toolbarLeading, .toolbarNearLeading, .toolbarNearTrailing, .toolbarTrailing]
-    static let pageBarRow: [ChromeZone] = [.pageBarLeading, .pageBarTrailing]
+    static let sidebarRows: [ChromeZone] = [.sidebarTop, .sidebarBottom]
+    static let toolbarRow: [ChromeZone] = [.toolbarLeading, .toolbarTrailing]
 }
 
 /// Which controls show where, in order. Anything not placed is hidden.
 struct ChromeLayout: Codable, Equatable {
     var sidebarTop: [ChromeItem] = [.sidebarToggle, .back, .forward, .reload]
     var sidebarBottom: [ChromeItem] = [.spaces, .newSpace]
-    /// The other places in each row (optional in saved sessions; empty by default).
-    var topLeading: [ChromeItem] = []
-    var topCenter: [ChromeItem] = []
-    var bottomLeading: [ChromeItem] = []
-    var bottomTrailing: [ChromeItem] = []
-    /// Top Tabs: the toolbar's two sides, the address centred between them.
+    /// Top Tabs: the toolbar's two sides, the address between them.
     var toolbarLeading: [ChromeItem] = Self.navigation
     var toolbarTrailing: [ChromeItem] = []
-    /// Top Tabs: controls right beside the address field, on its left and right (empty by default).
-    var toolbarNearLeading: [ChromeItem] = []
-    var toolbarNearTrailing: [ChromeItem] = []
-    /// The Sidebar layout's address bar above the page: controls either side of the address (empty by default: the
-    /// sidebar keeps the navigation).
-    var pageBarLeading: [ChromeItem] = []
-    var pageBarTrailing: [ChromeItem] = []
+    /// Inside the address field, in every layout.
+    var address: [ChromeItem] = [.reload, .siteInfo]
     /// The controls at the foot of the icons-only sidebar.
     var rail: [ChromeItem] = [.sidebarToggle]
     var sidebarShowsAddress = true
     var sidebarShowsNewTab = true
-    /// Reload and the site card's button inside the address field, beside any copies placed in a toolbar.
-    var addressShowsReload = true
-    var addressShowsSiteInfo = true
 
     /// Controls the Top Tabs toolbar keeps left of the address when taken from an older sidebar layout.
     static let navigation: [ChromeItem] = [.sidebarToggle, .back, .forward, .reload]
 
     init() {}
 
+    /// Places older layouts had, each read once into the place nearest it: a row's left, centre and right into the row,
+    /// the toolbar's places beside the address into its sides, and the bar above the page (and the address field's two
+    /// switches) into the address field.
+    private enum Retired: String, CodingKey {
+        case topLeading, topCenter, bottomLeading, bottomTrailing, toolbarNearLeading, toolbarNearTrailing
+        case pageBarLeading, pageBarTrailing, addressShowsReload, addressShowsSiteInfo
+    }
+
     /// Saved layouts from before a field existed keep working; the retired Top Bar's zones are ignored.
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
+        let old = try decoder.container(keyedBy: Retired.self)
         let d = ChromeLayout()
         // Skip items this version no longer has, so one retired control can't fail the whole session.
-        func items(_ key: CodingKeys) throws -> [ChromeItem]? {
-            try c.decodeIfPresent([String].self, forKey: key)?.compactMap(ChromeItem.init(rawValue:))
+        func items<Key: CodingKey>(_ container: KeyedDecodingContainer<Key>, _ key: Key) throws -> [ChromeItem]? {
+            try container.decodeIfPresent([String].self, forKey: key)?.compactMap(ChromeItem.init(rawValue:))
         }
-        sidebarTop = try items(.sidebarTop) ?? d.sidebarTop
-        sidebarBottom = try items(.sidebarBottom) ?? d.sidebarBottom
-        topLeading = try items(.topLeading) ?? []
-        topCenter = try items(.topCenter) ?? []
-        bottomLeading = try items(.bottomLeading) ?? []
-        bottomTrailing = try items(.bottomTrailing) ?? []
+        func merged(_ lists: [ChromeItem]?...) -> [ChromeItem] {
+            var seen = Set<ChromeItem>()
+            return lists.flatMap { $0 ?? [] }.filter { seen.insert($0).inserted }
+        }
+        sidebarTop = try merged(items(old, .topLeading), items(old, .topCenter), items(c, .sidebarTop) ?? d.sidebarTop)
+        sidebarBottom = try merged(items(old, .bottomLeading), items(c, .sidebarBottom) ?? d.sidebarBottom,
+                                   items(old, .bottomTrailing))
         sidebarShowsAddress = try c.decodeIfPresent(Bool.self, forKey: .sidebarShowsAddress) ?? true
         sidebarShowsNewTab = try c.decodeIfPresent(Bool.self, forKey: .sidebarShowsNewTab) ?? true
         // Layouts from before the toolbar had its own places: it showed the sidebar's top row, navigation on the left.
-        let top = topLeading + topCenter + sidebarTop
-        toolbarLeading = try items(.toolbarLeading) ?? top.filter(Self.navigation.contains)
-        toolbarTrailing = try items(.toolbarTrailing) ?? top.filter { !Self.navigation.contains($0) }
-        toolbarNearLeading = try items(.toolbarNearLeading) ?? []
-        toolbarNearTrailing = try items(.toolbarNearTrailing) ?? []
-        pageBarLeading = try items(.pageBarLeading) ?? []
-        pageBarTrailing = try items(.pageBarTrailing) ?? []
-        rail = try items(.rail) ?? d.rail
-        addressShowsReload = try c.decodeIfPresent(Bool.self, forKey: .addressShowsReload) ?? true
-        addressShowsSiteInfo = try c.decodeIfPresent(Bool.self, forKey: .addressShowsSiteInfo) ?? true
+        toolbarLeading = try merged(items(c, .toolbarLeading) ?? sidebarTop.filter(Self.navigation.contains),
+                                    items(old, .toolbarNearLeading))
+        toolbarTrailing = try merged(items(old, .toolbarNearTrailing),
+                                     items(c, .toolbarTrailing) ?? sidebarTop.filter { !Self.navigation.contains($0) })
+        if let placed = try items(c, .address) {
+            address = placed
+        } else {
+            let reload = try old.decodeIfPresent(Bool.self, forKey: .addressShowsReload) ?? true
+            let site = try old.decodeIfPresent(Bool.self, forKey: .addressShowsSiteInfo) ?? true
+            address = try merged(reload ? [.reload] : [], site ? [.siteInfo] : [], items(old, .pageBarLeading),
+                                 items(old, .pageBarTrailing))
+        }
+        rail = try items(c, .rail) ?? d.rail
     }
 
     subscript(zone: ChromeZone) -> [ChromeItem] {
         get {
             switch zone {
-            case .sidebarTopLeading: topLeading
-            case .sidebarTopCenter: topCenter
             case .sidebarTop: sidebarTop
-            case .sidebarBottomLeading: bottomLeading
             case .sidebarBottom: sidebarBottom
-            case .sidebarBottomTrailing: bottomTrailing
             case .toolbarLeading: toolbarLeading
             case .toolbarTrailing: toolbarTrailing
-            case .toolbarNearLeading: toolbarNearLeading
-            case .toolbarNearTrailing: toolbarNearTrailing
-            case .pageBarLeading: pageBarLeading
-            case .pageBarTrailing: pageBarTrailing
+            case .address: address
             case .rail: rail
             }
         }
         set {
             switch zone {
-            case .sidebarTopLeading: topLeading = newValue
-            case .sidebarTopCenter: topCenter = newValue
             case .sidebarTop: sidebarTop = newValue
-            case .sidebarBottomLeading: bottomLeading = newValue
             case .sidebarBottom: sidebarBottom = newValue
-            case .sidebarBottomTrailing: bottomTrailing = newValue
             case .toolbarLeading: toolbarLeading = newValue
             case .toolbarTrailing: toolbarTrailing = newValue
-            case .toolbarNearLeading: toolbarNearLeading = newValue
-            case .toolbarNearTrailing: toolbarNearTrailing = newValue
-            case .pageBarLeading: pageBarLeading = newValue
-            case .pageBarTrailing: pageBarTrailing = newValue
+            case .address: address = newValue
             case .rail: rail = newValue
             }
         }
     }
-
-    /// Everything in the bottom bar, left to right.
-    var bottomItems: [ChromeItem] { bottomLeading + sidebarBottom + bottomTrailing }
 
     /// Moves (or adds) `item` into `zone` before `target`, or at the end. An item appears at most once per family.
     mutating func place(_ item: ChromeItem, in zone: ChromeZone, before target: ChromeItem? = nil) {
@@ -227,7 +201,7 @@ struct ChromeLayout: Codable, Equatable {
     /// Adds a control both layouts should show (the sidebar's top row and the toolbar's right), where it is missing.
     mutating func add(_ item: ChromeItem) {
         if !contains(item, in: .sidebarTop) { place(item, in: .sidebarTop) }
-        if !ChromeZone.toolbarRow.contains(where: { contains(item, in: $0) }) { place(item, in: .toolbarTrailing) }
+        if !contains(item, in: .toolbarTrailing) { place(item, in: .toolbarTrailing) }
     }
 
     func contains(_ item: ChromeItem) -> Bool {
@@ -240,7 +214,7 @@ struct ChromeLayout: Codable, Equatable {
     }
 
     /// Items that can still be added to `zones`.
-    func available(in zones: [ChromeZone] = ChromeZone.topRow + ChromeZone.bottomRow) -> [ChromeItem] {
+    func available(in zones: [ChromeZone] = ChromeZone.sidebarRows) -> [ChromeItem] {
         let used = Set(zones.flatMap { self[$0] })
         return ChromeItem.allCases.filter { !used.contains($0) }
     }

@@ -52,10 +52,6 @@ extension BrowserWindowController {
         }
     }
 
-    @objc func toggleSidebarSide(_ sender: Any?) {
-        withAnimation(.ikago) { state.browserPreferences.sidebarOnRight = state.sidebarOnRight ? nil : true }
-    }
-
     @objc func toggleLiquidGlass(_ sender: Any?) { withAnimation(.ikago) { state.useGlass.toggle() } }
 
     @objc func toggleFrostedSidebar(_ sender: Any?) {

@@ -278,16 +278,14 @@ final class RailHoverModel {
         // The rail moved or resized while the effect showed over it (slid away, the window resized): let go at once.
         if shown, let anchor, !Self.same(anchor, rail) { reset(); stop(); return }
         let onRail = point.map(rail.contains) ?? false
-        // Expand opens only from the tiles: over the rail's own buttons (the sidebar button, Tab Groups, Spaces at the foot)
-        // the full sidebar would cover them, and a click meant for them landed on it instead.
-        // The rail's own buttons are never under the effects: over them they let go at once and let the click through.
-        let overButtons = point.map { point in
+        // Expand opens from anywhere on the rail: the full sidebar it brings has the same controls as the rail's foot.
+        // Magnify's rows never cover the rail's own buttons: over them it lets go at once and lets the click through.
+        let overButtons = effect == .magnify && (point.map { point in
             let height = window.contentView?.bounds.height ?? 0
             return buttons.values.contains { CGRect(x: $0.minX, y: height - $0.maxY, width: $0.width, height: $0.height).contains(point) }
-        } ?? false
-        let onTiles = !overButtons && (effect != .expand || (point.map { tilesRect(rail)?.contains($0) ?? false } ?? false))
-        let onRight = rail.midX > window.frame.width / 2
-        let inZone = !overButtons && (onRail || (point.map { zone(rail, onRight: onRight)?.contains($0) ?? false } ?? false))
+        } ?? false)
+        let onTiles = !overButtons && (effect == .magnify || onRail)
+        let inZone = !overButtons && (onRail || (point.map { zone(rail)?.contains($0) ?? false } ?? false))
         let dragging = isDragging()
         // Magnify steps aside for a drag: its rows and grown icons stayed over the tiles the row moves among, and the
         // rail's own icons stayed hidden under them.
@@ -296,6 +294,9 @@ final class RailHoverModel {
             if phase != .idle { phase = .idle }
             return
         }
+        // A drag that began on the carousel's own tiles is over: its copy of the rail, kept while its list was the drag's
+        // source, goes now.
+        if phase == .idle, anchor != nil { anchor = nil }
         let overLights = point.map { lightsRect()?.insetBy(dx: -4, dy: -4).contains($0) ?? false } ?? false
         let through = !shown || overLights || overButtons || (dragging && !inZone)
         if through != passingThrough { passingThrough = through; onPassThrough?(through) }
@@ -331,8 +332,10 @@ final class RailHoverModel {
         case .idle:
             stop()
             // Nothing stays mounted in the hidden overlay (a whole sidebar, registered for drops); `arming` mounts it
-            // again where it will open.
-            anchor = nil
+            // again where it will open. Except during a drag: a drag can start on the carousel's tiles, and its list
+            // must outlive the drag it is the source of (AppKit still calls it, and the drop moves the rows only when it
+            // ends), so the copy stays, unseen and letting the pointer through, until the drag is over (`tick`).
+            if !isDragging() { anchor = nil }
             pointer = nil
             hovered = nil
             neighbours = []
@@ -359,25 +362,19 @@ final class RailHoverModel {
         if new == .idle, old != .idle { onRelease?() }
     }
 
-    /// The rail's list of tiles (its scroll view, window coordinates), clipped to the rail.
-    private func tilesRect(_ rail: CGRect) -> CGRect? {
-        guard let scroll = surface?.list.view?.enclosingScrollView, scroll.window != nil else { return nil }
-        return scroll.convert(scroll.bounds, to: nil).intersection(rail)
-    }
-
-    /// Where the pointer keeps the effect: Expand's sidebar, or the tab row; both grow away from the window's edge.
-    private func zone(_ rail: CGRect, onRight: Bool) -> CGRect? {
+    /// Where the pointer keeps the effect: Expand's sidebar, or the tab row; both grow from the window's left edge.
+    private func zone(_ rail: CGRect) -> CGRect? {
         switch effect {
         case .expand:
             let width = expandWidth()
             let base = anchor ?? rail
-            return CGRect(x: onRight ? base.maxX - width : base.minX, y: base.minY, width: width, height: base.height)
+            return CGRect(x: base.minX, y: base.minY, width: width, height: base.height)
         case .magnify:
             // The rows: the hovered one and the smaller ones beside it.
             guard let tile = hovered?.tile else { return nil }
             let rows = neighbours.reduce(tile) { $0.union($1.tile) }
             let width = max(tile.width, rowWidth)
-            return CGRect(x: onRight ? tile.maxX - width : tile.minX, y: rows.minY, width: width, height: rows.height)
+            return CGRect(x: tile.minX, y: rows.minY, width: width, height: rows.height)
         case nil:
             return nil
         }

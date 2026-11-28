@@ -19,6 +19,10 @@ struct OutlineDragRig {
         self.state = browser.state
         self.window = window
         self.first = list
+        // From the top of the list: an earlier check may leave it scrolled, with the essentials floating over the
+        // rows at the top, which then take the drops there.
+        list.outlineView.scroll(.zero)
+        list.outlineView.layoutSubtreeIfNeeded()
     }
 
     /// Runs a drag step from the run loop, as AppKit delivers drags, never inside a check's task: AppKit's drag handling
@@ -72,7 +76,25 @@ struct OutlineDragRig {
         let rows = (0..<outlineView.numberOfRows).compactMap { row in
             (outlineView.item(atRow: row) as? OutlineNode).map { (node: $0, rect: outlineView.rect(ofRow: row)) }
         }
+        // The essentials floating over the top of the scrolled list take the pointer there.
+        if let floating = list.floatingEssentials, floating.rect.minY <= pointer.y, pointer.y < floating.rect.maxY {
+            switch SidebarEssentials.spot(inRow: CGPoint(x: pointer.x - floating.rect.minX, y: pointer.y - floating.rect.minY),
+                                          width: floating.rect.width, state) {
+            case .band: return .before("essentials")
+            case .grid(let before): return .essential(before: before)
+            case .after: return rows.first { $0.rect.minY >= floating.rect.maxY }.map { .before($0.node.id) } ?? .end
+            }
+        }
         for (index, row) in rows.enumerated() where row.rect.minY <= pointer.y && pointer.y < row.rect.maxY {
+            if row.node.row.kind == .essentials {
+                // Its band is above the essentials; the grid's tiles take tabs; under them, the next row.
+                switch SidebarEssentials.spot(inRow: CGPoint(x: pointer.x - row.rect.minX, y: pointer.y - row.rect.minY),
+                                              width: row.rect.width, state) {
+                case .band: return .before(row.node.id)
+                case .grid(let before): return .essential(before: before)
+                case .after: return index + 1 < rows.count ? .before(rows[index + 1].node.id) : .end
+                }
+            }
             if pointer.y < row.rect.midY { return .before(row.node.id) }
             if let group = row.node.row.groupID { return .into(group) }
             return index + 1 < rows.count ? .before(rows[index + 1].node.id) : .end
@@ -80,7 +102,8 @@ struct OutlineDragRig {
         return rows.first { $0.rect.minY >= pointer.y }.map { .before($0.node.id) } ?? .end
     }
 
-    /// The model's rows after `moving` dropped at `target`, as the one rule says (nil: refused).
+    /// The model's rows after `moving` dropped at `target`, as the one rule says (nil: refused, or a drop into the
+    /// essentials, which aren't rows of the list).
     func expectedOutline(_ moving: [SidebarOutline.Row], at target: SidebarOutline.Target) -> SidebarOutline? {
         let now = state.sidebarOutline
         return now.place(for: moving, at: target).map { now.moving(moving, to: $0) }
@@ -118,7 +141,7 @@ struct OutlineDragRig {
     func randomDrag(seed: UInt64) async {
         var random = SplitMix(seed: seed)
         let rows = (0..<outlineView.numberOfRows).compactMap { (outlineView.item(atRow: $0) as? OutlineNode)?.row }
-            .filter { $0.kind != .divider }
+            .filter { $0.kind != .divider && $0.kind != .essentials }
         guard let moving = rows.randomElement(using: &random) else { return }
         let drag = moving.groupID.map { PretendDrag(group: $0, window: window) } ?? PretendDrag(tab: moving.tabIDs.first, window: window)
         func anywhere() -> NSPoint {
@@ -146,7 +169,12 @@ struct OutlineDragRig {
     }
 
     /// A point over a row: its upper part (before it), or its lower part (into a group, or before the next row).
-    func point(over id: String, upper: Bool) -> NSPoint { point(row: row(id), fraction: upper ? 0.25 : 0.75) }
+    /// The essentials' row: its band (upper), or the middle of its first tile row (lower).
+    func point(over id: String, upper: Bool) -> NSPoint {
+        guard id == "essentials" else { return point(row: row(id), fraction: upper ? 0.25 : 0.75) }
+        let rect = outlineView.rect(ofRow: row(id))
+        return point(row: row(id), fraction: (upper ? SidebarEssentials.band / 2 : SidebarEssentials.band + 20) / max(1, rect.height))
+    }
 
     /// The window as it looks now, saved as `<IKAGO_SHOTS>/<name>.png` when that folder is set.
     func shot(_ name: String) {
@@ -185,6 +213,7 @@ struct OutlineDragRig {
             rows.map { row in
                 switch row.kind {
                 case .divider: "NEW"
+                case .essentials: "GRID"
                 case .group(let id): "G\(id.prefix(4))[\(describe(row.children))]"
                 case .tabs(let ids): ids.map { "T" + $0.prefix(4) }.joined(separator: "+")
                 }

@@ -12,7 +12,7 @@ extension BrowserWindowController {
     /// The icon rail stacks the lights in a column, which the titlebar has no room for.
     /// Not under the Top Tabs row, which holds the lights itself.
     private var railLights: Bool {
-        state.webApp == nil && state.showsSidebarRail && !state.showsSidebarTopTabs && (!state.sidebarOnRight || state.sidebarLightsFollow)
+        state.webApp == nil && state.showsSidebarRail && !state.showsSidebarTopTabs
     }
 
     /// The system's buttons in a window; Ikago's own (`FullScreenWindowControls`) in full screen and on the
@@ -24,9 +24,6 @@ extension BrowserWindowController {
         for kind: NSWindow.ButtonType in [.closeButton, .miniaturizeButton, .zoomButton] {
             window.standardWindowButton(kind)?.isHidden = drawn
         }
-        let followsRight = state.sidebarOnRight && state.sidebarLightsFollow
-        // The same distance from the sidebar's leading edge as on the left (19 pt from the window, the sidebar at the inset).
-        let rightInset = content.bounds.width - CGFloat(state.sidebarWidth) + 19 - 2 * CGFloat(state.isImmersive ? 0 : state.frameInset)
         if drawn {
             fullScreenControls.show(above: background.shell)
             let band = browserWindow?.fullScreenTopBand ?? 0
@@ -36,17 +33,16 @@ extension BrowserWindowController {
             if railLights {
                 // A column in the rail; a row in the top row of Expand's full sidebar while it is out over the rail, as
                 // when the sidebar is docked. The lights glide between the two with the panel.
-                let columnX = state.sidebarOnRight && state.sidebarLightsFollow
-                    ? content.bounds.width - inset - (BrowserState.sidebarRailWidth + 14) / 2 : inset + (BrowserState.sidebarRailWidth - 14) / 2
+                let columnX = inset + (BrowserState.sidebarRailWidth - 14) / 2
                 fullScreenControls.placeRail(column: (columnX, max(inset, 8) + 16 + lower),
-                                             row: (followsRight ? rightInset : 19, state.sidebarRowCenter + lower),
+                                             row: (19, state.sidebarRowCenter + lower),
                                              band: band, expanded: chrome.rail.expanded)
                 chrome.rail.lightsMoves += 1
             } else {
                 // The sidebar's top row: docked from the top edge, or peeking inside its margin.
                 let frame = CGFloat(state.frameInset)
                 let panel: CGFloat = state.sidebarVisible ? 0 : max(frame, 6)
-                fullScreenControls.place(firstX: followsRight ? rightInset : state.sidebarVisible ? 19 : panel + 15,
+                fullScreenControls.place(firstX: state.sidebarVisible ? 19 : panel + 15,
                                          centerFromTop: panel + max(0, 8 - frame) + 18 + lower, band: band, visible: showsTrafficLights)
             }
             return
@@ -59,19 +55,15 @@ extension BrowserWindowController {
         if state.webApp != nil {
             center = 19; x = 19 + CGFloat(state.frameInset)
         } else if state.showsSidebarTopTabs {
-            // At the start of the tab row, whichever side the rail is on.
+            // At the start of the tab row.
             center = state.sidebarRowCenter; x = 19
-        } else if state.sidebarOnRight && !state.sidebarLightsFollow {
-            // In the window's top-left corner: on the Top Tabs row, or in their own small capsule.
-            center = state.showsSidebarTopTabs ? state.sidebarRowCenter : 23
-            x = state.showsSidebarTopTabs ? 14 : 21
-        } else if state.sidebarVisible || state.showsSidebarTopTabs {
-            center = state.sidebarRowCenter; x = followsRight ? rightInset : 19
+        } else if state.sidebarVisible {
+            center = state.sidebarRowCenter; x = 19
         } else {
             // Revealed over the page: inside the floating card's margin.
             let frame = CGFloat(state.frameInset)
             center = max(frame, 6) + max(0, 8 - frame) + BrowserState.sidebarRowHeight / 2
-            x = followsRight ? rightInset : max(frame, 6) + 13
+            x = max(frame, 6) + 13
         }
         let centerY = content.isFlipped ? content.bounds.minY + center : content.bounds.maxY - center
         for (index, kind) in ([.closeButton, .miniaturizeButton, .zoomButton] as [NSWindow.ButtonType]).enumerated() {

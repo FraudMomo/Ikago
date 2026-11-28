@@ -379,11 +379,6 @@ enum TestDriver {
             NSApp.activate(); c.window?.makeKeyAndOrderFront(nil)
         case "windowshot":  // <png>: the window as it appears on screen, glass and pages included
             if let window = c.window, let content = window.contentView { _ = PeekShot.measure(content, window: window, save: arg) }
-        case "grabheader":  // <png>: drops the page-edge header at the page's middle and captures the window
-            state.browserPreferences.pageGrab = .header
-            c.pageWindowGrab?.header.show(in: c.content.view, at: c.content.view.bounds.midX)
-            try? await Task.sleep(for: .milliseconds(500))
-            if let window = c.window, let content = window.contentView { _ = PeekShot.measure(content, window: window, save: arg) }
         case "corners": corners(c, to: arg)
         case "fullscreen":  // toggles window full screen, then reports every window of the app (arg "notch": on a notched screen)
             if arg == "notch", let screen = NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 }), let w = c.window {
@@ -659,13 +654,11 @@ enum TestDriver {
                 c.chrome.hoverImage = await c.previewImage(tab.id)
                 c.chrome.hoverTabID = tab.id
             }
-        case "sidebarshortcuts": state.browserPreferences.sidebarShortcuts = arg == "on" ? true : nil
+        case "legacyshortcuts":  // <comma-separated rows>: an older profile's shortcut rows, converted as at launch
+            state.browserPreferences.sidebarShortcuts = true
+            state.browserPreferences.sidebarShortcutItems = arg.isEmpty ? nil : arg.split(separator: ",").map(String.init)
+            state.convertSidebarShortcuts()
         case "labelstyle": if let style = GroupLabelStyle(rawValue: arg) { state.groupLabelStyle = style }
-        case "pingroup":  // <name>: a pinned group holding the Space's last two loose tabs (screenshots)
-            let folder = state.createFolder(named: arg.isEmpty ? "Reading" : arg)
-            for tab in state.looseTabs.suffix(2) { state.moveToFolder(tab.id, folderID: folder.id) }
-            state.setFolderTag(folder.id, to: .orange)
-            state.setFolderPinned(folder.id, true)
         case "sidebarfull": state.browserPreferences.sidebarCompact = nil; state.sidebarVisible = true
         case "addressabove": state.browserPreferences.addressAbovePage = arg == "off" ? nil : true  // on | off
         case "newtabmode": if let mode = NewTabMode(rawValue: arg) { state.newTabMode = mode }  // home | commandBar | …
@@ -766,15 +759,14 @@ enum TestDriver {
             state.browserPreferences.sidebarCompact = true; state.sidebarVisible = true
             state.browserPreferences.railHover = RailHoverEffect(rawValue: arg)
         case "sidebartoptabs": state.browserPreferences.sidebarTopTabs = arg == "on" ? true : nil
-        case "sidebargroups": state.browserPreferences.sidebarGroupStyle = SidebarGroupStyle(rawValue: arg)
         case "sidebartranslucency": state.browserPreferences.translucentSidebar = arg == "on"
         case "glass": state.useGlass = arg != "off"
-        case "inset": state.frameInset = Double(arg) ?? 8
-        case "tabsbar": state.browserPreferences.tabsBarHeight = Double(arg)  // Top Tabs bar height, points
         case "addressbuttons":  // <reload|site>:<on|off>
             let p = arg.split(separator: ":").map(String.init)
-            if p.first == "reload" { state.chromeLayout.addressShowsReload = p.last == "on" }
-            if p.first == "site" { state.chromeLayout.addressShowsSiteInfo = p.last == "on" }
+            let item: ChromeItem? = p.first == "reload" ? .reload : p.first == "site" ? .siteInfo : nil
+            if let item {
+                if p.last == "on" { state.chromeLayout.place(item, in: .address) } else { state.chromeLayout.remove(item, from: [.address]) }
+            }
         case "chrome":  // place:<item>:<zone>[:<before>] | remove:<item>:top|side | reset
             let p = arg.split(separator: ":").map(String.init)
             if p.first == "reset" { state.chromeLayout = ChromeLayout() }
@@ -849,9 +841,16 @@ enum TestDriver {
                 let hit = view.hitTest(NSPoint(x: parts[0], y: view.bounds.height - parts[1]))
                 print("IKTEST hitat \(arg) \(hit.map { String(describing: type(of: $0)) } ?? "nil")")
             }
-        case "tabsaddress": state.browserPreferences.tabsAddressStyle = TabsAddressStyle(rawValue: arg)  // centered | wide | title
+        case "tabsaddress": state.browserPreferences.tabsAddressStyle = TabsAddressStyle(rawValue: arg)  // wide | title
         case "edgepeek": state.browserPreferences.sidebarEdgePeek = arg == "off" ? false : nil
         case "pingrid": state.browserPreferences.showPinnedGrid = arg != "off"
+        case "scrollsidebar":  // <points>: scrolls the sidebar's list that far down (screenshots)
+            if let list = SidebarOutlineController.shown(in: c.window), let clip = list.outlineView.enclosingScrollView?.contentView {
+                clip.scroll(to: NSPoint(x: clip.bounds.minX, y: Double(arg) ?? 200))
+                list.outlineView.enclosingScrollView?.reflectScrolledClipView(clip)
+            }
+        case "pinabove":  // the Space's first loose tab, moved above the essentials (screenshots)
+            if let tab = state.looseTabs.first { state.moveSidebarRows(state.sidebarRows(dragging: [tab.id]), to: .before("essentials")) }
         case "flashscrollers":  // shows every scroll bar in the window (the sidebar's overlay ones hide at rest), for a windowshot
             func flash(_ view: NSView) {
                 if let scroll = view as? NSScrollView { scroll.flashScrollers(); scroll.verticalScroller?.alphaValue = 1 }
@@ -965,10 +964,6 @@ enum TestDriver {
             let count2 = state.bookmarks.filter { $0.url.hasPrefix("https://reimport.example") }.count
             let roots = state.bookmarkFolders.filter { $0.name == "Imported from Probe" }.count
             print("IKTEST reimportcheck \(moved && count1 == 2 && count2 == 2 && roots == 1 ? "PASS" : "FAIL") moved=\(moved) first=\(count1) again=\(count2) roots=\(roots)")
-        case "shortcutitems":  // comma-separated SidebarShortcut names; "default" resets
-            state.browserPreferences.sidebarShortcutItems = arg == "default" ? nil : arg.split(separator: ",").map(String.init)
-        case "gridabove": state.browserPreferences.pinnedGridAboveShortcuts = arg == "off" ? nil : true
-        case "pinnedstay": state.browserPreferences.pinnedRowsStayInView = arg == "off" ? nil : true
         case "dump": dump(c)
         // Quit from the run loop like a menu does: inside this task the main queue is busy, so
         // `.terminateLater` work (clearing data, flushing cookies) could never finish.

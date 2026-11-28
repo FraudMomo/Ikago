@@ -140,18 +140,13 @@ extension BrowserState {
 
     func applyNewProfileDefaults() {
         sidebarVisible = true
-        frameInset = 2
-        sidebarGap = 3
         useGlass = false
         addressStyle = .floating
         searchEngine = .google
         groupLabelStyle = .colorPill
-        showsGroupTabCounts = false
-        tabHighlightStyle = .none
         showsBookmarksBar = false
         browserPreferences.translucentSidebar = true
         browserPreferences.sidebarCompact = nil
-        browserPreferences.instantTabSwitching = true
         browserPreferences.showPinnedGrid = true
         browserPreferences.preferredEngine = Self.newProfileEngine
         browserPreferences.chromiumVideoTranslation = false

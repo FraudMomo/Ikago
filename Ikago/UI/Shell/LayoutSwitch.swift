@@ -23,7 +23,11 @@ enum LayoutSwitch {
         }
         var transaction = Transaction()
         transaction.disablesAnimations = true
-        withTransaction(transaction) { state.browserPreferences.sidebarTopTabs = tabs ? true : nil }
+        withTransaction(transaction) {
+            state.browserPreferences.sidebarTopTabs = tabs ? true : nil
+            // The Sidebar layout's tabs are only in its sidebar: one that was Off under Top Tabs slides in instead.
+            if !tabs && state.sidebarMode == .off { state.sidebarMode = .hidden }
+        }
         // Build the new layout now, inside this transaction, so the fade has both pictures.
         content?.layoutSubtreeIfNeeded()
         CATransaction.commit()

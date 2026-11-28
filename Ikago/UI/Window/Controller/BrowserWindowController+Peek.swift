@@ -91,7 +91,6 @@ extension BrowserWindowController {
         guard let controller = peekController else { chrome.peekExpanding = false; return }
         var instant = Transaction(); instant.disablesAnimations = true
         withTransaction(instant) {
-            content.switchesInstantly = true
             if peekIsTemporary {
                 // The previewed page itself moves into the tab list (as a tab moving between windows does), placed
                 // where a link opened from the current tab would go.
